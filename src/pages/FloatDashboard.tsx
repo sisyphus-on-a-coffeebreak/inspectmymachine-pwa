@@ -1,85 +1,108 @@
+// src/pages/FloatDashboard.tsx
 import { useEffect, useState } from "react";
-import AppShell from "@/layouts/AppShell";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useAuth } from "@/providers/AuthProvider";
+import { Button } from "@/components/ui/button";
 
-type Who = { ok: boolean; user: { id: number; name: string; email: string }; can?: { manage_floats?: boolean } };
-type Statement = {
-  user_id: number; cap: number; carry_forward: number;
-  week_start: string; week_topup: number; week_expense: number;
-  outstanding: number; remaining: number;
-  transactions: { id:number; type:string; amount:number; memo?:string; ts:string }[];
-};
+type AnyObj = Record<string, any>;
 
 export default function FloatDashboard() {
   const { fetchJson } = useAuth();
-  const [who, setWho] = useState<Who | null>(null);
-  const [stmt, setStmt] = useState<Statement | null>(null);
-  const [amount, setAmount] = useState("");
+  const [who, setWho] = useState<AnyObj | null>(null);
+  const [stmt, setStmt] = useState<AnyObj | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
       const w = await fetchJson("/api/v1/whoami");
-      setWho(w);
-      const s = await fetchJson("/api/v1/float/statement?mine=1");
-      setStmt(s);
-    })();
-  }, [fetchJson]);
+      setWho(w as AnyObj);
 
-  async function onTopup(e: React.FormEvent) {
-    e.preventDefault();
-    if (!amount) return;
-    await fetchJson("/api/v1/float/topup", {
-      method: "POST",
-      body: JSON.stringify({ user_id: who!.user.id, amount: parseInt(amount, 10), memo: "manual top-up" }),
-    });
-    setStmt(await fetchJson("/api/v1/float/statement?mine=1"));
-    setAmount("");
+      // statement for the logged-in user
+      const s = await fetchJson("/api/v1/float/statement?mine=1");
+      setStmt(s as AnyObj);
+    } catch (e: any) {
+      setError(e?.message || "Failed to load float info");
+    } finally {
+      setLoading(false);
+    }
   }
 
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const balance =
+    (stmt?.balance ?? stmt?.account?.balance ?? null) as number | null;
+
+  const txns = ((stmt?.transactions ?? stmt?.txns) || []) as AnyObj[];
+
   return (
-    <AppShell>
-      <h1 className="text-xl font-semibold mb-4">Float</h1>
-      {!stmt ? <div>Loading…</div> : (
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-xl border p-4"><div className="text-sm opacity-60 mb-1">Cap</div><div className="text-2xl font-semibold">₹{stmt.cap.toLocaleString()}</div></div>
-          <div className="rounded-xl border p-4"><div className="text-sm opacity-60 mb-1">Outstanding</div><div className="text-2xl font-semibold">₹{stmt.outstanding.toLocaleString()}</div><div className="text-xs opacity-60 mt-1">Since {new Date(stmt.week_start).toLocaleDateString()}</div></div>
-          <div className="rounded-xl border p-4"><div className="text-sm opacity-60 mb-1">Remaining</div><div className="text-2xl font-semibold">₹{stmt.remaining.toLocaleString()}</div></div>
-          <div className="rounded-xl border p-4 md:col-span-3">
-            <div className="flex items-center gap-6">
-              <div><div className="text-sm opacity-60">Top-ups (week)</div><div className="text-xl font-semibold">₹{stmt.week_topup.toLocaleString()}</div></div>
-              <div><div className="text-sm opacity-60">Expenses (week)</div><div className="text-xl font-semibold">₹{stmt.week_expense.toLocaleString()}</div></div>
-              {who?.can?.manage_floats && (
-                <form onSubmit={onTopup} className="ml-auto flex items-end gap-2">
-                  <div><div className="text-sm opacity-60 mb-1">Admin Top-up</div>
-                    <Input inputMode="numeric" value={amount} onChange={(e)=>setAmount(e.target.value.replace(/\D/g,''))} placeholder="₹ amount" />
-                  </div>
-                  <Button type="submit" disabled={!amount}>Top-up</Button>
-                </form>
-              )}
-            </div>
-            <hr className="my-4" />
-            <div className="text-sm font-medium mb-2">Recent activity</div>
-            <div className="rounded-lg border overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/40"><tr><th className="text-left p-2">When</th><th className="text-left p-2">Type</th><th className="text-right p-2">Amount</th><th className="text-left p-2">Memo</th></tr></thead>
-                <tbody>
-                  {stmt.transactions.slice().reverse().slice(0, 20).map(t=>(
-                    <tr key={t.id} className="border-t">
-                      <td className="p-2">{new Date(t.ts).toLocaleString()}</td>
-                      <td className="p-2">{t.type}</td>
-                      <td className="p-2 text-right">₹{t.amount.toLocaleString()}</td>
-                      <td className="p-2">{t.memo}</td>
-                    </tr>
-                  ))}
-                  {stmt.transactions.length===0 && <tr><td className="p-3 text-center opacity-60" colSpan={4}>No transactions in range.</td></tr>}
-                </tbody>
-              </table>
-            </div>
+    <div className="p-4 max-w-3xl mx-auto">
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Float</h1>
+        <Button onClick={load} disabled={loading}>
+          {loading ? "Refreshing…" : "Refresh"}
+        </Button>
+      </div>
+
+      {error && (
+        <div className="mb-3 text-sm text-red-600 dark:text-red-400">
+          Error: {error}
+        </div>
+      )}
+
+      {loading && !who && (
+        <div className="opacity-70 text-sm">Loading…</div>
+      )}
+
+      {who && (
+        <div className="mb-4 text-sm">
+          <div className="font-medium">Signed in</div>
+          <div className="opacity-70">
+            {who?.user?.name} &lt;{who?.user?.email}&gt;
           </div>
         </div>
       )}
-    </AppShell>
+
+      <div className="rounded-xl border p-4">
+        <div className="flex items-center justify-between">
+          <div className="font-medium">Balance</div>
+          <div className="text-lg font-semibold">
+            {balance !== null ? `₹${balance.toLocaleString("en-IN")}` : "—"}
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <div className="font-medium mb-2">Recent transactions</div>
+          {Array.isArray(txns) && txns.length > 0 ? (
+            <ul className="space-y-2">
+              {txns.slice(0, 10).map((t, i) => (
+                <li key={t.id ?? i} className="text-sm flex justify-between">
+                  <span className="opacity-80">
+                    {(t.type ?? t.kind ?? "").toString() || "txn"} —{" "}
+                    {(t.note ?? t.description ?? "").toString()}
+                  </span>
+                  <span className="font-medium">
+                    {t.amount != null ? `₹${Number(t.amount).toLocaleString("en-IN")}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-sm opacity-60">No transactions.</div>
+          )}
+        </div>
+      </div>
+
+      {/* Raw JSON fallback for quick backend shape inspection */}
+      <details className="mt-6">
+        <summary className="cursor-pointer text-sm font-medium">Debug payloads</summary>
+        <pre className="mt-2 text-xs overflow-auto rounded bg-muted p-3">
+{JSON.stringify({ who, stmt }, null, 2)}
+        </pre>
+      </details>
+    </div>
   );
 }
