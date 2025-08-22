@@ -1,106 +1,132 @@
 // src/pages/FloatDashboard.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import { Button } from "@/components/ui/button";
 
-type AnyObj = Record<string, any>;
+type Who = { ok: boolean; user?: { id: number; name: string; email: string }; can?: { manage_floats?: boolean } };
+type Txn = { id?: number; ts?: string; amount: number; kind?: string; note?: string };
+type Statement = {
+  user_id: number;
+  cap: number;
+  carry_forward?: number;
+  outstanding?: number;
+  remaining?: number;
+  transactions: Txn[];
+  range?: { from?: string; to?: string };
+};
+
+const inr = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 
 export default function FloatDashboard() {
-  const { fetchJson } = useAuth();
-  const [who, setWho] = useState<AnyObj | null>(null);
-  const [stmt, setStmt] = useState<AnyObj | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { fetchJson, logout } = useAuth();
+  const [who, setWho] = useState<Who | null>(null);
+  const [stmt, setStmt] = useState<Statement | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const w = await fetchJson("/api/v1/whoami");
-      setWho(w as AnyObj);
-
-      // statement for the logged-in user
-      const s = await fetchJson("/api/v1/float/statement?mine=1");
-      setStmt(s as AnyObj);
+      const w = await fetchJson<Who>("/api/v1/whoami");
+      setWho(w);
+      const s = await fetchJson<Statement>("/api/v1/float/statement?mine=1");
+      setStmt(s);
     } catch (e: any) {
-      setError(e?.message || "Failed to load float info");
+      setError(e?.message || "Failed to load float data");
     } finally {
       setLoading(false);
     }
-  }
+  }, [fetchJson]);
 
   useEffect(() => {
-    void load();
-  }, []);
+    load();
+  }, [load]);
 
-  const balance =
-    (stmt?.balance ?? stmt?.account?.balance ?? null) as number | null;
+  // Basic HTML-guard (in case wrong host ever returns the SPA again)
+  const looksLikeHtml = (x: any) =>
+    typeof x === "string" && /^\s*<!doctype html/i.test(x);
 
-  const txns = ((stmt?.transactions ?? stmt?.txns) || []) as AnyObj[];
+  const balance = stmt?.remaining ?? null;
+  const outstanding = stmt?.outstanding ?? 0;
+  const cap = stmt?.cap ?? null;
 
   return (
-    <div className="p-4 max-w-3xl mx-auto">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="max-w-2xl mx-auto p-4 space-y-4">
+      <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Float</h1>
-        <Button onClick={load} disabled={loading}>
-          {loading ? "Refreshing…" : "Refresh"}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={load} disabled={loading}>
+            {loading ? "Refreshing…" : "Refresh"}
+          </Button>
+          <Button variant="ghost" onClick={logout} className="border">
+            Logout
+          </Button>
+        </div>
       </div>
 
-      {error && (
-        <div className="mb-3 text-sm text-red-600 dark:text-red-400">
-          Error: {error}
+      {error && <div className="text-sm text-red-600">Error: {error}</div>}
+
+      {who?.user ? (
+        <div className="text-sm text-muted-foreground">
+          Signed in <span className="mx-1">•</span>
+          <span className="font-medium">{who.user.name}</span>{" "}
+          <span className="opacity-70">&lt;{who.user.email}&gt;</span>
         </div>
+      ) : (
+        <div className="text-sm">Not signed in.</div>
       )}
 
-      {loading && !who && (
-        <div className="opacity-70 text-sm">Loading…</div>
-      )}
-
-      {who && (
-        <div className="mb-4 text-sm">
-          <div className="font-medium">Signed in</div>
-          <div className="opacity-70">
-            {who?.user?.name} &lt;{who?.user?.email}&gt;
-          </div>
+      <div className="rounded-xl border p-4 space-y-3">
+        <div className="text-xs uppercase tracking-wide opacity-70">Balance</div>
+        <div className="text-3xl font-semibold">
+          {balance == null ? "—" : inr.format(balance)}
         </div>
-      )}
+        <div className="text-sm opacity-70">
+          {cap != null ? <>Cap {inr.format(cap)}</> : null}
+          {cap != null && outstanding != null ? (
+            <> · Outstanding {inr.format(outstanding)}</>
+          ) : null}
+        </div>
+      </div>
 
       <div className="rounded-xl border p-4">
-        <div className="flex items-center justify-between">
-          <div className="font-medium">Balance</div>
-          <div className="text-lg font-semibold">
-            {balance !== null ? `₹${balance.toLocaleString("en-IN")}` : "—"}
-          </div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="font-medium">Recent transactions</div>
         </div>
-
-        <div className="mt-4">
-          <div className="font-medium mb-2">Recent transactions</div>
-          {Array.isArray(txns) && txns.length > 0 ? (
-            <ul className="space-y-2">
-              {txns.slice(0, 10).map((t, i) => (
-                <li key={t.id ?? i} className="text-sm flex justify-between">
-                  <span className="opacity-80">
-                    {(t.type ?? t.kind ?? "").toString() || "txn"} —{" "}
-                    {(t.note ?? t.description ?? "").toString()}
-                  </span>
-                  <span className="font-medium">
-                    {t.amount != null ? `₹${Number(t.amount).toLocaleString("en-IN")}` : ""}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="text-sm opacity-60">No transactions.</div>
-          )}
-        </div>
+        {stmt?.transactions?.length ? (
+          <ul className="divide-y">
+            {stmt.transactions.map((t, idx) => (
+              <li key={t.id ?? idx} className="py-2 flex items-center justify-between">
+                <div className="text-sm">
+                  <div className="font-medium">
+                    {t.kind || "txn"} {t.note ? `• ${t.note}` : ""}
+                  </div>
+                  <div className="text-xs opacity-70">
+                    {t.ts ? new Date(t.ts).toLocaleString() : "—"}
+                  </div>
+                </div>
+                <div className="text-sm font-medium">{inr.format(t.amount)}</div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="text-sm opacity-60">No transactions.</div>
+        )}
       </div>
 
-      {/* Raw JSON fallback for quick backend shape inspection */}
-      <details className="mt-6">
+      {/* Debug panel — collapse or remove later */}
+      <details className="rounded-xl border p-4">
         <summary className="cursor-pointer text-sm font-medium">Debug payloads</summary>
-        <pre className="mt-2 text-xs overflow-auto rounded bg-muted p-3">
-{JSON.stringify({ who, stmt }, null, 2)}
+        <pre className="text-xs mt-3 overflow-auto">
+{JSON.stringify(
+  {
+    who: looksLikeHtml(who) ? "(HTML)" : who,
+    stmt: looksLikeHtml(stmt) ? "(HTML)" : stmt,
+  },
+  null,
+  2
+)}
         </pre>
       </details>
     </div>
