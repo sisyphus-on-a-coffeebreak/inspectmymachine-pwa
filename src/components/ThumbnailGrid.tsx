@@ -54,13 +54,12 @@ export default function ThumbnailGrid({ items }: { items: Thumb[] }) {
           {/* delete: visible by default on touch, hover on desktop */}
           {it.onDelete && (
             <button
-              onClick={it.onDelete}
-              className={clsx(
-                "absolute top-2 right-2 z-20",
-                "opacity-100 md:opacity-0 md:group-hover:opacity-100 transition",
-                "bg-black/60 text-white rounded-full p-2",
-                "focus:outline-none focus:ring-2 focus:ring-white/70"
-              )}
+            type="button"
+            onClick={it.onDelete}
+               className="absolute top-2 right-2 z-30 bg-black/60 text-white rounded-full p-2 shadow focus:outline-none focus:ring-2 focus:ring-white/70 pointer-events-auto"
+            aria-label="Delete"
+          >
+          
               aria-label="Delete"
             >
               <X className="h-4 w-4" />
