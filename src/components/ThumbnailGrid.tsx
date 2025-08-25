@@ -60,21 +60,16 @@ export default function ThumbnailGrid({ items }: { items: Thumb[] }) {
           <ThumbImage url={it.url} storageKey={it.key} />
 
           {it.onDelete && (
-            <button
-              type="button"
-              onClick={it.onDelete}
-              aria-label="Delete"
-              className={clsx(
-                "absolute top-2 right-2 z-20",
-                // Always visible; on desktop it fades in on hover.
-                "opacity-100 md:opacity-0 md:group-hover:opacity-100",
-                "transition bg-black/60 text-white rounded-full p-2",
-                "focus:outline-none focus:ring-2 focus:ring-white/70"
-              )}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
+  <button
+    type="button"
+    onClick={it.onDelete}
+    aria-label="Delete"
+    className="absolute top-2 right-2 z-20 opacity-100 transition bg-black/70 text-white rounded-full p-2 shadow-md focus:outline-none focus:ring-2 focus:ring-white/70"
+  >
+    <X className="h-4 w-4" />
+  </button>
+)}
+
 
           {it.uploading && (
             <div className="absolute inset-0 z-10 bg-black/30 flex items-end pointer-events-none">
