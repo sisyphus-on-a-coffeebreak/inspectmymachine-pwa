@@ -1,3 +1,4 @@
+// src/App.tsx
 import { Routes, Route, Navigate } from "react-router-dom";
 import RequireAuth from "@/components/RequireAuth";
 import FloatDashboard from "@/pages/FloatDashboard";
@@ -12,52 +13,22 @@ export default function App() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
 
-      {/* Completed inspections list */}
-      <Route
-        path="/inspections/completed"
-        element={
-          <RequireAuth>
-            <InspectionsCompleted />
-          </RequireAuth>
-        }
-      />
+      {/* details page (already present) */}
+      <Route path="/inspections/:id" element={<InspectionDetails />} />
 
-      {/* Inspection details */}
-      <Route
-        path="/inspections/:id"
-        element={
-          <RequireAuth>
-            <InspectionDetails />
-          </RequireAuth>
-        }
-      />
-
-      {/* Capture — keep existing path and add a shorter alias */}
-      <Route
-        path="/app/inspection/:id/capture"
-        element={
-          <RequireAuth>
-            <InspectionCapture />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/capture/:id"
-        element={
-          <RequireAuth>
-            <InspectionCapture />
-          </RequireAuth>
-        }
-      />
-
-      {/* Float dashboard */}
       <Route
         path="/app/float"
-        element={
-          <RequireAuth>
-            <FloatDashboard />
-          </RequireAuth>
-        }
+        element={<RequireAuth><FloatDashboard /></RequireAuth>}
+      />
+
+      <Route
+        path="/app/inspections/completed"
+        element={<RequireAuth><InspectionsCompleted /></RequireAuth>}
+      />
+
+      <Route
+        path="/app/inspection/:id/capture"
+        element={<RequireAuth><InspectionCapture /></RequireAuth>}
       />
 
       <Route path="*" element={<div style={{ padding: 16 }}>Not found</div>} />
