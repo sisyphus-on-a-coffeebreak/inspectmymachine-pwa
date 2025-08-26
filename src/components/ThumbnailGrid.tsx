@@ -62,17 +62,26 @@ export default function ThumbnailGrid({ items, onDelete }: Props) {
               </div>
             )}
 
-            <button
-              type="button"
-              data-testid="thumb-delete"
-              aria-label="Delete photo"
-              onClick={(e) => { e.stopPropagation(); (itemDelete ?? onDelete)?.(key); }}
-              onTouchStart={(e) => { e.stopPropagation(); (itemDelete ?? onDelete)?.(key); }}
-              disabled={!(itemDelete || onDelete)}
-              className="absolute top-1.5 right-1.5 z-30 h-11 w-11 rounded-full bg-black/70 text-white flex items-center justify-center shadow ring-1 ring-white/20 pointer-events-auto disabled:opacity-60"
-            >
-              <X className="h-5 w-5" />
-            </button>
+           <button
+                type="button"
+                data-testid="thumb-delete"
+                aria-label="Delete photo"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (itemDelete) itemDelete();   // no args for per-item closure
+                  else onDelete?.(key);           // fallback to parent handler with key
+                }}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  if (itemDelete) itemDelete();
+                  else onDelete?.(key);
+                }}
+                disabled={!(itemDelete || onDelete)}
+                className="absolute top-1.5 right-1.5 z-30 h-11 w-11 rounded-full bg-black/70 text-white flex items-center justify-center shadow ring-1 ring-white/20 pointer-events-auto disabled:opacity-60"
+              >
+                <X className="h-5 w-5" />
+          </button>
+
           </div>
         );
       })}
