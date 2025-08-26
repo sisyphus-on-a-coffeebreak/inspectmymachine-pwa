@@ -1,3 +1,4 @@
+// src/providers/AuthProvider.tsx
 import React, { createContext, useContext, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -39,9 +40,7 @@ function makeUrl(apiBase: string, input: RequestInfo | URL): RequestInfo | URL {
 
 export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const navigate = useNavigate();
-  const [token, _setToken] = useState<string | null>(() =>
-    (typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null)
-  );
+  const [token, _setToken] = useState<string | null>(() => (typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null));
   const [apiBase] = useState<string>(() => resolveApiBase());
 
   const logout = useCallback(() => {
@@ -64,10 +63,8 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     const url = makeUrl(apiBase, input);
 
     const headers = new Headers(init.headers || {});
-    // Force JSON semantics for API
-    if (!headers.has("Accept")) headers.set("Accept", "application/json");
-    if (!headers.has("X-Requested-With")) headers.set("X-Requested-With", "XMLHttpRequest");
-    if (token && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${token}`);
+    headers.set("Accept", "application/json");
+    if (token) headers.set("Authorization", `Bearer ${token}`);
 
     // 30s timeout guard
     const ac = new AbortController();
@@ -75,14 +72,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
 
     let res: Response;
     try {
-      res = await fetch(url, {
-        ...init,
-        headers,
-        mode: "cors",
-        redirect: "manual",
-        credentials: "omit",
-        signal: ac.signal,
-      });
+      res = await fetch(url, { ...init, headers, credentials: "omit", signal: ac.signal });
     } catch (err: any) {
       clearTimeout(timer);
       const msg = err?.name === "AbortError" ? "Request timed out. Check your network." : "Network error. Please retry.";
@@ -92,13 +82,8 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
 
     const contentType = res.headers.get("content-type") || "";
     const isJson = contentType.includes("application/json");
-
-    // Read once; we’ll branch on type
     const text = await res.text();
-    const looksHtml = !isJson && /^\s*<(?:!doctype|html|head|body)\b/i.test(text || "");
-    const asJson = isJson && text
-      ? (() => { try { return JSON.parse(text); } catch { return null; } })()
-      : null;
+    const asJson = isJson && text ? (() => { try { return JSON.parse(text); } catch { return null; } })() : null;
 
     if (res.status === 401) {
       console.warn("401 from API, logging out");
@@ -107,13 +92,6 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     }
 
     if (!res.ok) {
-      // If the API (or tunnel) returned HTML, surface a clear error
-      if (looksHtml) {
-        if (localStorage.getItem("voms.debug") === "1") {
-          console.warn("[fetchJson] Non-JSON error body (first 160):", (text || "").slice(0, 160));
-        }
-        throw new Error(`Non-JSON ${res.status} from ${new URL(res.url).pathname}`);
-      }
       if (res.status === 413) throw new Error(asJson?.message || "File too large.");
       if (res.status === 422) {
         const vmsg = asJson?.message ?? (asJson?.errors ? JSON.stringify(asJson.errors) : "Validation failed.");
@@ -122,18 +100,8 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       throw new Error(asJson?.message || `Request failed: ${res.status}`);
     }
 
-    // Success path: prefer JSON; if backend sent JSON with wrong header but valid JSON text, accept it
     if (!text) return {} as any;
-    if (asJson) return asJson as any;
-    try {
-      return JSON.parse(text) as any;
-    } catch {
-      if (looksHtml) {
-        throw new Error(`Unexpected HTML from ${new URL(res.url).pathname}`);
-      }
-      // Last resort: return raw text (should be rare)
-      return text as any;
-    }
+    return (asJson ?? (text as any)) as any;
   }, [apiBase, token, logout]);
 
   const value = useMemo(() => ({ token, setToken, fetchJson, logout, apiBase }), [token, setToken, fetchJson, logout, apiBase]);
