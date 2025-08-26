@@ -19,18 +19,21 @@ type Resp = {
   meta?: { current_page: number; last_page: number; total: number };
 };
 
+function fmtDate(s: string) {
+  // assume ISO-ish; fall back if parse fails
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString();
+}
+
 export default function InspectionsCompleted() {
   const { token } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [page, setPage] = useState(1);
-  void setPage; // silence unused until pagination is wired
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | undefined>();
+  const [meta, setMeta] = useState<{ current_page: number; last_page: number; total: number } | null>(null);
 
-  const qs = useMemo(
-    () => new URLSearchParams({ page: String(page) }).toString(),
-    [page]
-  );
+  const qs = useMemo(() => new URLSearchParams({ page: String(page) }).toString(), [page]);
 
   useEffect(() => {
     (async () => {
@@ -42,26 +45,63 @@ export default function InspectionsCompleted() {
         if (!res.ok) {
           setErr(`Request failed: ${res.status}`);
           setRows([]);
+          setMeta(null);
           return;
         }
         const json: Resp = await res.json();
         setRows(json.data ?? []);
+        setMeta(json.meta ?? null);
       } catch (e: unknown) {
         setErr(e instanceof Error ? e.message : String(e));
+        setRows([]);
+        setMeta(null);
       } finally {
         setLoading(false);
       }
     })();
   }, [qs, token]);
 
+  const canPrev = (meta?.current_page ?? page) > 1;
+  const canNext = (meta?.current_page ?? page) < (meta?.last_page ?? page);
+
   return (
     <AppShell>
-      <h1 className="text-xl font-semibold mb-4">Completed Inspections</h1>
+      <div className="mb-4 flex items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold">Completed Inspections</h1>
+          {meta?.total !== undefined && (
+            <div className="text-sm opacity-70 mt-0.5">{meta.total} total</div>
+          )}
+        </div>
+
+        {/* Pagination */}
+        <div className="flex items-center gap-2 text-sm">
+          <button
+            className="rounded border px-3 py-1 disabled:opacity-50"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={!canPrev || loading}
+          >
+            ← Prev
+          </button>
+          <div className="tabular-nums">
+            Page {meta?.current_page ?? page}{meta?.last_page ? ` / ${meta.last_page}` : ""}
+          </div>
+          <button
+            className="rounded border px-3 py-1 disabled:opacity-50"
+            onClick={() => setPage((p) => p + 1)}
+            disabled={!canNext || loading}
+          >
+            Next →
+          </button>
+        </div>
+      </div>
+
       {err && (
         <div className="mb-3 text-sm text-red-600 dark:text-red-400">
           Error: {err}
         </div>
       )}
+
       <div className="overflow-x-auto rounded-xl border dark:border-zinc-800">
         <table className="min-w-full text-sm">
           <thead className="bg-zinc-50 dark:bg-zinc-900">
@@ -77,21 +117,23 @@ export default function InspectionsCompleted() {
           <tbody className="[&>tr>td]:px-3 [&>tr>td]:py-2">
             {rows.map((r) => (
               <tr key={r.id} className="border-t dark:border-zinc-800">
-                <td>{r.date}</td>
-
-                {/* Vehicle cell with Link to details page */}
-                <td>
+                <td className="whitespace-nowrap">{fmtDate(r.date)}</td>
+                <td className="whitespace-nowrap">
                   <Link className="text-blue-600 hover:underline" to={`/inspections/${r.id}`}>
                     {r.vehicle || "-"}
                   </Link>
                 </td>
-
                 <td>{r.reg}</td>
                 <td>{r.inspector}</td>
                 <td>{r.location}</td>
-                <td>{r.rating}</td>
+                <td>
+                  <span className="inline-flex items-center rounded-full bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-xs">
+                    {r.rating ?? "-"}
+                  </span>
+                </td>
               </tr>
             ))}
+
             {!loading && rows.length === 0 && (
               <tr>
                 <td colSpan={6} className="p-6 text-center opacity-60">
