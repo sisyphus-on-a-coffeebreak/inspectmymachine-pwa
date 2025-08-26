@@ -35,9 +35,13 @@ const ALLOWED = new Set([
   "image/heif",
 ]);
 
+function hasPublicUrl(x: unknown): x is { object_url: string } {
+  return !!x && typeof (x as Record<string, unknown>).object_url === "string";
+}
+
 
 function blobToFile(b: Blob, nameFallback = `photo-${Date.now()}.jpg`): File {
-  const name = (b as any).name || nameFallback;
+  const name = b instanceof File ? b.name : nameFallback;
   const type = b.type || "image/jpeg";
   return b instanceof File ? b : new File([b], name, { type });
 }
@@ -57,6 +61,12 @@ function todayPrefix(inspectionId: string, qKey: string) {
 const isIOS =
   typeof navigator !== "undefined" &&
   /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+function errMsg(e: unknown, fallback = "Something went wrong") {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  try { return JSON.stringify(e); } catch { return fallback; }
+}
 
 export default function InspectionCapture() {
   const navigate = useNavigate();
@@ -94,7 +104,7 @@ export default function InspectionCapture() {
         };
       });
     },
-    [setUploaded]
+    []
   );
 
   const ensureUrl = useCallback(
@@ -102,14 +112,24 @@ export default function InspectionCapture() {
       if (maybeUrl) return maybeUrl; // already public or provided
       const cached = signedCache.current.get(key);
       if (cached) return cached;
-      const res = (await fetchJson(
+      const res = await fetchJson<SignedUrlResponse>(
         `/api/v1/files/signed?key=${encodeURIComponent(key)}`
-      )) as SignedUrlResponse;
+      );
       signedCache.current.set(key, res.url);
       return res.url;
     },
     [fetchJson]
   );
+
+  const refreshSigned = useCallback(async (qKey: string, key: string) => {
+    try {
+      const fresh = await ensureUrl(key);      // force re-sign
+      replaceItem(qKey, key, { object_url: fresh });
+    } catch (e) {
+      debug("re-sign failed", e);
+    }
+  }, [ensureUrl, replaceItem]);
+
 
   // central rehydrate you can call after flush or at mount
   const rehydrate = useCallback(async () => {
@@ -122,7 +142,7 @@ export default function InspectionCapture() {
           items: { key: string; object_url?: string }[];
         };
         const enriched: UploadItem[] = await Promise.all(
-          items.map(async (it: { key: string; object_url?: string }) => ({
+          items.map(async (it) => ({
             key: it.key,
             object_url: await ensureUrl(it.key, it.object_url),
           }))
@@ -145,8 +165,8 @@ export default function InspectionCapture() {
     (async () => {
       try {
         await rehydrate();
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message || "Failed to load existing files");
+      } catch (e: unknown) {
+        if (!cancelled) setError(errMsg(e, "Failed to load existing files"));
       }
     })();
     return () => {
@@ -180,7 +200,7 @@ export default function InspectionCapture() {
         },
         (ev: QueueEvent) => {
           if (ev.status === "fail") {
-            setError((ev.error as any)?.message || "Queued upload failed");
+            setError(errMsg(ev.error, "Queued upload failed"));
           }
         }
       );
@@ -223,89 +243,92 @@ export default function InspectionCapture() {
       return;
     }
 
-   // Online path
-  setBusy(qKey);
-  setError(null);
+    // Online path
+    setBusy(qKey);
+    setError(null);
 
-  try {
-    for (let i = 0; i < files.length; i++) {
-      const preparedBlob = await prepareForUpload(files[i]);
-      const preparedFile = blobToFile(
-        preparedBlob,
-        files[i].name.replace(/\.[^.]+$/, ".jpg")
-      );
-
-      // 1) optimistic placeholder
-      const tempKey = `tmp:${crypto?.randomUUID?.() ?? Date.now()}-${i}`;
-      const blobUrl = URL.createObjectURL(preparedBlob);
-
-      let swappedToReal = false; // ✅ track if we replaced object_url
-      let matchKey = tempKey;    // ✅ progress-safe key
-
-      setUploaded((prev: UploadedByQuestion) => {
-        const list = prev[qKey] ?? [];
-        return {
-          ...prev,
-          [qKey]: [...list, { key: tempKey, object_url: blobUrl, uploading: true, progress: 0 }],
-        };
-      });
-
-      // 2) live progress → update the *same* tile even after key changes
-
-      const handleProgress = (pct: number) => {
-        replaceItem(qKey, matchKey, { progress: Math.max(2, pct) });
-        if (pct === 2 || pct === 50 || pct === 100) debug("progress", { qKey, key: matchKey, pct });
-      };
-
-      try {
-        const out: UploadResult = await withBackoff(
-          () => uploadImageWithProgress(preparedFile, prefix, handleProgress),
-          { tries: 3, baseMs: 400 }
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const preparedBlob = await prepareForUpload(files[i]);
+        const preparedFile = blobToFile(
+          preparedBlob,
+          files[i].name.replace(/\.[^.]+$/, ".jpg")
         );
 
-        // 3) swap placeholder → real key + (signed) URL
-        let url: string;
-          try {
-          url = await ensureUrl(out.key, (out as any).object_url);
-          } catch (e) {
-          // If signing fails, keep the blob visible and try again on next rehydrate/403.
-          debug("sign:fail; keep blob", { key: out.key });
-          url = blobUrl; // fallback to the blob until rehydrate runs
-          }
-          replaceItem(qKey, tempKey, {
-          key: out.key,
-          object_url: url,
-          uploading: false,
-          progress: 100,
+        // 1) optimistic placeholder
+        const tempKey = `tmp:${crypto?.randomUUID?.() ?? Date.now()}-${i}`;
+        const blobUrl = URL.createObjectURL(preparedBlob);
+
+        let swappedToReal = false; // ✅ track if we replaced object_url
+        let matchKey = tempKey;    // ✅ progress-safe key
+
+        setUploaded((prev: UploadedByQuestion) => {
+          const list = prev[qKey] ?? [];
+          return {
+            ...prev,
+            [qKey]: [...list, { key: tempKey, object_url: blobUrl, uploading: true, progress: 0 }],
+          };
         });
 
-        matchKey = out.key; // future late ticks (rare) still hit the right tile
-        swappedToReal = url !== blobUrl;
+        // 2) live progress → update the *same* tile even after key changes
+        const handleProgress = (pct: number) => {
+          replaceItem(qKey, matchKey, { progress: Math.max(2, pct) });
+          if (pct === 2 || pct === 50 || pct === 100) debug("progress", { qKey, key: matchKey, pct });
+        };
 
-      } catch (err: any) {
-        // mark failure visually; keep tile so user can delete/retry
-        replaceItem(qKey, tempKey, { uploading: false });
-        setError(err?.message || "Upload failed");
-      } finally {
-        // free memory (important on Android)
-        // Only revoke if we've swapped to a durable URL.
-        if (swappedToReal) URL.revokeObjectURL(blobUrl);
+        try {
+          const out: UploadResult = await withBackoff(
+            () => uploadImageWithProgress(preparedFile, prefix, handleProgress),
+            { tries: 3, baseMs: 400 }
+          );
+
+         // optional public URL on the result (if your uploader provides it)
+          let objectUrlFromUploader: string | undefined;
+          if (hasPublicUrl(out)) {
+            objectUrlFromUploader = out.object_url;
+          }
+
+          // 3) swap placeholder → real key + (signed) URL
+          let url: string;
+          try {
+            url = await ensureUrl(out.key, objectUrlFromUploader);
+          } catch {
+            // If signing fails, keep the blob visible and try again on next rehydrate/403.
+            debug("sign:fail; keep blob", { key: out.key });
+            url = blobUrl; // fallback to the blob until rehydrate runs
+          }
+          replaceItem(qKey, tempKey, {
+            key: out.key,
+            object_url: url,
+            uploading: false,
+            progress: 100,
+          });
+
+          matchKey = out.key; // future late ticks (rare) still hit the right tile
+          swappedToReal = url !== blobUrl;
+        } catch (err: unknown) {
+          // mark failure visually; keep tile so user can delete/retry
+          replaceItem(qKey, tempKey, { uploading: false });
+          setError(errMsg(err, "Upload failed"));
+        } finally {
+          // free memory (important on Android)
+          if (swappedToReal) URL.revokeObjectURL(blobUrl);
+        }
       }
+    } catch (e: unknown) {
+      const msg = errMsg(e, "Upload failed");
+      if (/(401|unauthorized)/i.test(msg)) {
+        setError("Session expired. Please log in again.");
+        navigate("/login");
+      } else {
+        setError(msg);
+      }
+    } finally {
+      if (inputRef.current) inputRef.current.value = "";
+      setBusy(null);
+      pendingQKey.current = null;
     }
-  } catch (e: any) {
-    const msg = e?.message || "Upload failed";
-    if (/(401|unauthorized)/i.test(msg)) {
-      setError("Session expired. Please log in again.");
-      navigate("/login");
-    } else {
-      setError(msg);
-    }
-  } finally {
-    if (inputRef.current) inputRef.current.value = "";
-    setBusy(null);
-    pendingQKey.current = null;
-  }
-};
+  };
 
   async function onDelete(qKey: string, key: string) {
     if (!online) {
@@ -319,11 +342,11 @@ export default function InspectionCapture() {
     }));
     try {
       // Don't call server for temporary placeholders
-      if (key.startsWith('tmp:')) return;
+      if (key.startsWith("tmp:")) return;
       await remove(key);
       signedCache.current.delete(key);
-    } catch (e: any) {
-      setError(e?.message || "Delete failed");
+    } catch (e: unknown) {
+      setError(errMsg(e, "Delete failed"));
     }
   }
 
@@ -371,9 +394,9 @@ export default function InspectionCapture() {
       <input
         ref={inputRef}
         type="file"
+        name="photos"
         accept="image/*"
         multiple={!isIOS}
-        // @ts-ignore – supported on mobile
         capture="environment"
         className="hidden"
         onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -392,7 +415,6 @@ export default function InspectionCapture() {
           const list = uploaded[q.key] ?? [];
           const isThisBusy = busy === q.key;
 
-
           return (
             <div key={q.key} className="rounded-xl border p-4">
               <div className="flex items-center justify-between">
@@ -404,28 +426,28 @@ export default function InspectionCapture() {
                     </span>
                   )}
                 </div>
-                 <Button
-                    onClick={() => onPick(q.key)}
-                     disabled={busy === 'sync' || isThisBusy}
-                       className="gap-2"
-                    >
-                      <Camera className="h-4 w-4" />
-                    {isThisBusy ? "Uploading…" : "Take photos"}
-                    </Button>
-                 </div>
+                <Button
+                  onClick={() => onPick(q.key)}
+                  disabled={busy === "sync" || isThisBusy}
+                  className="gap-2"
+                >
+                  <Camera className="h-4 w-4" />
+                  {isThisBusy ? "Uploading…" : "Take photos"}
+                </Button>
+              </div>
 
               <Separator className="my-3" />
 
               {list.length === 0 ? (
                 <div className="text-sm opacity-60">No photos yet.</div>
               ) : (
-                
                 <ThumbnailGrid
-                      items={list.map((r) => ({
-                      key: r.key,
-                      url: r.object_url!, // ensured during hydrate/upload
-                     }))}
-                    onDelete={(key) => onDelete(q.key, key)}
+                  items={list.map((r) => ({
+                    key: r.key,
+                    url: r.object_url!, // ensured during hydrate/upload
+                    onDelete: () => onDelete(q.key, r.key), // item-scoped delete (optional)
+                    onError:  () => refreshSigned(q.key, r.key), // ← re-sign on load error
+                  }))}
                 />
               )}
 
