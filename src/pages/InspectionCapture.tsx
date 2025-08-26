@@ -108,28 +108,33 @@ export default function InspectionCapture() {
   );
 
   const ensureUrl = useCallback(
-    async (key: string, maybeUrl?: string): Promise<string> => {
-      if (maybeUrl) return maybeUrl; // already public or provided
+  async (key: string, maybeUrl?: string, force = false): Promise<string> => {
+    if (maybeUrl) return maybeUrl; // already public/provided
+    if (!force) {
       const cached = signedCache.current.get(key);
       if (cached) return cached;
-      const res = await fetchJson<SignedUrlResponse>(
-        `/api/v1/files/signed?key=${encodeURIComponent(key)}`
-      );
-      signedCache.current.set(key, res.url);
-      return res.url;
-    },
-    [fetchJson]
-  );
+    }
+    const res = await fetchJson<SignedUrlResponse>(
+      `/api/v1/files/signed?key=${encodeURIComponent(key)}`
+    );
+    signedCache.current.set(key, res.url);
+    return res.url;
+  },
+  [fetchJson]
+);
 
-  const refreshSigned = useCallback(async (qKey: string, key: string) => {
+  const refreshSigned = useCallback(
+  async (qKey: string, key: string) => {
     try {
-      signedCache.current.delete(key);         // <- ensure we don't reuse old URL
-      const fresh = await ensureUrl(key);      // now fetch a fresh signed URL
+      signedCache.current.delete(key);                // drop stale
+      const fresh = await ensureUrl(key, undefined, true); // force new sign
       replaceItem(qKey, key, { object_url: fresh });
     } catch (e) {
       debug("re-sign failed", e);
     }
-  }, [ensureUrl, replaceItem]);
+  },
+  [ensureUrl, replaceItem]
+);
 
   // central rehydrate you can call after flush or at mount
   const rehydrate = useCallback(async () => {
