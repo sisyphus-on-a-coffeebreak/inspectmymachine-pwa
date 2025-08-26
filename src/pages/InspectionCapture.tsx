@@ -123,13 +123,13 @@ export default function InspectionCapture() {
 
   const refreshSigned = useCallback(async (qKey: string, key: string) => {
     try {
-      const fresh = await ensureUrl(key);      // force re-sign
+      signedCache.current.delete(key);         // <- ensure we don't reuse old URL
+      const fresh = await ensureUrl(key);      // now fetch a fresh signed URL
       replaceItem(qKey, key, { object_url: fresh });
     } catch (e) {
       debug("re-sign failed", e);
     }
   }, [ensureUrl, replaceItem]);
-
 
   // central rehydrate you can call after flush or at mount
   const rehydrate = useCallback(async () => {
