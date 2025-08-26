@@ -8,6 +8,7 @@ export default function InspectionsCompleted(){
   const { token } = useAuth()
   const [rows, setRows] = useState<Row[]>([])
   const [page, setPage] = useState(1)
+  void setPage;
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string|undefined>()
   const qs = useMemo(()=> new URLSearchParams({ page: String(page) }).toString(), [page])

@@ -1,86 +1,46 @@
-// src/components/ThumbnailGrid.tsx
+import { useState, useCallback } from "react";
 import { X } from "lucide-react";
-import { useRef } from "react";
-import { useSignedUrl } from "@/lib/useSignedUrl";
-import clsx from "clsx";
 
-export type Thumb = {
-  key: string;
-  url?: string;
-  uploading?: boolean;
-  progress?: number;
-  onDelete?: () => void;
-  onReplace?: () => void;
-};
+type ThumbItem = { key: string; url: string };
 
-function ThumbImage({ url, storageKey }: { url?: string; storageKey: string }) {
-  const useSigning = !url && !storageKey.startsWith("tmp:");
-  const { url: signed, refresh } = useSignedUrl(useSigning ? storageKey : undefined as any);
-  const src = url ?? signed;
-
-  const triedRefresh = useRef(false);
-
-  if (!src) {
-    return <div className="aspect-square w-full bg-muted animate-pulse" />;
-  }
-
-  return (
-    <img
-      src={src}
-      alt=""
-      loading="lazy"
-      className="aspect-square w-full object-cover select-none"
-      onError={async (e) => {
-        if (triedRefresh.current || !useSigning) return;
-        triedRefresh.current = true;
-        try {
-          const fresh = await refresh();
-          if (fresh) (e.currentTarget as HTMLImageElement).src = fresh;
-        } catch {
-          /* silently ignore */
-        }
-      }}
-    />
-  );
+interface Props {
+  items: ThumbItem[];
+  onDelete?: (key: string) => void;
 }
 
-export default function ThumbnailGrid({ items }: { items: Thumb[] }) {
+function withCacheBuster(url: string, n: number) {
+  if (!url) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}cb=${n}`;
+}
+
+export default function ThumbnailGrid({ items, onDelete }: Props) {
+  const [retryMap, setRetryMap] = useState<Record<string, number>>({});
+
+  const bump = useCallback((key: string) => {
+    setRetryMap((m) => ({ ...m, [key]: (m[key] ?? 0) + 1 }));
+  }, []);
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-      {items.map((it) => (
-        <div
-          key={it.key}
-          className={clsx(
-            "relative group rounded-xl overflow-hidden",
-            it.uploading && "cursor-wait"
-          )}
-          aria-busy={!!it.uploading}
-          aria-label="Photo thumbnail"
-        >
-          <ThumbImage url={it.url} storageKey={it.key} />
-
-          {it.onDelete && (
-  <button
-    type="button"
-    onClick={it.onDelete}
-    aria-label="Delete"
-    className="absolute top-2 right-2 z-20 opacity-100 transition bg-black/70 text-white rounded-full p-2 shadow-md focus:outline-none focus:ring-2 focus:ring-white/70"
-  >
-    <X className="h-4 w-4" />
-  </button>
-)}
-
-
-          {it.uploading && (
-            <div className="absolute inset-0 z-10 bg-black/30 flex items-end pointer-events-none">
-              <div className="w-full h-1.5 bg-white/30">
-                <div
-                  className="h-1.5 bg-white"
-                  style={{ width: `${Math.max(2, it.progress ?? 0)}%` }}
-                />
-              </div>
-            </div>
-          )}
+    <div className="grid grid-cols-3 gap-3">
+      {items.map(({ key, url }) => (
+        <div key={key} className="relative group overflow-hidden rounded-md">
+          <img
+            src={withCacheBuster(url, retryMap[key] ?? 0)}
+            className="w-full h-28 object-cover pointer-events-none select-none"
+            onError={() => bump(key)}
+            alt=""
+          />
+          <button
+            type="button"
+            data-testid="thumb-delete"
+            aria-label="Delete photo"
+            onClick={() => onDelete?.(key)}
+            disabled={!onDelete}
+            className="absolute top-1.5 right-1.5 z-20 h-11 w-11 rounded-full bg-black/70 text-white flex items-center justify-center shadow ring-1 ring-white/20 pointer-events-auto disabled:opacity-60"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
       ))}
     </div>

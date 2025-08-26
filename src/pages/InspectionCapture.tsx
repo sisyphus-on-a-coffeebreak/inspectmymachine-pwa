@@ -118,7 +118,9 @@ export default function InspectionCapture() {
     await Promise.all(
       questions.map(async (q) => {
         const base = todayPrefix(id!, q.key);
-        const { items } = await listFiles(base, true);
+        const { items } = (await listFiles(base, true)) as {
+          items: { key: string; object_url?: string }[];
+        };
         const enriched: UploadItem[] = await Promise.all(
           items.map(async (it: { key: string; object_url?: string }) => ({
             key: it.key,
@@ -417,14 +419,13 @@ export default function InspectionCapture() {
               {list.length === 0 ? (
                 <div className="text-sm opacity-60">No photos yet.</div>
               ) : (
-              <ThumbnailGrid
-                  items={list.map((r) => ({
-                    key: r.key,
-                    url: r.object_url!,           // ensured during hydrate/upload
-                    uploading: !!r.uploading,     // ✨ new
-                    progress: r.progress,         // ✨ new
-                    onDelete: () => onDelete(q.key, r.key),
-                  }))}
+                
+                <ThumbnailGrid
+                      items={list.map((r) => ({
+                      key: r.key,
+                      url: r.object_url!, // ensured during hydrate/upload
+                     }))}
+                    onDelete={(key) => onDelete(q.key, key)}
                 />
               )}
 

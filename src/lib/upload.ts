@@ -7,15 +7,28 @@ function join(apiBase: string, path: string) {
   return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 
+export type UploadResult = {
+  key: string;
+  size?: number;
+  mime?: string;
+  etag?: string;
+};
+
 export function useUploader() {
   const { fetchJson, token, apiBase } = useAuth();
 
-  async function uploadImage(file: File, prefix?: string) {
+  function requireApiBase(): string {
+    const base = (apiBase || "").trim().replace(/\/+$/g, "");
+    if (!base) throw new Error("API base not configured. Set localStorage['voms.apiBase'] or VITE_API_BASE.");
+    return base;
+  }
+
+  async function uploadImage(file: File, prefix?: string): Promise<UploadResult> {
     const fd = new FormData();
     fd.append("file", file, file.name || "photo");
     const clean = (prefix ?? "").replace(/^\/+/, "");
     if (clean) fd.append("prefix", clean);
-    // use fetchJson so base + auth is consistent:
+    // Uses fetchJson so base + auth are consistent with the rest of the app
     return await fetchJson("/api/v1/files/upload", { method: "POST", body: fd });
   }
 
@@ -23,30 +36,56 @@ export function useUploader() {
     file: File,
     prefix?: string,
     onProgress?: (pct: number) => void
-  ) {
+  ): Promise<UploadResult> {
     return new Promise((resolve, reject) => {
-      const url = join(apiBase, "/api/v1/files/upload");      // ← absolute
+      let base: string;
+      try {
+        base = requireApiBase();
+      } catch (e) {
+        reject(e);
+        return;
+      }
+
+      const url = join(base, "/api/v1/files/upload"); // ← absolute API base guaranteed
       const xhr = new XMLHttpRequest();
       xhr.open("POST", url);
       xhr.setRequestHeader("Accept", "application/json");
       if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
       xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
-      };
-      xhr.onerror = () => reject(new Error("Network error"));
-      xhr.onload = () => {
-        const ok = xhr.status >= 200 && xhr.status < 300;
-        try {
-          const data = JSON.parse(xhr.responseText || "{}");
-          ok ? resolve(data) : reject(new Error(data?.message || `Upload failed: ${xhr.status}`));
-        } catch {
-          ok ? resolve({ key: "" } as any) : reject(new Error(`Upload failed: ${xhr.status}`));
+        if (e.lengthComputable && onProgress) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
         }
       };
+
+      xhr.onerror = () => reject(new Error("Network error during upload"));
+      xhr.onload = () => {
+        const ok = xhr.status >= 200 && xhr.status < 300;
+        let data: any = null;
+
+        try {
+          data = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+        } catch {
+          // fall through if non-JSON; backend should return JSON
+        }
+
+        if (!ok) {
+          const msg =
+            (data && (data.message || data.error)) ||
+            (xhr.status === 401 ? "Unauthorized (401)" : `Upload failed: ${xhr.status}`);
+          reject(new Error(msg));
+          return;
+        }
+
+        // Best effort typing
+        resolve((data as UploadResult) ?? ({ key: "" } as UploadResult));
+      };
+
       const fd = new FormData();
       fd.append("file", file, file.name || "photo");
       const clean = (prefix ?? "").replace(/^\/+/, "");
       if (clean) fd.append("prefix", clean);
+
       xhr.send(fd);
     });
   }
