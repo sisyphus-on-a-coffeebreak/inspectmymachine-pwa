@@ -1,3 +1,4 @@
+// src/pages/InspectionsCompleted.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import AppShell from "@/layouts/AppShell";
@@ -14,26 +15,21 @@ type Row = {
   rating: number;
 };
 
-type Resp = {
-  data: Row[];
-  meta?: { current_page: number; last_page: number; total: number };
-};
-
-function fmtDate(s: string) {
-  // assume ISO-ish; fall back if parse fails
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString();
-}
+type Meta = { current_page: number; last_page: number; total: number };
+type Resp = { data: Row[]; meta?: Meta };
 
 export default function InspectionsCompleted() {
   const { token } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
+  const [meta, setMeta] = useState<Meta | undefined>();
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | undefined>();
-  const [meta, setMeta] = useState<{ current_page: number; last_page: number; total: number } | null>(null);
 
-  const qs = useMemo(() => new URLSearchParams({ page: String(page) }).toString(), [page]);
+  const qs = useMemo(
+    () => new URLSearchParams({ page: String(page) }).toString(),
+    [page]
+  );
 
   useEffect(() => {
     (async () => {
@@ -45,16 +41,16 @@ export default function InspectionsCompleted() {
         if (!res.ok) {
           setErr(`Request failed: ${res.status}`);
           setRows([]);
-          setMeta(null);
+          setMeta(undefined);
           return;
         }
         const json: Resp = await res.json();
         setRows(json.data ?? []);
-        setMeta(json.meta ?? null);
+        setMeta(json.meta);
       } catch (e: unknown) {
         setErr(e instanceof Error ? e.message : String(e));
         setRows([]);
-        setMeta(null);
+        setMeta(undefined);
       } finally {
         setLoading(false);
       }
@@ -62,37 +58,18 @@ export default function InspectionsCompleted() {
   }, [qs, token]);
 
   const canPrev = (meta?.current_page ?? page) > 1;
-  const canNext = (meta?.current_page ?? page) < (meta?.last_page ?? page);
+  const canNext = meta ? meta.current_page < meta.last_page : true;
 
   return (
     <AppShell>
-      <div className="mb-4 flex items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Completed Inspections</h1>
-          {meta?.total !== undefined && (
-            <div className="text-sm opacity-70 mt-0.5">{meta.total} total</div>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-semibold">Completed Inspections</h1>
+        <div className="text-xs opacity-70">
+          {meta ? (
+            <>Page {meta.current_page} of {meta.last_page} • {meta.total} total</>
+          ) : (
+            <>Page {page}</>
           )}
-        </div>
-
-        {/* Pagination */}
-        <div className="flex items-center gap-2 text-sm">
-          <button
-            className="rounded border px-3 py-1 disabled:opacity-50"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={!canPrev || loading}
-          >
-            ← Prev
-          </button>
-          <div className="tabular-nums">
-            Page {meta?.current_page ?? page}{meta?.last_page ? ` / ${meta.last_page}` : ""}
-          </div>
-          <button
-            className="rounded border px-3 py-1 disabled:opacity-50"
-            onClick={() => setPage((p) => p + 1)}
-            disabled={!canNext || loading}
-          >
-            Next →
-          </button>
         </div>
       </div>
 
@@ -117,20 +94,19 @@ export default function InspectionsCompleted() {
           <tbody className="[&>tr>td]:px-3 [&>tr>td]:py-2">
             {rows.map((r) => (
               <tr key={r.id} className="border-t dark:border-zinc-800">
-                <td className="whitespace-nowrap">{fmtDate(r.date)}</td>
-                <td className="whitespace-nowrap">
-                  <Link className="text-blue-600 hover:underline" to={`/inspections/${r.id}`}>
+                <td>{r.date}</td>
+                <td>
+                  <Link
+                    className="text-blue-600 hover:underline"
+                    to={`/inspections/${r.id}`}
+                  >
                     {r.vehicle || "-"}
                   </Link>
                 </td>
                 <td>{r.reg}</td>
                 <td>{r.inspector}</td>
                 <td>{r.location}</td>
-                <td>
-                  <span className="inline-flex items-center rounded-full bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-xs">
-                    {r.rating ?? "-"}
-                  </span>
-                </td>
+                <td>{r.rating}</td>
               </tr>
             ))}
 
@@ -141,8 +117,34 @@ export default function InspectionsCompleted() {
                 </td>
               </tr>
             )}
+
+            {loading && rows.length === 0 && (
+              <tr>
+                <td colSpan={6} className="p-6 text-center opacity-60">
+                  Loading…
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination controls */}
+      <div className="mt-3 flex items-center justify-between">
+        <button
+          className="px-3 py-1.5 rounded border dark:border-zinc-800 disabled:opacity-50"
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={!canPrev || loading}
+        >
+          ← Previous
+        </button>
+        <button
+          className="px-3 py-1.5 rounded border dark:border-zinc-800 disabled:opacity-50"
+          onClick={() => setPage((p) => p + 1)}
+          disabled={!canNext || loading}
+        >
+          Next →
+        </button>
       </div>
     </AppShell>
   );
