@@ -1,4 +1,3 @@
-// src/components/ThumbnailGrid.tsx
 import { useCallback, useState } from "react";
 import { X } from "lucide-react";
 
@@ -8,7 +7,7 @@ type Item = {
   uploading?: boolean;
   progress?: number;
   onDelete?: () => void;
-  onError?: () => void; // NEW: per-item error handler (e.g., re-sign URL)
+  onError?: () => void; // allow per-item error handler (e.g., refresh signed URL)
 };
 
 type Props = {
@@ -38,11 +37,6 @@ export default function ThumbnailGrid({ items, onDelete }: Props) {
     });
   }, []);
 
-  const stop = (e: React.SyntheticEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
   return (
     <div className="grid grid-cols-3 gap-3">
       {items.map(({ key, url, uploading, progress, onDelete: itemDelete, onError: itemOnError }) => {
@@ -56,9 +50,7 @@ export default function ThumbnailGrid({ items, onDelete }: Props) {
               loading="lazy"
               className="w-full h-28 object-cover pointer-events-none select-none"
               onError={() => {
-                // first let caller try to fix (e.g., refresh signed URL)
                 try { itemOnError?.(); } catch { /* no-op */ }
-                // then fall back to a small cache-bust bump
                 bumpIfAllowed(key, url);
               }}
             />
@@ -70,17 +62,26 @@ export default function ThumbnailGrid({ items, onDelete }: Props) {
               </div>
             )}
 
-            <button
-              type="button"
-              data-testid="thumb-delete"
-              aria-label="Delete photo"
-              onClick={(e) => { stop(e); (itemDelete ?? onDelete)?.(key); }}
-              onTouchStart={(e) => { stop(e); (itemDelete ?? onDelete)?.(key); }}
-              disabled={!(itemDelete || onDelete)}
-              className="absolute top-1.5 right-1.5 z-30 h-11 w-11 rounded-full bg-black/70 text-white flex items-center justify-center shadow ring-1 ring-white/20 pointer-events-auto disabled:opacity-60"
-            >
-              <X className="h-5 w-5" />
-            </button>
+           <button
+                type="button"
+                data-testid="thumb-delete"
+                aria-label="Delete photo"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (itemDelete) itemDelete();   // no args for per-item closure
+                  else onDelete?.(key);           // fallback to parent handler with key
+                }}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  if (itemDelete) itemDelete();
+                  else onDelete?.(key);
+                }}
+                disabled={!(itemDelete || onDelete)}
+                className="absolute top-1.5 right-1.5 z-30 h-11 w-11 rounded-full bg-black/70 text-white flex items-center justify-center shadow ring-1 ring-white/20 pointer-events-auto disabled:opacity-60"
+              >
+                <X className="h-5 w-5" />
+          </button>
+
           </div>
         );
       })}
