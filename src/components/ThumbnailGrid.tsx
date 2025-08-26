@@ -6,25 +6,24 @@ type Item = {
   url: string;
   uploading?: boolean;
   progress?: number;
-  onDelete?: () => void;
-  onError?: () => void; // allow per-item error handler (e.g., refresh signed URL)
+  onDelete?: () => void; // per-item (no args)
+  onError?: () => void;  // per-item error hook
 };
 
 type Props = {
   items: Item[];
-  onDelete?: (key: string) => void;
+  onDelete?: (key: string) => void; // optional fallback
 };
 
-// only bust caches for real http(s) URLs (NOT blob: / data:)
-function isBustable(u: string) {
-  return /^https?:\/\//i.test(u);
-}
+function isBustable(u: string) { return /^https?:\/\//i.test(u); }
 function withCacheBuster(u: string, n = 0) {
   if (!isBustable(u) || n <= 0) return u;
   const [base, hash] = u.split("#");
   const sep = base.includes("?") ? "&" : "?";
   return `${base}${sep}cb=${n}${hash ? `#${hash}` : ""}`;
 }
+
+const BTN_SIZE = 30; // slightly smaller than the 48px version, still very tappable
 
 export default function ThumbnailGrid({ items, onDelete }: Props) {
   const [retryMap, setRetryMap] = useState<Record<string, number>>({});
@@ -42,46 +41,67 @@ export default function ThumbnailGrid({ items, onDelete }: Props) {
       {items.map(({ key, url, uploading, progress, onDelete: itemDelete, onError: itemOnError }) => {
         const tries = retryMap[key] ?? 0;
         const shownUrl = withCacheBuster(url, tries);
+
+        const callDelete = () => {
+          if (itemDelete) itemDelete();
+          else onDelete?.(key);
+        };
+
         return (
-          <div key={key} className="relative group overflow-hidden rounded-md">
+          <div key={key} className="relative overflow-hidden rounded-md">
             <img
               src={shownUrl}
               alt=""
               loading="lazy"
-              className="w-full h-28 object-cover pointer-events-none select-none"
-              onError={() => {
-                try { itemOnError?.(); } catch { /* no-op */ }
-                bumpIfAllowed(key, url);
-              }}
+              className="w-full h-28 object-cover select-none"
+              style={{ pointerEvents: "none" }}
+              onError={() => { try { itemOnError?.(); } finally { bumpIfAllowed(key, url); } }}
             />
 
-            {/* progress pill */}
             {uploading && (
-              <div className="absolute left-1.5 bottom-1.5 z-20 rounded-full bg-black/60 text-white text-[10px] px-2 py-0.5">
+              <div
+                className="rounded text-[10px] px-2 py-0.5"
+                style={{
+                  position: "absolute",
+                  left: 8,
+                  bottom: 8,
+                  background: "rgba(0,0,0,0.7)",
+                  color: "#fff",
+                  zIndex: 9998
+                }}
+              >
                 {typeof progress === "number" ? `${Math.max(2, progress)}%` : "…"}
               </div>
             )}
 
-           <button
-                type="button"
-                data-testid="thumb-delete"
-                aria-label="Delete photo"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (itemDelete) itemDelete();   // no args for per-item closure
-                  else onDelete?.(key);           // fallback to parent handler with key
-                }}
-                onTouchStart={(e) => {
-                  e.stopPropagation();
-                  if (itemDelete) itemDelete();
-                  else onDelete?.(key);
-                }}
-                disabled={!(itemDelete || onDelete)}
-                className="absolute top-1.5 right-1.5 z-30 h-11 w-11 rounded-full bg-black/70 text-white flex items-center justify-center shadow ring-1 ring-white/20 pointer-events-auto disabled:opacity-60"
-              >
-                <X className="h-5 w-5" />
-          </button>
-
+            {/* Cross-in-a-circle delete button */}
+            <button
+              type="button"
+              aria-label="Delete photo"
+              data-testid="thumb-delete"
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); callDelete(); }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }} // avoid ghost-clicks
+              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                width: BTN_SIZE,
+                height: BTN_SIZE,
+                borderRadius: 9999,
+                background: "rgba(220,38,38,0.95)", // red-600-ish
+                color: "#fff",
+                zIndex: 100000, // sit above everything
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 6px 14px rgba(0,0,0,.45)",
+                touchAction: "manipulation",
+                cursor: "pointer"
+              }}
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
         );
       })}
