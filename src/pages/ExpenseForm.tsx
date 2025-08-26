@@ -3,8 +3,12 @@ import AppShell from "@/layouts/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useUploader } from "@/lib/upload";
+import { useUploader, type UploadResult } from "@/lib/upload";
 import { useAuth } from "@/providers/AuthProvider";
+
+type ExpenseDecisionResponse = {
+  decision?: { status?: string };
+};
 
 const CATS = [
   "LOCAL_TRANSPORT","INTERCITY_TRAVEL","LODGING","FOOD","TOLLS_PARKING","FUEL",
@@ -35,7 +39,7 @@ export default function ExpenseForm() {
   async function onPickReceipt(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    const out = await uploadImageWithProgress(f, "receipts");
+    const out: UploadResult = await uploadImageWithProgress(f, "receipts");
     setReceiptKey(out.key);
   }
 
@@ -49,8 +53,12 @@ export default function ExpenseForm() {
       gps_lat: gps.lat, gps_lng: gps.lng,
       ts: new Date().toISOString(),
     };
-    const res = await fetchJson("/api/v1/expenses", { method: "POST", body: JSON.stringify(payload) });
-    setStatus(res.decision?.status || "OK");
+    const res = await fetchJson<ExpenseDecisionResponse>(
+      "/api/v1/expenses/...", 
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }
+    );
+    
+    setStatus(res.decision?.status ?? "OK");
     setAmount(""); setNotes("");
   }
 
