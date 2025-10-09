@@ -6,13 +6,13 @@ type Item = {
   url: string;
   uploading?: boolean;
   progress?: number;
-  onDelete?: () => void; // per-item (no args)
-  onError?: () => void;  // per-item error hook
+  onDelete?: () => void;   // per-item closure (no args)
+  onError?: () => void;    // per-item image error handler
 };
 
 type Props = {
   items: Item[];
-  onDelete?: (key: string) => void; // optional fallback
+  onDelete?: (key: string) => void; // fallback handler
 };
 
 function isBustable(u: string) { return /^https?:\/\//i.test(u); }
@@ -22,8 +22,6 @@ function withCacheBuster(u: string, n = 0) {
   const sep = base.includes("?") ? "&" : "?";
   return `${base}${sep}cb=${n}${hash ? `#${hash}` : ""}`;
 }
-
-const BTN_SIZE = 30; // slightly smaller than the 48px version, still very tappable
 
 export default function ThumbnailGrid({ items, onDelete }: Props) {
   const [retryMap, setRetryMap] = useState<Record<string, number>>({});
@@ -42,7 +40,7 @@ export default function ThumbnailGrid({ items, onDelete }: Props) {
         const tries = retryMap[key] ?? 0;
         const shownUrl = withCacheBuster(url, tries);
 
-        const callDelete = () => {
+        const handleDelete = () => {
           if (itemDelete) itemDelete();
           else onDelete?.(key);
         };
@@ -53,54 +51,31 @@ export default function ThumbnailGrid({ items, onDelete }: Props) {
               src={shownUrl}
               alt=""
               loading="lazy"
-              className="w-full h-28 object-cover select-none"
-              style={{ pointerEvents: "none" }}
-              onError={() => { try { itemOnError?.(); } finally { bumpIfAllowed(key, url); } }}
+              className="w-full h-28 object-cover select-none pointer-events-none"
+              onError={() => {
+                try { itemOnError?.(); } catch { /* no-op */ }
+                bumpIfAllowed(key, url);
+              }}
             />
 
             {uploading && (
-              <div
-                className="rounded text-[10px] px-2 py-0.5"
-                style={{
-                  position: "absolute",
-                  left: 8,
-                  bottom: 8,
-                  background: "rgba(0,0,0,0.7)",
-                  color: "#fff",
-                  zIndex: 9998
-                }}
-              >
+              <div className="absolute left-2 bottom-2 z-40 rounded-full bg-black/70 text-white text-[10px] px-2 py-0.5">
                 {typeof progress === "number" ? `${Math.max(2, progress)}%` : "…"}
               </div>
             )}
 
-            {/* Cross-in-a-circle delete button */}
+            {/* 30px circular X button — always visible, easy to tap */}
             <button
               type="button"
               aria-label="Delete photo"
               data-testid="thumb-delete"
-              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); callDelete(); }}
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }} // avoid ghost-clicks
-              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
-              style={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                width: BTN_SIZE,
-                height: BTN_SIZE,
-                borderRadius: 9999,
-                background: "rgba(220,38,38,0.95)", // red-600-ish
-                color: "#fff",
-                zIndex: 100000, // sit above everything
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 6px 14px rgba(0,0,0,.45)",
-                touchAction: "manipulation",
-                cursor: "pointer"
-              }}
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(); }}
+              onClick={(e) => { e.stopPropagation(); }} // noop fallback, prevents bubbling
+              className="absolute top-2 right-2 z-50 h-[30px] w-[30px] rounded-full
+                         bg-black/80 hover:bg-black/90 text-white flex items-center justify-center
+                         shadow-lg ring-1 ring-white/30 pointer-events-auto active:scale-95 transition"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </button>
           </div>
         );
