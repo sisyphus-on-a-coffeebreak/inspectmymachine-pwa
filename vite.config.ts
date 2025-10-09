@@ -13,7 +13,7 @@ export default defineConfig({
 
       // Workbox (generateSW) — use RegExp + method for TS-friendly config
       workbox: {
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist: [/^\/api\//, /^\/metrics\//], 
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2}"],
         runtimeCaching: [
           // 1) Background Sync specifically for POST /api/v1/files/upload
@@ -69,26 +69,38 @@ export default defineConfig({
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
 
-  server: {
-    host: true,
-    port: 5173,
-    proxy: {
-      "/api": {
-        target: "http://127.0.0.1:8000",
-        changeOrigin: true,
-        secure: false,
-        configure: (proxy) => {
-          proxy.on("proxyReq", (_proxyReq, req) => {
-            console.log("[proxy] →", req.method, req.url);
-          });
-          proxy.on("proxyRes", (res, req) => {
-            console.log("[proxy] ←", res.statusCode, req.url);
-          });
-          proxy.on("error", (err) => {
-            console.error("[proxy] error:", err.message);
-          });
-        },
+server: {
+  host: true,
+  port: 5173,
+  proxy: {
+    "/api": {
+      target: "http://127.0.0.1:8000",
+      changeOrigin: true,
+      secure: false,
+      configure: (proxy) => {
+        proxy.on("proxyReq", (_proxyReq, req) => {
+          console.log("[proxy] →", req.method, req.url);
+        });
+        proxy.on("proxyRes", (res, req) => {
+          console.log("[proxy] ←", res.statusCode, req.url);
+        });
+        proxy.on("error", (err) => {
+          console.error("[proxy] error:", err.message);
+        });
       },
     },
+    // NEW: metrics endpoints used by InspectionsCompleted
+    "/metrics": {
+      target: "http://127.0.0.1:8000",
+      changeOrigin: true,
+      secure: false,
+    },
+    // NEW: image/static files from backend (optional but recommended)
+    "/storage": {
+      target: "http://127.0.0.1:8000",
+      changeOrigin: true,
+      secure: false,
+    },
   },
+},
 });

@@ -14,6 +14,10 @@ export type UploadResult = {
   etag?: string;
 };
 
+function isRecord(x: unknown): x is Record<string, unknown> {
+  return typeof x === "object" && x !== null;
+}
+
 export function useUploader() {
   const { fetchJson, token, apiBase } = useAuth();
 
@@ -28,7 +32,6 @@ export function useUploader() {
     fd.append("file", file, file.name || "photo");
     const clean = (prefix ?? "").replace(/^\/+/, "");
     if (clean) fd.append("prefix", clean);
-    // Uses fetchJson so base + auth are consistent with the rest of the app
     return await fetchJson("/api/v1/files/upload", { method: "POST", body: fd });
   }
 
@@ -46,7 +49,7 @@ export function useUploader() {
         return;
       }
 
-      const url = join(base, "/api/v1/files/upload"); // ← absolute API base guaranteed
+      const url = join(base, "/api/v1/files/upload");
       const xhr = new XMLHttpRequest();
       xhr.open("POST", url);
       xhr.setRequestHeader("Accept", "application/json");
@@ -61,25 +64,42 @@ export function useUploader() {
       xhr.onerror = () => reject(new Error("Network error during upload"));
       xhr.onload = () => {
         const ok = xhr.status >= 200 && xhr.status < 300;
-        let data: any = null;
+        let data: unknown = null;
 
         try {
           data = xhr.responseText ? JSON.parse(xhr.responseText) : null;
         } catch {
-          // fall through if non-JSON; backend should return JSON
+          // ignore parse error; backend should return JSON
         }
+
+        const getMsg = (u: unknown): string | undefined => {
+          if (isRecord(u)) {
+            const m = (u as Record<string, unknown>).message;
+            if (typeof m === "string") return m;
+            const e = (u as Record<string, unknown>).error;
+            if (typeof e === "string") return e;
+          }
+          return undefined;
+        };
 
         if (!ok) {
           const msg =
-            (data && (data.message || data.error)) ||
+            getMsg(data) ??
             (xhr.status === 401 ? "Unauthorized (401)" : `Upload failed: ${xhr.status}`);
           reject(new Error(msg));
           return;
         }
 
-        // Best effort typing
-        resolve((data as UploadResult) ?? ({ key: "" } as UploadResult));
+        // Best-effort typing to UploadResult
+        const payload = isRecord(data) ? (data as Partial<UploadResult>) : {};
+        resolve({
+          key: String(payload.key ?? ""),
+          size: payload.size,
+          mime: payload.mime,
+          etag: payload.etag,
+        });
       };
+
 
       const fd = new FormData();
       fd.append("file", file, file.name || "photo");
