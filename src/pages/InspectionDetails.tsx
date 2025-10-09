@@ -1,133 +1,186 @@
-import * as React from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+// src/pages/InspectionDetails.tsx
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import AppShell from "@/layouts/AppShell";
-import { getInspection, submitInspection, type Inspection } from "@/lib/inspections";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "@/providers/AuthProvider";
+import { apiFetch } from "@/lib/api";
+import { useUploader } from "@/lib/upload";
+import { CAPTURE_QUESTIONS } from "@/data/inspectionQuestions";
+import ThumbnailGrid from "@/components/ThumbnailGrid";
+import { Separator } from "@/components/ui/separator";
 
-const DRAFT_KEY = "draft:inspection:new";
+type Detail = {
+  id: string;
+  date: string;
+  vehicle: string;
+  reg: string;
+  inspector: string;
+  location: string;
+  rating: number;
+};
+
+type UploadItem = { key: string; object_url?: string };
+type ByQ = Record<string, UploadItem[]>;
+
+type SignedUrlResponse = { key: string; url: string; expires_at?: string };
+
+function errMsg(e: unknown, fb = "Something went wrong") {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  try { return JSON.stringify(e); } catch { return fb; }
+}
 
 export default function InspectionDetails() {
-  const { id } = useParams<{ id: string }>();
+  const { id = "" } = useParams();
   const navigate = useNavigate();
-  const [insp, setInsp] = React.useState<Inspection | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [err, setErr] = React.useState<string | null>(null);
-  const [submitting, setSubmitting] = React.useState(false);
+  const { token, fetchJson } = useAuth();
+  const { listFiles } = useUploader();
 
-  React.useEffect(() => {
-    if (!id) return;
+  const [detail, setDetail] = useState<Detail | null>(null);
+  const [photos, setPhotos] = useState<ByQ>({});
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | undefined>();
+
+  // cache signed URLs
+  const signedCache = useRef(new Map<string, string>());
+
+  const ensureUrl = useCallback(
+    async (key: string, maybeUrl?: string): Promise<string> => {
+      if (maybeUrl) return maybeUrl;
+      const cached = signedCache.current.get(key);
+      if (cached) return cached;
+      const res = await fetchJson<SignedUrlResponse>(
+        `/api/v1/files/signed?key=${encodeURIComponent(key)}`
+      );
+      signedCache.current.set(key, res.url);
+      return res.url;
+    },
+    [fetchJson]
+  );
+
+  const questions = useMemo(() => CAPTURE_QUESTIONS, []);
+
+  // Fetch header/details
+  useEffect(() => {
+    if (!token || !id) return;
     (async () => {
+      setLoading(true);
+      setErr(undefined);
       try {
-        setLoading(true);
-        setErr(null);
-        const data = await getInspection(id);
-        setInsp(data);
-      } catch (e) {
-        setErr(e instanceof Error ? e.message : String(e));
+        // Adjust this path if your API uses a different endpoint
+        const res = await apiFetch(`/metrics/inspections/${id}`, {}, token);
+        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+        const json: Detail = await res.json();
+        setDetail(json);
+      } catch (e: unknown) {
+        setErr(errMsg(e));
       } finally {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, token]);
 
-  function seedDraftAndGoToWizard() {
-    if (!insp) return;
-    // seed localStorage with step_1..step_12 so the wizard resumes
-    const draft: Record<string, unknown> = {};
-    for (let i = 1; i <= 12; i++) {
-      const key = `step_${i}` as const;
-      if (insp[key]) draft[key] = insp[key];
-    }
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-    navigate("/app/inspections/new");
-  }
-
-  async function onSubmit() {
-    if (!id) return;
-    try {
-      setSubmitting(true);
-      await submitInspection(id);
-      // refresh
-      const data = await getInspection(id);
-      setInsp(data);
-      alert("Inspection submitted.");
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Submit failed");
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  // Fetch photos grouped by question
+  useEffect(() => {
+    if (!token || !id) return;
+    (async () => {
+      try {
+        const next: ByQ = {};
+        await Promise.all(
+          questions.map(async (q) => {
+            const base = `inspections/${id}/${q.key}`;
+            const { items } = (await listFiles(base, true)) as {
+              items: { key: string; object_url?: string }[];
+            };
+            next[q.key] = await Promise.all(
+              items.map(async (it) => ({
+                key: it.key,
+                object_url: await ensureUrl(it.key, it.object_url),
+              }))
+            );
+          })
+        );
+        setPhotos(next);
+      } catch (e: unknown) {
+        // non-fatal — show details even if photos fail
+        console.warn("[InspectionDetails] photos load failed:", e);
+      }
+    })();
+  }, [id, token, questions, listFiles, ensureUrl]);
 
   return (
     <AppShell>
-      <div className="max-w-3xl mx-auto space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Inspection Details</h1>
-          <div className="text-xs opacity-70">{id}</div>
+      <div className="mb-4">
+        <button
+          className="text-sm text-blue-600 hover:underline"
+          onClick={() => navigate(-1)}
+          type="button"
+        >
+          ← Back
+        </button>
+      </div>
+
+      <h1 className="text-xl font-semibold">Inspection Details</h1>
+      {err && (
+        <div className="mt-2 text-sm text-red-600 dark:text-red-400">
+          Error: {err}
         </div>
+      )}
 
-        {loading && <div>Loading…</div>}
-        {err && <div className="text-red-600 dark:text-red-400">Error: {err}</div>}
+      {loading && <div className="mt-4 text-sm opacity-70">Loading…</div>}
 
-        {insp && (
-          <>
-            <div className="rounded-xl border p-4 dark:border-zinc-800">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                <div>
-                  <div className="opacity-60">Status</div>
-                  <div className="font-medium">{insp.status}</div>
+      {detail && (
+        <div className="mt-4 rounded-xl border p-4 dark:border-zinc-800">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+            <div><span className="opacity-60">ID:</span> <span className="font-mono">{detail.id}</span></div>
+            <div><span className="opacity-60">Date:</span> {detail.date}</div>
+            <div><span className="opacity-60">Vehicle:</span> {detail.vehicle}</div>
+            <div><span className="opacity-60">Reg:</span> {detail.reg}</div>
+            <div><span className="opacity-60">Inspector:</span> {detail.inspector}</div>
+            <div><span className="opacity-60">Location:</span> {detail.location}</div>
+            <div><span className="opacity-60">Rating:</span> {detail.rating}</div>
+          </div>
+        </div>
+      )}
+
+      <Separator className="my-6" />
+
+      <h2 className="text-lg font-medium mb-3">Photos</h2>
+      <div className="space-y-6">
+        {questions.map((q) => {
+          const list = photos[q.key] ?? [];
+          return (
+            <div key={q.key} className="rounded-xl border p-4 dark:border-zinc-800">
+              <div className="flex items-center justify-between">
+                <div className="font-medium">
+                  {q.label}
+                  {list.length > 0 && (
+                    <span className="ml-2 rounded bg-muted px-2 py-0.5 text-xs">
+                      {list.length}
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <div className="opacity-60">Current Step</div>
-                  <div className="font-medium">
-                    {insp.current_step} / {insp.total_steps}
-                  </div>
-                </div>
-                <div>
-                  <div className="opacity-60">Completion</div>
-                  <div className="font-medium">
-                    {typeof insp.completion_percentage === "number"
-                      ? `${insp.completion_percentage.toFixed(0)}%`
-                      : `${insp.completion_percentage}`}
-                  </div>
-                </div>
-                <div>
-                  <div className="opacity-60">Inspector</div>
-                  <div className="font-medium">{insp.inspector_id}</div>
-                </div>
+                {/* Optional: link to capture to add more */}
+                <Link
+                  to={`/capture/${id}`}
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  Add more
+                </Link>
               </div>
+
+              <Separator className="my-3" />
+
+              {list.length === 0 ? (
+                <div className="text-sm opacity-60">No photos for this section.</div>
+              ) : (
+                <ThumbnailGrid
+                  items={list.map((r) => ({ key: r.key, url: r.object_url! }))}
+                />
+              )}
             </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" onClick={seedDraftAndGoToWizard}>
-                Continue in Wizard
-              </Button>
-
-              <Link to={`/app/inspection/${insp.id}/capture`}>
-                <Button type="button" variant="secondary">
-                  Open Capture
-                </Button>
-              </Link>
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onSubmit}
-                disabled={submitting || insp.status === "submitted" || insp.status === "approved"}
-              >
-                {submitting ? "Submitting…" : "Submit"}
-              </Button>
-            </div>
-
-            {/* Quick peek at a couple steps (optional) */}
-            <div className="rounded-xl border p-4 dark:border-zinc-800 text-sm space-y-2">
-              <div className="font-medium">Step snapshots</div>
-              <div className="opacity-70">
-                step_1: {insp.step_1 ? "✓" : "—"} • step_2: {insp.step_2 ? "✓" : "—"} • step_11: {insp.step_11 ? "✓" : "—"}
-              </div>
-            </div>
-          </>
-        )}
+          );
+        })}
       </div>
     </AppShell>
   );

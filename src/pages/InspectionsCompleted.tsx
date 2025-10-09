@@ -1,8 +1,9 @@
 // src/pages/InspectionsCompleted.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import AppShell from "@/layouts/AppShell";
-import { json } from "@/lib/api";
+import { useAuth } from "@/providers/AuthProvider";
+import { apiFetch } from "@/lib/api";
 
 type Row = {
   id: string;
@@ -17,41 +18,44 @@ type Row = {
 type Meta = { current_page: number; last_page: number; total: number };
 type Resp = { data: Row[]; meta?: Meta };
 
-// Use the json() helper so we don't touch headers/tokens here.
-async function loadCompleted(page = 1): Promise<Resp> {
-  return json<Resp>(`/metrics/inspections/completed?page=${page}`);
-}
-
 export default function InspectionsCompleted() {
+  const { token } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [meta, setMeta] = useState<Meta | undefined>();
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | undefined>();
 
+  const qs = useMemo(
+    () => new URLSearchParams({ page: String(page) }).toString(),
+    [page]
+  );
+
   useEffect(() => {
-    let ignore = false;
     (async () => {
+      if (!token) return;
       setLoading(true);
       setErr(undefined);
       try {
-        const resp = await loadCompleted(page);
-        if (ignore) return;
-        setRows(resp.data ?? []);
-        setMeta(resp.meta);
+        const res = await apiFetch(`/metrics/inspections/completed?${qs}`, {}, token);
+        if (!res.ok) {
+          setErr(`Request failed: ${res.status}`);
+          setRows([]);
+          setMeta(undefined);
+          return;
+        }
+        const json: Resp = await res.json();
+        setRows(json.data ?? []);
+        setMeta(json.meta);
       } catch (e: unknown) {
-        if (ignore) return;
         setErr(e instanceof Error ? e.message : String(e));
         setRows([]);
         setMeta(undefined);
       } finally {
-        if (!ignore) setLoading(false);
+        setLoading(false);
       }
     })();
-    return () => {
-      ignore = true;
-    };
-  }, [page]);
+  }, [qs, token]);
 
   const canPrev = (meta?.current_page ?? page) > 1;
   const canNext = meta ? meta.current_page < meta.last_page : true;
@@ -92,7 +96,10 @@ export default function InspectionsCompleted() {
               <tr key={r.id} className="border-t dark:border-zinc-800">
                 <td>{r.date}</td>
                 <td>
-                  <Link className="text-blue-600 hover:underline" to={`/inspections/${r.id}`}>
+                  <Link
+                    className="text-blue-600 hover:underline"
+                    to={`/inspections/${r.id}`}
+                  >
                     {r.vehicle || "-"}
                   </Link>
                 </td>
@@ -122,7 +129,7 @@ export default function InspectionsCompleted() {
         </table>
       </div>
 
-      {/* Pagination */}
+      {/* Pagination controls */}
       <div className="mt-3 flex items-center justify-between">
         <button
           className="px-3 py-1.5 rounded border dark:border-zinc-800 disabled:opacity-50"
