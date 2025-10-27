@@ -109,10 +109,6 @@ export default defineConfig({
           router: ['react-router-dom'],
           ui: ['lucide-react'],
         },
-        // Add timestamp to force cache refresh
-        entryFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
-        chunkFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
-        assetFileNames: `assets/[name]-[hash]-${Date.now()}.[ext]`,
       },
     },
   },

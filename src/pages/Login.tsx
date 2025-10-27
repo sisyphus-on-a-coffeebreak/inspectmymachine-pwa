@@ -38,8 +38,9 @@ export default function Login() {
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">VOMS</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">VOMS v1.0.0</h1>
           <p className="text-gray-600">Vehicle Operations Management System</p>
+          <p className="text-sm text-blue-600 mt-2">✅ Latest Version Deployed</p>
         </div>
 
         {/* Login Form */}
