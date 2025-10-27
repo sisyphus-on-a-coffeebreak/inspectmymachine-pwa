@@ -1,0 +1,121 @@
+import { useState, useEffect } from "react";
+import type { ReactNode } from "react";
+import axios from "axios";
+import type { AxiosError } from "axios";
+import { AuthContext } from "./AuthContext";
+import type { User, AuthContextType, ApiErrorResponse } from "./authTypes";
+
+const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000/api";
+
+// Configure axios defaults
+axios.defaults.withCredentials = true;
+axios.defaults.baseURL = "http://127.0.0.1:8000";
+
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Check if user is already authenticated on mount
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const response = await axios.get<User>("/api/user");
+      setUser(response.data);
+    } catch {
+      // Not authenticated, that's fine
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const login = async (employeeId: string, password: string) => {
+    try {
+      // Step 1: Get CSRF token
+      await axios.get("/sanctum/csrf-cookie");
+
+      // Step 2: Login
+      await axios.post("/api/login", {
+        employee_id: employeeId,
+        password: password,
+      });
+
+      // Step 3: Get user data
+      const response = await axios.get<User>("/api/user");
+      setUser(response.data);
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        const axiosError = err as AxiosError<ApiErrorResponse>;
+        throw new Error(
+          axiosError.response?.data?.message || 
+          axiosError.message || 
+          "Login failed"
+        );
+      }
+      throw new Error("An unexpected error occurred");
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await axios.post("/api/logout");
+      setUser(null);
+    } catch (err) {
+      console.error("Logout error:", err);
+      // Even if logout fails on server, clear local state
+      setUser(null);
+    }
+  };
+
+  // Legacy fetchJson for backward compatibility with existing modules
+  const fetchJson = async <T = unknown,>(
+    url: string, 
+    options: RequestInit = {}
+  ): Promise<T> => {
+    try {
+      const fullUrl = url.startsWith("http") ? url : `${API_BASE}${url}`;
+      
+      const response = await fetch(fullUrl, {
+        ...options,
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          ...options.headers,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          (errorData as ApiErrorResponse).message || 
+          `HTTP error! status: ${response.status}`
+        );
+      }
+
+      return await response.json();
+    } catch (err) {
+      if (err instanceof Error) {
+        throw err;
+      }
+      throw new Error("An unexpected error occurred");
+    }
+  };
+
+  const value: AuthContextType = {
+    user,
+    loading,
+    login,
+    logout,
+    fetchJson,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}

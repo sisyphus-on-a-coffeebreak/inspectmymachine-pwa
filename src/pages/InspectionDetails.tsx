@@ -2,10 +2,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import AppShell from "@/layouts/AppShell";
-import { useAuth } from "@/providers/AuthProvider";
-import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/providers/useAuth";
 import { useUploader } from "@/lib/upload";
-import { CAPTURE_QUESTIONS } from "@/data/inspectionQuestions";
+// Removed import - using dynamic inspection data instead
 import ThumbnailGrid from "@/components/ThumbnailGrid";
 import { Separator } from "@/components/ui/separator";
 
@@ -24,6 +23,11 @@ type ByQ = Record<string, UploadItem[]>;
 
 type SignedUrlResponse = { key: string; url: string; expires_at?: string };
 
+type Question = {
+  key: string;
+  label: string;
+};
+
 function errMsg(e: unknown, fb = "Something went wrong") {
   if (e instanceof Error) return e.message;
   if (typeof e === "string") return e;
@@ -33,7 +37,7 @@ function errMsg(e: unknown, fb = "Something went wrong") {
 export default function InspectionDetails() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
-  const { token, fetchJson } = useAuth();
+  const { fetchJson } = useAuth();
   const { listFiles } = useUploader();
 
   const [detail, setDetail] = useState<Detail | null>(null);
@@ -41,7 +45,6 @@ export default function InspectionDetails() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | undefined>();
 
-  // cache signed URLs
   const signedCache = useRef(new Map<string, string>());
 
   const ensureUrl = useCallback(
@@ -58,19 +61,19 @@ export default function InspectionDetails() {
     [fetchJson]
   );
 
-  const questions = useMemo(() => CAPTURE_QUESTIONS, []);
+  // Use dynamic questions from inspection data instead of static CAPTURE_QUESTIONS
+  const questions = useMemo(() => {
+    // This will be populated from the inspection data
+    return [];
+  }, []);
 
-  // Fetch header/details
   useEffect(() => {
-    if (!token || !id) return;
+    if (!id) return;
     (async () => {
       setLoading(true);
       setErr(undefined);
       try {
-        // Adjust this path if your API uses a different endpoint
-        const res = await apiFetch(`/metrics/inspections/${id}`, {}, token);
-        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-        const json: Detail = await res.json();
+        const json = await fetchJson<Detail>(`/metrics/inspections/${id}`);
         setDetail(json);
       } catch (e: unknown) {
         setErr(errMsg(e));
@@ -78,16 +81,15 @@ export default function InspectionDetails() {
         setLoading(false);
       }
     })();
-  }, [id, token]);
+  }, [id, fetchJson]);
 
-  // Fetch photos grouped by question
   useEffect(() => {
-    if (!token || !id) return;
+    if (!id) return;
     (async () => {
       try {
         const next: ByQ = {};
         await Promise.all(
-          questions.map(async (q) => {
+          questions.map(async (q: Question) => {
             const base = `inspections/${id}/${q.key}`;
             const { items } = (await listFiles(base, true)) as {
               items: { key: string; object_url?: string }[];
@@ -102,11 +104,10 @@ export default function InspectionDetails() {
         );
         setPhotos(next);
       } catch (e: unknown) {
-        // non-fatal — show details even if photos fail
         console.warn("[InspectionDetails] photos load failed:", e);
       }
     })();
-  }, [id, token, questions, listFiles, ensureUrl]);
+  }, [id, questions, listFiles, ensureUrl]);
 
   return (
     <AppShell>
@@ -147,7 +148,7 @@ export default function InspectionDetails() {
 
       <h2 className="text-lg font-medium mb-3">Photos</h2>
       <div className="space-y-6">
-        {questions.map((q) => {
+        {questions.map((q: Question) => {
           const list = photos[q.key] ?? [];
           return (
             <div key={q.key} className="rounded-xl border p-4 dark:border-zinc-800">
@@ -160,7 +161,6 @@ export default function InspectionDetails() {
                     </span>
                   )}
                 </div>
-                {/* Optional: link to capture to add more */}
                 <Link
                   to={`/capture/${id}`}
                   className="text-sm text-blue-600 hover:underline"

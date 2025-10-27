@@ -1,6 +1,6 @@
 // src/pages/FloatDashboard.tsx
 import { useEffect, useState, useCallback } from "react";
-import { useAuth } from "@/providers/AuthProvider";
+import { useAuth } from "@/providers/useAuth";
 import { Button } from "@/components/ui/button";
 
 type Who = { ok: boolean; user?: { id: number; name: string; email: string }; can?: { manage_floats?: boolean } };
@@ -32,8 +32,9 @@ export default function FloatDashboard() {
       setWho(w);
       const s = await fetchJson<Statement>("/api/v1/float/statement?mine=1");
       setStmt(s);
-    } catch (e: any) {
-      setError(e?.message || "Failed to load float data");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to load float data";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -44,7 +45,7 @@ export default function FloatDashboard() {
   }, [load]);
 
   // Basic HTML-guard (in case wrong host ever returns the SPA again)
-  const looksLikeHtml = (x: any) =>
+  const looksLikeHtml = (x: unknown) =>
     typeof x === "string" && /^\s*<!doctype html/i.test(x);
 
   const balance = stmt?.remaining ?? null;

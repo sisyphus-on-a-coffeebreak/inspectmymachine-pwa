@@ -1,5 +1,7 @@
 // src/lib/upload.ts
-import { useAuth } from "@/providers/AuthProvider";
+import { useAuth } from "@/providers/useAuth";
+
+const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000/api";
 
 function join(apiBase: string, path: string) {
   if (/^https?:\/\//i.test(path)) return path;
@@ -14,12 +16,17 @@ export type UploadResult = {
   etag?: string;
 };
 
+interface UploadError {
+  message?: string;
+  error?: string;
+}
+
 export function useUploader() {
-  const { fetchJson, token, apiBase } = useAuth();
+  const { fetchJson } = useAuth();
 
   function requireApiBase(): string {
-    const base = (apiBase || "").trim().replace(/\/+$/g, "");
-    if (!base) throw new Error("API base not configured. Set localStorage['voms.apiBase'] or VITE_API_BASE.");
+    const base = API_BASE.trim().replace(/\/+$/g, "");
+    if (!base) throw new Error("API base not configured. Set VITE_API_BASE in .env");
     return base;
   }
 
@@ -28,8 +35,12 @@ export function useUploader() {
     fd.append("file", file, file.name || "photo");
     const clean = (prefix ?? "").replace(/^\/+/, "");
     if (clean) fd.append("prefix", clean);
-    // Uses fetchJson so base + auth are consistent with the rest of the app
-    return await fetchJson("/api/v1/files/upload", { method: "POST", body: fd });
+    
+    // Uses fetchJson so cookies are automatically included
+    return await fetchJson<UploadResult>("/api/v1/files/upload", { 
+      method: "POST", 
+      body: fd 
+    });
   }
 
   function uploadImageWithProgress(
@@ -46,11 +57,13 @@ export function useUploader() {
         return;
       }
 
-      const url = join(base, "/api/v1/files/upload"); // ← absolute API base guaranteed
+      const url = join(base, "/api/v1/files/upload");
       const xhr = new XMLHttpRequest();
       xhr.open("POST", url);
       xhr.setRequestHeader("Accept", "application/json");
-      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      
+      // Cookie-based auth - credentials are sent automatically
+      xhr.withCredentials = true;
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable && onProgress) {
@@ -59,10 +72,10 @@ export function useUploader() {
       };
 
       xhr.onerror = () => reject(new Error("Network error during upload"));
+
       xhr.onload = () => {
         const ok = xhr.status >= 200 && xhr.status < 300;
-        let data: any = null;
-
+        let data: unknown = null;
         try {
           data = xhr.responseText ? JSON.parse(xhr.responseText) : null;
         } catch {
@@ -70,8 +83,9 @@ export function useUploader() {
         }
 
         if (!ok) {
+          const errorData = data as UploadError;
           const msg =
-            (data && (data.message || data.error)) ||
+            (errorData && (errorData.message || errorData.error)) ||
             (xhr.status === 401 ? "Unauthorized (401)" : `Upload failed: ${xhr.status}`);
           reject(new Error(msg));
           return;

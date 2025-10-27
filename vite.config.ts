@@ -48,13 +48,17 @@ export default defineConfig({
       },
 
       manifest: {
-        name: "VOMS",
+        name: "VOMS - Vehicle Operations Management System",
         short_name: "VOMS",
-        description: "Vehicle Operations Management System",
+        description: "Professional vehicle inspection and operations management system",
         start_url: "/",
         display: "standalone",
-        background_color: "#0a0a0a",
-        theme_color: "#0a0a0a",
+        background_color: "#ffffff",
+        theme_color: "#2563eb",
+        scope: "/",
+        orientation: "portrait-primary",
+        categories: ["productivity", "business", "utilities"],
+        lang: "en",
         icons: [
           { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
           { src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
@@ -74,9 +78,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:8000",
+        target: process.env.NODE_ENV === 'production' 
+          ? "https://api.inspectmymachine.in" 
+          : "http://127.0.0.1:8000",
         changeOrigin: true,
-        secure: false,
+        secure: process.env.NODE_ENV === 'production',
         configure: (proxy) => {
           proxy.on("proxyReq", (_proxyReq, req) => {
             console.log("[proxy] →", req.method, req.url);
@@ -87,6 +93,21 @@ export default defineConfig({
           proxy.on("error", (err) => {
             console.error("[proxy] error:", err.message);
           });
+        },
+      },
+    },
+  },
+  
+  build: {
+    outDir: 'dist',
+    sourcemap: process.env.NODE_ENV !== 'production',
+    minify: 'terser',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+          ui: ['lucide-react'],
         },
       },
     },

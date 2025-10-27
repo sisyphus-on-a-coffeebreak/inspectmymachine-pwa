@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUploader, type UploadResult } from "@/lib/upload";
-import { useAuth } from "@/providers/AuthProvider";
+import { useAuth } from "@/providers/useAuth";
 
 type ExpenseDecisionResponse = {
   decision?: { status?: string };

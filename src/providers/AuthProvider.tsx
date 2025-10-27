@@ -1,148 +1,177 @@
-import React, { createContext, useContext, useMemo, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import type { ReactNode } from "react";
+import axios from "axios";
+import type { AxiosError } from "axios";
+import { AuthContext } from "./AuthContext";
+import type { User, AuthContextType, ApiErrorResponse } from "./authTypes";
 
-type FetchJson = <T = unknown>(input: RequestInfo | URL, init?: RequestInit) => Promise<T>;
+const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 
+  (import.meta.env.PROD ? "https://api.inspectmymachine.in" : "http://localhost:8000");
+const API_BASE = (import.meta.env.VITE_API_BASE || `${API_ORIGIN}/api`).replace(/\/$/, "");
 
-type AuthCtx = {
-  token: string | null;
-  setToken: (t: string | null) => void;
-  fetchJson: FetchJson;
-  logout: () => void;
-  apiBase: string;               // ← expose for upload.ts (XHR)
-};
+// Configure axios defaults
+axios.defaults.withCredentials = true;
+axios.defaults.baseURL = API_ORIGIN;
+axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+axios.defaults.headers.common['Accept'] = 'application/json';
 
-const AuthContext = createContext<AuthCtx | null>(null);
-const STORAGE_KEY = "voms.pat";
-
-// Build API base:
-// 1) runtime override (localStorage: voms.apiBase)
-// 2) build-time env (VITE_API_BASE)
-// 3) fallback to same-origin (good for dev with Vite proxy)
-function resolveApiBase(): string {
-  const ls = (typeof localStorage !== "undefined" && localStorage.getItem("voms.apiBase")) || "";
-  const env = (import.meta as any)?.env?.VITE_API_BASE || "";
-  const base = (ls || env || "").toString().trim();
-  if (!base) return ""; // same-origin fallback
-  return base.replace(/\/+$/, ""); // strip trailing slashes
+interface AuthProviderProps {
+  children: ReactNode;
 }
 
-// Turn path or absolute URL into absolute URL using apiBase
-function makeUrl(apiBase: string, input: RequestInfo | URL): RequestInfo | URL {
-  if (typeof input !== "string") return input;
-  if (/^https?:\/\//i.test(input)) return input;  // already absolute
-  if (!apiBase) {
-    // same-origin
-    return input.startsWith("/") ? input : `/${input}`;
-  }
-  return `${apiBase}${input.startsWith("/") ? "" : "/"}${input}`;
-}
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
-  const navigate = useNavigate();
-  const [token, _setToken] = useState<string | null>(() =>
-    (typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null)
-  );
-  const [apiBase] = useState<string>(() => resolveApiBase());
+  // Check if user is already authenticated on mount
+  useEffect(() => {
+    // Install axios interceptors once (response only)
 
-  const logout = useCallback(() => {
-    _setToken(null);
-    if (typeof localStorage !== "undefined") localStorage.removeItem(STORAGE_KEY);
-    // (optional) also clear API base override on logout:
-    // localStorage.removeItem('voms.apiBase');
-    navigate("/login", { replace: true });
-  }, [navigate]);
+    let retrying = false;
+    const res = axios.interceptors.response.use(
+      (r) => r,
+      async (error) => {
+        const status = error?.response?.status;
+        // 419 CSRF or 401 unauthenticated → try to refresh CSRF + retry once
+        if ((status === 419 || status === 401) && !retrying) {
+          try {
+            retrying = true;
+            await axios.get('/sanctum/csrf-cookie');
+            return await axios.request(error.config);
+          } catch {
+            // Fall through to logout / propagate
+          } finally {
+            retrying = false;
+          }
+        }
 
-  const setToken = useCallback((t: string | null) => {
-    _setToken(t);
-    if (typeof localStorage !== "undefined") {
-      if (t) localStorage.setItem(STORAGE_KEY, t);
-      else localStorage.removeItem(STORAGE_KEY);
-    }
+        // If still unauthorized, clear user
+        if (status === 401) setUser(null);
+        return Promise.reject(error);
+      }
+    );
+
+    // Initialize CSRF token
+    const initCSRF = async () => {
+      try {
+        await axios.get('/sanctum/csrf-cookie');
+        console.log('CSRF token initialized');
+      } catch (error) {
+        console.warn('Failed to initialize CSRF token:', error);
+      }
+    };
+
+    initCSRF();
+    checkAuth();
+
+    return () => {
+      axios.interceptors.response.eject(res);
+    };
   }, []);
 
-  const fetchJson = useCallback<FetchJson>(async (input, init = {}) => {
-    const url = makeUrl(apiBase, input);
+  const checkAuth = async () => {
+  try {
+    const response = await axios.get<{ user: User }>("/api/user");
+    setUser(response.data.user);  // 🎯 Extract the nested user object
+  } catch {
+    setUser(null);
+  } finally {
+    setLoading(false);
+  }
+};
 
-    const headers = new Headers(init.headers || {});
-    // Force JSON semantics for API
-    if (!headers.has("Accept")) headers.set("Accept", "application/json");
-    if (!headers.has("X-Requested-With")) headers.set("X-Requested-With", "XMLHttpRequest");
-    if (token && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${token}`);
-
-    // 30s timeout guard
-    const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), 30_000);
-
-    let res: Response;
+  const login = async (employeeId: string, password: string) => {
     try {
-      res = await fetch(url, {
-        ...init,
-        headers,
-        mode: "cors",
-        redirect: "manual",
-        credentials: "omit",
-        signal: ac.signal,
-      });
-    } catch (err: any) {
-      clearTimeout(timer);
-      const msg = err?.name === "AbortError" ? "Request timed out. Check your network." : "Network error. Please retry.";
-      throw new Error(msg);
-    }
-    clearTimeout(timer);
+      // Step 1: Get CSRF token
+      await axios.get("/sanctum/csrf-cookie");
 
-    const contentType = res.headers.get("content-type") || "";
-    const isJson = contentType.includes("application/json");
-
-    // Read once; we’ll branch on type
-    const text = await res.text();
-    const looksHtml = !isJson && /^\s*<(?:!doctype|html|head|body)\b/i.test(text || "");
-    const asJson = isJson && text
-      ? (() => { try { return JSON.parse(text); } catch { return null; } })()
-      : null;
-
-    if (res.status === 401) {
-      console.warn("401 from API, logging out");
-      logout();
-      throw new Error(asJson?.message || "Unauthorized. Please log in again.");
-    }
-
-    if (!res.ok) {
-      // If the API (or tunnel) returned HTML, surface a clear error
-      if (looksHtml) {
-        if (localStorage.getItem("voms.debug") === "1") {
-          console.warn("[fetchJson] Non-JSON error body (first 160):", (text || "").slice(0, 160));
+      // Step 2: Login with proper headers
+      await axios.post("/api/login", {
+        employee_id: employeeId,
+        password: password,
+      }, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
         }
-        throw new Error(`Non-JSON ${res.status} from ${new URL(res.url).pathname}`);
-      }
-      if (res.status === 413) throw new Error(asJson?.message || "File too large.");
-      if (res.status === 422) {
-        const vmsg = asJson?.message ?? (asJson?.errors ? JSON.stringify(asJson.errors) : "Validation failed.");
-        throw new Error(vmsg);
-      }
-      throw new Error(asJson?.message || `Request failed: ${res.status}`);
-    }
+      });
 
-    // Success path: prefer JSON; if backend sent JSON with wrong header but valid JSON text, accept it
-    if (!text) return {} as any;
-    if (asJson) return asJson as any;
+      // Step 3: Get user data
+      const response = await axios.get<{ user: User }>("/api/user");
+      setUser(response.data.user);  // 🎯 Extract the nested user object
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        const axiosError = err as AxiosError<ApiErrorResponse>;
+        throw new Error(
+          axiosError.response?.data?.message || 
+          axiosError.message || 
+          "Login failed"
+        );
+      }
+      throw new Error("An unexpected error occurred");
+    }
+  };
+
+  const logout = async () => {
     try {
-      return JSON.parse(text) as any;
-    } catch {
-      if (looksHtml) {
-        throw new Error(`Unexpected HTML from ${new URL(res.url).pathname}`);
-      }
-      // Last resort: return raw text (should be rare)
-      return text as any;
+      await axios.post("/api/logout", {}, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      setUser(null);
+    } catch (err) {
+      console.error("Logout error:", err);
+      // Even if logout fails on server, clear local state
+      setUser(null);
     }
-  }, [apiBase, token, logout]);
+  };
 
-  const value = useMemo(() => ({ token, setToken, fetchJson, logout, apiBase }), [token, setToken, fetchJson, logout, apiBase]);
+  // Legacy fetchJson for backward compatibility with existing modules
+  const fetchJson = async <T = unknown,>(
+    url: string, 
+    options: RequestInit = {}
+  ): Promise<T> => {
+    try {
+      const fullUrl = url.startsWith("http") ? url : `${API_BASE}${url}`;
+      
+      const response = await fetch(fullUrl, {
+        ...options,
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          ...options.headers,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          (errorData as ApiErrorResponse).message || 
+          `HTTP error! status: ${response.status}`
+        );
+      }
+
+      return await response.json();
+    } catch (err) {
+      if (err instanceof Error) {
+        throw err;
+      }
+      throw new Error("An unexpected error occurred");
+    }
+  };
+
+  const value: AuthContextType = {
+    user,
+    loading,
+    login,
+    logout,
+    fetchJson,
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
-};
+}

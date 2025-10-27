@@ -1,6 +1,6 @@
 // src/lib/useSignedUrl.ts
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useAuth } from "@/providers/AuthProvider";
+import { useAuth } from "@/providers/useAuth";
 
 type SignedUrlResponse = { key: string; url: string; expires_at?: string };
 

@@ -1,6 +1,6 @@
 import { useState } from "react"
 import AppShell from "@/layouts/AppShell"
-import { useAuth } from "@/providers/AuthProvider"
+import { useAuth } from "@/providers/useAuth"
 import { approveStockyardRequest } from "@/lib/stockyard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"

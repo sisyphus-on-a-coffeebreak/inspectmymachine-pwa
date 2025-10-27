@@ -1,26 +1,181 @@
-import * as React from "react";
+import React from 'react';
+import { buttonStyles, colors, spacing, borderRadius } from '../../lib/theme';
 
-export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "default" | "secondary" | "ghost";
-  size?: "sm" | "md" | "lg";
+interface ButtonProps {
+  children: React.ReactNode;
+  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'critical';
+  size?: 'sm' | 'md' | 'lg';
+  disabled?: boolean;
+  loading?: boolean;
+  onClick?: () => void;
+  type?: 'button' | 'submit' | 'reset';
+  className?: string;
+  fullWidth?: boolean;
+  icon?: React.ReactNode;
+}
+
+export const Button: React.FC<ButtonProps> = ({
+  children,
+  variant = 'primary',
+  size = 'md',
+  disabled = false,
+  loading = false,
+  onClick,
+  type = 'button',
+  className = '',
+  fullWidth = false,
+  icon
+}) => {
+  const sizeMap = {
+    sm: {
+      padding: `${spacing.sm} ${spacing.md}`,
+      fontSize: '14px'
+    },
+    md: {
+      padding: `${spacing.md} ${spacing.lg}`,
+      fontSize: '16px'
+    },
+    lg: {
+      padding: `${spacing.lg} ${spacing.xl}`,
+      fontSize: '18px'
+    }
+  };
+
+  const baseStyle = {
+    ...buttonStyles[variant],
+    ...sizeMap[size],
+    width: fullWidth ? '100%' : 'auto',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: icon ? spacing.sm : 0,
+    cursor: disabled || loading ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.6 : 1,
+    minHeight: '44px', // Touch target minimum
+    minWidth: '44px',
+    border: 'none',
+    borderRadius: borderRadius.md,
+    fontWeight: 600,
+    transition: 'all 0.2s ease',
+    position: 'relative' as const,
+    overflow: 'hidden' as const
+  };
+
+  const handleClick = () => {
+    if (!disabled && !loading && onClick) {
+      onClick();
+    }
+  };
+
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    if (!disabled && !loading) {
+      e.currentTarget.style.transform = 'scale(1.02)';
+      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    }
+  };
+
+  const handleMouseLeave = (e: React.MouseEvent) => {
+    if (!disabled && !loading) {
+      e.currentTarget.style.transform = 'scale(1)';
+      e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!disabled && !loading) {
+      e.currentTarget.style.transform = 'scale(0.98)';
+    }
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (!disabled && !loading) {
+      e.currentTarget.style.transform = 'scale(1.02)';
+    }
+  };
+
+  return (
+    <button
+      type={type}
+      style={baseStyle}
+      onClick={handleClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      disabled={disabled || loading}
+      className={`btn-hover-scale touch-feedback ${className}`}
+      aria-disabled={disabled || loading}
+    >
+      {loading && (
+        <div 
+          className="loading-spinner"
+          style={{
+            width: '16px',
+            height: '16px',
+            border: '2px solid transparent',
+            borderTop: '2px solid currentColor',
+            borderRadius: '50%',
+            marginRight: spacing.sm
+          }}
+        />
+      )}
+      {icon && !loading && icon}
+      {children}
+    </button>
+  );
 };
 
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = "default", size = "md", className = "", ...props }, ref) => {
-    const base =
-      "inline-flex items-center justify-center rounded-md transition-colors disabled:opacity-50 disabled:pointer-events-none";
-    const variants: Record<NonNullable<ButtonProps["variant"]>, string> = {
-      default: "bg-primary text-primary-foreground hover:bg-primary/90",
-      secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-      ghost: "hover:bg-accent hover:text-accent-foreground",
-    };
-    const sizes: Record<NonNullable<ButtonProps["size"]>, string> = {
-      sm: "h-8 px-3 text-xs",
-      md: "h-9 px-4",
-      lg: "h-10 px-6 text-base",
-    };
-    const cls = [base, variants[variant], sizes[size], className].filter(Boolean).join(" ");
-    return <button ref={ref} className={cls} {...props} />;
-  }
+// Specialized button variants
+export const PrimaryButton: React.FC<Omit<ButtonProps, 'variant'>> = (props) => (
+  <Button {...props} variant="primary" />
 );
-Button.displayName = "Button";
+
+export const SecondaryButton: React.FC<Omit<ButtonProps, 'variant'>> = (props) => (
+  <Button {...props} variant="secondary" />
+);
+
+export const SuccessButton: React.FC<Omit<ButtonProps, 'variant'>> = (props) => (
+  <Button {...props} variant="success" />
+);
+
+export const WarningButton: React.FC<Omit<ButtonProps, 'variant'>> = (props) => (
+  <Button {...props} variant="warning" />
+);
+
+export const CriticalButton: React.FC<Omit<ButtonProps, 'variant'>> = (props) => (
+  <Button {...props} variant="critical" />
+);
+
+// Icon button for compact spaces
+export const IconButton: React.FC<Omit<ButtonProps, 'children' | 'icon'> & { icon: React.ReactNode }> = ({
+  icon,
+  size = 'md',
+  ...props
+}) => {
+  const iconSizeMap = {
+    sm: '16px',
+    md: '20px',
+    lg: '24px'
+  };
+
+  return (
+    <Button
+      {...props}
+      size={size}
+      style={{
+        ...buttonStyles[props.variant || 'primary'],
+        width: size === 'sm' ? '32px' : size === 'lg' ? '48px' : '40px',
+        height: size === 'sm' ? '32px' : size === 'lg' ? '48px' : '40px',
+        padding: 0,
+        minWidth: 'auto',
+        minHeight: 'auto'
+      }}
+    >
+      <div style={{ fontSize: iconSizeMap[size] }}>
+        {icon}
+      </div>
+    </Button>
+  );
+};
+
+export default Button;

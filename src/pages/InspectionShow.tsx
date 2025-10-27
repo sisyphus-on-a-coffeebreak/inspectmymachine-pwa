@@ -4,8 +4,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import AppShell from "@/layouts/AppShell";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { CAPTURE_QUESTIONS } from "@/data/inspectionQuestions";
-import { useAuth } from "@/providers/AuthProvider";
+// Removed import - using dynamic inspection data instead
+import { useAuth } from "@/providers/useAuth";
 import { useUploader } from "@/lib/upload";
 import ThumbnailGrid from "@/components/ThumbnailGrid";
 

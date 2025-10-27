@@ -6,16 +6,23 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:production": "NODE_ENV=production vite build",
+    "preview": "vite preview",
+    "preview:production": "vite preview --port 4173",
     "typecheck": "tsc -b",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "lint:fix": "eslint . --fix",
+    "deploy:prepare": "npm run build:production && npm run typecheck",
+    "deploy:check": "npm run lint && npm run typecheck"
   },
   "dependencies": {
+    "axios": "^1.12.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "i18next": "^25.3.2",
     "i18next-browser-languagedetector": "^8.2.0",
     "idb-keyval": "^6.2.2",
+    "jsqr": "^1.4.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-i18next": "^15.6.1",

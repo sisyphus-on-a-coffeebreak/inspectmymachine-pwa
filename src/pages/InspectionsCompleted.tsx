@@ -2,8 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import AppShell from "@/layouts/AppShell";
-import { useAuth } from "@/providers/AuthProvider";
-import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/providers/useAuth";
 
 type Row = {
   id: string;
@@ -19,7 +18,7 @@ type Meta = { current_page: number; last_page: number; total: number };
 type Resp = { data: Row[]; meta?: Meta };
 
 export default function InspectionsCompleted() {
-  const { token } = useAuth();
+  const { fetchJson } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [meta, setMeta] = useState<Meta | undefined>();
   const [page, setPage] = useState(1);
@@ -33,18 +32,10 @@ export default function InspectionsCompleted() {
 
   useEffect(() => {
     (async () => {
-      if (!token) return;
       setLoading(true);
       setErr(undefined);
       try {
-        const res = await apiFetch(`/metrics/inspections/completed?${qs}`, {}, token);
-        if (!res.ok) {
-          setErr(`Request failed: ${res.status}`);
-          setRows([]);
-          setMeta(undefined);
-          return;
-        }
-        const json: Resp = await res.json();
+        const json = await fetchJson<Resp>(`/metrics/inspections/completed?${qs}`);
         setRows(json.data ?? []);
         setMeta(json.meta);
       } catch (e: unknown) {
@@ -55,7 +46,7 @@ export default function InspectionsCompleted() {
         setLoading(false);
       }
     })();
-  }, [qs, token]);
+  }, [qs, fetchJson]);
 
   const canPrev = (meta?.current_page ?? page) > 1;
   const canNext = meta ? meta.current_page < meta.last_page : true;
@@ -129,7 +120,6 @@ export default function InspectionsCompleted() {
         </table>
       </div>
 
-      {/* Pagination controls */}
       <div className="mt-3 flex items-center justify-between">
         <button
           className="px-3 py-1.5 rounded border dark:border-zinc-800 disabled:opacity-50"
