@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../components/ui/button';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
 
 // 🏗️ Asset Management Dashboard

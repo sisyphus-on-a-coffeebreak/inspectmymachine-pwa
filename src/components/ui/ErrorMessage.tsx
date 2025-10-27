@@ -1,6 +1,6 @@
 import React from 'react';
 import { colors, typography, spacing } from '../../lib/theme';
-import { Button } from './Button';
+import { Button } from './button';
 
 interface ErrorMessageProps {
   title?: string;
