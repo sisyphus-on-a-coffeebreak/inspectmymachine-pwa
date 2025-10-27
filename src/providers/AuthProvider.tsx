@@ -6,7 +6,7 @@ import { AuthContext } from "./AuthContext";
 import type { User, AuthContextType, ApiErrorResponse } from "./authTypes";
 
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 
-  (import.meta.env.PROD ? "https://api.inspectmymachine.in" : "http://localhost:8000");
+  (import.meta.env.PROD ? "https://inspectmymachine.in" : "http://localhost:8000");
 const API_BASE = (import.meta.env.VITE_API_BASE || `${API_ORIGIN}/api`).replace(/\/$/, "");
 
 // Configure axios defaults
