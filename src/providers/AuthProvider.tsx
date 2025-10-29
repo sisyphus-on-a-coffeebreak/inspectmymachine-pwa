@@ -7,11 +7,13 @@ import type { User, AuthContextType, ApiErrorResponse } from "./authTypes";
 
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 
   (import.meta.env.PROD ? "https://inspectmymachine.in" : "http://localhost:8000");
-const API_BASE = (import.meta.env.VITE_API_BASE || `${API_ORIGIN}/api`).replace(/\/$/, "");
+const API_BASE = (import.meta.env.VITE_API_BASE || 
+  (import.meta.env.PROD ? "https://api.inspectmymachine.in/api" : `${API_ORIGIN}/api`)
+).replace(/\/$/, "");
 
 // Configure axios defaults
 axios.defaults.withCredentials = true;
-axios.defaults.baseURL = API_ORIGIN;
+axios.defaults.baseURL = API_BASE;
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 axios.defaults.headers.common['Accept'] = 'application/json';
 
