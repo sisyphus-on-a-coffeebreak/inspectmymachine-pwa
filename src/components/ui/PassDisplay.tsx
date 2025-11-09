@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import PDFPass from './PDFPass';
-import { generatePDFPass, generateQRCode, generateAccessCode, formatPassNumber, sharePass } from '../../lib/pdf-generator-simple';
+import { generatePDFPass, generateQRCode, generateAccessCode, formatPassNumber, sharePass } from '../../lib/pdf-generator';
 import { Button } from './button';
 import { colors, spacing, typography } from '../../lib/theme';
 

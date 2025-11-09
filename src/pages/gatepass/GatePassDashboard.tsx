@@ -192,7 +192,7 @@ export const GatePassDashboard: React.FC = () => {
       }
 
       // Import the PDF generation functions
-      const { generatePDFPass, generateAccessCode, formatPassNumber } = await import('../../lib/pdf-generator-simple');
+      const { generatePDFPass, generateAccessCode, formatPassNumber } = await import('../../lib/pdf-generator');
       
       // Prepare pass data for PDF generation
       const passData = {
@@ -243,7 +243,7 @@ export const GatePassDashboard: React.FC = () => {
       }
 
       // Import the sharing functions
-      const { sharePass, generateAccessCode, formatPassNumber } = await import('../../lib/pdf-generator-simple');
+      const { sharePass, generateAccessCode, formatPassNumber } = await import('../../lib/pdf-generator');
       
       // Prepare pass data for sharing
       const passData = {
