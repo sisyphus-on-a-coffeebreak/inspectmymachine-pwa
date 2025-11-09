@@ -70,10 +70,24 @@ export const PassValidation: React.FC = () => {
     try { if (navigator.vibrate) navigator.vibrate(ok ? [50,50,50] : [200,100,200]); } catch {}
   };
 
+  const refreshHistory = useCallback(async (passId: string) => {
+    try {
+      const hist = await axios.get(`/api/gate-pass-validation/history/${passId}`);
+      if (hist.data.success) {
+        setHistory(hist.data.history || []);
+      } else {
+        setHistory([]);
+      }
+    } catch {
+      setHistory([]);
+    }
+  }, []);
+
   const validatePass = async (passIdentifier: string) => {
     try {
       setLoading(true);
       setValidationResult(null);
+      setHistory([]);
 
       const response = await axios.post('/api/gate-pass-validation/validate', {
         access_code: passIdentifier
@@ -82,17 +96,12 @@ export const PassValidation: React.FC = () => {
       const result: ValidationResult = response.data;
       setValidationResult(result);
       beep(result.success); vibrate(result.success);
-      
+
       if (result.success && result.pass_data) {
         setCurrentPass(result.pass_data);
-        try {
-          const hist = await axios.get(`/api/gate-pass-validation/history/${result.pass_data.id}`);
-          if (hist.data.success) {
-            setHistory(hist.data.history || []);
-          } else {
-            setHistory([]);
-          }
-        } catch { setHistory([]); }
+        await refreshHistory(result.pass_data.id);
+      } else {
+        setCurrentPass(null);
       }
 
     } catch (error) {
@@ -125,20 +134,51 @@ export const PassValidation: React.FC = () => {
 
     try {
       setLoading(true);
-      await axios.post('/api/gate-pass-validation/entry', {
+      const response = await axios.post('/api/gate-pass-validation/entry', {
         pass_id: currentPass.id,
-        pass_type: currentPass.type === 'visitor' ? 'visitor' : 'vehicle_entry'
+        pass_type: currentPass.type === 'visitor' ? 'visitor' : 'vehicle_entry',
+        notes: validationNotes || undefined,
       });
 
-      alert('Entry recorded successfully!');
-      beep(true); vibrate(true);
-      setCurrentPass(null);
-      setValidationResult(null);
-      setValidationNotes('');
+      const data = response.data || {};
+      const success = data.success !== undefined ? Boolean(data.success) : true;
+      const message = data.message || 'Entry recorded successfully!';
+      const updatedPass: PassValidationData = data.pass_data || {
+        ...currentPass,
+        status: 'inside',
+        entry_time: data.entry_time || new Date().toISOString(),
+      };
+
+      setCurrentPass(updatedPass);
+      setValidationResult({
+        success,
+        message,
+        pass_data: updatedPass,
+        validation_type: 'entry',
+      });
+      if (success) {
+        setValidationNotes('');
+      }
+      beep(success);
+      vibrate(success);
+      await refreshHistory(updatedPass.id);
     } catch (error) {
       console.error('Entry processing failed:', error);
-      alert('Failed to record entry. Please try again.');
-      beep(false); vibrate(false);
+      let message = 'Failed to record entry. Please try again.';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const err = error as any;
+        if (err.response?.data?.message) {
+          message = err.response.data.message;
+        }
+      }
+      beep(false);
+      vibrate(false);
+      setValidationResult({
+        success: false,
+        message,
+        pass_data: currentPass,
+        validation_type: 'entry',
+      });
     } finally {
       setLoading(false);
     }
@@ -149,20 +189,51 @@ export const PassValidation: React.FC = () => {
 
     try {
       setLoading(true);
-      await axios.post('/api/gate-pass-validation/exit', {
+      const response = await axios.post('/api/gate-pass-validation/exit', {
         pass_id: currentPass.id,
-        pass_type: currentPass.type === 'visitor' ? 'visitor' : 'vehicle_exit'
+        pass_type: currentPass.type === 'visitor' ? 'visitor' : 'vehicle_exit',
+        notes: validationNotes || undefined,
       });
 
-      alert('Exit recorded successfully!');
-      beep(true); vibrate(true);
-      setCurrentPass(null);
-      setValidationResult(null);
-      setValidationNotes('');
+      const data = response.data || {};
+      const success = data.success !== undefined ? Boolean(data.success) : true;
+      const message = data.message || 'Exit recorded successfully!';
+      const updatedPass: PassValidationData = data.pass_data || {
+        ...currentPass,
+        status: 'completed',
+        exit_time: data.exit_time || new Date().toISOString(),
+      };
+
+      setCurrentPass(updatedPass);
+      setValidationResult({
+        success,
+        message,
+        pass_data: updatedPass,
+        validation_type: 'exit',
+      });
+      if (success) {
+        setValidationNotes('');
+      }
+      beep(success);
+      vibrate(success);
+      await refreshHistory(updatedPass.id);
     } catch (error) {
       console.error('Exit processing failed:', error);
-      alert('Failed to record exit. Please try again.');
-      beep(false); vibrate(false);
+      let message = 'Failed to record exit. Please try again.';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const err = error as any;
+        if (err.response?.data?.message) {
+          message = err.response.data.message;
+        }
+      }
+      beep(false);
+      vibrate(false);
+      setValidationResult({
+        success: false,
+        message,
+        pass_data: currentPass,
+        validation_type: 'exit',
+      });
     } finally {
       setLoading(false);
     }

@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import PDFPass from './PDFPass';
 import { generatePDFPass, generateQRCode, generateAccessCode, formatPassNumber, sharePass } from '../../lib/pdf-generator-simple';
 import { Button } from './button';
 import { colors, spacing, typography } from '../../lib/theme';
+import { syncGatePassRecord } from '../../lib/gate-pass-records';
+import type { GatePassRecord } from '../../lib/gate-pass-records';
 
 interface PassDisplayProps {
   passData: {
-    id: number;
+    id: number | string;
     passType: 'visitor' | 'vehicle';
     visitorName?: string;
     vehicleDetails?: {
@@ -29,52 +31,143 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
   onClose,
   showActions = true
 }) => {
-  const [accessCode, setAccessCode] = useState<string>('');
-  const [qrCode, setQrCode] = useState<string>('');
+  const [passRecord, setPassRecord] = useState<GatePassRecord | null>(null);
+  const [loadingRecord, setLoadingRecord] = useState<boolean>(true);
+  const [recordError, setRecordError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  const buildMetadata = () => ({
+    passNumber: formatPassNumber(passData.passType, passData.id),
+    passType: passData.passType,
+    visitorName: passData.visitorName,
+    vehicleDetails: passData.vehicleDetails,
+    purpose: passData.purpose,
+    entryTime: passData.entryTime,
+    expectedReturn: passData.expectedReturn,
+    companyName: passData.companyName,
+    companyLogo: passData.companyLogo,
+  });
+
+  const ensureQrCode = useCallback(async (): Promise<string> => {
+    if (!passRecord) {
+      return '';
+    }
+
+    if (passRecord.qrCode && passRecord.qrCode.trim() !== '') {
+      return passRecord.qrCode;
+    }
+
+    const payload = passRecord.qrPayload || passRecord.accessCode;
+    try {
+      const generated = await generateQRCode(payload);
+      setPassRecord(prev => prev ? { ...prev, qrCode: generated } : prev);
+      return generated;
+    } catch (error) {
+      console.error('Failed to generate QR code for pass:', error);
+      return '';
+    }
+  }, [passRecord]);
+
   useEffect(() => {
-    console.log('🚀 PassDisplay useEffect triggered');
-    const code = generateAccessCode();
-    console.log('🔑 Generated access code:', code);
-    
-    setAccessCode(code);
-    
-    // Generate QR code asynchronously
-    generateQRCode(code).then(qr => {
-      console.log('📱 Generated REAL QR code:', qr);
-      console.log('📏 QR code length:', qr.length);
-      console.log('🔍 QR code preview:', qr.substring(0, 100) + '...');
-      setQrCode(qr);
-      console.log('✅ QR code state updated');
-    }).catch(error => {
-      console.error('❌ Failed to generate QR code:', error);
-      setQrCode('');
-    });
-  }, []);
+    let cancelled = false;
+
+    const prepareRecord = async () => {
+      setLoadingRecord(true);
+      setRecordError(null);
+
+      const preferredAccessCode = generateAccessCode();
+      const metadata = buildMetadata();
+
+      try {
+        const record = await syncGatePassRecord({
+          passId: passData.id,
+          passType: passData.passType,
+          metadata,
+          preferredAccessCode,
+        });
+
+        let qrCode = record.qrCode;
+        if (!qrCode) {
+          const payload = record.qrPayload || record.accessCode;
+          try {
+            qrCode = await generateQRCode(payload);
+          } catch (qrError) {
+            console.error('Failed to generate QR code from payload:', qrError);
+            qrCode = '';
+          }
+        }
+
+        if (!cancelled) {
+          setPassRecord({
+            ...record,
+            qrCode,
+            passNumber: record.passNumber || metadata.passNumber,
+            metadata: { ...metadata, ...(record.metadata || {}) },
+          });
+        }
+      } catch (error) {
+        console.error('Failed to sync gate-pass record:', error);
+        let fallbackQr = '';
+        try {
+          fallbackQr = await generateQRCode(preferredAccessCode);
+        } catch (qrError) {
+          console.error('Failed to generate fallback QR code:', qrError);
+        }
+
+        if (!cancelled) {
+          setPassRecord({
+            id: String(passData.id),
+            accessCode: preferredAccessCode,
+            qrCode: fallbackQr,
+            passNumber: metadata.passNumber,
+            metadata,
+          });
+          setRecordError('Unable to sync with server. Using locally generated access code.');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingRecord(false);
+        }
+      }
+    };
+
+    prepareRecord();
+
+    return () => {
+      cancelled = true;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [passData.id, passData.passType]);
 
   const handleDownloadPDF = async () => {
+    if (!passRecord) {
+      alert('Pass record is still loading. Please wait a moment.');
+      return;
+    }
+
     setIsGenerating(true);
     try {
+      const qrCode = await ensureQrCode();
+      const passNumber = passRecord.passNumber || formatPassNumber(passData.passType, passData.id);
       const pdfBlob = await generatePDFPass({
-        passNumber: formatPassNumber(passData.passType, passData.id),
+        passNumber,
         passType: passData.passType,
         visitorName: passData.visitorName,
         vehicleDetails: passData.vehicleDetails,
         purpose: passData.purpose,
         entryTime: passData.entryTime,
         expectedReturn: passData.expectedReturn,
-        accessCode,
+        accessCode: passRecord.accessCode,
         qrCode,
         companyName: passData.companyName,
         companyLogo: passData.companyLogo
       });
-      
+
       // Download the PDF immediately
       const url = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `gate-pass-${formatPassNumber(passData.passType, passData.id)}.pdf`;
+      link.download = `gate-pass-${passNumber}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -91,13 +184,14 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
 
   const handleShare = async () => {
     try {
-      console.log('🔍 PassDisplay - passData:', passData);
-      console.log('🔍 PassDisplay - passData.id:', passData.id);
-      console.log('🔍 PassDisplay - passData.passType:', passData.passType);
-      
-      const formattedPassNumber = formatPassNumber(passData.passType, passData.id);
-      console.log('🔍 PassDisplay - formatted pass number:', formattedPassNumber);
-      
+      if (!passRecord) {
+        alert('Pass record is still loading. Please wait a moment.');
+        return;
+      }
+
+      const qrCode = await ensureQrCode();
+      const formattedPassNumber = passRecord.passNumber || formatPassNumber(passData.passType, passData.id);
+
       await sharePass({
         passNumber: formattedPassNumber,
         passType: passData.passType,
@@ -106,7 +200,7 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
         purpose: passData.purpose,
         entryTime: passData.entryTime,
         expectedReturn: passData.expectedReturn,
-        accessCode,
+        accessCode: passRecord.accessCode,
         qrCode,
         companyName: passData.companyName,
         companyLogo: passData.companyLogo
@@ -207,18 +301,55 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
           </button>
         </div>
 
+        {loadingRecord && (
+          <div style={{
+            ...typography.bodySmall,
+            backgroundColor: colors.neutral[100],
+            borderRadius: '8px',
+            padding: spacing.sm,
+            marginBottom: spacing.md,
+            color: colors.neutral[600],
+          }}>
+            Preparing pass details...
+          </div>
+        )}
+
+        {recordError && (
+          <div style={{
+            ...typography.bodySmall,
+            backgroundColor: colors.status.warning + '20',
+            borderRadius: '8px',
+            padding: spacing.sm,
+            marginBottom: spacing.md,
+            color: colors.status.warning,
+          }}>
+            {recordError}
+          </div>
+        )}
+
+        {passRecord?.id && (
+          <div style={{
+            ...typography.bodySmall,
+            color: colors.neutral[500],
+            marginBottom: spacing.sm,
+            textAlign: 'center' as const,
+          }}>
+            Record ID: <strong>{passRecord.id}</strong>
+          </div>
+        )}
+
         <div style={passContainerStyle}>
           <div id="pdf-pass-container">
             <PDFPass
-              passNumber={formatPassNumber(passData.passType, passData.id)}
+              passNumber={passRecord?.passNumber || formatPassNumber(passData.passType, passData.id)}
               passType={passData.passType}
               visitorName={passData.visitorName}
               vehicleDetails={passData.vehicleDetails}
               purpose={passData.purpose}
               entryTime={passData.entryTime}
               expectedReturn={passData.expectedReturn}
-              accessCode={accessCode}
-              qrCode={qrCode}
+              accessCode={passRecord?.accessCode || ''}
+              qrCode={passRecord?.qrCode || ''}
               companyName={passData.companyName}
               companyLogo={passData.companyLogo}
             />
@@ -231,15 +362,17 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
               variant="primary"
               onClick={handleDownloadPDF}
               loading={isGenerating}
+              disabled={loadingRecord || !passRecord}
               icon="📄"
               fullWidth
             >
               Download PDF
             </Button>
-            
+
             <Button
               variant="success"
               onClick={handleShare}
+              disabled={loadingRecord || !passRecord}
               icon="📤"
               fullWidth
             >
@@ -257,7 +390,7 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
           backgroundColor: colors.neutral[50],
           borderRadius: '8px'
         }}>
-          💡 <strong>Access Code:</strong> {accessCode} | 
+          💡 <strong>Access Code:</strong> {passRecord?.accessCode || '…'} |
           Show this pass at the gate or scan the QR code
         </div>
       </div>
