@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../ui/button';
 import { CameraCapture } from './CameraCapture';
@@ -32,6 +32,7 @@ interface DynamicFormRendererProps {
   onSubmit: (answers: Record<string, any>) => void;
   onSaveDraft: (answers: Record<string, any>) => void;
   readOnly?: boolean;
+  submitting?: boolean;
 }
 
 export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
@@ -39,15 +40,16 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   initialAnswers = {},
   onSubmit,
   onSaveDraft,
-  readOnly = false
+  readOnly = false,
+  submitting = false
 }) => {
   const [currentSection, setCurrentSection] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>(initialAnswers);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [pendingUploads, setPendingUploads] = useState<File[]>([]);
+  const answersRef = useRef(answers);
 
   const currentSectionData = template.sections[currentSection];
   const totalSections = template.sections.length;
@@ -58,17 +60,23 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     setPendingUploads([]);
   }, []);
 
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  useEffect(() => {
+    setAnswers(initialAnswers);
+  }, [initialAnswers]);
+
   // Auto-save every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!isOffline) {
-        onSaveDraft(answers);
-        setLastSaved(new Date());
-      }
+      onSaveDraft(answersRef.current);
+      setLastSaved(new Date());
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [onSaveDraft, isOffline]); // Removed 'answers' from dependencies
+  }, [onSaveDraft]);
 
   // Offline detection
   useEffect(() => {
@@ -92,17 +100,6 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       window.removeEventListener('offline', handleOffline);
     };
   }, [retryPendingUploads]); // Added retryPendingUploads back to dependencies
-
-  // Save to localStorage when offline
-  useEffect(() => {
-    if (isOffline) {
-      localStorage.setItem('inspection_draft', JSON.stringify({
-        answers,
-        timestamp: new Date().toISOString(),
-        template: template.name
-      }));
-    }
-  }, [isOffline, template.name]); // Removed 'answers' from dependencies
 
   const handleAnswerChange = useCallback((questionId: string, value: any) => {
     setAnswers(prev => ({
@@ -278,8 +275,6 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       if (currentSection < totalSections - 1) {
         setCurrentSection(prev => prev + 1);
       } else {
-        // Last section - submit
-        setIsSubmitting(true);
         onSubmit(answers);
       }
     }
@@ -763,7 +758,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
           <Button
             variant="primary"
             onClick={handleNext}
-            disabled={isSubmitting}
+            disabled={submitting}
           >
             {currentSection === totalSections - 1 ? 'Submit Inspection' : 'Next'}
           </Button>
