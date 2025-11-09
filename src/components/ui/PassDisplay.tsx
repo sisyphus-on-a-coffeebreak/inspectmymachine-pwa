@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PDFPass from './PDFPass';
 import { generatePDFPass, generateQRCode, generateAccessCode, formatPassNumber, sharePass } from '../../lib/pdf-generator-simple';
+import { requestGatePassAccessCode } from '../../lib/api';
 import { Button } from './button';
 import { colors, spacing, typography } from '../../lib/theme';
 
@@ -32,28 +33,67 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
   const [accessCode, setAccessCode] = useState<string>('');
   const [qrCode, setQrCode] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoadingCode, setIsLoadingCode] = useState(true);
+  const [accessCodeError, setAccessCodeError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('🚀 PassDisplay useEffect triggered');
-    const code = generateAccessCode();
-    console.log('🔑 Generated access code:', code);
-    
-    setAccessCode(code);
-    
-    // Generate QR code asynchronously
-    generateQRCode(code).then(qr => {
-      console.log('📱 Generated REAL QR code:', qr);
-      console.log('📏 QR code length:', qr.length);
-      console.log('🔍 QR code preview:', qr.substring(0, 100) + '...');
-      setQrCode(qr);
-      console.log('✅ QR code state updated');
-    }).catch(error => {
-      console.error('❌ Failed to generate QR code:', error);
-      setQrCode('');
-    });
-  }, []);
+    let cancelled = false;
+
+    const loadAccessCode = async () => {
+      setIsLoadingCode(true);
+      setAccessCodeError(null);
+
+      try {
+        const { accessCode: serverCode, qrToken } = await requestGatePassAccessCode(passData.id, passData.passType);
+        if (cancelled) {
+          return;
+        }
+
+        setAccessCode(serverCode);
+        const qrDataUrl = await generateQRCode(qrToken ?? serverCode);
+        if (!cancelled) {
+          setQrCode(qrDataUrl);
+        }
+      } catch (error) {
+        console.error('Failed to fetch access code from backend', error);
+        if (cancelled) {
+          return;
+        }
+
+        setAccessCodeError('Failed to fetch access code from server. Using a temporary offline code.');
+        const fallbackCode = generateAccessCode();
+        setAccessCode(fallbackCode);
+        try {
+          const fallbackQr = await generateQRCode(fallbackCode);
+          if (!cancelled) {
+            setQrCode(fallbackQr);
+          }
+        } catch (qrError) {
+          console.error('Failed to generate fallback QR code', qrError);
+          if (!cancelled) {
+            setQrCode('');
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingCode(false);
+        }
+      }
+    };
+
+    void loadAccessCode();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [passData.id, passData.passType]);
 
   const handleDownloadPDF = async () => {
+    if (!qrCode) {
+      alert('QR code not ready yet. Please wait a moment and try again.');
+      return;
+    }
+
     setIsGenerating(true);
     try {
       const pdfBlob = await generatePDFPass({
@@ -90,13 +130,13 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
 
 
   const handleShare = async () => {
+    if (!qrCode) {
+      alert('QR code not ready yet. Please wait a moment and try again.');
+      return;
+    }
+
     try {
-      console.log('🔍 PassDisplay - passData:', passData);
-      console.log('🔍 PassDisplay - passData.id:', passData.id);
-      console.log('🔍 PassDisplay - passData.passType:', passData.passType);
-      
       const formattedPassNumber = formatPassNumber(passData.passType, passData.id);
-      console.log('🔍 PassDisplay - formatted pass number:', formattedPassNumber);
       
       await sharePass({
         passNumber: formattedPassNumber,
@@ -186,6 +226,8 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
     margin: `${spacing.lg} 0`
   };
 
+  const isReady = !isLoadingCode && Boolean(qrCode);
+
   return (
     <div style={containerStyle} onClick={onClose}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
@@ -222,6 +264,16 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
               companyName={passData.companyName}
               companyLogo={passData.companyLogo}
             />
+            {isLoadingCode && (
+              <p style={{ marginTop: spacing.md, color: colors.neutral[500], textAlign: 'center' }}>
+                Generating secure access code…
+              </p>
+            )}
+            {accessCodeError && !isLoadingCode && (
+              <p style={{ marginTop: spacing.sm, color: colors.status.warning, textAlign: 'center' }}>
+                {accessCodeError}
+              </p>
+            )}
           </div>
         </div>
 
@@ -230,16 +282,18 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
             <Button
               variant="primary"
               onClick={handleDownloadPDF}
+              disabled={isGenerating || !isReady}
               loading={isGenerating}
               icon="📄"
               fullWidth
             >
               Download PDF
             </Button>
-            
+
             <Button
               variant="success"
               onClick={handleShare}
+              disabled={!isReady}
               icon="📤"
               fullWidth
             >

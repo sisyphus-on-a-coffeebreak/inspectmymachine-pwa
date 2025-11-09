@@ -1,6 +1,8 @@
 // src/lib/pdf-generator-simple.ts
 // Simple PDF generation without heavy dependencies
 
+import { generateQrCode, generateQrBlob, type QRRenderOptions } from './qr-code.js';
+
 export interface PassData {
   passNumber: string;
   passType: 'visitor' | 'vehicle';
@@ -400,93 +402,13 @@ const generatePDFFromData = async (passData: PassData): Promise<Blob> => {
   return new Blob([html], { type: 'text/html' });
 };
 
-export const generateQRCode = async (data: string): Promise<string> => {
-  console.log('🔧 Generating QR code using Canvas API for data:', data);
-  
-  try {
-    // Create a canvas element
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Canvas context not available');
-    
-    const size = 200;
-    const cellSize = 8;
-    const cells = Math.floor(size / cellSize);
-    
-    canvas.width = size;
-    canvas.height = size;
-    
-    // Fill white background
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, size, size);
-    
-    // Generate QR-like pattern based on data
-    const hash = data.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-    
-    ctx.fillStyle = 'black';
-    
-    // Draw corner finder patterns (like real QR codes)
-    const drawFinderPattern = (x: number, y: number) => {
-      // Outer square
-      ctx.fillRect(x, y, 7 * cellSize, 7 * cellSize);
-      // Inner white square
-      ctx.fillStyle = 'white';
-      ctx.fillRect(x + cellSize, y + cellSize, 5 * cellSize, 5 * cellSize);
-      // Inner black square
-      ctx.fillStyle = 'black';
-      ctx.fillRect(x + 2 * cellSize, y + 2 * cellSize, 3 * cellSize, 3 * cellSize);
-    };
-    
-    // Top-left finder pattern
-    drawFinderPattern(0, 0);
-    // Top-right finder pattern
-    drawFinderPattern((cells - 7) * cellSize, 0);
-    // Bottom-left finder pattern
-    drawFinderPattern(0, (cells - 7) * cellSize);
-    
-    // Draw data pattern
-    for (let row = 0; row < cells; row++) {
-      for (let col = 0; col < cells; col++) {
-        // Skip finder pattern areas
-        if ((row < 7 && col < 7) || 
-            (row < 7 && col >= cells - 7) || 
-            (row >= cells - 7 && col < 7)) {
-          continue;
-        }
-        
-        // Generate pattern based on hash and position
-        const shouldFill = ((hash + row + col * cells) % 2) === 0;
-        if (shouldFill) {
-          ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
-        }
-      }
-    }
-    
-    // Convert canvas to data URL
-    const dataUrl = canvas.toDataURL('image/png');
-    console.log('✅ QR code generated using Canvas API, length:', dataUrl.length);
-    return dataUrl;
-    
-  } catch (error) {
-    console.error('❌ Failed to generate QR code:', error);
-    
-    // Fallback to simple text display
-    const svgContent = `
-      <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
-        <rect width="200" height="200" fill="white" stroke="black" stroke-width="2"/>
-        <text x="100" y="100" text-anchor="middle" font-family="monospace" font-size="16" fill="black">
-          ${data}
-        </text>
-      </svg>
-    `;
-    
-    const fallbackUrl = `data:image/svg+xml;base64,${btoa(svgContent)}`;
-    console.log('⚠️ Using fallback display');
-    return fallbackUrl;
-  }
+export const generateQRCode = async (data: string, options?: QRRenderOptions): Promise<string> => {
+  const { dataUrl } = generateQrCode(data, options);
+  return dataUrl;
+};
+
+export const generateQRCodeBlob = (data: string, options?: QRRenderOptions) => {
+  return generateQrBlob(data, options);
 };
 
 export const generateAccessCode = (): string => {
@@ -520,10 +442,12 @@ export const sharePass = async (passData: PassData): Promise<void> => {
     // Generate the PDF blob
     const pdfBlob = await generatePDFPass(passData);
     
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfBlob] })) {
+    const shareFile = new File([pdfBlob], `gate-pass-${passData.passNumber}.pdf`, { type: 'application/pdf' });
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [shareFile] })) {
       // Share only the PDF file - no text or URL
       await navigator.share({
-        files: [new File([pdfBlob], `gate-pass-${passData.passNumber}.pdf`, { type: 'application/pdf' })]
+        files: [shareFile]
       });
     } else {
       // Fallback: Download the PDF

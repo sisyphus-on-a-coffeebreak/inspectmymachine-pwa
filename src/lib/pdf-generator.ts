@@ -1,3 +1,5 @@
+import { generateQrCode, type QRRenderOptions } from './qr-code.js';
+
 // Dynamic imports to handle dependencies
 let html2canvas: any;
 let jsPDF: any;
@@ -79,17 +81,8 @@ export const generatePDFPass = async (
   }
 };
 
-export const generateQRCode = (data: string): string => {
-  // Simple QR code generation (in production, use a proper QR library)
-  // This is a placeholder - replace with actual QR generation
-  return `data:image/svg+xml;base64,${btoa(`
-    <svg width="120" height="120" xmlns="http://www.w3.org/2000/svg">
-      <rect width="120" height="120" fill="white"/>
-      <text x="60" y="60" text-anchor="middle" font-family="monospace" font-size="10" fill="black">
-        QR: ${data}
-      </text>
-    </svg>
-  `)}`;
+export const generateQRCode = (data: string, options?: QRRenderOptions): string => {
+  return generateQrCode(data, options).dataUrl;
 };
 
 export const generateAccessCode = (): string => {
