@@ -146,14 +146,54 @@ export const QRScanner: React.FC<QRScannerProps> = ({
         }
       }
 
-      // Get camera stream
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+      // Try to get camera stream - try environment (back camera) first, then user (front camera)
+      let stream: MediaStream | null = null;
+      let error: Error | null = null;
+
+      // First try: environment (back camera on mobile, rear on some laptops)
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        });
+      } catch (envError) {
+        console.warn('Environment camera not available, trying user camera:', envError);
+        error = envError as Error;
+        
+        // Second try: user (front camera on mobile, built-in on laptops)
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { 
+              facingMode: 'user',
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          });
+          error = null;
+        } catch (userError) {
+          console.warn('User camera not available, trying any camera:', userError);
+          
+          // Third try: any available camera (no facingMode constraint)
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { 
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+              }
+            });
+            error = null;
+          } catch (anyError) {
+            error = anyError as Error;
+          }
         }
-      });
+      }
+
+      if (!stream) {
+        throw error || new Error('No camera available');
+      }
 
       streamRef.current = stream;
       
@@ -165,7 +205,13 @@ export const QRScanner: React.FC<QRScannerProps> = ({
       // Start detection loop
       animationRef.current = requestAnimationFrame(detectFrame);
     } catch (err) {
-      const errorMessage = 'Camera access denied. Please allow camera permissions.';
+      const errorMessage = err instanceof Error 
+        ? err.message.includes('permission') 
+          ? 'Camera access denied. Please allow camera permissions in your browser settings.'
+          : err.message.includes('not found') || err.message.includes('not available')
+          ? 'No camera found. Please connect a camera and try again.'
+          : 'Unable to access camera. Please check your camera permissions and try again.'
+        : 'Camera access denied. Please allow camera permissions.';
       setError(errorMessage);
       onError?.(errorMessage);
       setIsScanning(false);

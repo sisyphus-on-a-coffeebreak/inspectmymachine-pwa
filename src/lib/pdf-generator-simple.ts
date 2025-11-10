@@ -341,9 +341,22 @@ export const generatePDFPass = async (
   }
 };
 
+/**
+ * Generates a QR code from the provided data string.
+ * The data MUST be a proper verifiable payload from the backend (e.g., pass ID, validation URL, or secure token).
+ * 
+ * @param data - The verifiable payload to encode in the QR code. Must come from backend API.
+ * @returns Promise resolving to a data URL of the QR code image
+ * @throws Error if data is empty or invalid
+ */
 export const generateQRCode = async (data: string): Promise<string> => {
-  if (!data) {
-    throw new Error('Cannot generate QR code for empty data');
+  if (!data || data.trim() === '') {
+    throw new Error('Cannot generate QR code: Missing verifiable payload from backend. QR code must contain valid pass information.');
+  }
+
+  // Reject dummy access codes - backend must provide proper qrPayload
+  if (data.match(/^\d{6}$/)) {
+    throw new Error('Cannot generate QR code: Backend must provide verifiable QR payload (pass ID or validation token), not dummy access code.');
   }
 
   try {
@@ -363,14 +376,8 @@ export const generateQRCode = async (data: string): Promise<string> => {
       },
     });
   } catch (error) {
-    console.error('Failed to generate QR code with library. Falling back to SVG placeholder.', error);
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256">
-        <rect width="256" height="256" fill="#ffffff" stroke="#0f172a" stroke-width="4" />
-        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="monospace" font-size="24" fill="#0f172a">${escapeHtml(data)}</text>
-      </svg>
-    `;
-    return `data:image/svg+xml;base64,${btoa(svg)}`;
+    // Don't fallback to placeholder - throw error so caller knows QR generation failed
+    throw new Error(`Failed to generate QR code: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
 

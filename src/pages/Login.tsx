@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../providers/useAuth";
 import { colors, typography, spacing } from "../lib/theme";
-import { Sparkles, Lock, User as UserIcon, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Sparkles, Lock, User as UserIcon, Eye, EyeOff, AlertCircle, LogIn } from "lucide-react";
 
 export default function Login() {
   const [employeeId, setEmployeeId] = useState("");
@@ -51,37 +51,73 @@ export default function Login() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: spacing.xl
+      padding: spacing.xl,
+      position: 'relative',
+      overflow: 'hidden'
     }}>
+      {/* Background decoration */}
+      <div style={{
+        position: 'absolute',
+        top: '-50%',
+        right: '-50%',
+        width: '800px',
+        height: '800px',
+        background: `radial-gradient(circle, ${colors.primary}10 0%, transparent 70%)`,
+        borderRadius: '50%',
+        pointerEvents: 'none'
+      }} />
+      <div style={{
+        position: 'absolute',
+        bottom: '-30%',
+        left: '-30%',
+        width: '600px',
+        height: '600px',
+        background: `radial-gradient(circle, ${colors.primary}08 0%, transparent 70%)`,
+        borderRadius: '50%',
+        pointerEvents: 'none'
+      }} />
+
       <div style={{ 
         width: '100%',
-        maxWidth: '440px'
+        maxWidth: '420px',
+        position: 'relative',
+        zIndex: 1
       }}>
         {/* Logo/Header */}
         <div style={{ 
           textAlign: 'center', 
-          marginBottom: spacing.xl * 2 
+          marginBottom: spacing.xl * 1.5 
         }}>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '64px',
-            height: '64px',
+            width: '72px',
+            height: '72px',
             background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
-            borderRadius: '16px',
+            borderRadius: '18px',
             marginBottom: spacing.lg,
-            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
+            boxShadow: '0 8px 24px rgba(37, 99, 235, 0.25)',
+            position: 'relative'
           }}>
-            <Sparkles style={{ width: '32px', height: '32px', color: 'white' }} />
+            <Sparkles style={{ width: '36px', height: '36px', color: 'white' }} />
+            <div style={{
+              position: 'absolute',
+              inset: '-2px',
+              background: `linear-gradient(135deg, ${colors.primary}40 0%, ${colors.primary}20 100%)`,
+              borderRadius: '18px',
+              zIndex: -1,
+              filter: 'blur(8px)'
+            }} />
           </div>
           <h1 style={{ 
             ...typography.header,
-            fontSize: '28px',
+            fontSize: '32px',
             color: colors.neutral[900],
             margin: 0,
             marginBottom: spacing.xs,
-            fontWeight: 700
+            fontWeight: 700,
+            letterSpacing: '-0.02em'
           }}>
             VOMS
           </h1>
@@ -89,7 +125,8 @@ export default function Login() {
             ...typography.body,
             color: colors.neutral[600],
             margin: 0,
-            fontSize: '15px'
+            fontSize: '15px',
+            fontWeight: 500
           }}>
             Vehicle Operations Management System
           </p>
@@ -98,35 +135,58 @@ export default function Login() {
         {/* Login Card */}
         <div style={{
           background: 'white',
-          borderRadius: '20px',
+          borderRadius: '24px',
           padding: spacing.xl * 1.5,
-          boxShadow: '0 8px 25px rgba(0,0,0,0.08)',
-          border: `1px solid ${colors.neutral[200]}`
+          boxShadow: '0 12px 40px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04)',
+          border: `1px solid ${colors.neutral[200]}`,
+          position: 'relative',
+          overflow: 'hidden'
         }}>
-          <h2 style={{ 
-            ...typography.subheader,
-            fontSize: '20px',
-            color: colors.neutral[900],
-            margin: 0,
-            marginBottom: spacing.xl,
-            fontWeight: 600
-          }}>
-            Sign in
-          </h2>
+          {/* Card decoration */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px',
+            background: `linear-gradient(90deg, ${colors.primary} 0%, ${colors.primary}80 100%)`
+          }} />
+
+          <div style={{ marginBottom: spacing.xl * 1.25 }}>
+            <h2 style={{ 
+              ...typography.subheader,
+              fontSize: '24px',
+              color: colors.neutral[900],
+              margin: 0,
+              marginBottom: spacing.xs,
+              fontWeight: 700
+            }}>
+              Welcome back
+            </h2>
+            <p style={{ 
+              ...typography.body,
+              color: colors.neutral[600],
+              margin: 0,
+              fontSize: '14px'
+            }}>
+              Sign in to continue to your account
+            </p>
+          </div>
           
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
             {/* Error Message */}
             {error && (
               <div style={{
-                background: `${colors.status.critical}15`,
-                border: `1px solid ${colors.status.critical}`,
+                background: `${colors.status.critical}10`,
+                border: `1px solid ${colors.status.critical}30`,
                 borderRadius: '12px',
                 padding: `${spacing.md} ${spacing.lg}`,
                 display: 'flex',
                 alignItems: 'center',
-                gap: spacing.sm
+                gap: spacing.sm,
+                animation: 'slideDown 0.3s ease'
               }}>
-                <AlertCircle style={{ width: '18px', height: '18px', color: colors.status.critical, flexShrink: 0 }} />
+                <AlertCircle style={{ width: '20px', height: '20px', color: colors.status.critical, flexShrink: 0 }} />
                 <p style={{ 
                   ...typography.body,
                   color: colors.status.critical,
@@ -146,8 +206,10 @@ export default function Login() {
                 display: 'block',
                 color: colors.neutral[700],
                 marginBottom: spacing.sm,
-                fontSize: '14px',
-                fontWeight: 500
+                fontSize: '13px',
+                fontWeight: 600,
+                textTransform: 'none',
+                letterSpacing: '0'
               }}>
                 Employee ID
               </label>
@@ -159,22 +221,23 @@ export default function Login() {
                   transform: 'translateY(-50%)',
                   display: 'flex',
                   alignItems: 'center',
-                  pointerEvents: 'none'
+                  pointerEvents: 'none',
+                  zIndex: 1
                 }}>
-                  <UserIcon style={{ width: '18px', height: '18px', color: colors.neutral[400] }} />
+                  <UserIcon style={{ width: '20px', height: '20px', color: colors.neutral[400] }} />
                 </div>
                 <input
                   id="employeeId"
                   type="text"
                   value={employeeId}
                   onChange={(e) => setEmployeeId(e.target.value.toUpperCase())}
-                  placeholder="e.g., ADMIN001"
+                  placeholder="Enter your employee ID"
                   required
                   disabled={loading}
                   style={{
                     width: '100%',
-                    padding: `${spacing.md} ${spacing.md} ${spacing.md} ${spacing.xl * 2}`,
-                    border: `1px solid ${colors.neutral[300]}`,
+                    padding: `${spacing.md + 2}px ${spacing.md}px ${spacing.md + 2}px ${spacing.xl * 2.5}px`,
+                    border: `1.5px solid ${colors.neutral[300]}`,
                     borderRadius: '12px',
                     fontSize: '15px',
                     color: colors.neutral[900],
@@ -182,11 +245,13 @@ export default function Login() {
                     cursor: loading ? 'not-allowed' : 'text',
                     transition: 'all 0.2s ease',
                     outline: 'none',
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
+                    fontWeight: 500
                   }}
                   onFocus={(e) => {
                     e.currentTarget.style.borderColor = colors.primary;
-                    e.currentTarget.style.boxShadow = `0 0 0 3px ${colors.primary}20`;
+                    e.currentTarget.style.boxShadow = `0 0 0 4px ${colors.primary}15`;
+                    e.currentTarget.style.background = 'white';
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.borderColor = colors.neutral[300];
@@ -203,8 +268,10 @@ export default function Login() {
                 display: 'block',
                 color: colors.neutral[700],
                 marginBottom: spacing.sm,
-                fontSize: '14px',
-                fontWeight: 500
+                fontSize: '13px',
+                fontWeight: 600,
+                textTransform: 'none',
+                letterSpacing: '0'
               }}>
                 Password
               </label>
@@ -216,9 +283,10 @@ export default function Login() {
                   transform: 'translateY(-50%)',
                   display: 'flex',
                   alignItems: 'center',
-                  pointerEvents: 'none'
+                  pointerEvents: 'none',
+                  zIndex: 1
                 }}>
-                  <Lock style={{ width: '18px', height: '18px', color: colors.neutral[400] }} />
+                  <Lock style={{ width: '20px', height: '20px', color: colors.neutral[400] }} />
                 </div>
                 <input
                   id="password"
@@ -230,8 +298,8 @@ export default function Login() {
                   disabled={loading}
                   style={{
                     width: '100%',
-                    padding: `${spacing.md} ${spacing.xl * 2} ${spacing.md} ${spacing.xl * 2}`,
-                    border: `1px solid ${colors.neutral[300]}`,
+                    padding: `${spacing.md + 2}px ${spacing.xl * 2.5}px ${spacing.md + 2}px ${spacing.xl * 2.5}px`,
+                    border: `1.5px solid ${colors.neutral[300]}`,
                     borderRadius: '12px',
                     fontSize: '15px',
                     color: colors.neutral[900],
@@ -239,11 +307,13 @@ export default function Login() {
                     cursor: loading ? 'not-allowed' : 'text',
                     transition: 'all 0.2s ease',
                     outline: 'none',
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
+                    fontWeight: 500
                   }}
                   onFocus={(e) => {
                     e.currentTarget.style.borderColor = colors.primary;
-                    e.currentTarget.style.boxShadow = `0 0 0 3px ${colors.primary}20`;
+                    e.currentTarget.style.boxShadow = `0 0 0 4px ${colors.primary}15`;
+                    e.currentTarget.style.background = 'white';
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.borderColor = colors.neutral[300];
@@ -265,10 +335,11 @@ export default function Login() {
                     alignItems: 'center',
                     padding: spacing.xs,
                     color: colors.neutral[400],
-                    transition: 'color 0.2s ease'
+                    transition: 'color 0.2s ease',
+                    zIndex: 1
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.color = colors.neutral[600];
+                    e.currentTarget.style.color = colors.neutral[700];
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.color = colors.neutral[400];
@@ -276,9 +347,9 @@ export default function Login() {
                   tabIndex={-1}
                 >
                   {showPassword ? (
-                    <EyeOff style={{ width: '18px', height: '18px' }} />
+                    <EyeOff style={{ width: '20px', height: '20px' }} />
                   ) : (
-                    <Eye style={{ width: '18px', height: '18px' }} />
+                    <Eye style={{ width: '20px', height: '20px' }} />
                   )}
                 </button>
               </div>
@@ -290,44 +361,45 @@ export default function Login() {
               disabled={loading}
               style={{
                 width: '100%',
-                padding: `${spacing.md} ${spacing.lg}`,
+                padding: `${spacing.md + 4}px ${spacing.lg}`,
                 background: loading 
                   ? colors.neutral[400] 
                   : `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
                 color: 'white',
                 border: 'none',
                 borderRadius: '12px',
-                fontSize: '15px',
+                fontSize: '16px',
                 fontWeight: 600,
                 cursor: loading ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s ease',
                 boxShadow: loading 
                   ? 'none' 
-                  : '0 4px 12px rgba(37, 99, 235, 0.3)',
+                  : '0 4px 16px rgba(37, 99, 235, 0.3)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: spacing.sm
+                gap: spacing.sm,
+                marginTop: spacing.sm
               }}
               onMouseEnter={(e) => {
                 if (!loading) {
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(37, 99, 235, 0.4)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(37, 99, 235, 0.4)';
                 }
               }}
               onMouseLeave={(e) => {
                 if (!loading) {
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.3)';
+                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(37, 99, 235, 0.3)';
                 }
               }}
             >
               {loading ? (
                 <>
                   <div style={{
-                    width: '16px',
-                    height: '16px',
-                    border: '2px solid rgba(255,255,255,0.3)',
+                    width: '18px',
+                    height: '18px',
+                    border: '2.5px solid rgba(255,255,255,0.3)',
                     borderTopColor: 'white',
                     borderRadius: '50%',
                     animation: 'spin 0.6s linear infinite'
@@ -335,7 +407,10 @@ export default function Login() {
                   <span>Signing in...</span>
                 </>
               ) : (
-                'Sign in'
+                <>
+                  <LogIn style={{ width: '18px', height: '18px' }} />
+                  <span>Sign in</span>
+                </>
               )}
             </button>
           </form>
@@ -351,10 +426,12 @@ export default function Login() {
               color: colors.neutral[500],
               margin: 0,
               marginBottom: spacing.md,
-              fontSize: '12px',
-              fontWeight: 500
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em'
             }}>
-              Test Accounts
+              Quick Test Accounts
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xs }}>
               {testAccounts.map((account) => (
@@ -369,7 +446,7 @@ export default function Login() {
                   style={{
                     width: '100%',
                     textAlign: 'left',
-                    padding: `${spacing.sm} ${spacing.md}`,
+                    padding: `${spacing.sm + 2}px ${spacing.md}`,
                     background: colors.neutral[50],
                     border: `1px solid ${colors.neutral[200]}`,
                     borderRadius: '10px',
@@ -384,19 +461,21 @@ export default function Login() {
                     if (!loading) {
                       e.currentTarget.style.background = colors.neutral[100];
                       e.currentTarget.style.borderColor = colors.neutral[300];
+                      e.currentTarget.style.transform = 'translateX(2px)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!loading) {
                       e.currentTarget.style.background = colors.neutral[50];
                       e.currentTarget.style.borderColor = colors.neutral[200];
+                      e.currentTarget.style.transform = 'translateX(0)';
                     }
                   }}
                 >
                   <span style={{
                     ...typography.body,
                     color: colors.neutral[900],
-                    fontSize: '13px',
+                    fontSize: '14px',
                     fontWeight: 600
                   }}>
                     {account.id}
@@ -404,7 +483,8 @@ export default function Login() {
                   <span style={{
                     ...typography.bodySmall,
                     color: colors.neutral[500],
-                    fontSize: '12px'
+                    fontSize: '12px',
+                    fontWeight: 500
                   }}>
                     {account.role}
                   </span>
@@ -419,7 +499,7 @@ export default function Login() {
               textAlign: 'center',
               fontSize: '11px'
             }}>
-              Password: <span style={{ fontFamily: 'monospace', color: colors.neutral[600] }}>password</span>
+              Password: <span style={{ fontFamily: 'monospace', color: colors.neutral[600], fontWeight: 600 }}>password</span>
             </p>
           </div>
         </div>
@@ -433,13 +513,23 @@ export default function Login() {
           textAlign: 'center',
           fontSize: '12px'
         }}>
-          © 2024 VOMS
+          © 2024 VOMS • All rights reserved
         </p>
       </div>
 
       <style>{`
         @keyframes spin {
           to { transform: rotate(360deg); }
+        }
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
       `}</style>
     </div>

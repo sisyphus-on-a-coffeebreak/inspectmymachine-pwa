@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PDFPass from './PDFPass';
-import { generatePDFPass, generateQRCode, generateAccessCode, formatPassNumber, sharePass } from '../../lib/pdf-generator-simple';
+import { generatePDFPass, generateQRCode, formatPassNumber, sharePass } from '../../lib/pdf-generator-simple';
 import { Button } from './button';
 import { colors, spacing, typography } from '../../lib/theme';
 import { syncGatePassRecord } from '../../lib/gate-pass-records';
@@ -50,21 +50,27 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
 
   const ensureQrCode = useCallback(async (): Promise<string> => {
     if (!passRecord) {
-      return '';
+      throw new Error('Cannot generate QR code: Pass record not available');
     }
 
+    // Use pre-generated QR code if available
     if (passRecord.qrCode && passRecord.qrCode.trim() !== '') {
       return passRecord.qrCode;
     }
 
-    const payload = passRecord.qrPayload || passRecord.accessCode;
+    // MUST use qrPayload from backend - no fallback to accessCode
+    if (!passRecord.qrPayload || passRecord.qrPayload.trim() === '') {
+      throw new Error('Cannot generate QR code: Backend did not provide verifiable QR payload. Pass must be synced with backend first.');
+    }
+
     try {
-      const generated = await generateQRCode(payload);
+      const generated = await generateQRCode(passRecord.qrPayload);
       setPassRecord(prev => prev ? { ...prev, qrCode: generated } : prev);
       return generated;
     } catch (error) {
-      console.error('Failed to generate QR code for pass:', error);
-      return '';
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate QR code';
+      console.error('Failed to generate QR code for pass:', errorMessage);
+      throw new Error(`QR code generation failed: ${errorMessage}`);
     }
   }, [passRecord]);
 
@@ -75,25 +81,27 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
       setLoadingRecord(true);
       setRecordError(null);
 
-      const preferredAccessCode = generateAccessCode();
       const metadata = buildMetadata();
 
       try {
+        // Sync with backend - backend MUST provide qrPayload
         const record = await syncGatePassRecord({
           passId: passData.id,
           passType: passData.passType,
           metadata,
-          preferredAccessCode,
         });
 
+        // Generate QR code from backend's verifiable qrPayload
         let qrCode = record.qrCode;
         if (!qrCode) {
-          const payload = record.qrPayload || record.accessCode;
+          if (!record.qrPayload || record.qrPayload.trim() === '') {
+            throw new Error('Backend did not provide verifiable QR payload');
+          }
           try {
-            qrCode = await generateQRCode(payload);
+            qrCode = await generateQRCode(record.qrPayload);
           } catch (qrError) {
-            console.error('Failed to generate QR code from payload:', qrError);
-            qrCode = '';
+            const errorMessage = qrError instanceof Error ? qrError.message : 'Unknown error';
+            throw new Error(`Failed to generate QR code from backend payload: ${errorMessage}`);
           }
         }
 
@@ -106,23 +114,16 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
           });
         }
       } catch (error) {
-        console.error('Failed to sync gate-pass record:', error);
-        let fallbackQr = '';
-        try {
-          fallbackQr = await generateQRCode(preferredAccessCode);
-        } catch (qrError) {
-          console.error('Failed to generate fallback QR code:', qrError);
-        }
-
+        console.error('Failed to sync gate-pass record with backend:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        
         if (!cancelled) {
-          setPassRecord({
-            id: String(passData.id),
-            accessCode: preferredAccessCode,
-            qrCode: fallbackQr,
-            passNumber: metadata.passNumber,
-            metadata,
-          });
-          setRecordError('Unable to sync with server. Using locally generated access code.');
+          setRecordError(
+            `Unable to generate verifiable QR code: ${errorMessage}. ` +
+            `Please ensure the backend API /api/gate-pass-records/sync is working and returns qr_payload.`
+          );
+          // Don't create a record without verifiable QR code
+          setPassRecord(null);
         }
       } finally {
         if (!cancelled) {

@@ -230,20 +230,24 @@ export const GatePassDashboard: React.FC = () => {
       const passNumber = pdfUtils.formatPassNumber(type, passId);
       const metadata = buildRecordMetadata(pass, type, passNumber);
 
+      // Sync with backend - backend MUST provide qrPayload for verifiable QR codes
       const record = await recordUtils.syncGatePassRecord({
         passId: (pass as any).id ?? passId,
         passType: type,
         metadata,
       });
 
+      // Generate QR code from backend's verifiable qrPayload
       let qrCode = record.qrCode;
       if (!qrCode) {
-        const payload = record.qrPayload || record.accessCode;
+        if (!record.qrPayload || record.qrPayload.trim() === '') {
+          throw new Error('Backend did not provide verifiable QR payload. Cannot generate PDF without valid QR code.');
+        }
         try {
-          qrCode = await pdfUtils.generateQRCode(payload);
+          qrCode = await pdfUtils.generateQRCode(record.qrPayload);
         } catch (qrError) {
-          console.error('Failed to generate QR code while preparing PDF:', qrError);
-          qrCode = '';
+          const errorMessage = qrError instanceof Error ? qrError.message : 'Unknown error';
+          throw new Error(`Failed to generate QR code: ${errorMessage}`);
         }
       }
 

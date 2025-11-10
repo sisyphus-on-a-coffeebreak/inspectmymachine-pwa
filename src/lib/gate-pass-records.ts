@@ -103,6 +103,9 @@ const resolveQrPayload = (raw: RawGatePassRecord): string | undefined => {
 /**
  * Syncs a gate-pass record with the backend. This will create the record if needed
  * and returns the canonical access code, QR payload/image and record identifier.
+ * 
+ * IMPORTANT: Backend MUST return qrPayload for verifiable QR codes. This function will
+ * throw an error if qrPayload is not provided by the backend.
  */
 export const syncGatePassRecord = async ({
   passId,
@@ -137,13 +140,23 @@ export const syncGatePassRecord = async ({
 
   const qrCode = resolveQrCode(raw);
   const qrPayload = resolveQrPayload(raw);
+  
+  // CRITICAL: Backend must provide qrPayload for verifiable QR codes
+  if (!qrPayload || qrPayload.trim() === '') {
+    throw new Error(
+      'Backend did not provide verifiable QR payload. ' +
+      'The /api/gate-pass-records/sync endpoint must return qr_payload containing pass ID or validation token. ' +
+      'Cannot generate QR code without verifiable backend data.'
+    );
+  }
+
   const passNumber = raw.pass_number || raw.passNumber || fallbackPassNumber;
 
   return {
     id: recordId,
     accessCode,
     qrCode,
-    qrPayload,
+    qrPayload, // This is now guaranteed to be present
     passNumber,
     metadata: raw.metadata || metadata,
   };
