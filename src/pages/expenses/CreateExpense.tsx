@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios, { AxiosError } from 'axios';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { useAuth } from '../../providers/useAuth';
 import { useUploader } from '../../lib/upload';
+import { useToast } from '../../providers/ToastProvider';
+import { useExpenseReferences } from '../../providers/ExpenseReferencesProvider';
 
 // 💰 Enhanced Expense Creation Form
 // Smart form with auto-categorization, GPS location, receipt capture
@@ -35,32 +36,6 @@ interface ExpenseFormData {
   notes?: string;
 }
 
-interface Project {
-  id: string;
-  name: string;
-  code: string;
-  status: 'active' | 'completed' | 'on_hold';
-}
-
-interface Asset {
-  id: string;
-  name: string;
-  type: 'vehicle' | 'equipment' | 'building' | 'technology';
-  registration_number?: string;
-  status: 'active' | 'maintenance' | 'retired';
-}
-
-interface ExpenseTemplate {
-  id: string;
-  name: string;
-  category: string;
-  amount: number;
-  description: string;
-  payment_method: string;
-  project_id?: string;
-  asset_id?: string;
-}
-
 const EXPENSE_CATEGORIES = [
   'LOCAL_TRANSPORT', 'INTERCITY_TRAVEL', 'LODGING', 'FOOD', 'TOLLS_PARKING', 'FUEL',
   'PARTS_REPAIR', 'RTO_COMPLIANCE', 'DRIVER_PAYMENT', 'RECHARGE', 'CONSUMABLES_MISC',
@@ -76,8 +51,8 @@ const PAYMENT_METHODS = [
 
 export const CreateExpense: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { uploadImageWithProgress } = useUploader();
+  const { showToast } = useToast();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   
@@ -93,125 +68,23 @@ export const CreateExpense: React.FC = () => {
     notes: ''
   });
 
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [templates, setTemplates] = useState<ExpenseTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
-  
-  // Use refs to track fetch attempts and prevent infinite loops
-  const projectsFetchedRef = useRef(false);
-  const assetsFetchedRef = useRef(false);
-  const templatesFetchedRef = useRef(false);
 
-  const fetchProjects = useCallback(async () => {
-    // Prevent multiple simultaneous requests
-    if (projectsFetchedRef.current) return;
-    projectsFetchedRef.current = true;
-    
-    try {
-      const response = await axios.get('/api/v1/projects', {
-        // Prevent retries for 404 errors
-        validateStatus: (status) => status < 500
-      });
-      if (response.data && response.data.success) {
-        setProjects(response.data.data);
-      } else {
-        throw new Error(response.data?.message || 'Failed to fetch projects');
-      }
-    } catch (error: any) {
-      // Only log if it's not a 404 (endpoint doesn't exist)
-      if (error?.response?.status !== 404) {
-        console.error('Failed to fetch projects:', error);
-      }
-      // Fallback to mock data for development - only set if not already set
-      setProjects(prev => prev.length > 0 ? prev : [
-        { id: '1', name: 'Project Alpha', code: 'PA001', status: 'active' },
-        { id: '2', name: 'Project Beta', code: 'PB002', status: 'active' },
-        { id: '3', name: 'Project Gamma', code: 'PG003', status: 'completed' }
-      ]);
-    }
-  }, []);
+  const {
+    projects: projectsState,
+    assets: assetsState,
+    templates: templatesState,
+    refreshProjects,
+    refreshAssets,
+    refreshTemplates,
+  } = useExpenseReferences();
 
-  const fetchAssets = useCallback(async () => {
-    // Prevent multiple simultaneous requests
-    if (assetsFetchedRef.current) return;
-    assetsFetchedRef.current = true;
-    
-    try {
-      const response = await axios.get('/api/v1/assets', {
-        // Prevent retries for 404 errors
-        validateStatus: (status) => status < 500
-      });
-      if (response.data && response.data.success) {
-        setAssets(response.data.data);
-      } else {
-        throw new Error(response.data?.message || 'Failed to fetch assets');
-      }
-    } catch (error: any) {
-      // Only log if it's not a 404 (endpoint doesn't exist)
-      if (error?.response?.status !== 404) {
-        console.error('Failed to fetch assets:', error);
-      }
-      // Fallback to mock data for development - only set if not already set
-      setAssets(prev => prev.length > 0 ? prev : [
-        { id: '1', name: 'Vehicle ABC-1234', type: 'vehicle', registration_number: 'ABC-1234', status: 'active' },
-        { id: '2', name: 'Laptop Dell XPS', type: 'technology', status: 'active' },
-        { id: '3', name: 'Office Building', type: 'building', status: 'active' }
-      ]);
-    }
-  }, []);
-
-  const fetchTemplates = useCallback(async () => {
-    // Prevent multiple simultaneous requests
-    if (templatesFetchedRef.current) return;
-    templatesFetchedRef.current = true;
-    
-    try {
-      const response = await axios.get('/api/v1/expense-templates', {
-        // Prevent retries for 404 errors
-        validateStatus: (status) => status < 500
-      });
-      if (response.data && response.data.success) {
-        setTemplates(response.data.data);
-      } else {
-        throw new Error(response.data?.message || 'Failed to fetch templates');
-      }
-    } catch (error: any) {
-      // Only log if it's not a 404 (endpoint doesn't exist)
-      if (error?.response?.status !== 404) {
-        console.error('Failed to fetch templates:', error);
-      }
-      // Fallback to mock data for development - only set if not already set
-      setTemplates(prev => prev.length > 0 ? prev : [
-        {
-          id: '1',
-          name: 'Daily Fuel',
-          category: 'FUEL',
-          amount: 2000,
-          description: 'Daily fuel for vehicle',
-          payment_method: 'CASH'
-        },
-        {
-          id: '2',
-          name: 'Client Lunch',
-          category: 'FOOD',
-          amount: 1500,
-          description: 'Client lunch meeting',
-          payment_method: 'COMPANY_UPI'
-        }
-      ]);
-    }
-  }, []);
-
-  useEffect(() => {
-    // Only fetch once on mount
-    fetchProjects();
-    fetchAssets();
-    fetchTemplates();
-  }, [fetchProjects, fetchAssets, fetchTemplates]);
+  const projects = projectsState.data;
+  const assets = assetsState.data;
+  const templates = templatesState.data;
 
   const clearFieldError = (field: string) => {
     setValidationErrors((prev) => {
@@ -249,21 +122,29 @@ export const CreateExpense: React.FC = () => {
   const handleFileUpload = async (files: FileList) => {
     setUploading(true);
     const newReceipts: UploadedReceipt[] = [];
-    
+
     for (const file of Array.from(files)) {
       try {
         const result = await uploadImageWithProgress(file, 'expense-receipts');
         if (!result.key) {
-          alert('Upload failed: The server did not return a file reference.');
+          showToast({
+            title: 'Upload failed',
+            description: 'The server did not return a file reference.',
+            variant: 'error',
+          });
           continue;
         }
         newReceipts.push({ key: result.key, name: file.name || 'receipt', size: file.size });
       } catch (error) {
         console.error('File upload failed:', error);
-        alert(`Upload failed: ${getErrorMessage(error)}`);
+        showToast({
+          title: 'Upload failed',
+          description: getErrorMessage(error),
+          variant: 'error',
+        });
       }
     }
-    
+
     if (newReceipts.length > 0) {
       setFormData((prev) => ({
         ...prev,
@@ -271,45 +152,49 @@ export const CreateExpense: React.FC = () => {
       }));
       clearFieldError('receipts');
       clearFieldError('receipt_keys');
-      // Show success message
-      alert(`${newReceipts.length} receipt${newReceipts.length > 1 ? 's' : ''} uploaded successfully`);
+      showToast({
+        title: 'Receipts ready',
+        description: `${newReceipts.length} receipt${newReceipts.length > 1 ? 's' : ''} uploaded successfully`,
+        variant: 'success',
+        duration: 3500,
+      });
     }
-    
+
     setUploading(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const errors: Record<string, string> = {};
-    
     if (!formData.amount) {
       errors.amount = 'Amount is required';
     } else if (!Number.isFinite(Number(formData.amount)) || Number(formData.amount) <= 0) {
       errors.amount = 'Enter a valid amount';
     }
-    
     if (!formData.description.trim()) {
       errors.description = 'Description is required';
     }
-    
     if (!formData.date) {
       errors.date = 'Date is required';
     }
-    
     if (!formData.time) {
       errors.time = 'Time is required';
     }
-    
+
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
-      alert('Please review the highlighted fields before submitting.');
+      showToast({
+        title: 'Missing information',
+        description: 'Please review the highlighted fields before submitting.',
+        variant: 'error',
+      });
       return;
     }
-    
+
     setValidationErrors({});
     setLoading(true);
-    
+
     let gps_lat: number | undefined;
     let gps_lng: number | undefined;
     try {
@@ -319,10 +204,10 @@ export const CreateExpense: React.FC = () => {
     } catch (geoError) {
       console.warn('Geolocation capture skipped:', geoError);
     }
-    
+
     const tsDate = new Date(`${formData.date}T${formData.time}:00`);
     const timestamp = Number.isNaN(tsDate.getTime()) ? new Date().toISOString() : tsDate.toISOString();
-    
+
     const submitData = {
       amount: Number(formData.amount),
       category: formData.category,
@@ -338,20 +223,23 @@ export const CreateExpense: React.FC = () => {
       template_id: formData.template_id || undefined,
       receipt_keys: formData.receipts.map((receipt) => receipt.key),
     };
-    
+
     try {
       await axios.post('/api/v1/expenses', submitData);
-      alert('Expense submitted successfully! Your expense has been sent for review.');
+      showToast({
+        title: 'Expense submitted',
+        description: 'Your expense has been sent for review.',
+        variant: 'success',
+      });
       navigate('/app/expenses');
     } catch (error) {
       console.error('Failed to create expense:', error);
-      
       const serverErrors: Record<string, string> = {};
       if (axios.isAxiosError(error)) {
         const responseData = error.response?.data as
           | { message?: string; detail?: string; errors?: Record<string, string[] | string> }
           | undefined;
-        
+
         if (responseData?.errors) {
           Object.entries(responseData.errors).forEach(([field, value]) => {
             if (Array.isArray(value)) {
@@ -361,14 +249,20 @@ export const CreateExpense: React.FC = () => {
             }
           });
         }
-        
         if (Object.keys(serverErrors).length > 0) {
           setValidationErrors(serverErrors);
         }
-        
-        alert(`Expense submission failed: ${responseData?.message || responseData?.detail || getErrorMessage(error)}`);
+        showToast({
+          title: 'Expense submission failed',
+          description: responseData?.message || responseData?.detail || getErrorMessage(error),
+          variant: 'error',
+        });
       } else {
-        alert(`Expense submission failed: ${getErrorMessage(error)}`);
+        showToast({
+          title: 'Expense submission failed',
+          description: getErrorMessage(error),
+          variant: 'error',
+        });
       }
     } finally {
       setLoading(false);
@@ -382,7 +276,7 @@ export const CreateExpense: React.FC = () => {
     }));
   };
 
-  const applyTemplate = (template: ExpenseTemplate) => {
+  const applyTemplate = (template: typeof templates[number]) => {
     clearFieldError('template_id');
     clearFieldError('template');
     setFormData(prev => ({
@@ -450,7 +344,7 @@ export const CreateExpense: React.FC = () => {
       </div>
 
       {/* Templates Section */}
-      {templates.length > 0 && (
+      {(templates.length > 0 || templatesState.status === 'loading' || !!templatesState.error) && (
         <div style={{
           backgroundColor: 'white',
           borderRadius: '16px',
@@ -472,17 +366,52 @@ export const CreateExpense: React.FC = () => {
             }}>
               📋 Quick Templates
             </h3>
-            <Button
-              variant="secondary"
-              onClick={() => setShowTemplates(!showTemplates)}
-              icon={showTemplates ? '👁️' : '👁️'}
-            >
-              {showTemplates ? 'Hide' : 'Show'} Templates
-            </Button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+              {templatesState.status === 'loading' && (
+                <span style={{ color: colors.neutral[600], fontSize: '14px' }}>Loading...</span>
+              )}
+              {templatesState.error && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, color: colors.status.error, fontSize: '14px' }}>
+                  <span>{templatesState.error}</span>
+                  <button
+                    type="button"
+                    onClick={() => { void refreshTemplates(); }}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      color: colors.primary,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+              <Button
+                variant="secondary"
+                onClick={() => setShowTemplates(!showTemplates)}
+                icon={showTemplates ? '👁️' : '👁️'}
+              >
+                {showTemplates ? 'Hide' : 'Show'} Templates
+              </Button>
+            </div>
           </div>
-          
+
           {showTemplates && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: spacing.sm }}>
+              {templates.length === 0 && !templatesState.error && (
+                <div style={{
+                  padding: spacing.md,
+                  border: '1px dashed #D1D5DB',
+                  borderRadius: '8px',
+                  color: colors.neutral[600],
+                  fontSize: '14px',
+                }}>
+                  No templates available yet.
+                </div>
+              )}
+
               {templates.map((template) => {
                 const isSelected = formData.template_id === template.id;
                 return (
@@ -498,7 +427,7 @@ export const CreateExpense: React.FC = () => {
                       transition: 'all 0.2s ease',
                     }}
                   >
-                    <div style={{ 
+                    <div style={{
                       ...typography.subheader,
                       fontSize: '14px',
                       marginBottom: spacing.xs,
@@ -507,7 +436,7 @@ export const CreateExpense: React.FC = () => {
                       {template.name}
                     </div>
                     {template.description && (
-                      <div style={{ 
+                      <div style={{
                         ...typography.bodySmall,
                         color: colors.neutral[600],
                         marginBottom: spacing.xs
@@ -515,7 +444,7 @@ export const CreateExpense: React.FC = () => {
                         {template.description}
                       </div>
                     )}
-                    <div style={{ 
+                    <div style={{
                       ...typography.bodySmall,
                       color: colors.primary,
                       fontWeight: 600
@@ -527,6 +456,7 @@ export const CreateExpense: React.FC = () => {
               })}
             </div>
           )}
+
           {getAnyFieldError('template_id', 'template') && (
             <div style={{ color: colors.status.error, fontSize: '12px', marginTop: spacing.xs }}>
               {getAnyFieldError('template_id', 'template')}
@@ -565,7 +495,7 @@ export const CreateExpense: React.FC = () => {
                 </div>
               )}
             </div>
-            
+
             <div>
               <Label>Category *</Label>
               <select
@@ -636,7 +566,7 @@ export const CreateExpense: React.FC = () => {
                 </div>
               )}
             </div>
-            
+
             <div>
               <Label>Time *</Label>
               <Input
@@ -679,16 +609,16 @@ export const CreateExpense: React.FC = () => {
                 ))}
               </select>
             </div>
-            
+
             <div>
-          <Label>Location</Label>
-          <Input
-            type="text"
-            value={formData.location}
-            onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-            placeholder="Enter location (optional)"
-            style={{ marginTop: spacing.xs }}
-          />
+              <Label>Location</Label>
+              <Input
+                type="text"
+                value={formData.location}
+                onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                placeholder="Enter location (optional)"
+                style={{ marginTop: spacing.xs }}
+              />
             </div>
           </div>
 
@@ -720,13 +650,43 @@ export const CreateExpense: React.FC = () => {
                   </option>
                 ))}
               </select>
+              {projectsState.status === 'loading' && projects.length === 0 && (
+                <div style={{ color: colors.neutral[600], fontSize: '12px', marginTop: spacing.xs }}>
+                  Loading projects...
+                </div>
+              )}
+              {projectsState.error && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing.xs,
+                  color: colors.status.error,
+                  fontSize: '12px',
+                  marginTop: spacing.xs,
+                }}>
+                  <span>{projectsState.error}</span>
+                  <button
+                    type="button"
+                    onClick={() => { void refreshProjects(); }}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      color: colors.primary,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
               {getAnyFieldError('project_id', 'project') && (
                 <div style={{ color: colors.status.error, fontSize: '12px', marginTop: spacing.xs }}>
                   {getAnyFieldError('project_id', 'project')}
                 </div>
               )}
             </div>
-            
+
             <div>
               <Label>Asset (Optional)</Label>
               <select
@@ -753,6 +713,36 @@ export const CreateExpense: React.FC = () => {
                   </option>
                 ))}
               </select>
+              {assetsState.status === 'loading' && assets.length === 0 && (
+                <div style={{ color: colors.neutral[600], fontSize: '12px', marginTop: spacing.xs }}>
+                  Loading assets...
+                </div>
+              )}
+              {assetsState.error && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing.xs,
+                  color: colors.status.error,
+                  fontSize: '12px',
+                  marginTop: spacing.xs,
+                }}>
+                  <span>{assetsState.error}</span>
+                  <button
+                    type="button"
+                    onClick={() => { void refreshAssets(); }}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      color: colors.primary,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
               {getAnyFieldError('asset_id', 'asset') && (
                 <div style={{ color: colors.status.error, fontSize: '12px', marginTop: spacing.xs }}>
                   {getAnyFieldError('asset_id', 'asset')}
@@ -803,10 +793,10 @@ export const CreateExpense: React.FC = () => {
             />
 
             {uploading && (
-              <div style={{ 
-                color: colors.primary, 
-                fontSize: '14px', 
-                marginTop: spacing.xs 
+              <div style={{
+                color: colors.primary,
+                fontSize: '14px',
+                marginTop: spacing.xs
               }}>
                 Uploading files...
               </div>
@@ -886,8 +876,6 @@ export const CreateExpense: React.FC = () => {
             />
           </div>
 
-          {/* Recurring expense removed */}
-
           {/* Submit Button */}
           <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'flex-end' }}>
             <Button
@@ -911,4 +899,3 @@ export const CreateExpense: React.FC = () => {
     </div>
   );
 };
-

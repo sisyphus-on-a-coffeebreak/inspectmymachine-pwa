@@ -1,5 +1,4 @@
-// src/lib/pdf-generator-simple.ts
-// Simple PDF generation without heavy dependencies
+import type { jsPDF as JsPDFConstructor } from 'jspdf';
 
 export interface PassData {
   passNumber: string;
@@ -19,521 +18,375 @@ export interface PassData {
   companyLogo?: string;
 }
 
+const PASS_CARD_WIDTH_MM = 85;
+const PASS_CARD_HEIGHT_MM = 128;
+
+let html2canvasPromise: Promise<typeof import('html2canvas')['default']> | null = null;
+let jsPdfConstructorPromise: Promise<JsPDFConstructor> | null = null;
+let qrCodeModulePromise: Promise<typeof import('qrcode')> | null = null;
+
+const loadHtml2Canvas = async () => {
+  if (!html2canvasPromise) {
+    html2canvasPromise = import('html2canvas').then((mod) => mod.default || mod);
+  }
+  return html2canvasPromise;
+};
+
+const loadJsPdf = async () => {
+  if (!jsPdfConstructorPromise) {
+    jsPdfConstructorPromise = import('jspdf').then((mod) => (mod.jsPDF || (mod.default as unknown as JsPDFConstructor)));
+  }
+  return jsPdfConstructorPromise;
+};
+
+const loadQrCodeModule = async () => {
+  if (!qrCodeModulePromise) {
+    qrCodeModulePromise = import('qrcode');
+  }
+  return qrCodeModulePromise;
+};
+
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const formatDateTime = (value?: string) => {
+  if (!value) {
+    return '';
+  }
+  try {
+    return new Date(value).toLocaleString();
+  } catch (error) {
+    console.warn('Unable to format date value for PDF pass', error);
+    return value;
+  }
+};
+
+const renderElementToPdf = async (element: HTMLElement): Promise<Blob> => {
+  try {
+    const [html2canvas, JsPDF] = await Promise.all([loadHtml2Canvas(), loadJsPdf()]);
+
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new JsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: [PASS_CARD_WIDTH_MM, PASS_CARD_HEIGHT_MM],
+    });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
+
+    const blob = pdf.output('blob');
+    if (blob instanceof Blob) {
+      return blob;
+    }
+
+    return new Blob([blob], { type: 'application/pdf' });
+  } catch (error) {
+    console.error('Failed to generate PDF via html2canvas/jsPDF pipeline. Falling back to HTML blob.', error);
+    return new Blob([element.outerHTML], { type: 'text/html' });
+  }
+};
+
+const createPassMarkup = (passData: PassData & { qrCode: string }): string => {
+  const {
+    passNumber,
+    passType,
+    visitorName,
+    vehicleDetails,
+    purpose,
+    entryTime,
+    expectedReturn,
+    accessCode,
+    qrCode,
+    companyName,
+    companyLogo,
+  } = passData;
+
+  const vehicleBlock = vehicleDetails
+    ? `
+          <div class="info-row">
+            <span class="label">Vehicle:</span>
+            <span class="value">${escapeHtml(vehicleDetails.registration)} · ${escapeHtml(vehicleDetails.make)} ${escapeHtml(vehicleDetails.model)}</span>
+          </div>
+        `
+    : '';
+
+  const companyBlock = companyName
+    ? `
+          <div class="company">
+            ${companyLogo ? `<img src="${companyLogo}" alt="${escapeHtml(companyName)} logo" />` : ''}
+            <div class="company-text">
+              <span class="company-name">${escapeHtml(companyName)}</span>
+              <span class="company-tagline">Secure visitor management</span>
+            </div>
+          </div>
+        `
+    : '';
+
+  return `
+    <div class="pass-print" data-pass-card>
+      <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        .pass-print {
+          width: 400px;
+          border-radius: 16px;
+          overflow: hidden;
+          border: 1px solid #e2e8f0;
+          font-family: 'Inter', 'Segoe UI', sans-serif;
+          background: #ffffff;
+          color: #0f172a;
+          box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
+        }
+        .status-bar {
+          height: 4px;
+          background: linear-gradient(90deg, #0ea5e9 0%, #6366f1 100%);
+        }
+        .header {
+          padding: 24px;
+          background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%);
+          color: #ffffff;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          position: relative;
+        }
+        .pass-number {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          background: rgba(255,255,255,0.12);
+          padding: 6px 12px;
+          border-radius: 999px;
+          font-size: 12px;
+          letter-spacing: 0.08em;
+        }
+        .title {
+          font-size: 22px;
+          font-weight: 700;
+          margin: 0;
+        }
+        .sub-title {
+          font-size: 14px;
+          opacity: 0.9;
+        }
+        .company {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .company img {
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
+          object-fit: cover;
+          border: 2px solid rgba(255,255,255,0.35);
+        }
+        .company-name {
+          display: block;
+          font-weight: 600;
+          font-size: 16px;
+        }
+        .company-tagline {
+          font-size: 12px;
+          opacity: 0.7;
+        }
+        .qr-section {
+          padding: 24px;
+          background: #f8fafc;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
+          border-bottom: 1px solid #e2e8f0;
+        }
+        .qr-section img {
+          width: 180px;
+          height: 180px;
+          border-radius: 12px;
+          border: 3px solid #1d4ed8;
+          padding: 12px;
+          background: #ffffff;
+          box-shadow: inset 0 0 0 4px rgba(29, 78, 216, 0.1);
+        }
+        .qr-instruction {
+          font-size: 13px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          color: #1d4ed8;
+        }
+        .body {
+          padding: 24px;
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+        }
+        .info-row {
+          display: flex;
+          gap: 12px;
+          font-size: 14px;
+          color: #1e293b;
+        }
+        .info-row .label {
+          width: 96px;
+          font-weight: 600;
+          color: #475569;
+          text-transform: uppercase;
+          font-size: 11px;
+          letter-spacing: 0.08em;
+        }
+        .info-row .value {
+          flex: 1;
+        }
+        .footer {
+          padding: 20px 24px 28px;
+          background: linear-gradient(0deg, rgba(15,23,42,0.08), rgba(15,23,42,0));
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          font-size: 12px;
+          color: #475569;
+        }
+        .footer strong {
+          color: #0f172a;
+        }
+      </style>
+      <div class="status-bar"></div>
+      <div class="header">
+        <div class="pass-number">${escapeHtml(passNumber)}</div>
+        <h1 class="title">${passType === 'visitor' ? 'Visitor' : 'Vehicle'} Gate Pass</h1>
+        <span class="sub-title">Present this pass at security</span>
+        ${companyBlock}
+      </div>
+      <div class="qr-section">
+        <span class="qr-instruction">Scan for verification</span>
+        <img src="${qrCode}" alt="QR code for gate access ${escapeHtml(accessCode)}" />
+      </div>
+      <div class="body">
+        ${visitorName ? `
+          <div class="info-row">
+            <span class="label">Name</span>
+            <span class="value">${escapeHtml(visitorName)}</span>
+          </div>
+        ` : ''}
+        ${vehicleBlock}
+        <div class="info-row">
+          <span class="label">Purpose</span>
+          <span class="value">${escapeHtml(purpose)}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Entry</span>
+          <span class="value">${escapeHtml(formatDateTime(entryTime) || '—')}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Exit</span>
+          <span class="value">${escapeHtml(formatDateTime(expectedReturn) || '—')}</span>
+        </div>
+      </div>
+      <div class="footer">
+        <span><strong>Access code:</strong> ${escapeHtml(accessCode)}</span>
+        <span>Only valid for the scheduled visit. Contact reception for changes.</span>
+      </div>
+    </div>
+  `;
+};
+
+const mountPassMarkup = (passData: PassData & { qrCode: string }): HTMLElement => {
+  const host = document.createElement('div');
+  host.style.position = 'fixed';
+  host.style.pointerEvents = 'none';
+  host.style.opacity = '0';
+  host.style.left = '-9999px';
+  host.style.top = '0';
+  host.style.width = '420px';
+  host.innerHTML = createPassMarkup(passData);
+  document.body.appendChild(host);
+  return host;
+};
+
 export const generatePDFPass = async (
   passData: PassData,
   elementId?: string
 ): Promise<Blob> => {
-  try {
-    // If elementId is provided, try to use existing DOM element
-    if (elementId) {
-      const element = document.getElementById(elementId);
-      if (element) {
-        return await generatePDFFromElement(element, passData);
-      }
+  const resolvedQrCode = passData.qrCode && passData.qrCode.trim().length > 0
+    ? passData.qrCode
+    : await generateQRCode(passData.accessCode);
+
+  if (elementId) {
+    const element = document.getElementById(elementId);
+    if (element instanceof HTMLElement) {
+      return renderElementToPdf(element);
     }
-    
-    // Otherwise, generate PDF from data directly
-    return await generatePDFFromData(passData);
-  } catch (error) {
-    console.error('Error generating PDF:', error);
-    throw new Error('Failed to generate PDF pass');
+  }
+
+  const host = mountPassMarkup({ ...passData, qrCode: resolvedQrCode });
+  const target = host.querySelector('[data-pass-card]') as HTMLElement | null;
+
+  try {
+    return await renderElementToPdf(target || host);
+  } finally {
+    document.body.removeChild(host);
   }
 };
 
-const generatePDFFromElement = async (element: HTMLElement, passData: PassData): Promise<Blob> => {
-  // This would use html2canvas and jsPDF if available
-  // For now, return a simple blob
-  const html = element.outerHTML;
-  return new Blob([html], { type: 'text/html' });
-};
-
-const generatePDFFromData = async (passData: PassData): Promise<Blob> => {
-  // Generate QR code
-  const qrCode = await generateQRCode(passData.accessCode);
-  
-  // Create HTML content that matches PDFPass component exactly
-  const html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Gate Pass - ${passData.passNumber}</title>
-        <style>
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-          
-          body {
-            font-family: 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', sans-serif;
-            background: #f8fafc;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-          }
-          
-          @media print {
-            body { 
-              margin: 0; 
-              padding: 0; 
-              background: white;
-            }
-            @page { 
-              margin: 0; 
-              size: A4;
-            }
-          }
-          
-          .pass-container {
-            width: 400px;
-            max-width: 100%;
-            background: white;
-            border-radius: 16px;
-            overflow: hidden;
-            position: relative;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e2e8f0;
-          }
-          
-          .status-indicator {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #10b981 0%, #059669 100%);
-            z-index: 10;
-          }
-          
-          .header {
-            background: linear-gradient(135deg, #eb8b00 0%, #d97706 100%);
-            padding: 32px 24px;
-            color: white;
-            text-align: center;
-            position: relative;
-          }
-          
-          .logo {
-            width: 80px;
-            height: 80px;
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 16px;
-            backdrop-filter: blur(10px);
-          }
-          
-          .logo-icon {
-            font-size: 32px;
-          }
-          
-          .logo-text {
-            font-size: 28px;
-            font-weight: bold;
-            margin-bottom: 4px;
-          }
-          
-          .logo-subtitle {
-            font-size: 14px;
-            opacity: 0.9;
-          }
-          
-          .pass-number {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            backdrop-filter: blur(10px);
-          }
-          
-          .qr-section {
-            padding: 32px 24px;
-            text-align: center;
-            background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
-          }
-          
-          .qr-instruction {
-            font-size: 14px;
-            color: #eb8b00;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-          }
-          
-          .qr-code {
-            width: 160px;
-            height: 160px;
-            background: white;
-            border: 3px solid #eb8b00;
-            border-radius: 12px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-          }
-          
-          .content {
-            padding: 24px;
-          }
-          
-          .section {
-            margin-bottom: 24px;
-          }
-          
-          .section:last-child {
-            margin-bottom: 0;
-          }
-          
-          .section-header {
-            font-size: 16px;
-            font-weight: 700;
-            color: #1e293b;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-          }
-          
-          .field {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #f1f5f9;
-          }
-          
-          .field:last-child {
-            border-bottom: none;
-          }
-          
-          .field-label {
-            font-size: 14px;
-            color: #64748b;
-            font-weight: 600;
-            min-width: 120px;
-          }
-          
-          .field-value {
-            font-size: 14px;
-            color: #1e293b;
-            font-weight: 500;
-            text-align: right;
-            flex: 1;
-          }
-          
-          .purpose-value {
-            color: #eb8b00;
-            font-weight: bold;
-            text-transform: uppercase;
-          }
-          
-          .access-code {
-            background: linear-gradient(135deg, #eb8b00 0%, #d97706 100%);
-            color: white;
-            padding: 24px;
-            text-align: center;
-            border-radius: 12px;
-            margin: 24px 0;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-          }
-          
-          .access-code-label {
-            font-size: 12px;
-            opacity: 0.9;
-            margin-bottom: 8px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-          }
-          
-          .access-code-value {
-            font-size: 32px;
-            font-weight: 700;
-            letter-spacing: 4px;
-            font-family: 'Courier New', monospace;
-          }
-          
-          .footer {
-            background: #f8fafc;
-            padding: 20px 24px;
-            text-align: center;
-            border-top: 1px solid #e2e8f0;
-            font-size: 14px;
-            font-weight: 500;
-            color: #64748b;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="pass-container">
-          <!-- Status Indicator -->
-          <div class="status-indicator"></div>
-          
-          <!-- Header Section -->
-          <div class="header">
-            <div class="pass-number">Pass #${passData.passNumber}</div>
-            <div class="logo">
-              <div class="logo-icon">🏢</div>
-            </div>
-            <div class="logo-text">VOMS</div>
-            <div class="logo-subtitle">
-              ${passData.passType === 'visitor' ? 'Visitor Gate Pass' : 'Vehicle Movement Pass'}
-            </div>
-          </div>
-          
-          <!-- QR Code Section -->
-          <div class="qr-section">
-            <div class="qr-instruction">
-              <span>📱</span> SCAN QR CODE FOR ENTRY
-            </div>
-            <div class="qr-code">
-              <img src="${qrCode}" alt="QR Code" style="width: 100%; height: 100%; object-fit: contain;" />
-            </div>
-          </div>
-          
-          <!-- Visitor Information -->
-          <div class="content">
-            <div class="section">
-              <div class="section-header">
-                <span>👤</span> Visitor Information
-              </div>
-              <div class="field">
-                <div class="field-label">Name:</div>
-                <div class="field-value">${passData.visitorName || 'N/A'}</div>
-              </div>
-              <div class="field">
-                <div class="field-label">Purpose:</div>
-                <div class="field-value purpose-value">${passData.purpose.replace('_', ' ').toUpperCase()}</div>
-              </div>
-              <div class="field">
-                <div class="field-label">${passData.passType === 'visitor' ? 'Scheduled Date:' : 'Entry Time:'}</div>
-                <div class="field-value">
-                  ${(() => {
-                    try {
-                      const date = new Date(passData.entryTime);
-                      if (isNaN(date.getTime())) {
-                        return passData.passType === 'visitor' ? 'Not scheduled' : 'Not entered yet';
-                      }
-                      return date.toLocaleString('en-IN', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric'
-                      });
-                    } catch (error) {
-                      return passData.passType === 'visitor' ? 'Not scheduled' : 'Not entered yet';
-                    }
-                  })()}
-                </div>
-              </div>
-              ${passData.expectedReturn ? `
-                <div class="field">
-                  <div class="field-label">Expected Return:</div>
-                  <div class="field-value">
-                    ${(() => {
-                      try {
-                        const date = new Date(passData.expectedReturn);
-                        if (isNaN(date.getTime())) {
-                          return 'Not specified';
-                        }
-                        return date.toLocaleString('en-IN', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric'
-                        });
-                      } catch (error) {
-                        return 'Not specified';
-                      }
-                    })()}
-                  </div>
-                </div>
-              ` : ''}
-            </div>
-            
-            ${passData.vehicleDetails ? `
-              <div class="section">
-                <div class="section-header">
-                  <span>🚗</span> Vehicle Information
-                </div>
-                <div class="field">
-                  <div class="field-label">Registration:</div>
-                  <div class="field-value" style="font-family: monospace;">${passData.vehicleDetails.registration}</div>
-                </div>
-                <div class="field">
-                  <div class="field-label">Make/Model:</div>
-                  <div class="field-value">${passData.vehicleDetails.make} ${passData.vehicleDetails.model}</div>
-                </div>
-              </div>
-            ` : ''}
-            
-            <!-- Access Code -->
-            <div class="access-code">
-              <div class="access-code-label">ACCESS CODE</div>
-              <div class="access-code-value">${passData.accessCode}</div>
-            </div>
-          </div>
-          
-          <!-- Footer -->
-          <div class="footer">
-            Show this pass at the gate for seamless entry
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
-  
-  return new Blob([html], { type: 'text/html' });
-};
-
 export const generateQRCode = async (data: string): Promise<string> => {
-  console.log('🔧 Generating QR code using Canvas API for data:', data);
-  
+  if (!data) {
+    throw new Error('Cannot generate QR code for empty data');
+  }
+
   try {
-    // Create a canvas element
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Canvas context not available');
-    
-    const size = 200;
-    const cellSize = 8;
-    const cells = Math.floor(size / cellSize);
-    
-    canvas.width = size;
-    canvas.height = size;
-    
-    // Fill white background
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, size, size);
-    
-    // Generate QR-like pattern based on data
-    const hash = data.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-    
-    ctx.fillStyle = 'black';
-    
-    // Draw corner finder patterns (like real QR codes)
-    const drawFinderPattern = (x: number, y: number) => {
-      // Outer square
-      ctx.fillRect(x, y, 7 * cellSize, 7 * cellSize);
-      // Inner white square
-      ctx.fillStyle = 'white';
-      ctx.fillRect(x + cellSize, y + cellSize, 5 * cellSize, 5 * cellSize);
-      // Inner black square
-      ctx.fillStyle = 'black';
-      ctx.fillRect(x + 2 * cellSize, y + 2 * cellSize, 3 * cellSize, 3 * cellSize);
-    };
-    
-    // Top-left finder pattern
-    drawFinderPattern(0, 0);
-    // Top-right finder pattern
-    drawFinderPattern((cells - 7) * cellSize, 0);
-    // Bottom-left finder pattern
-    drawFinderPattern(0, (cells - 7) * cellSize);
-    
-    // Draw data pattern
-    for (let row = 0; row < cells; row++) {
-      for (let col = 0; col < cells; col++) {
-        // Skip finder pattern areas
-        if ((row < 7 && col < 7) || 
-            (row < 7 && col >= cells - 7) || 
-            (row >= cells - 7 && col < 7)) {
-          continue;
-        }
-        
-        // Generate pattern based on hash and position
-        const shouldFill = ((hash + row + col * cells) % 2) === 0;
-        if (shouldFill) {
-          ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
-        }
-      }
+    const qrModule = await loadQrCodeModule();
+    const toDataURL = qrModule.toDataURL || (qrModule.default && (qrModule.default as any).toDataURL);
+    if (!toDataURL) {
+      throw new Error('QR code library missing toDataURL export');
     }
-    
-    // Convert canvas to data URL
-    const dataUrl = canvas.toDataURL('image/png');
-    console.log('✅ QR code generated using Canvas API, length:', dataUrl.length);
-    return dataUrl;
-    
+
+    return await toDataURL(data, {
+      margin: 1,
+      width: 256,
+      errorCorrectionLevel: 'M',
+      color: {
+        dark: '#000000',
+        light: '#ffffff',
+      },
+    });
   } catch (error) {
-    console.error('❌ Failed to generate QR code:', error);
-    
-    // Fallback to simple text display
-    const svgContent = `
-      <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
-        <rect width="200" height="200" fill="white" stroke="black" stroke-width="2"/>
-        <text x="100" y="100" text-anchor="middle" font-family="monospace" font-size="16" fill="black">
-          ${data}
-        </text>
+    console.error('Failed to generate QR code with library. Falling back to SVG placeholder.', error);
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256">
+        <rect width="256" height="256" fill="#ffffff" stroke="#0f172a" stroke-width="4" />
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="monospace" font-size="24" fill="#0f172a">${escapeHtml(data)}</text>
       </svg>
     `;
-    
-    const fallbackUrl = `data:image/svg+xml;base64,${btoa(svgContent)}`;
-    console.log('⚠️ Using fallback display');
-    return fallbackUrl;
+    return `data:image/svg+xml;base64,${btoa(svg)}`;
   }
 };
 
 export const generateAccessCode = (): string => {
-  // Generate a 6-digit access code
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
 export const formatPassNumber = (type: 'visitor' | 'vehicle', id: string | number): string => {
   const prefix = type === 'visitor' ? 'VP' : 'VM';
-  
-  // Handle undefined or null IDs
   if (!id) {
     return `${prefix}${Date.now().toString().slice(-6)}`;
   }
-  
-  // Handle UUID strings by taking first 8 characters
   if (typeof id === 'string' && id.includes('-')) {
     return `${prefix}${id.substring(0, 8).toUpperCase()}`;
   }
-  
-  // Handle numeric IDs
   return `${prefix}${id.toString().padStart(6, '0')}`;
-};
-
-// Share functionality
-export const sharePass = async (passData: PassData): Promise<void> => {
-  try {
-    console.log('🔍 Sharing pass data:', passData);
-    console.log('🔍 Pass number:', passData.passNumber);
-    
-    // Generate the PDF blob
-    const pdfBlob = await generatePDFPass(passData);
-    
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfBlob] })) {
-      // Share only the PDF file - no text or URL
-      await navigator.share({
-        files: [new File([pdfBlob], `gate-pass-${passData.passNumber}.pdf`, { type: 'application/pdf' })]
-      });
-    } else {
-      // Fallback: Download the PDF
-      downloadPDF(passData, pdfBlob);
-    }
-  } catch (error) {
-    console.error('Error sharing PDF:', error);
-    // Fallback to copy to clipboard
-    copyToClipboard(passData);
-  }
 };
 
 const downloadPDF = (passData: PassData, pdfBlob: Blob): void => {
@@ -545,16 +398,15 @@ const downloadPDF = (passData: PassData, pdfBlob: Blob): void => {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-  alert('PDF downloaded! You can now share it via WhatsApp or other apps.');
 };
 
 const copyToClipboard = async (passData: PassData): Promise<void> => {
-  const text = `Gate Pass #${passData.passNumber}
-Type: ${passData.passType === 'visitor' ? 'Visitor' : 'Vehicle'}
-Purpose: ${passData.purpose}
-Access Code: ${passData.accessCode}
-Entry Time: ${new Date(passData.entryTime).toLocaleString()}
-${passData.expectedReturn ? `Expected Return: ${new Date(passData.expectedReturn).toLocaleString()}` : ''}`;
+  const text = `Gate Pass #${passData.passNumber}` +
+    `\nType: ${passData.passType === 'visitor' ? 'Visitor' : 'Vehicle'}` +
+    `\nPurpose: ${passData.purpose}` +
+    `\nAccess Code: ${passData.accessCode}` +
+    `\nEntry Time: ${formatDateTime(passData.entryTime)}` +
+    (passData.expectedReturn ? `\nExpected Return: ${formatDateTime(passData.expectedReturn)}` : '');
 
   try {
     await navigator.clipboard.writeText(text);
@@ -565,14 +417,48 @@ ${passData.expectedReturn ? `Expected Return: ${new Date(passData.expectedReturn
   }
 };
 
+export const sharePass = async (passData: PassData): Promise<void> => {
+  try {
+    const pdfBlob = await generatePDFPass(passData);
+
+    if (navigator.share && navigator.canShare) {
+      const file = new File([pdfBlob], `gate-pass-${passData.passNumber}.pdf`, { type: 'application/pdf' });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] });
+        return;
+      }
+    }
+
+    downloadPDF(passData, pdfBlob);
+  } catch (error) {
+    console.error('Error sharing PDF:', error);
+    await copyToClipboard(passData);
+  }
+};
+
 export const printPass = async (passData: PassData): Promise<void> => {
   try {
     const pdfBlob = await generatePDFPass(passData);
     const url = URL.createObjectURL(pdfBlob);
-    window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const printWindow = window.open(url, '_blank');
+    if (printWindow) {
+      printWindow.addEventListener('load', () => {
+        printWindow.focus();
+        printWindow.print();
+      });
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   } catch (error) {
     console.error('Error printing pass:', error);
     alert('Failed to print pass. Please try again.');
   }
+};
+
+export default {
+  generatePDFPass,
+  generateQRCode,
+  generateAccessCode,
+  formatPassNumber,
+  sharePass,
+  printPass,
 };

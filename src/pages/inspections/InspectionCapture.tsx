@@ -1,57 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
 import { colors, typography, spacing } from '../../lib/theme';
 import { DynamicFormRenderer } from '../../components/inspection/DynamicFormRenderer';
-import { NetworkError } from '../../components/ui/NetworkError';
 import { LoadingError } from '../../components/ui/LoadingError';
+import type { InspectionTemplate } from '@/types/inspection';
+import { fetchInspectionTemplate } from '@/lib/inspection-templates';
+import { serializeAnswers, deserializeAnswers } from '@/lib/inspection-answers';
+import {
+  saveInspectionDraft,
+  loadInspectionDraft,
+  clearInspectionDraft,
+  queueInspectionSubmission,
+  subscribeQueuedInspectionCount,
+} from '@/lib/inspection-queue';
+import {
+  submitInspection,
+  syncQueuedInspections,
+  type SubmissionProgress,
+} from '@/lib/inspection-submit';
 
-interface InspectionTemplate {
-  id: string;
-  name: string;
-  description: string;
-  sections: Array<{
-    id: string;
-    name: string;
-    questions: Array<{
-      id: string;
-      question_text: string;
-      question_type: string;
-      is_required: boolean;
-      is_critical: boolean;
-      validation_rules?: any;
-      conditional_logic?: any;
-      options?: Array<{
-        id: string;
-        option_text: string;
-        option_value: string;
-      }>;
-    }>;
-  }>;
-}
-
-// Vehicle interface removed - no longer displaying vehicle info before form completion
-
-export const InspectionCapture: React.FC = () => {
-  const navigate = useNavigate();
-  const { templateId } = useParams<{ templateId: string }>();
-  
-  const [template, setTemplate] = useState<InspectionTemplate | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // If no templateId provided, use mock data for development
-      if (!templateId) {
-        console.warn('No templateId provided, using mock data');
-        
-        // Comprehensive 130+ question template
-        const mockTemplate: InspectionTemplate = {
+const FALLBACK_TEMPLATE: InspectionTemplate = {
           id: 'mock-template-1',
           name: 'Commercial Vehicle Inspection',
           description: 'Comprehensive commercial vehicle inspection with 131+ questions',
@@ -632,149 +600,216 @@ export const InspectionCapture: React.FC = () => {
           ]
         };
 
-        setTemplate(mockTemplate);
+export const InspectionCapture: React.FC = () => {
+  const navigate = useNavigate();
+  const { templateId, vehicleId } = useParams<{ templateId: string; vehicleId?: string }>();
+
+  const [template, setTemplate] = useState<InspectionTemplate | null>(null);
+  const [templateSource, setTemplateSource] = useState<'network' | 'cache' | 'mock' | null>(null);
+  const [templateCachedAt, setTemplateCachedAt] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [progress, setProgress] = useState<SubmissionProgress | null>(null);
+  const [queuedCount, setQueuedCount] = useState(0);
+  const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
+  const [initialAnswers, setInitialAnswers] = useState<Record<string, any>>({});
+  const [submissionBanner, setSubmissionBanner] = useState<string | null>(null);
+  const [templateWarning, setTemplateWarning] = useState<string | null>(null);
+
+  const effectiveTemplateId = templateId ?? FALLBACK_TEMPLATE.id;
+
+  const loadTemplate = useCallback(async (forceRefresh = false) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (!templateId) {
+        setTemplate(FALLBACK_TEMPLATE);
+        setTemplateSource('mock');
+        setTemplateCachedAt(Date.now());
+        setTemplateWarning('Using offline demo template. Connect to fetch live templates.');
         return;
       }
 
-      // Try to fetch real data if parameters are provided
-      try {
-        const templateRes = await axios.get(`/api/v1/inspection-templates/${templateId}`);
-        setTemplate(templateRes.data);
-      } catch (apiError) {
-        console.warn('Backend not available, using mock data:', apiError);
-        
-        // Use the same mock template as above
-        setTemplate(mockTemplate);
+      const result = await fetchInspectionTemplate(templateId, { forceRefresh });
+      setTemplate(result.template);
+      setTemplateSource(result.source);
+      setTemplateCachedAt(result.cachedAt);
+
+      if (result.source === 'cache' && result.error) {
+        setTemplateWarning('Offline mode: showing cached template. Some updates may be missing.');
+      } else {
+        setTemplateWarning(null);
       }
-    } catch (error) {
-      console.error('Failed to fetch inspection data:', error);
-      setError(error as Error);
+    } catch (err) {
+      console.error('Failed to fetch inspection template:', err);
+      if (!templateId) {
+        setTemplate(FALLBACK_TEMPLATE);
+        setTemplateSource('mock');
+        setTemplateCachedAt(Date.now());
+        setTemplateWarning('Using offline demo template. Connect to fetch live templates.');
+      } else {
+        setTemplate(null);
+        setTemplateSource(null);
+        setTemplateCachedAt(null);
+        setError(err as Error);
+      }
     } finally {
       setLoading(false);
     }
   }, [templateId]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    loadTemplate();
+  }, [loadTemplate]);
 
-  const handleSubmit = async (answers: Record<string, any>) => {
-    try {
-      setIsSubmitting(true);
+  useEffect(() => {
+    let cancelled = false;
 
-      // Create inspection
-      const inspectionRes = await axios.post('/api/v1/inspections', {
-        template_id: templateId
-      });
+    (async () => {
+      const record = await loadInspectionDraft(effectiveTemplateId, vehicleId);
+      if (cancelled) return;
 
-      const inspectionId = inspectionRes.data.id;
-
-      // Submit answers
-      await axios.put(`/api/v1/inspections/${inspectionId}`, {
-        answers: Object.entries(answers).map(([questionId, answerValue]) => ({
-          question_id: questionId,
-          answer_value: answerValue
-        }))
-      });
-
-      // Submit inspection
-      await axios.post(`/api/v1/inspections/${inspectionId}/submit`);
-
-      // Navigate to inspection details
-      navigate(`/app/inspections/${inspectionId}`);
-    } catch (error) {
-      console.error('Failed to submit inspection:', error);
-      
-      // Handle CSRF/session errors
-      if (error instanceof Error && error.message.includes('419')) {
-        alert('Session expired. Please refresh the page and try again.');
-        window.location.reload();
-        return;
+      if (record) {
+        setInitialAnswers(deserializeAnswers(record.answers));
+        setDraftSavedAt(record.updatedAt);
+      } else {
+        setInitialAnswers({});
+        setDraftSavedAt(null);
       }
-      
-      setError(error as Error);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveTemplateId, vehicleId, template?.id]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeQueuedInspectionCount(setQueuedCount);
+    return () => {
+      unsubscribe?.();
+    };
+  }, []);
+
+  const runQueueSync = useCallback(async () => {
+    try {
+      const result = await syncQueuedInspections({
+        onItem: (event) => {
+          if (event.phase === 'error') {
+            setSubmissionBanner('Sync failed for some inspections. Will retry automatically.');
+          }
+        },
+      });
+
+      if (result.total > 0 && result.success > 0) {
+        setSubmissionBanner('Offline inspections synced successfully.');
+      }
+    } catch (err) {
+      console.error('Unable to flush queued inspections:', err);
+      setSubmissionBanner('Unable to sync queued inspections right now. We will retry soon.');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleOnline = () => {
+      runQueueSync();
+    };
+
+    window.addEventListener('online', handleOnline);
+
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      runQueueSync();
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [runQueueSync]);
+
+  const handleSaveDraft = useCallback(async (answers: Record<string, any>) => {
+    const serialized = serializeAnswers(answers);
+    await saveInspectionDraft(effectiveTemplateId, vehicleId, serialized);
+    setDraftSavedAt(Date.now());
+
+    const online = typeof navigator === 'undefined' || navigator.onLine;
+
+    if (!online) {
+      await queueInspectionSubmission({
+        templateId: effectiveTemplateId,
+        vehicleId,
+        answers: serialized,
+        metadata: { template_name: template?.name },
+        mode: 'draft',
+        queueId: `draft:${effectiveTemplateId}:${vehicleId ?? 'default'}`,
+      });
+      setSubmissionBanner('Draft saved offline. We will sync it automatically when you reconnect.');
+    } else {
+      setSubmissionBanner('Draft saved.');
+    }
+  }, [effectiveTemplateId, vehicleId, template?.name]);
+
+  const handleSubmit = useCallback(async (answers: Record<string, any>) => {
+    const serialized = serializeAnswers(answers);
+    setIsSubmitting(true);
+    setProgress(null);
+    setSubmissionBanner(null);
+
+    try {
+      const result = await submitInspection({
+        templateId: effectiveTemplateId,
+        vehicleId,
+        serializedAnswers: serialized,
+        metadata: { template_name: template?.name },
+        mode: 'final',
+        onProgress: setProgress,
+      });
+
+      if (result.status === 'submitted') {
+        await clearInspectionDraft(effectiveTemplateId, vehicleId);
+        setDraftSavedAt(null);
+        setInitialAnswers({});
+        setSubmissionBanner('Inspection submitted successfully.');
+
+        const inspectionId = result.response?.id;
+        if (inspectionId) {
+          navigate(`/app/inspections/${inspectionId}`);
+        } else {
+          navigate('/app/inspections/completed');
+        }
+      } else {
+        await saveInspectionDraft(effectiveTemplateId, vehicleId, serialized);
+        setSubmissionBanner('Inspection queued offline. It will sync once connectivity returns.');
+      }
+    } catch (err) {
+      console.error('Failed to submit inspection:', err);
+      setSubmissionBanner('Submission failed. Please retry once connectivity stabilises.');
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [effectiveTemplateId, vehicleId, template?.name, navigate]);
 
-  const handleSaveDraft = async (answers: Record<string, any>) => {
-    try {
-      // Create inspection if it doesn't exist
-      let inspectionId = localStorage.getItem(`inspection_draft_${templateId}`);
-      
-      if (!inspectionId) {
-        const inspectionRes = await axios.post('/api/v1/inspections', {
-          template_id: templateId
-        });
-        inspectionId = inspectionRes.data.id;
-        localStorage.setItem(`inspection_draft_${templateId}`, inspectionId);
-      }
-
-      // Save answers
-      await axios.put(`/api/v1/inspections/${inspectionId}`, {
-        answers: Object.entries(answers).map(([questionId, answerValue]) => ({
-          question_id: questionId,
-          answer_value: answerValue
-        }))
-      });
-
-      console.log('Draft saved successfully');
-    } catch (error) {
-      console.error('Failed to save draft:', error);
-      
-      // Handle CSRF/session errors with retry
-      if (error instanceof Error && error.message.includes('419')) {
-        try {
-          console.log('Retrying with fresh CSRF token...');
-          await axios.get('/sanctum/csrf-cookie');
-          
-          // Retry the request
-          let inspectionId = localStorage.getItem(`inspection_draft_${templateId}`);
-          if (!inspectionId) {
-            const inspectionRes = await axios.post('/api/v1/inspections', {
-              template_id: templateId
-            });
-            inspectionId = inspectionRes.data.id;
-            localStorage.setItem(`inspection_draft_${templateId}`, inspectionId);
-          }
-          
-          await axios.put(`/api/v1/inspections/${inspectionId}`, {
-            answers: Object.entries(answers).map(([questionId, answerValue]) => ({
-              question_id: questionId,
-              answer_value: answerValue
-            }))
-          });
-          
-          console.log('Draft saved successfully after retry');
-        } catch (retryError) {
-          console.error('Retry failed:', retryError);
-          alert('Session expired. Please refresh the page and try again.');
-          window.location.reload();
-        }
-        return;
-      }
-      
-      // For other errors, just log and continue
-      console.warn('Draft save failed, continuing offline...');
-    }
-  };
+  const handleRetryFetch = useCallback(() => {
+    loadTemplate(true);
+  }, [loadTemplate]);
 
   if (loading) {
     return (
       <div style={{ padding: spacing.xl, textAlign: 'center' }}>
         <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>🔍</div>
-        <div style={{ color: colors.neutral[600] }}>Loading inspection form...</div>
+        <div style={{ color: colors.neutral[600] }}>Loading inspection form…</div>
       </div>
     );
   }
 
-  if (error) {
+  if (error && !template) {
     return (
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: spacing.sm }}>
         <LoadingError
           error={error}
-          onRetry={fetchData}
+          onRetry={handleRetryFetch}
           onGoBack={() => navigate('/app/inspections')}
         />
       </div>
@@ -795,7 +830,7 @@ export const InspectionCapture: React.FC = () => {
             color: 'white',
             border: 'none',
             borderRadius: '8px',
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
         >
           Back to Inspections
@@ -805,29 +840,28 @@ export const InspectionCapture: React.FC = () => {
   }
 
   return (
-    <div style={{ 
-      maxWidth: '1000px', 
-      margin: '0 auto', 
+    <div style={{
+      maxWidth: '1000px',
+      margin: '0 auto',
       padding: spacing.xl,
       fontFamily: 'system-ui, -apple-system, sans-serif',
       backgroundColor: colors.neutral[50],
-      minHeight: '100vh'
+      minHeight: '100vh',
     }}>
-      {/* Header */}
-      <div style={{ 
+      <div style={{
         marginBottom: spacing.xl,
         padding: spacing.lg,
         backgroundColor: 'white',
         borderRadius: '16px',
         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-        border: '1px solid rgba(0,0,0,0.05)'
+        border: '1px solid rgba(0,0,0,0.05)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-          <h1 style={{ 
+          <h1 style={{
             ...typography.header,
             fontSize: '24px',
             color: colors.neutral[900],
-            margin: 0
+            margin: 0,
           }}>
             🔍 {template.name}
           </h1>
@@ -838,14 +872,14 @@ export const InspectionCapture: React.FC = () => {
               backgroundColor: colors.neutral[100],
               border: 'none',
               borderRadius: '8px',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             ← Back
           </button>
         </div>
-        
-        <div style={{ display: 'flex', gap: spacing.lg, flexWrap: 'wrap' }}>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
           <div>
             <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
               Template
@@ -857,15 +891,65 @@ export const InspectionCapture: React.FC = () => {
               {template.description}
             </div>
           </div>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.md }}>
+            {templateSource && (
+              <span style={{ ...typography.bodySmall, color: colors.neutral[500] }}>
+                Source: {templateSource === 'mock' ? 'offline demo' : templateSource}
+                {templateCachedAt && templateSource === 'cache' && ` · cached ${new Date(templateCachedAt).toLocaleString()}`}
+              </span>
+            )}
+            {queuedCount > 0 && (
+              <span style={{ ...typography.bodySmall, color: colors.status.warning }}>
+                {queuedCount} inspection{queuedCount === 1 ? '' : 's'} waiting to sync
+              </span>
+            )}
+            {draftSavedAt && (
+              <span style={{ ...typography.bodySmall, color: colors.neutral[500] }}>
+                Draft saved {new Date(draftSavedAt).toLocaleTimeString()}
+              </span>
+            )}
+            {progress && progress.phase === 'uploading' && (
+              <span style={{ ...typography.bodySmall, color: colors.primary }}>
+                Uploading… {progress.percent ? `${progress.percent}%` : ''}
+              </span>
+            )}
+          </div>
+
+          {templateWarning && (
+            <div style={{
+              backgroundColor: colors.status.warning + '20',
+              border: `1px solid ${colors.status.warning}`,
+              borderRadius: '8px',
+              padding: spacing.sm,
+              color: colors.status.warning,
+              ...typography.bodySmall,
+            }}>
+              ⚠️ {templateWarning}
+            </div>
+          )}
+
+          {submissionBanner && (
+            <div style={{
+              backgroundColor: colors.neutral[100],
+              borderRadius: '8px',
+              padding: spacing.sm,
+              color: colors.neutral[700],
+              ...typography.bodySmall,
+            }}>
+              {submissionBanner}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Dynamic Form */}
       <DynamicFormRenderer
         template={template}
+        initialAnswers={initialAnswers}
         onSubmit={handleSubmit}
         onSaveDraft={handleSaveDraft}
         readOnly={false}
+        submitting={isSubmitting}
       />
     </div>
   );
