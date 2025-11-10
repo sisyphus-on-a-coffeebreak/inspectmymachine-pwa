@@ -18,7 +18,8 @@ import {
   Sparkles,
   BarChart3,
   Calendar,
-  Users
+  Users,
+  UserCog
 } from "lucide-react";
 
 interface Module {
@@ -100,6 +101,21 @@ const modules: Module[] = [
       label: "Active Items",
       value: "156",
       trend: "12 low stock"
+    }
+  },
+  {
+    id: "user-management",
+    name: "User Management",
+    description: "Manage users, roles, and permissions",
+    icon: UserCog,
+    path: "/app/admin/users",
+    roles: ["super_admin", "admin"],
+    gradient: "from-indigo-500 to-indigo-600",
+    iconColor: "text-white",
+    stats: {
+      label: "Total Users",
+      value: "24",
+      trend: "3 new this month"
     }
   },
 ];
