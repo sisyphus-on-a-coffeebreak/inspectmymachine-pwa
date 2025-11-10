@@ -104,6 +104,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       // Step 1: Get CSRF token - use API_ORIGIN (not API_BASE) for Sanctum
       const csrfUrl = `${API_ORIGIN}/sanctum/csrf-cookie`;
+      console.log('[Auth] Fetching CSRF token from:', csrfUrl);
+
       await axios.get(csrfUrl, {
         withCredentials: true,
         baseURL: '', // Override baseURL to use full URL
@@ -114,8 +116,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Step 2: Login - use API_ORIGIN for login endpoint
       const loginUrl = `${API_ORIGIN}/api/login`;
-      
-      await axios.post(loginUrl, {
+      console.log('[Auth] Sending login request to:', loginUrl);
+      console.log('[Auth] Request payload:', { employee_id: employeeId.trim(), password: '[REDACTED]' });
+
+      const loginResponse = await axios.post(loginUrl, {
         employee_id: employeeId.trim(),
         password: password,
       }, {
@@ -128,13 +132,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       });
 
+      console.log('[Auth] Login response status:', loginResponse.status);
+
       // Step 3: Get user data
       const response = await axios.get<{ user: User }>("/api/user");
+      console.log('[Auth] User data fetched successfully');
       setUser(response.data.user);  // 🎯 Extract the nested user object
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const axiosError = err as AxiosError<ApiErrorResponse | { errors?: Record<string, string[]>; message?: string }>;
-        
+
+        // Log detailed error information for debugging
+        console.error('[Auth] Login failed with status:', axiosError.response?.status);
+        console.error('[Auth] Error response:', axiosError.response?.data);
+        console.error('[Auth] Error headers:', axiosError.response?.headers);
+
+        // Handle 500 Internal Server Error
+        if (axiosError.response?.status === 500) {
+          console.error('[Auth] Backend server error. Check backend logs for details.');
+          throw new Error(
+            'Server error occurred. Please contact support if this persists. ' +
+            'Error details logged to console.'
+          );
+        }
+
         // Handle validation errors (422)
         if (axiosError.response?.status === 422) {
           const errorData = axiosError.response.data;
@@ -146,11 +167,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
           throw new Error(errorData?.message || 'Invalid credentials. Please check your employee ID and password.');
         }
-        
+
         // Handle other errors
         throw new Error(
-          axiosError.response?.data?.message || 
-          axiosError.message || 
+          axiosError.response?.data?.message ||
+          axiosError.message ||
           "Login failed"
         );
       }
