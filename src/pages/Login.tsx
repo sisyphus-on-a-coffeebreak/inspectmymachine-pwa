@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../providers/useAuth";
+import { colors, typography, spacing } from "../lib/theme";
+import { Sparkles, Lock, User as UserIcon, Eye, EyeOff, AlertCircle } from "lucide-react";
 
 export default function Login() {
   const [employeeId, setEmployeeId] = useState("");
@@ -42,49 +44,182 @@ export default function Login() {
   ];
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div style={{ 
+      minHeight: '100vh',
+      background: `linear-gradient(135deg, ${colors.neutral[50]} 0%, ${colors.neutral[100]} 100%)`,
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.xl
+    }}>
+      <div style={{ 
+        width: '100%',
+        maxWidth: '440px'
+      }}>
         {/* Logo/Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-1">VOMS</h1>
-          <p className="text-sm text-gray-500">Vehicle Operations Management System</p>
+        <div style={{ 
+          textAlign: 'center', 
+          marginBottom: spacing.xl * 2 
+        }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '64px',
+            height: '64px',
+            background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
+            borderRadius: '16px',
+            marginBottom: spacing.lg,
+            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
+          }}>
+            <Sparkles style={{ width: '32px', height: '32px', color: 'white' }} />
+          </div>
+          <h1 style={{ 
+            ...typography.header,
+            fontSize: '28px',
+            color: colors.neutral[900],
+            margin: 0,
+            marginBottom: spacing.xs,
+            fontWeight: 700
+          }}>
+            VOMS
+          </h1>
+          <p style={{ 
+            ...typography.body,
+            color: colors.neutral[600],
+            margin: 0,
+            fontSize: '15px'
+          }}>
+            Vehicle Operations Management System
+          </p>
         </div>
 
-        {/* Login Form */}
-        <div className="bg-white border border-gray-200 rounded-lg p-8 shadow-sm">
-          <h2 className="text-lg font-medium text-gray-900 mb-6">Sign in</h2>
+        {/* Login Card */}
+        <div style={{
+          background: 'white',
+          borderRadius: '20px',
+          padding: spacing.xl * 1.5,
+          boxShadow: '0 8px 25px rgba(0,0,0,0.08)',
+          border: `1px solid ${colors.neutral[200]}`
+        }}>
+          <h2 style={{ 
+            ...typography.subheader,
+            fontSize: '20px',
+            color: colors.neutral[900],
+            margin: 0,
+            marginBottom: spacing.xl,
+            fontWeight: 600
+          }}>
+            Sign in
+          </h2>
           
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
             {/* Error Message */}
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-md">
-                {error}
+              <div style={{
+                background: `${colors.status.critical}15`,
+                border: `1px solid ${colors.status.critical}`,
+                borderRadius: '12px',
+                padding: `${spacing.md} ${spacing.lg}`,
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.sm
+              }}>
+                <AlertCircle style={{ width: '18px', height: '18px', color: colors.status.critical, flexShrink: 0 }} />
+                <p style={{ 
+                  ...typography.body,
+                  color: colors.status.critical,
+                  margin: 0,
+                  fontSize: '14px',
+                  fontWeight: 500
+                }}>
+                  {error}
+                </p>
               </div>
             )}
 
             {/* Employee ID Input */}
             <div>
-              <label htmlFor="employeeId" className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label htmlFor="employeeId" style={{
+                ...typography.label,
+                display: 'block',
+                color: colors.neutral[700],
+                marginBottom: spacing.sm,
+                fontSize: '14px',
+                fontWeight: 500
+              }}>
                 Employee ID
               </label>
-              <input
-                id="employeeId"
-                type="text"
-                value={employeeId}
-                onChange={(e) => setEmployeeId(e.target.value.toUpperCase())}
-                placeholder="e.g., ADMIN001"
-                required
-                disabled={loading}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors"
-              />
+              <div style={{ position: 'relative' }}>
+                <div style={{
+                  position: 'absolute',
+                  left: spacing.md,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  pointerEvents: 'none'
+                }}>
+                  <UserIcon style={{ width: '18px', height: '18px', color: colors.neutral[400] }} />
+                </div>
+                <input
+                  id="employeeId"
+                  type="text"
+                  value={employeeId}
+                  onChange={(e) => setEmployeeId(e.target.value.toUpperCase())}
+                  placeholder="e.g., ADMIN001"
+                  required
+                  disabled={loading}
+                  style={{
+                    width: '100%',
+                    padding: `${spacing.md} ${spacing.md} ${spacing.md} ${spacing.xl * 2}`,
+                    border: `1px solid ${colors.neutral[300]}`,
+                    borderRadius: '12px',
+                    fontSize: '15px',
+                    color: colors.neutral[900],
+                    background: loading ? colors.neutral[50] : 'white',
+                    cursor: loading ? 'not-allowed' : 'text',
+                    transition: 'all 0.2s ease',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = colors.primary;
+                    e.currentTarget.style.boxShadow = `0 0 0 3px ${colors.primary}20`;
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = colors.neutral[300];
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                />
+              </div>
             </div>
 
             {/* Password Input */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label htmlFor="password" style={{
+                ...typography.label,
+                display: 'block',
+                color: colors.neutral[700],
+                marginBottom: spacing.sm,
+                fontSize: '14px',
+                fontWeight: 500
+              }}>
                 Password
               </label>
-              <div className="relative">
+              <div style={{ position: 'relative' }}>
+                <div style={{
+                  position: 'absolute',
+                  left: spacing.md,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  pointerEvents: 'none'
+                }}>
+                  <Lock style={{ width: '18px', height: '18px', color: colors.neutral[400] }} />
+                </div>
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -93,23 +228,57 @@ export default function Login() {
                   placeholder="Enter your password"
                   required
                   disabled={loading}
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed transition-colors"
+                  style={{
+                    width: '100%',
+                    padding: `${spacing.md} ${spacing.xl * 2} ${spacing.md} ${spacing.xl * 2}`,
+                    border: `1px solid ${colors.neutral[300]}`,
+                    borderRadius: '12px',
+                    fontSize: '15px',
+                    color: colors.neutral[900],
+                    background: loading ? colors.neutral[50] : 'white',
+                    cursor: loading ? 'not-allowed' : 'text',
+                    transition: 'all 0.2s ease',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = colors.primary;
+                    e.currentTarget.style.boxShadow = `0 0 0 3px ${colors.primary}20`;
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = colors.neutral[300];
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                  style={{
+                    position: 'absolute',
+                    right: spacing.md,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: spacing.xs,
+                    color: colors.neutral[400],
+                    transition: 'color 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = colors.neutral[600];
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = colors.neutral[400];
+                  }}
                   tabIndex={-1}
                 >
                   {showPassword ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                    </svg>
+                    <EyeOff style={{ width: '18px', height: '18px' }} />
                   ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
+                    <Eye style={{ width: '18px', height: '18px' }} />
                   )}
                 </button>
               </div>
@@ -119,16 +288,75 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gray-900 text-white py-2.5 rounded-md text-sm font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              style={{
+                width: '100%',
+                padding: `${spacing.md} ${spacing.lg}`,
+                background: loading 
+                  ? colors.neutral[400] 
+                  : `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '15px',
+                fontWeight: 600,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: loading 
+                  ? 'none' 
+                  : '0 4px 12px rgba(37, 99, 235, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: spacing.sm
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(37, 99, 235, 0.4)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.3)';
+                }
+              }}
             >
-              {loading ? "Signing in..." : "Sign in"}
+              {loading ? (
+                <>
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTopColor: 'white',
+                    borderRadius: '50%',
+                    animation: 'spin 0.6s linear infinite'
+                  }} />
+                  <span>Signing in...</span>
+                </>
+              ) : (
+                'Sign in'
+              )}
             </button>
           </form>
 
           {/* Test Accounts */}
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <p className="text-xs text-gray-500 mb-3">Test Accounts</p>
-            <div className="space-y-2">
+          <div style={{
+            marginTop: spacing.xl * 1.5,
+            paddingTop: spacing.xl,
+            borderTop: `1px solid ${colors.neutral[200]}`
+          }}>
+            <p style={{
+              ...typography.label,
+              color: colors.neutral[500],
+              margin: 0,
+              marginBottom: spacing.md,
+              fontSize: '12px',
+              fontWeight: 500
+            }}>
+              Test Accounts
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xs }}>
               {testAccounts.map((account) => (
                 <button
                   key={account.id}
@@ -138,24 +366,82 @@ export default function Login() {
                     setPassword("password");
                   }}
                   disabled={loading}
-                  className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    padding: `${spacing.sm} ${spacing.md}`,
+                    background: colors.neutral[50],
+                    border: `1px solid ${colors.neutral[200]}`,
+                    borderRadius: '10px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease',
+                    opacity: loading ? 0.5 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!loading) {
+                      e.currentTarget.style.background = colors.neutral[100];
+                      e.currentTarget.style.borderColor = colors.neutral[300];
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!loading) {
+                      e.currentTarget.style.background = colors.neutral[50];
+                      e.currentTarget.style.borderColor = colors.neutral[200];
+                    }
+                  }}
                 >
-                  <span className="font-medium">{account.id}</span>
-                  <span className="text-gray-400 ml-2">• {account.role}</span>
+                  <span style={{
+                    ...typography.body,
+                    color: colors.neutral[900],
+                    fontSize: '13px',
+                    fontWeight: 600
+                  }}>
+                    {account.id}
+                  </span>
+                  <span style={{
+                    ...typography.bodySmall,
+                    color: colors.neutral[500],
+                    fontSize: '12px'
+                  }}>
+                    {account.role}
+                  </span>
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-400 mt-3 text-center">
-              Password: <span className="font-mono">password</span>
+            <p style={{
+              ...typography.bodySmall,
+              color: colors.neutral[400],
+              margin: 0,
+              marginTop: spacing.md,
+              textAlign: 'center',
+              fontSize: '11px'
+            }}>
+              Password: <span style={{ fontFamily: 'monospace', color: colors.neutral[600] }}>password</span>
             </p>
           </div>
         </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-gray-400 mt-8">
+        <p style={{
+          ...typography.bodySmall,
+          color: colors.neutral[400],
+          margin: 0,
+          marginTop: spacing.xl,
+          textAlign: 'center',
+          fontSize: '12px'
+        }}>
           © 2024 VOMS
         </p>
       </div>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
