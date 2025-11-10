@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { colors, typography, spacing, cardStyles } from '../../lib/theme';
+import axios, { AxiosError } from 'axios';
+import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -11,6 +11,12 @@ import { useUploader } from '../../lib/upload';
 // 💰 Enhanced Expense Creation Form
 // Smart form with auto-categorization, GPS location, receipt capture
 // Asset and project linking, template support
+
+interface UploadedReceipt {
+  key: string;
+  name: string;
+  size?: number;
+}
 
 interface ExpenseFormData {
   amount: string;
@@ -22,9 +28,10 @@ interface ExpenseFormData {
   location: string;
   gps_lat?: number;
   gps_lng?: number;
-  receipt_files: File[];
+  receipts: UploadedReceipt[];
   project_id?: string;
   asset_id?: string;
+  template_id?: string;
   notes?: string;
 }
 
@@ -82,7 +89,7 @@ export const CreateExpense: React.FC = () => {
     date: new Date().toISOString().split('T')[0],
     time: new Date().toTimeString().split(' ')[0].substring(0, 5),
     location: '',
-    receipt_files: [],
+    receipts: [],
     notes: ''
   });
 
@@ -91,8 +98,8 @@ export const CreateExpense: React.FC = () => {
   const [templates, setTemplates] = useState<ExpenseTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   
   // Use refs to track fetch attempts and prevent infinite loops
   const projectsFetchedRef = useRef(false);
@@ -206,6 +213,33 @@ export const CreateExpense: React.FC = () => {
     fetchTemplates();
   }, [fetchProjects, fetchAssets, fetchTemplates]);
 
+  const clearFieldError = (field: string) => {
+    setValidationErrors((prev) => {
+      if (!(field in prev)) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const getFieldError = (field: string) => validationErrors[field];
+
+  const getAnyFieldError = (...fields: string[]) => {
+    for (const field of fields) {
+      const error = getFieldError(field);
+      if (error) return error;
+    }
+    return undefined;
+  };
+
+  const getErrorMessage = (error: unknown) => {
+    if (axios.isAxiosError(error)) {
+      const err = error as AxiosError<{ message?: string; detail?: string }>;
+      return err.response?.data?.message || err.response?.data?.detail || err.message;
+    }
+    return error instanceof Error ? error.message : 'Something went wrong';
+  };
+
   const getPosition = () => new Promise<GeolocationPosition>((resolve, reject) => {
     if (!navigator.geolocation) return reject(new Error('Geolocation not supported'));
     const options: PositionOptions = { enableHighAccuracy: true, timeout: 8000 };
@@ -214,83 +248,150 @@ export const CreateExpense: React.FC = () => {
 
   const handleFileUpload = async (files: FileList) => {
     setUploading(true);
-    try {
-      const uploadedFiles: File[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
+    const newReceipts: UploadedReceipt[] = [];
+    
+    for (const file of Array.from(files)) {
+      try {
         const result = await uploadImageWithProgress(file, 'expense-receipts');
-        uploadedFiles.push(file);
+        if (!result.key) {
+          alert('Upload failed: The server did not return a file reference.');
+          continue;
+        }
+        newReceipts.push({ key: result.key, name: file.name || 'receipt', size: file.size });
+      } catch (error) {
+        console.error('File upload failed:', error);
+        alert(`Upload failed: ${getErrorMessage(error)}`);
       }
-      setFormData(prev => ({
-        ...prev,
-        receipt_files: [...prev.receipt_files, ...uploadedFiles]
-      }));
-    } catch (error) {
-      console.error('File upload failed:', error);
-      alert('Failed to upload files. Please try again.');
-    } finally {
-      setUploading(false);
     }
+    
+    if (newReceipts.length > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        receipts: [...prev.receipts, ...newReceipts],
+      }));
+      clearFieldError('receipts');
+      clearFieldError('receipt_keys');
+    }
+    
+    setUploading(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.amount || !formData.description) {
-      alert('Please fill in all required fields');
+    const errors: Record<string, string> = {};
+    
+    if (!formData.amount) {
+      errors.amount = 'Amount is required';
+    } else if (!Number.isFinite(Number(formData.amount)) || Number(formData.amount) <= 0) {
+      errors.amount = 'Enter a valid amount';
+    }
+    
+    if (!formData.description.trim()) {
+      errors.description = 'Description is required';
+    }
+    
+    if (!formData.date) {
+      errors.date = 'Date is required';
+    }
+    
+    if (!formData.time) {
+      errors.time = 'Time is required';
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      alert('Please review the highlighted fields before submitting.');
       return;
     }
-
+    
+    setValidationErrors({});
+    setLoading(true);
+    
+    let gps_lat: number | undefined;
+    let gps_lng: number | undefined;
     try {
-      setLoading(true);
-
-      // Capture submission timestamp and geolocation at time of submit
-      const submissionTime = new Date();
-      const ts = `${submissionTime.toISOString().slice(0,19).replace('T',' ')}`;
-      let gps_lat: number | undefined;
-      let gps_lng: number | undefined;
-      try {
-        const pos = await getPosition();
-        gps_lat = pos.coords.latitude;
-        gps_lng = pos.coords.longitude;
-      } catch (e) {
-        console.warn('Geolocation capture skipped:', e);
-      }
-      const submitData = {
-        amount: parseInt(formData.amount, 10),
-        category: formData.category,
-        payment_method: formData.payment_method,
-        ts,
-        city: formData.location || undefined,
-        gps_lat,
-        gps_lng,
-        notes: [formData.description, formData.notes].filter(Boolean).join(' | ') || undefined,
-        vehicle_id: undefined,
-        jobcard_id: undefined,
-      };
-
+      const pos = await getPosition();
+      gps_lat = pos.coords.latitude;
+      gps_lng = pos.coords.longitude;
+    } catch (geoError) {
+      console.warn('Geolocation capture skipped:', geoError);
+    }
+    
+    const tsDate = new Date(`${formData.date}T${formData.time}:00`);
+    const timestamp = Number.isNaN(tsDate.getTime()) ? new Date().toISOString() : tsDate.toISOString();
+    
+    const submitData = {
+      amount: Number(formData.amount),
+      category: formData.category,
+      description: formData.description,
+      payment_method: formData.payment_method,
+      ts: timestamp,
+      city: formData.location || undefined,
+      gps_lat,
+      gps_lng,
+      notes: [formData.description, formData.notes].filter(Boolean).join(' | ') || undefined,
+      project_id: formData.project_id || undefined,
+      asset_id: formData.asset_id || undefined,
+      template_id: formData.template_id || undefined,
+      receipt_keys: formData.receipts.map((receipt) => receipt.key),
+    };
+    
+    try {
       await axios.post('/api/v1/expenses', submitData);
-
-      alert('Expense created successfully!');
+      alert('Expense submitted successfully! Your expense has been sent for review.');
       navigate('/app/expenses');
-
     } catch (error) {
       console.error('Failed to create expense:', error);
-      alert('Failed to create expense. Please try again.');
+      
+      const serverErrors: Record<string, string> = {};
+      if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data as
+          | { message?: string; detail?: string; errors?: Record<string, string[] | string> }
+          | undefined;
+        
+        if (responseData?.errors) {
+          Object.entries(responseData.errors).forEach(([field, value]) => {
+            if (Array.isArray(value)) {
+              serverErrors[field] = value.join(' ');
+            } else if (value) {
+              serverErrors[field] = String(value);
+            }
+          });
+        }
+        
+        if (Object.keys(serverErrors).length > 0) {
+          setValidationErrors(serverErrors);
+        }
+        
+        alert(`Expense submission failed: ${responseData?.message || responseData?.detail || getErrorMessage(error)}`);
+      } else {
+        alert(`Expense submission failed: ${getErrorMessage(error)}`);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const removeReceipt = (key: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      receipts: prev.receipts.filter((receipt) => receipt.key !== key),
+    }));
+  };
+
   const applyTemplate = (template: ExpenseTemplate) => {
+    clearFieldError('template_id');
+    clearFieldError('template');
     setFormData(prev => ({
       ...prev,
       category: template.category,
-      amount: template.amount.toString(),
-      description: template.description,
-      payment_method: template.payment_method as any,
+      amount: template.amount != null ? template.amount.toString() : prev.amount,
+      description: template.description ?? prev.description,
+      payment_method: (template.payment_method as any) ?? prev.payment_method,
       project_id: template.project_id,
-      asset_id: template.asset_id
+      asset_id: template.asset_id,
+      template_id: template.id,
     }));
     setShowTemplates(false);
   };
@@ -380,43 +481,53 @@ export const CreateExpense: React.FC = () => {
           
           {showTemplates && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: spacing.sm }}>
-              {templates.map((template) => (
-                <div
-                  key={template.id}
-                  onClick={() => applyTemplate(template)}
-                  style={{
-                    padding: spacing.sm,
-                    border: '1px solid #E5E7EB',
-                    borderRadius: '8px',
-                    backgroundColor: '#F9FAFB',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <div style={{ 
-                    ...typography.subheader,
-                    fontSize: '14px',
-                    marginBottom: spacing.xs,
-                    color: colors.neutral[900]
-                  }}>
-                    {template.name}
+              {templates.map((template) => {
+                const isSelected = formData.template_id === template.id;
+                return (
+                  <div
+                    key={template.id}
+                    onClick={() => applyTemplate(template)}
+                    style={{
+                      padding: spacing.sm,
+                      border: isSelected ? `2px solid ${colors.primary}` : '1px solid #E5E7EB',
+                      borderRadius: '8px',
+                      backgroundColor: isSelected ? '#EFF6FF' : '#F9FAFB',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <div style={{ 
+                      ...typography.subheader,
+                      fontSize: '14px',
+                      marginBottom: spacing.xs,
+                      color: colors.neutral[900]
+                    }}>
+                      {template.name}
+                    </div>
+                    {template.description && (
+                      <div style={{ 
+                        ...typography.bodySmall,
+                        color: colors.neutral[600],
+                        marginBottom: spacing.xs
+                      }}>
+                        {template.description}
+                      </div>
+                    )}
+                    <div style={{ 
+                      ...typography.bodySmall,
+                      color: colors.primary,
+                      fontWeight: 600
+                    }}>
+                      {template.amount != null ? `₹${template.amount.toLocaleString('en-IN')}` : 'Custom amount'}
+                    </div>
                   </div>
-                  <div style={{ 
-                    ...typography.bodySmall,
-                    color: colors.neutral[600],
-                    marginBottom: spacing.xs
-                  }}>
-                    {template.description}
-                  </div>
-                  <div style={{ 
-                    ...typography.bodySmall,
-                    color: colors.primary,
-                    fontWeight: 600
-                  }}>
-                    ₹{template.amount.toLocaleString('en-IN')}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
+            </div>
+          )}
+          {getAnyFieldError('template_id', 'template') && (
+            <div style={{ color: colors.status.error, fontSize: '12px', marginTop: spacing.xs }}>
+              {getAnyFieldError('template_id', 'template')}
             </div>
           )}
         </div>
@@ -438,11 +549,19 @@ export const CreateExpense: React.FC = () => {
               <Input
                 type="number"
                 value={formData.amount}
-                onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormData(prev => ({ ...prev, amount: value }));
+                  clearFieldError('amount');
+                }}
                 placeholder="Enter amount"
-                required
                 style={{ marginTop: spacing.xs }}
               />
+              {getFieldError('amount') && (
+                <div style={{ color: colors.status.error, fontSize: '12px', marginTop: spacing.xs }}>
+                  {getFieldError('amount')}
+                </div>
+              )}
             </div>
             
             <div>
@@ -472,9 +591,12 @@ export const CreateExpense: React.FC = () => {
             <Label>Description *</Label>
             <textarea
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) => {
+                const value = e.target.value;
+                setFormData(prev => ({ ...prev, description: value }));
+                clearFieldError('description');
+              }}
               placeholder="Describe the expense..."
-              required
               style={{
                 width: '100%',
                 padding: spacing.sm,
@@ -486,6 +608,11 @@ export const CreateExpense: React.FC = () => {
                 marginTop: spacing.xs
               }}
             />
+            {getFieldError('description') && (
+              <div style={{ color: colors.status.error, fontSize: '12px', marginTop: spacing.xs }}>
+                {getFieldError('description')}
+              </div>
+            )}
           </div>
 
           {/* Date and Time */}
@@ -495,10 +622,17 @@ export const CreateExpense: React.FC = () => {
               <Input
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                required
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, date: e.target.value }));
+                  clearFieldError('date');
+                }}
                 style={{ marginTop: spacing.xs }}
               />
+              {getFieldError('date') && (
+                <div style={{ color: colors.status.error, fontSize: '12px', marginTop: spacing.xs }}>
+                  {getFieldError('date')}
+                </div>
+              )}
             </div>
             
             <div>
@@ -506,10 +640,17 @@ export const CreateExpense: React.FC = () => {
               <Input
                 type="time"
                 value={formData.time}
-                onChange={(e) => setFormData(prev => ({ ...prev, time: e.target.value }))}
-                required
+                onChange={(e) => {
+                  setFormData(prev => ({ ...prev, time: e.target.value }));
+                  clearFieldError('time');
+                }}
                 style={{ marginTop: spacing.xs }}
               />
+              {getFieldError('time') && (
+                <div style={{ color: colors.status.error, fontSize: '12px', marginTop: spacing.xs }}>
+                  {getFieldError('time')}
+                </div>
+              )}
             </div>
           </div>
 
@@ -555,7 +696,12 @@ export const CreateExpense: React.FC = () => {
               <Label>Project (Optional)</Label>
               <select
                 value={formData.project_id || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, project_id: e.target.value || undefined }))}
+                onChange={(e) => {
+                  const value = e.target.value || undefined;
+                  setFormData(prev => ({ ...prev, project_id: value }));
+                  clearFieldError('project_id');
+                  clearFieldError('project');
+                }}
                 style={{
                   width: '100%',
                   padding: spacing.sm,
@@ -572,13 +718,23 @@ export const CreateExpense: React.FC = () => {
                   </option>
                 ))}
               </select>
+              {getAnyFieldError('project_id', 'project') && (
+                <div style={{ color: colors.status.error, fontSize: '12px', marginTop: spacing.xs }}>
+                  {getAnyFieldError('project_id', 'project')}
+                </div>
+              )}
             </div>
             
             <div>
               <Label>Asset (Optional)</Label>
               <select
                 value={formData.asset_id || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, asset_id: e.target.value || undefined }))}
+                onChange={(e) => {
+                  const value = e.target.value || undefined;
+                  setFormData(prev => ({ ...prev, asset_id: value }));
+                  clearFieldError('asset_id');
+                  clearFieldError('asset');
+                }}
                 style={{
                   width: '100%',
                   padding: spacing.sm,
@@ -595,6 +751,11 @@ export const CreateExpense: React.FC = () => {
                   </option>
                 ))}
               </select>
+              {getAnyFieldError('asset_id', 'asset') && (
+                <div style={{ color: colors.status.error, fontSize: '12px', marginTop: spacing.xs }}>
+                  {getAnyFieldError('asset_id', 'asset')}
+                </div>
+              )}
             </div>
           </div>
 
@@ -648,13 +809,57 @@ export const CreateExpense: React.FC = () => {
                 Uploading files...
               </div>
             )}
-            {formData.receipt_files.length > 0 && (
-              <div style={{ 
+            {formData.receipts.length > 0 && (
+              <div style={{
                 marginTop: spacing.sm,
-                fontSize: '14px',
-                color: colors.neutral[600]
+                display: 'flex',
+                flexDirection: 'column',
+                gap: spacing.xs,
               }}>
-                {formData.receipt_files.length} file(s) selected
+                {formData.receipts.map((receipt) => (
+                  <div
+                    key={receipt.key}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: `${spacing.xs} ${spacing.sm}`,
+                      border: '1px solid #E5E7EB',
+                      borderRadius: '8px',
+                      backgroundColor: '#F9FAFB',
+                      fontSize: '14px',
+                      color: colors.neutral[700],
+                    }}
+                  >
+                    <span>
+                      {receipt.name}
+                      {receipt.size != null && (
+                        <span style={{ color: colors.neutral[500] }}>
+                          {` • ${(receipt.size / 1024).toFixed(1)} KB`}
+                        </span>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeReceipt(receipt.key)}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        color: colors.status.error,
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {getAnyFieldError('receipt_keys', 'receipts') && (
+              <div style={{ color: colors.status.error, fontSize: '12px', marginTop: spacing.xs }}>
+                {getAnyFieldError('receipt_keys', 'receipts')}
               </div>
             )}
           </div>
