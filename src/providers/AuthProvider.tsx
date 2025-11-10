@@ -72,15 +72,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const checkAuth = async () => {
-  try {
-    const response = await axios.get<{ user: User }>("/api/user");
-    setUser(response.data.user);  // 🎯 Extract the nested user object
-  } catch {
-    setUser(null);
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      const response = await axios.get<{ user: User }>("/api/user");
+      setUser(response.data.user);  // 🎯 Extract the nested user object
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const login = async (employeeId: string, password: string) => {
     try {

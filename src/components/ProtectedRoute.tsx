@@ -1,8 +1,8 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom"
 import { useAuth } from "@/providers/useAuth"
 export default function ProtectedRoute() {
-  const { token } = useAuth()
+  const { user } = useAuth()
   const loc = useLocation()
-  if (!token) return <Navigate to="/login" replace state={{ from: loc }} />
+  if (!user) return <Navigate to="/login" replace state={{ from: loc }} />
   return <Outlet />
 }

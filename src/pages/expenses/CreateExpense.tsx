@@ -93,19 +93,34 @@ export const CreateExpense: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showTemplates, setShowTemplates] = useState(false);
+  
+  // Use refs to track fetch attempts and prevent infinite loops
+  const projectsFetchedRef = useRef(false);
+  const assetsFetchedRef = useRef(false);
+  const templatesFetchedRef = useRef(false);
 
   const fetchProjects = useCallback(async () => {
+    // Prevent multiple simultaneous requests
+    if (projectsFetchedRef.current) return;
+    projectsFetchedRef.current = true;
+    
     try {
-      const response = await axios.get('/api/v1/projects');
-      if (response.data.success) {
+      const response = await axios.get('/api/v1/projects', {
+        // Prevent retries for 404 errors
+        validateStatus: (status) => status < 500
+      });
+      if (response.data && response.data.success) {
         setProjects(response.data.data);
       } else {
-        throw new Error(response.data.message || 'Failed to fetch projects');
+        throw new Error(response.data?.message || 'Failed to fetch projects');
       }
-    } catch (error) {
-      console.error('Failed to fetch projects:', error);
-      // Fallback to mock data for development
-      setProjects([
+    } catch (error: any) {
+      // Only log if it's not a 404 (endpoint doesn't exist)
+      if (error?.response?.status !== 404) {
+        console.error('Failed to fetch projects:', error);
+      }
+      // Fallback to mock data for development - only set if not already set
+      setProjects(prev => prev.length > 0 ? prev : [
         { id: '1', name: 'Project Alpha', code: 'PA001', status: 'active' },
         { id: '2', name: 'Project Beta', code: 'PB002', status: 'active' },
         { id: '3', name: 'Project Gamma', code: 'PG003', status: 'completed' }
@@ -114,17 +129,27 @@ export const CreateExpense: React.FC = () => {
   }, []);
 
   const fetchAssets = useCallback(async () => {
+    // Prevent multiple simultaneous requests
+    if (assetsFetchedRef.current) return;
+    assetsFetchedRef.current = true;
+    
     try {
-      const response = await axios.get('/api/v1/assets');
-      if (response.data.success) {
+      const response = await axios.get('/api/v1/assets', {
+        // Prevent retries for 404 errors
+        validateStatus: (status) => status < 500
+      });
+      if (response.data && response.data.success) {
         setAssets(response.data.data);
       } else {
-        throw new Error(response.data.message || 'Failed to fetch assets');
+        throw new Error(response.data?.message || 'Failed to fetch assets');
       }
-    } catch (error) {
-      console.error('Failed to fetch assets:', error);
-      // Fallback to mock data for development
-      setAssets([
+    } catch (error: any) {
+      // Only log if it's not a 404 (endpoint doesn't exist)
+      if (error?.response?.status !== 404) {
+        console.error('Failed to fetch assets:', error);
+      }
+      // Fallback to mock data for development - only set if not already set
+      setAssets(prev => prev.length > 0 ? prev : [
         { id: '1', name: 'Vehicle ABC-1234', type: 'vehicle', registration_number: 'ABC-1234', status: 'active' },
         { id: '2', name: 'Laptop Dell XPS', type: 'technology', status: 'active' },
         { id: '3', name: 'Office Building', type: 'building', status: 'active' }
@@ -133,17 +158,27 @@ export const CreateExpense: React.FC = () => {
   }, []);
 
   const fetchTemplates = useCallback(async () => {
+    // Prevent multiple simultaneous requests
+    if (templatesFetchedRef.current) return;
+    templatesFetchedRef.current = true;
+    
     try {
-      const response = await axios.get('/api/v1/expense-templates');
-      if (response.data.success) {
+      const response = await axios.get('/api/v1/expense-templates', {
+        // Prevent retries for 404 errors
+        validateStatus: (status) => status < 500
+      });
+      if (response.data && response.data.success) {
         setTemplates(response.data.data);
       } else {
-        throw new Error(response.data.message || 'Failed to fetch templates');
+        throw new Error(response.data?.message || 'Failed to fetch templates');
       }
-    } catch (error) {
-      console.error('Failed to fetch templates:', error);
-      // Fallback to mock data for development
-      setTemplates([
+    } catch (error: any) {
+      // Only log if it's not a 404 (endpoint doesn't exist)
+      if (error?.response?.status !== 404) {
+        console.error('Failed to fetch templates:', error);
+      }
+      // Fallback to mock data for development - only set if not already set
+      setTemplates(prev => prev.length > 0 ? prev : [
         {
           id: '1',
           name: 'Daily Fuel',
@@ -165,6 +200,7 @@ export const CreateExpense: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // Only fetch once on mount
     fetchProjects();
     fetchAssets();
     fetchTemplates();
