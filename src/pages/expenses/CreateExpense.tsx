@@ -271,6 +271,8 @@ export const CreateExpense: React.FC = () => {
       }));
       clearFieldError('receipts');
       clearFieldError('receipt_keys');
+      // Show success message
+      alert(`${newReceipts.length} receipt${newReceipts.length > 1 ? 's' : ''} uploaded successfully`);
     }
     
     setUploading(false);
