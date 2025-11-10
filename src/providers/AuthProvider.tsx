@@ -60,7 +60,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Initialize CSRF token
     const initCSRF = async () => {
       try {
-        await axios.get('/sanctum/csrf-cookie');
+        // Use the full API origin for CSRF cookie
+        const csrfUrl = import.meta.env.PROD 
+          ? 'https://api.inspectmymachine.in/sanctum/csrf-cookie'
+          : `${API_ORIGIN}/sanctum/csrf-cookie`;
+        await axios.get(csrfUrl, {
+          withCredentials: true,
+        });
         console.log('CSRF token initialized');
       } catch (error) {
         console.warn('Failed to initialize CSRF token:', error);
@@ -93,14 +99,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (employeeId: string, password: string) => {
     try {
-      // Step 1: Get CSRF token
-      await axios.get("/sanctum/csrf-cookie");
+      // Step 1: Get CSRF token (use full URL for production)
+      const csrfUrl = import.meta.env.PROD 
+        ? 'https://api.inspectmymachine.in/sanctum/csrf-cookie'
+        : `${API_ORIGIN}/sanctum/csrf-cookie`;
+      await axios.get(csrfUrl, {
+        withCredentials: true,
+      });
 
       // Step 2: Login with proper headers
-      await axios.post("/api/login", {
-        employee_id: employeeId,
+      const loginUrl = import.meta.env.PROD 
+        ? 'https://api.inspectmymachine.in/api/login'
+        : `${API_ORIGIN}/api/login`;
+      
+      await axios.post(loginUrl, {
+        employee_id: employeeId.trim(),
         password: password,
       }, {
+        withCredentials: true,
         headers: {
           'X-Requested-With': 'XMLHttpRequest',
           'Accept': 'application/json',
@@ -113,7 +129,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(response.data.user);  // 🎯 Extract the nested user object
     } catch (err) {
       if (axios.isAxiosError(err)) {
-        const axiosError = err as AxiosError<ApiErrorResponse>;
+        const axiosError = err as AxiosError<ApiErrorResponse | { errors?: Record<string, string[]>; message?: string }>;
+        
+        // Handle validation errors (422)
+        if (axiosError.response?.status === 422) {
+          const errorData = axiosError.response.data;
+          if (errorData && typeof errorData === 'object' && 'errors' in errorData) {
+            // Laravel validation errors
+            const errors = errorData.errors as Record<string, string[]>;
+            const firstError = Object.values(errors)[0]?.[0];
+            throw new Error(firstError || 'Validation failed. Please check your credentials.');
+          }
+          throw new Error(errorData?.message || 'Invalid credentials. Please check your employee ID and password.');
+        }
+        
+        // Handle other errors
         throw new Error(
           axiosError.response?.data?.message || 
           axiosError.message || 
