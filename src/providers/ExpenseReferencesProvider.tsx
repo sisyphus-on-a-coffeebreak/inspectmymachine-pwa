@@ -2,6 +2,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import axios, { AxiosError } from 'axios';
 import { useToast } from './ToastProvider';
+import { useAuth } from './useAuth';
 
 export interface ProjectReference {
   id: string;
@@ -106,6 +107,7 @@ function errorMessage(err: unknown): string {
 
 export const ExpenseReferencesProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const { showToast } = useToast();
+  const { user } = useAuth();
   const [projects, setProjects] = useState<ResourceState<ProjectReference>>(initialState<ProjectReference>());
   const [assets, setAssets] = useState<ResourceState<AssetReference>>(initialState<AssetReference>());
   const [templates, setTemplates] = useState<ResourceState<ExpenseTemplateReference>>(initialState<ExpenseTemplateReference>());
@@ -140,6 +142,11 @@ export const ExpenseReferencesProvider: React.FC<React.PropsWithChildren> = ({ c
 
   const fetchResource = useCallback(
     async <T,>(key: ResourceKey, setState: React.Dispatch<React.SetStateAction<ResourceState<T>>>) => {
+      // Don't fetch if user is not authenticated
+      if (!user) {
+        return;
+      }
+      
       // Prevent multiple simultaneous requests
       if (fetchingRef.current.has(key)) return;
       fetchingRef.current.add(key);
@@ -147,7 +154,7 @@ export const ExpenseReferencesProvider: React.FC<React.PropsWithChildren> = ({ c
       setState((prev) => ({ ...prev, status: 'loading', error: null }));
       try {
         const response = await axios.get(FETCH_URLS[key], {
-          // Prevent retries for 404 errors
+          // Prevent retries for 404 and 401 errors
           validateStatus: (status) => status < 500
         });
         const data = extractList<T>(response.data);
@@ -165,9 +172,21 @@ export const ExpenseReferencesProvider: React.FC<React.PropsWithChildren> = ({ c
       } catch (err) {
         const message = errorMessage(err);
         const is404 = axios.isAxiosError(err) && err.response?.status === 404;
+        const is401 = axios.isAxiosError(err) && err.response?.status === 401;
         
-        // Only show toast for non-404 errors (endpoints don't exist yet)
-        if (!is404) {
+        // Silently handle 401 (not authenticated) and 404 (endpoints don't exist yet)
+        if (is401 || is404) {
+          // For 401/404 errors, just set empty data and mark as fetched to prevent retries
+          setState((prev) => ({
+            ...prev,
+            status: 'success',
+            error: null,
+            data: prev.data.length > 0 ? prev.data : [],
+            lastFetched: Date.now(),
+          }));
+          hasFetchedRef.current.add(key);
+        } else {
+          // Only show toast for other errors
           setState((prev) => ({
             ...prev,
             status: prev.data.length > 0 ? 'success' : 'error',
@@ -183,22 +202,12 @@ export const ExpenseReferencesProvider: React.FC<React.PropsWithChildren> = ({ c
               void fetchResource(key, setState);
             },
           });
-        } else {
-          // For 404 errors, just set empty data and mark as fetched to prevent retries
-          setState((prev) => ({
-            ...prev,
-            status: 'success',
-            error: null,
-            data: prev.data.length > 0 ? prev.data : [],
-            lastFetched: Date.now(),
-          }));
-          hasFetchedRef.current.add(key);
         }
       } finally {
         fetchingRef.current.delete(key);
       }
     },
-    [showToast],
+    [showToast, user],
   );
 
   const refreshProjects = useCallback(async () => {
@@ -218,6 +227,11 @@ export const ExpenseReferencesProvider: React.FC<React.PropsWithChildren> = ({ c
   }, [refreshProjects, refreshAssets, refreshTemplates]);
 
   useEffect(() => {
+    // Don't fetch if user is not authenticated
+    if (!user) {
+      return;
+    }
+
     const shouldRefresh = (state: ResourceState<unknown>, key: ResourceKey) => {
       // Don't refresh if already fetching
       if (fetchingRef.current.has(key)) return false;
@@ -241,7 +255,7 @@ export const ExpenseReferencesProvider: React.FC<React.PropsWithChildren> = ({ c
     if (shouldRefresh(templates, 'templates')) {
       void refreshTemplates();
     }
-  }, [projects.lastFetched, assets.lastFetched, templates.lastFetched, refreshProjects, refreshAssets, refreshTemplates]);
+  }, [user, projects.lastFetched, assets.lastFetched, templates.lastFetched, refreshProjects, refreshAssets, refreshTemplates]);
 
   const value = useMemo<ExpenseReferencesContextValue>(
     () => ({

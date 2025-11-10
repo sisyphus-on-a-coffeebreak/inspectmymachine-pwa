@@ -48,7 +48,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         // If still unauthorized, clear user
-        if (status === 401) setUser(null);
+        if (status === 401) {
+          setUser(null);
+          // Silently handle 401 errors - don't spam console
+          // The error will be handled by the calling code
+        }
         return Promise.reject(error);
       }
     );
@@ -73,9 +77,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const checkAuth = async () => {
     try {
-      const response = await axios.get<{ user: User }>("/api/user");
+      const response = await axios.get<{ user: User }>("/api/user", {
+        // Don't retry on 401 - user is just not authenticated
+        validateStatus: (status) => status < 500
+      });
       setUser(response.data.user);  // 🎯 Extract the nested user object
-    } catch {
+    } catch (err) {
+      // Silently handle authentication check failures
+      // 401 means user is not logged in, which is fine
       setUser(null);
     } finally {
       setLoading(false);
