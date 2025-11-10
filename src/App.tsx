@@ -29,6 +29,7 @@ import { CashflowAnalysisDashboard } from './pages/expenses/CashflowAnalysisDash
 import { ExpenseApproval } from './pages/expenses/ExpenseApproval';
 import { ExpenseReports } from './pages/expenses/ExpenseReports';
 import { ReceiptsGallery } from './pages/expenses/ReceiptsGallery';
+import UserManagement from './pages/admin/UserManagement';
 
 export default function App() {
   return (
@@ -169,6 +170,12 @@ export default function App() {
       <Route
         path="/app/stockyard"
         element={<RequireAuth><AdminStockyard /></RequireAuth>}
+      />
+
+      {/* 👥 User Management Module */}
+      <Route
+        path="/app/admin/users"
+        element={<RequireAuth><RequireRole roles={['super_admin', 'admin']}><UserManagement /></RequireRole></RequireAuth>}
       />
 
       {/* 404 Catch-all */}
