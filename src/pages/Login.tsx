@@ -36,13 +36,6 @@ export default function Login() {
     }
   };
 
-  const testAccounts = [
-    { id: "SUPER001", role: "Super Admin" },
-    { id: "ADMIN001", role: "Admin" },
-    { id: "INSP001", role: "Inspector" },
-    { id: "GUARD001", role: "Guard" },
-  ];
-
   return (
     <div style={{ 
       minHeight: '100vh',
@@ -79,7 +72,7 @@ export default function Login() {
 
       <div style={{ 
         width: '100%',
-        maxWidth: '420px',
+        maxWidth: '480px',
         position: 'relative',
         zIndex: 1
       }}>
@@ -136,7 +129,7 @@ export default function Login() {
         <div style={{
           background: 'white',
           borderRadius: '24px',
-          padding: spacing.xl * 1.5,
+          padding: spacing.xl * 1.75,
           boxShadow: '0 12px 40px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04)',
           border: `1px solid ${colors.neutral[200]}`,
           position: 'relative',
@@ -152,10 +145,10 @@ export default function Login() {
             background: `linear-gradient(90deg, ${colors.primary} 0%, ${colors.primary}80 100%)`
           }} />
 
-          <div style={{ marginBottom: spacing.xl * 1.25 }}>
+          <div style={{ marginBottom: spacing.xl * 1.5 }}>
             <h2 style={{ 
               ...typography.subheader,
-              fontSize: '24px',
+              fontSize: '26px',
               color: colors.neutral[900],
               margin: 0,
               marginBottom: spacing.xs,
@@ -167,13 +160,13 @@ export default function Login() {
               ...typography.body,
               color: colors.neutral[600],
               margin: 0,
-              fontSize: '14px'
+              fontSize: '15px'
             }}>
               Sign in to continue to your account
             </p>
           </div>
           
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg + 4 }}>
             {/* Error Message */}
             {error && (
               <div style={{
@@ -205,8 +198,8 @@ export default function Login() {
                 ...typography.label,
                 display: 'block',
                 color: colors.neutral[700],
-                marginBottom: spacing.sm,
-                fontSize: '13px',
+                marginBottom: spacing.sm + 2,
+                fontSize: '14px',
                 fontWeight: 600,
                 textTransform: 'none',
                 letterSpacing: '0'
@@ -216,7 +209,7 @@ export default function Login() {
               <div style={{ position: 'relative' }}>
                 <div style={{
                   position: 'absolute',
-                  left: spacing.md,
+                  left: spacing.md + 4,
                   top: '50%',
                   transform: 'translateY(-50%)',
                   display: 'flex',
@@ -236,7 +229,7 @@ export default function Login() {
                   disabled={loading}
                   style={{
                     width: '100%',
-                    padding: `${spacing.md + 2}px ${spacing.md}px ${spacing.md + 2}px ${spacing.xl * 2.5}px`,
+                    padding: `${spacing.md + 4}px ${spacing.md + 4}px ${spacing.md + 4}px ${spacing.xl * 2.75}px`,
                     border: `1.5px solid ${colors.neutral[300]}`,
                     borderRadius: '12px',
                     fontSize: '15px',
@@ -267,8 +260,8 @@ export default function Login() {
                 ...typography.label,
                 display: 'block',
                 color: colors.neutral[700],
-                marginBottom: spacing.sm,
-                fontSize: '13px',
+                marginBottom: spacing.sm + 2,
+                fontSize: '14px',
                 fontWeight: 600,
                 textTransform: 'none',
                 letterSpacing: '0'
@@ -278,7 +271,7 @@ export default function Login() {
               <div style={{ position: 'relative' }}>
                 <div style={{
                   position: 'absolute',
-                  left: spacing.md,
+                  left: spacing.md + 4,
                   top: '50%',
                   transform: 'translateY(-50%)',
                   display: 'flex',
@@ -298,7 +291,7 @@ export default function Login() {
                   disabled={loading}
                   style={{
                     width: '100%',
-                    padding: `${spacing.md + 2}px ${spacing.xl * 2.5}px ${spacing.md + 2}px ${spacing.xl * 2.5}px`,
+                    padding: `${spacing.md + 4}px ${spacing.xl * 2.75}px ${spacing.md + 4}px ${spacing.xl * 2.75}px`,
                     border: `1.5px solid ${colors.neutral[300]}`,
                     borderRadius: '12px',
                     fontSize: '15px',
@@ -325,7 +318,7 @@ export default function Login() {
                   onClick={() => setShowPassword(!showPassword)}
                   style={{
                     position: 'absolute',
-                    right: spacing.md,
+                    right: spacing.md + 4,
                     top: '50%',
                     transform: 'translateY(-50%)',
                     background: 'transparent',
@@ -361,7 +354,7 @@ export default function Login() {
               disabled={loading}
               style={{
                 width: '100%',
-                padding: `${spacing.md + 4}px ${spacing.lg}`,
+                padding: `${spacing.md + 6}px ${spacing.lg}`,
                 background: loading 
                   ? colors.neutral[400] 
                   : `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
@@ -379,7 +372,7 @@ export default function Login() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: spacing.sm,
-                marginTop: spacing.sm
+                marginTop: spacing.md
               }}
               onMouseEnter={(e) => {
                 if (!loading) {
@@ -414,94 +407,6 @@ export default function Login() {
               )}
             </button>
           </form>
-
-          {/* Test Accounts */}
-          <div style={{
-            marginTop: spacing.xl * 1.5,
-            paddingTop: spacing.xl,
-            borderTop: `1px solid ${colors.neutral[200]}`
-          }}>
-            <p style={{
-              ...typography.label,
-              color: colors.neutral[500],
-              margin: 0,
-              marginBottom: spacing.md,
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em'
-            }}>
-              Quick Test Accounts
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xs }}>
-              {testAccounts.map((account) => (
-                <button
-                  key={account.id}
-                  type="button"
-                  onClick={() => {
-                    setEmployeeId(account.id);
-                    setPassword("password");
-                  }}
-                  disabled={loading}
-                  style={{
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: `${spacing.sm + 2}px ${spacing.md}`,
-                    background: colors.neutral[50],
-                    border: `1px solid ${colors.neutral[200]}`,
-                    borderRadius: '10px',
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.2s ease',
-                    opacity: loading ? 0.5 : 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!loading) {
-                      e.currentTarget.style.background = colors.neutral[100];
-                      e.currentTarget.style.borderColor = colors.neutral[300];
-                      e.currentTarget.style.transform = 'translateX(2px)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!loading) {
-                      e.currentTarget.style.background = colors.neutral[50];
-                      e.currentTarget.style.borderColor = colors.neutral[200];
-                      e.currentTarget.style.transform = 'translateX(0)';
-                    }
-                  }}
-                >
-                  <span style={{
-                    ...typography.body,
-                    color: colors.neutral[900],
-                    fontSize: '14px',
-                    fontWeight: 600
-                  }}>
-                    {account.id}
-                  </span>
-                  <span style={{
-                    ...typography.bodySmall,
-                    color: colors.neutral[500],
-                    fontSize: '12px',
-                    fontWeight: 500
-                  }}>
-                    {account.role}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <p style={{
-              ...typography.bodySmall,
-              color: colors.neutral[400],
-              margin: 0,
-              marginTop: spacing.md,
-              textAlign: 'center',
-              fontSize: '11px'
-            }}>
-              Password: <span style={{ fontFamily: 'monospace', color: colors.neutral[600], fontWeight: 600 }}>password</span>
-            </p>
-          </div>
         </div>
 
         {/* Footer */}
