@@ -38,7 +38,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if ((status === 419 || status === 401) && !retrying) {
           try {
             retrying = true;
-            await axios.get('/sanctum/csrf-cookie');
+            const csrfUrl = `${API_ORIGIN}/sanctum/csrf-cookie`;
+            await axios.get(csrfUrl, {
+              withCredentials: true,
+              baseURL: '', // Override baseURL to use full URL
+            });
             return await axios.request(error.config);
           } catch {
             // Fall through to logout / propagate
@@ -60,12 +64,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Initialize CSRF token
     const initCSRF = async () => {
       try {
-        // Use the full API origin for CSRF cookie
-        const csrfUrl = import.meta.env.PROD 
-          ? 'https://api.inspectmymachine.in/sanctum/csrf-cookie'
-          : `${API_ORIGIN}/sanctum/csrf-cookie`;
+        // Use API_ORIGIN (not API_BASE) for Sanctum CSRF cookie
+        const csrfUrl = `${API_ORIGIN}/sanctum/csrf-cookie`;
         await axios.get(csrfUrl, {
           withCredentials: true,
+          baseURL: '', // Override baseURL to use full URL
         });
         console.log('CSRF token initialized');
       } catch (error) {
@@ -99,24 +102,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (employeeId: string, password: string) => {
     try {
-      // Step 1: Get CSRF token (use full URL for production)
-      const csrfUrl = import.meta.env.PROD 
-        ? 'https://api.inspectmymachine.in/sanctum/csrf-cookie'
-        : `${API_ORIGIN}/sanctum/csrf-cookie`;
+      // Step 1: Get CSRF token - use API_ORIGIN (not API_BASE) for Sanctum
+      const csrfUrl = `${API_ORIGIN}/sanctum/csrf-cookie`;
       await axios.get(csrfUrl, {
         withCredentials: true,
+        baseURL: '', // Override baseURL to use full URL
       });
 
-      // Step 2: Login with proper headers
-      const loginUrl = import.meta.env.PROD 
-        ? 'https://api.inspectmymachine.in/api/login'
-        : `${API_ORIGIN}/api/login`;
+      // Small delay to ensure cookie is set
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Step 2: Login - use API_ORIGIN for login endpoint
+      const loginUrl = `${API_ORIGIN}/api/login`;
       
       await axios.post(loginUrl, {
         employee_id: employeeId.trim(),
         password: password,
       }, {
         withCredentials: true,
+        baseURL: '', // Override baseURL to use full URL
         headers: {
           'X-Requested-With': 'XMLHttpRequest',
           'Accept': 'application/json',
