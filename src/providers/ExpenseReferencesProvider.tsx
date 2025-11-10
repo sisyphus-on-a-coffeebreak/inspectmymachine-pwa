@@ -110,6 +110,10 @@ export const ExpenseReferencesProvider: React.FC<React.PropsWithChildren> = ({ c
   const [assets, setAssets] = useState<ResourceState<AssetReference>>(initialState<AssetReference>());
   const [templates, setTemplates] = useState<ResourceState<ExpenseTemplateReference>>(initialState<ExpenseTemplateReference>());
   const initializingRef = useRef(true);
+  
+  // Use refs to track fetch attempts and prevent infinite loops
+  const fetchingRef = useRef<Set<ResourceKey>>(new Set());
+  const hasFetchedRef = useRef<Set<ResourceKey>>(new Set());
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -118,18 +122,34 @@ export const ExpenseReferencesProvider: React.FC<React.PropsWithChildren> = ({ c
     const cachedAssets = safeParse<AssetReference>(localStorage.getItem(CACHE_KEYS.assets));
     const cachedTemplates = safeParse<ExpenseTemplateReference>(localStorage.getItem(CACHE_KEYS.templates));
 
-    if (cachedProjects) setProjects({ ...cachedProjects, status: 'success' });
-    if (cachedAssets) setAssets({ ...cachedAssets, status: 'success' });
-    if (cachedTemplates) setTemplates({ ...cachedTemplates, status: 'success' });
+    if (cachedProjects) {
+      setProjects({ ...cachedProjects, status: 'success' });
+      hasFetchedRef.current.add('projects');
+    }
+    if (cachedAssets) {
+      setAssets({ ...cachedAssets, status: 'success' });
+      hasFetchedRef.current.add('assets');
+    }
+    if (cachedTemplates) {
+      setTemplates({ ...cachedTemplates, status: 'success' });
+      hasFetchedRef.current.add('templates');
+    }
 
     initializingRef.current = false;
   }, []);
 
   const fetchResource = useCallback(
     async <T,>(key: ResourceKey, setState: React.Dispatch<React.SetStateAction<ResourceState<T>>>) => {
+      // Prevent multiple simultaneous requests
+      if (fetchingRef.current.has(key)) return;
+      fetchingRef.current.add(key);
+      
       setState((prev) => ({ ...prev, status: 'loading', error: null }));
       try {
-        const response = await axios.get(FETCH_URLS[key]);
+        const response = await axios.get(FETCH_URLS[key], {
+          // Prevent retries for 404 errors
+          validateStatus: (status) => status < 500
+        });
         const data = extractList<T>(response.data);
         const nextState: ResourceState<T> = {
           data,
@@ -138,25 +158,44 @@ export const ExpenseReferencesProvider: React.FC<React.PropsWithChildren> = ({ c
           lastFetched: Date.now(),
         };
         setState(nextState);
+        hasFetchedRef.current.add(key);
         if (typeof window !== 'undefined') {
           localStorage.setItem(CACHE_KEYS[key], JSON.stringify(nextState));
         }
       } catch (err) {
         const message = errorMessage(err);
-        setState((prev) => ({
-          ...prev,
-          status: prev.data.length > 0 ? 'success' : 'error',
-          error: message,
-        }));
-        showToast({
-          title: 'Failed to refresh data',
-          description: message,
-          variant: 'error',
-          actionLabel: 'Retry',
-          onAction: () => {
-            void fetchResource(key, setState);
-          },
-        });
+        const is404 = axios.isAxiosError(err) && err.response?.status === 404;
+        
+        // Only show toast for non-404 errors (endpoints don't exist yet)
+        if (!is404) {
+          setState((prev) => ({
+            ...prev,
+            status: prev.data.length > 0 ? 'success' : 'error',
+            error: message,
+          }));
+          showToast({
+            title: 'Failed to refresh data',
+            description: message,
+            variant: 'error',
+            actionLabel: 'Retry',
+            onAction: () => {
+              fetchingRef.current.delete(key);
+              void fetchResource(key, setState);
+            },
+          });
+        } else {
+          // For 404 errors, just set empty data and mark as fetched to prevent retries
+          setState((prev) => ({
+            ...prev,
+            status: 'success',
+            error: null,
+            data: prev.data.length > 0 ? prev.data : [],
+            lastFetched: Date.now(),
+          }));
+          hasFetchedRef.current.add(key);
+        }
+      } finally {
+        fetchingRef.current.delete(key);
       }
     },
     [showToast],
@@ -179,23 +218,30 @@ export const ExpenseReferencesProvider: React.FC<React.PropsWithChildren> = ({ c
   }, [refreshProjects, refreshAssets, refreshTemplates]);
 
   useEffect(() => {
-    const shouldRefresh = (state: ResourceState<unknown>) => {
+    const shouldRefresh = (state: ResourceState<unknown>, key: ResourceKey) => {
+      // Don't refresh if already fetching
+      if (fetchingRef.current.has(key)) return false;
+      // Don't refresh if we've already fetched and it's not expired
+      if (hasFetchedRef.current.has(key) && state.lastFetched) {
+        return Date.now() - state.lastFetched > CACHE_TTL;
+      }
+      // Refresh if never fetched
       if (!state.lastFetched) return true;
-      return Date.now() - state.lastFetched > CACHE_TTL;
+      return false;
     };
 
     if (initializingRef.current) return;
 
-    if (shouldRefresh(projects)) {
+    if (shouldRefresh(projects, 'projects')) {
       void refreshProjects();
     }
-    if (shouldRefresh(assets)) {
+    if (shouldRefresh(assets, 'assets')) {
       void refreshAssets();
     }
-    if (shouldRefresh(templates)) {
+    if (shouldRefresh(templates, 'templates')) {
       void refreshTemplates();
     }
-  }, [projects, assets, templates, refreshProjects, refreshAssets, refreshTemplates]);
+  }, [projects.lastFetched, assets.lastFetched, templates.lastFetched, refreshProjects, refreshAssets, refreshTemplates]);
 
   const value = useMemo<ExpenseReferencesContextValue>(
     () => ({
