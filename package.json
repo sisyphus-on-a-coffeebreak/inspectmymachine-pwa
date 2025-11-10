@@ -16,15 +16,16 @@
     "deploy:check": "npm run lint && npm run typecheck"
   },
   "dependencies": {
+    "@types/html2canvas": "^0.5.35",
     "axios": "^1.12.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "html2canvas": "^1.4.1",
     "i18next": "^25.3.2",
     "i18next-browser-languagedetector": "^8.2.0",
     "idb-keyval": "^6.2.2",
-    "jsqr": "^1.4.0",
-    "html2canvas": "^1.4.1",
     "jspdf": "^2.5.1",
+    "jsqr": "^1.4.0",
     "qrcode": "^1.5.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

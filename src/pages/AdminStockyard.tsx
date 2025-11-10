@@ -17,7 +17,7 @@ function toIsoFromLocal(local: string | undefined) {
 }
 
 export default function AdminStockyard() {
-  const { token } = useAuth()
+  const { user } = useAuth()
   const [id, setId] = useState("")
   const [from, setFrom] = useState("") // datetime-local
   const [to, setTo] = useState("")     // datetime-local
@@ -26,7 +26,7 @@ export default function AdminStockyard() {
   const [err, setErr] = useState<string | null>(null)
 
   async function onApprove() {
-    if (!token) return
+    if (!user) return
     if (!id.trim()) { setErr("Enter a request ID"); return }
     setBusy(true); setErr(null); setOut(null)
     try {
@@ -34,7 +34,7 @@ export default function AdminStockyard() {
         valid_from: toIsoFromLocal(from),
         valid_to: toIsoFromLocal(to),
       }
-      const json = await approveStockyardRequest(id.trim(), token, payload)
+      const json = await approveStockyardRequest(id.trim(), null, payload)
       setOut(json)
     } catch (e:any) {
       setErr(e.message || "Approval failed")

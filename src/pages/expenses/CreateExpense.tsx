@@ -122,6 +122,7 @@ export const CreateExpense: React.FC = () => {
   const handleFileUpload = async (files: FileList) => {
     setUploading(true);
     const newReceipts: UploadedReceipt[] = [];
+
     for (const file of Array.from(files)) {
       try {
         const result = await uploadImageWithProgress(file, 'expense-receipts');
@@ -238,6 +239,7 @@ export const CreateExpense: React.FC = () => {
         const responseData = error.response?.data as
           | { message?: string; detail?: string; errors?: Record<string, string[] | string> }
           | undefined;
+
         if (responseData?.errors) {
           Object.entries(responseData.errors).forEach(([field, value]) => {
             if (Array.isArray(value)) {
@@ -409,6 +411,7 @@ export const CreateExpense: React.FC = () => {
                   No templates available yet.
                 </div>
               )}
+
               {templates.map((template) => {
                 const isSelected = formData.template_id === template.id;
                 return (
@@ -453,6 +456,7 @@ export const CreateExpense: React.FC = () => {
               })}
             </div>
           )}
+
           {getAnyFieldError('template_id', 'template') && (
             <div style={{ color: colors.status.error, fontSize: '12px', marginTop: spacing.xs }}>
               {getAnyFieldError('template_id', 'template')}
@@ -872,8 +876,6 @@ export const CreateExpense: React.FC = () => {
             />
           </div>
 
-          {/* Recurring expense removed */}
-
           {/* Submit Button */}
           <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'flex-end' }}>
             <Button
@@ -897,4 +899,3 @@ export const CreateExpense: React.FC = () => {
     </div>
   );
 };
-

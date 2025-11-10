@@ -5,7 +5,7 @@ export type ApprovePayload = {
   valid_to?: string   // ISO 8601
 }
 
-export async function approveStockyardRequest(id: string, token: string, payload: ApprovePayload = {}) {
+export async function approveStockyardRequest(id: string, token: string | null = null, payload: ApprovePayload = {}) {
   const body: Record<string, any> = {}
   if (payload.valid_from) body.valid_from = payload.valid_from
   if (payload.valid_to) body.valid_to = payload.valid_to
