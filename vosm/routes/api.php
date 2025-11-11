@@ -7,6 +7,11 @@ use App\Http\Controllers\InspectionController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\InspectionDashboardController;
 use App\Http\Controllers\InspectionReportController;
+use App\Http\Controllers\Api\GatePassApprovalController;
+use App\Http\Controllers\Api\ExpenseApprovalController;
+use App\Http\Controllers\Api\VisitorGatePassController;
+use App\Http\Controllers\Api\VehicleEntryPassController;
+use App\Http\Controllers\Api\VehicleExitPassController;
 
 /*
 |--------------------------------------------------------------------------
@@ -47,5 +52,43 @@ Route::prefix('v1')->middleware(['web', 'auth:sanctum'])->group(function () {
     Route::get('inspections/{id}/report', [InspectionReportController::class, 'generate']);
     Route::post('inspections/{id}/email', [InspectionReportController::class, 'email']);
     Route::post('inspections/{id}/share', [InspectionReportController::class, 'share']);
+    
+    
+});
+
+// Gate Pass Routes (outside v1 prefix as frontend calls them directly)
+Route::prefix('visitor-gate-passes')->middleware(['web', 'auth:sanctum'])->group(function () {
+    Route::get('/', [VisitorGatePassController::class, 'index']);
+    Route::post('/', [VisitorGatePassController::class, 'store']);
+});
+
+Route::prefix('vehicle-entry-passes')->middleware(['web', 'auth:sanctum'])->group(function () {
+    Route::get('/', [VehicleEntryPassController::class, 'index']);
+    Route::post('/', [VehicleEntryPassController::class, 'store']);
+});
+
+Route::prefix('vehicle-exit-passes')->middleware(['web', 'auth:sanctum'])->group(function () {
+    Route::get('/', [VehicleExitPassController::class, 'index']);
+    Route::post('/', [VehicleExitPassController::class, 'store']);
+});
+
+// Gate Pass Approval Routes (outside v1 prefix)
+Route::prefix('gate-pass-approval')->middleware(['web', 'auth:sanctum'])->group(function () {
+    Route::get('pending', [GatePassApprovalController::class, 'pending']);
+    Route::get('pass-details/{passId}', [GatePassApprovalController::class, 'passDetails']);
+    Route::get('history/{approvalRequestId}', [GatePassApprovalController::class, 'history']);
+    Route::post('approve/{approvalRequestId}', [GatePassApprovalController::class, 'approve']);
+    Route::post('reject/{approvalRequestId}', [GatePassApprovalController::class, 'reject']);
+    Route::post('escalate/{approvalRequestId}', [GatePassApprovalController::class, 'escalate']);
+});
+
+// Expense Approval Routes (outside v1 prefix)
+Route::prefix('expense-approval')->middleware(['web', 'auth:sanctum'])->group(function () {
+    Route::get('pending', [ExpenseApprovalController::class, 'pending']);
+    Route::get('stats', [ExpenseApprovalController::class, 'stats']);
+    Route::post('approve/{expenseId}', [ExpenseApprovalController::class, 'approve']);
+    Route::post('reject/{expenseId}', [ExpenseApprovalController::class, 'reject']);
+    Route::post('bulk-approve', [ExpenseApprovalController::class, 'bulkApprove']);
+    Route::post('bulk-reject', [ExpenseApprovalController::class, 'bulkReject']);
 });
 

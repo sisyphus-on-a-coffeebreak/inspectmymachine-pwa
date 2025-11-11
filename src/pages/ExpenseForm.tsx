@@ -54,7 +54,7 @@ export default function ExpenseForm() {
       ts: new Date().toISOString(),
     };
     const res = await fetchJson<ExpenseDecisionResponse>(
-      "/api/v1/expenses/...", 
+      "/v1/expenses", 
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }
     );
     

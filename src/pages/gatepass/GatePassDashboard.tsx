@@ -63,16 +63,16 @@ export const GatePassDashboard: React.FC = () => {
       };
 
       // Fetch visitor passes
-      const visitorResponse = await axios.get('/api/visitor-gate-passes', {
+      const visitorResponse = await axios.get('/visitor-gate-passes', {
         params: { status: getStatusFilter(filter) }
       });
 
 
         // Fetch vehicle movements (both entry and exit passes) with status filtering
-      const vehicleEntryResponse = await axios.get('/api/vehicle-entry-passes', {
+      const vehicleEntryResponse = await axios.get('/vehicle-entry-passes', {
         params: { status: getStatusFilter(filter) }
       });
-      const vehicleExitResponse = await axios.get('/api/vehicle-exit-passes', {
+      const vehicleExitResponse = await axios.get('/vehicle-exit-passes', {
         params: { status: getStatusFilter(filter) }
       });
       
@@ -164,9 +164,9 @@ export const GatePassDashboard: React.FC = () => {
 
     try {
       if (type === 'visitor') {
-        await postWithCsrf(`/api/visitor-gate-passes/${passId}/exit`);
+        await postWithCsrf(`/visitor-gate-passes/${passId}/exit`);
       } else {
-        await putWithCsrf(`/api/vehicle-exit-passes/${passId}`, {
+        await putWithCsrf(`/vehicle-exit-passes/${passId}`, {
           status: 'completed'
         });
       }

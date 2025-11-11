@@ -300,7 +300,7 @@ export const PassApproval: React.FC = () => {
         <div style={{ display: 'flex', gap: spacing.sm }}>
           <Button
             variant="secondary"
-            onClick={() => navigate('/app/gate-pass')}
+            onClick={() => navigate('/dashboard')}
             icon="🚪"
           >
             Back to Dashboard

@@ -46,7 +46,7 @@ export async function fetchInspectionTemplate(
 
   try {
     const response = await withBackoff(
-      () => axios.get<InspectionTemplate>(`/api/v1/inspection-templates/${templateId}`, { signal }),
+      () => axios.get<InspectionTemplate>(`/v1/inspection-templates/${templateId}`, { signal }),
       { tries: 3, baseMs: 400 },
     );
 

@@ -32,7 +32,7 @@ export function useSignedUrl(storageKey?: string) {
       if (!p) {
         p = (async () => {
           const res = await fetchTyped<SignedUrlResponse>(
-            `/api/v1/files/signed?key=${encodeURIComponent(key)}`
+            `/v1/files/signed?key=${encodeURIComponent(key)}`
           );
           cache.set(key, res.url);
           return res.url;

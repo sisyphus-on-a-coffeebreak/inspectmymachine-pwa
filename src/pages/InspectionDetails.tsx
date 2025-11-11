@@ -53,7 +53,7 @@ export default function InspectionDetails() {
       const cached = signedCache.current.get(key);
       if (cached) return cached;
       const res = await fetchJson<SignedUrlResponse>(
-        `/api/v1/files/signed?key=${encodeURIComponent(key)}`
+        `/v1/files/signed?key=${encodeURIComponent(key)}`
       );
       signedCache.current.set(key, res.url);
       return res.url;

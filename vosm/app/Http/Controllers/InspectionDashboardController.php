@@ -22,22 +22,36 @@ class InspectionDashboardController extends Controller
                 'total_today' => Inspection::whereDate('created_at', today())->count(),
                 'total_week' => Inspection::whereBetween('created_at', [now()->startOfWeek(), now()])->count(),
                 'total_month' => Inspection::whereMonth('created_at', now()->month)->count(),
-                'pending' => Inspection::where('status', 'pending')->count(),
+                'pending' => Inspection::whereIn('status', ['draft', 'in_progress', 'under_review'])->count(),
                 'completed' => Inspection::where('status', 'completed')->count(),
                 'approved' => Inspection::where('status', 'approved')->count(),
                 'rejected' => Inspection::where('status', 'rejected')->count(),
                 'pass_rate' => $this->calculatePassRate(),
-                'avg_duration' => Inspection::whereNotNull('duration_minutes')->avg('duration_minutes'),
+                'avg_duration' => round(Inspection::whereNotNull('duration_minutes')->avg('duration_minutes') ?? 0, 1),
                 'critical_issues' => Inspection::where('has_critical_issues', true)
                     ->whereDate('created_at', '>=', now()->subDays(7))
                     ->count()
             ];
 
-            // Recent inspections
-            $recentInspections = Inspection::with(['vehicle', 'inspector', 'template'])
+            // Recent inspections with formatted data
+            $recentInspections = Inspection::with(['vehicle', 'inspector:id,name,employee_id', 'template'])
                 ->latest()
                 ->limit(10)
-                ->get();
+                ->get()
+                ->map(function ($inspection) {
+                    return [
+                        'id' => $inspection->id,
+                        'vehicle_registration' => $inspection->vehicle->registration_number ?? 'N/A',
+                        'vehicle_make' => $inspection->vehicle->make ?? 'N/A',
+                        'vehicle_model' => $inspection->vehicle->model ?? 'N/A',
+                        'inspector_name' => $inspection->inspector->name ?? 'N/A',
+                        'status' => $inspection->status,
+                        'overall_rating' => $inspection->overall_rating ? (float) $inspection->overall_rating : null,
+                        'pass_fail' => $inspection->pass_fail,
+                        'created_at' => $inspection->created_at->toISOString(),
+                        'has_critical_issues' => $inspection->has_critical_issues
+                    ];
+                });
 
             // Inspector performance
             $inspectorStats = Inspection::select('inspector_id')
@@ -68,6 +82,7 @@ class InspectionDashboardController extends Controller
                 ->get();
 
             return response()->json([
+                'success' => true,
                 'stats' => $stats,
                 'recent_inspections' => $recentInspections,
                 'inspector_performance' => $inspectorStats,
@@ -125,7 +140,7 @@ class InspectionDashboardController extends Controller
     private function calculatePassRate(): float
     {
         $total = Inspection::where('status', 'completed')->count();
-        if ($total === 0) return 0;
+        if ($total === 0) return 0.0;
 
         $passed = Inspection::where('status', 'completed')
             ->where('pass_fail', 'pass')

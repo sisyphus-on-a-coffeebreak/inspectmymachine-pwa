@@ -88,7 +88,7 @@ export const InspectionDetails: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await axios.get(`/api/v1/inspections/${id}`);
+      const response = await axios.get(`/v1/inspections/${id}`);
       setInspection(response.data);
     } catch (apiError) {
       console.warn('Backend not available, using mock data:', apiError);
@@ -193,7 +193,7 @@ export const InspectionDetails: React.FC = () => {
       
       // Try to generate PDF from backend first
       try {
-        const response = await axios.get(`/api/v1/inspections/${id}/report`, {
+        const response = await axios.get(`/v1/inspections/${id}/report`, {
           responseType: 'blob'
         });
         

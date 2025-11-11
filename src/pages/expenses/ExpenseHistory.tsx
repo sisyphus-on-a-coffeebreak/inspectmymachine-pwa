@@ -65,7 +65,7 @@ export const ExpenseHistory: React.FC = () => {
       setLoading(true);
       setError(null);
       // Backend supports minimal params: mine (bool) and optional week=current
-      const res = await axios.get('/api/v1/expenses', { params: { mine: true } });
+      const res = await axios.get('/v1/expenses', { params: { mine: true } });
       const payload = res.data;
       const items = Array.isArray(payload) ? payload : (payload?.items ?? []);
       if (Array.isArray(items)) {

@@ -1,0 +1,61 @@
+/* AppLayout Responsive Styles */
+
+/* Mobile Header - visible on mobile only */
+.app-layout-mobile-header {
+  display: flex;
+}
+
+@media (min-width: 768px) {
+  .app-layout-mobile-header {
+    display: none;
+  }
+}
+
+/* Desktop Sidebar - visible on desktop only */
+.app-layout-desktop-sidebar {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .app-layout-desktop-sidebar {
+    display: block;
+  }
+}
+
+/* Mobile Sidebar - visible on mobile only */
+.app-layout-mobile-sidebar {
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .app-layout-mobile-sidebar {
+    display: none;
+  }
+}
+
+/* Main Content - adjust margin for sidebar */
+.app-layout-main-content {
+  margin-left: 0;
+  padding: 1rem;
+}
+
+@media (min-width: 768px) {
+  .app-layout-main-content {
+    margin-left: 280px;
+    padding: 2rem;
+  }
+}
+
+/* Mobile Sidebar Animation */
+.app-layout-mobile-sidebar {
+  transition: left 0.3s ease;
+}
+
+.app-layout-mobile-sidebar.open {
+  left: 0;
+}
+
+.app-layout-mobile-sidebar.closed {
+  left: -280px;
+}
+

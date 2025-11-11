@@ -80,26 +80,60 @@ export const ExpenseReports: React.FC = () => {
     try {
       setLoading(true);
 
+      // Convert date range to days (backend expects number of days)
+      const dateRangeDays: Record<string, number> = {
+        'week': 7,
+        'month': 30,
+        'quarter': 90,
+        'year': 365
+      };
+      const days = dateRangeDays[dateRange] || 30;
+
       // Fetch summary data
-      const summaryResponse = await axios.get('/api/expense-reports/summary', {
-        params: { date_range: dateRange }
+      const summaryResponse = await axios.get('/expense-reports/summary', {
+        params: { date_range: days }
       });
 
       // Fetch analytics data
-      const analyticsResponse = await axios.get('/api/expense-reports/analytics', {
-        params: { date_range: dateRange }
+      const analyticsResponse = await axios.get('/expense-reports/analytics', {
+        params: { date_range: days }
       });
 
-      setStats(summaryResponse.data.summary);
-      setCategoryBreakdown(summaryResponse.data.category_breakdown);
-      setPaymentMethodBreakdown(summaryResponse.data.payment_method_breakdown);
-      setDailyTrends(summaryResponse.data.daily_trends);
-      setTopSpenders(analyticsResponse.data.top_spenders);
-      setProjectExpenses(analyticsResponse.data.project_expenses);
-      setAssetExpenses(analyticsResponse.data.asset_expenses);
+      // Backend returns { success: true, data: { summary: ..., category_breakdown: ..., etc } }
+      const summaryData = summaryResponse.data.data || summaryResponse.data;
+      const analyticsData = analyticsResponse.data.data || analyticsResponse.data;
+
+      setStats(summaryData.summary);
+      setCategoryBreakdown(summaryData.category_breakdown || []);
+      setPaymentMethodBreakdown(summaryData.payment_method_breakdown || []);
+      setDailyTrends(summaryData.daily_trends || []);
+      setTopSpenders(analyticsData.top_spenders || []);
+      setProjectExpenses(analyticsData.project_expenses || []);
+      setAssetExpenses(analyticsData.asset_expenses || []);
 
     } catch (error) {
       console.error('Failed to fetch report data:', error);
+      // Don't use mock data - show empty state instead
+      // This ensures we know when the API is actually failing
+      setStats({
+        total_expenses: 0,
+        pending: 0,
+        approved: 0,
+        rejected: 0,
+        approved_amount: 0,
+        pending_amount: 0,
+        total_amount: 0,
+        average_amount: 0
+      });
+      setCategoryBreakdown([]);
+      setPaymentMethodBreakdown([]);
+      setDailyTrends([]);
+      setTopSpenders([]);
+      setProjectExpenses([]);
+      setAssetExpenses([]);
+      
+      // Keep old mock data code commented out for reference
+      /*
       // Mock data for development
       setStats({
         total_expenses: 156,
@@ -145,6 +179,7 @@ export const ExpenseReports: React.FC = () => {
         { asset_name: 'Equipment B', asset_type: 'equipment', expense_count: 18, total_amount: 45000, average_amount: 2500 },
         { asset_name: 'Tool C', asset_type: 'tool', expense_count: 12, total_amount: 18000, average_amount: 1500 }
       ]);
+      */
     }
   }, [dateRange]);
 
@@ -154,7 +189,7 @@ export const ExpenseReports: React.FC = () => {
 
   const exportToCSV = async () => {
     try {
-      const response = await axios.get('/api/expense-reports/export', {
+      const response = await axios.get('/expense-reports/export', {
         params: { 
           date_range: dateRange,
           format: 'csv'

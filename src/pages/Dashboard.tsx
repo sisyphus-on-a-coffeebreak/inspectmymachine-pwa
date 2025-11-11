@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { useAuth } from "../providers/useAuth";
 import { colors, typography, spacing } from "../lib/theme";
+import axios from "axios";
 import { 
   ClipboardList, 
   FileText, 
@@ -40,7 +42,7 @@ interface Module {
   isPopular?: boolean;
 }
 
-const modules: Module[] = [
+const getModules = (stats: DashboardStats | null): Module[] => [
   {
     id: "gate-pass",
     name: "Gate Passes",
@@ -52,8 +54,8 @@ const modules: Module[] = [
     iconColor: "text-white",
     stats: {
       label: "Active Passes",
-      value: "12",
-      trend: "+3 today"
+      value: stats?.gate_pass?.active_passes?.toString() || "0",
+      trend: stats?.gate_pass?.trend || "No data"
     },
     isPopular: true
   },
@@ -68,8 +70,8 @@ const modules: Module[] = [
     iconColor: "text-white",
     stats: {
       label: "Completed Today",
-      value: "8",
-      trend: "+2 this week"
+      value: stats?.inspection?.completed_today?.toString() || "0",
+      trend: stats?.inspection?.trend || "No data"
     },
     isNew: true
   },
@@ -84,8 +86,8 @@ const modules: Module[] = [
     iconColor: "text-white",
     stats: {
       label: "Pending Approval",
-      value: "5",
-      trend: "2 urgent"
+      value: stats?.expense?.pending_approval?.toString() || "0",
+      trend: stats?.expense?.urgent ? `${stats.expense.urgent} urgent` : "No urgent"
     }
   },
   {
@@ -99,8 +101,8 @@ const modules: Module[] = [
     iconColor: "text-white",
     stats: {
       label: "Active Items",
-      value: "156",
-      trend: "12 low stock"
+      value: "0", // TODO: Add stockyard stats when available
+      trend: "No data"
     }
   },
   {
@@ -114,21 +116,76 @@ const modules: Module[] = [
     iconColor: "text-white",
     stats: {
       label: "Total Users",
-      value: "24",
-      trend: "3 new this month"
+      value: stats?.user?.total_users?.toString() || "0",
+      trend: stats?.user?.new_this_month ? `${stats.user.new_this_month} new this month` : "No new users"
     }
   },
 ];
 
+interface KanbanItem {
+  id: string;
+  type: string;
+  title: string;
+  subtitle: string;
+  assignee: string;
+  status: string;
+  time: string;
+  url: string;
+  priority?: string;
+}
+
+interface DashboardStats {
+  gate_pass: {
+    active_passes: number;
+    completed_today: number;
+    trend: string;
+  };
+  inspection: {
+    completed_today: number;
+    pending: number;
+    trend: string;
+    critical_issues: number;
+  };
+  expense: {
+    pending_approval: number;
+    urgent: number;
+  };
+  user: {
+    total_users: number;
+    new_this_month: number;
+  };
+  overall: {
+    completed_today: number;
+    pending_tasks: number;
+    urgent_items: number;
+    efficiency: number;
+  };
+  recent_activity: Array<{
+    action: string;
+    user: string;
+    time: string;
+    type: string;
+  }>;
+  kanban: {
+    completed_today: KanbanItem[];
+    pending_tasks: KanbanItem[];
+    urgent_items: KanbanItem[];
+  };
+}
+
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   const handleLogout = async () => {
     await logout();
     navigate("/login");
   };
 
+  const modules = getModules(stats);
   const accessibleModules = modules.filter((module) =>
     module.roles.includes(user?.role || "")
   );
@@ -150,6 +207,30 @@ export default function Dashboard() {
       clerk: "Clerk"
     };
     return roleMap[role] || role;
+  };
+
+  useEffect(() => {
+    loadDashboardStats();
+  }, []);
+
+  const loadDashboardStats = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await axios.get<{ success: boolean; data: DashboardStats }>('/v1/dashboard', {
+        withCredentials: true,
+      });
+      
+      if (response.data.success && response.data.data) {
+        setStats(response.data.data);
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to load dashboard stats');
+      setError(error);
+      console.error('Failed to load dashboard stats:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -421,7 +502,7 @@ export default function Dashboard() {
                 margin: 0,
                 fontWeight: 700
               }}>
-                24
+                {loading ? '...' : (stats?.overall?.completed_today ?? 0)}
               </p>
             </div>
           </div>
@@ -463,7 +544,7 @@ export default function Dashboard() {
                 margin: 0,
                 fontWeight: 700
               }}>
-                8
+                {loading ? '...' : (stats?.overall?.pending_tasks ?? 0)}
               </p>
             </div>
           </div>
@@ -505,7 +586,7 @@ export default function Dashboard() {
                 margin: 0,
                 fontWeight: 700
               }}>
-                3
+                {loading ? '...' : (stats?.overall?.urgent_items ?? 0)}
               </p>
             </div>
           </div>
@@ -547,11 +628,347 @@ export default function Dashboard() {
                 margin: 0,
                 fontWeight: 700
               }}>
-                94%
+                {loading ? '...' : (stats?.overall?.efficiency?.toFixed(0) ?? 0)}%
               </p>
             </div>
           </div>
         </div>
+
+        {/* Kanban Board */}
+        {stats?.kanban && (
+          <div style={{ marginBottom: spacing.xl }}>
+            <h3 style={{ 
+              ...typography.subheader,
+              fontSize: '20px',
+              color: colors.neutral[900],
+              marginBottom: spacing.lg,
+              fontWeight: 600
+            }}>
+              📋 Task Board
+            </h3>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+              gap: spacing.lg
+            }}>
+              {/* Completed Today Column */}
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: spacing.lg,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                border: `1px solid ${colors.neutral[200]}`,
+                minHeight: '400px'
+              }}>
+                <div style={{ marginBottom: spacing.md }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+                    <CheckCircle style={{ width: '20px', height: '20px', color: colors.status.normal }} />
+                    <h4 style={{ 
+                      ...typography.subheader,
+                      fontSize: '16px',
+                      color: colors.neutral[900],
+                      margin: 0,
+                      fontWeight: 600
+                    }}>
+                      Completed Today
+                    </h4>
+                    <span style={{
+                      padding: '2px 8px',
+                      background: colors.status.normal + '20',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      color: colors.status.normal,
+                      fontWeight: 600
+                    }}>
+                      {stats.kanban.completed_today?.length || 0}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, maxHeight: '350px', overflowY: 'auto' }}>
+                  {loading ? (
+                    <div style={{ textAlign: 'center', padding: spacing.lg, color: colors.neutral[600] }}>
+                      Loading...
+                    </div>
+                  ) : stats.kanban.completed_today && stats.kanban.completed_today.length > 0 ? (
+                    stats.kanban.completed_today.map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() => navigate(item.url)}
+                        style={{
+                          padding: spacing.md,
+                          background: colors.neutral[50],
+                          borderRadius: '12px',
+                          border: `1px solid ${colors.neutral[200]}`,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = colors.neutral[100];
+                          e.currentTarget.style.transform = 'translateX(4px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = colors.neutral[50];
+                          e.currentTarget.style.transform = 'translateX(0)';
+                        }}
+                      >
+                        <p style={{ 
+                          ...typography.label,
+                          fontSize: '14px',
+                          color: colors.neutral[900],
+                          margin: 0,
+                          marginBottom: spacing.xs,
+                          fontWeight: 600
+                        }}>
+                          {item.title}
+                        </p>
+                        <p style={{ 
+                          ...typography.bodySmall,
+                          fontSize: '12px',
+                          color: colors.neutral[600],
+                          margin: 0,
+                          marginBottom: spacing.xs
+                        }}>
+                          {item.subtitle}
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xs }}>
+                          <span style={{ 
+                            ...typography.bodySmall,
+                            fontSize: '11px',
+                            color: colors.neutral[500]
+                          }}>
+                            {item.assignee}
+                          </span>
+                          <span style={{ 
+                            ...typography.bodySmall,
+                            fontSize: '11px',
+                            color: colors.neutral[500]
+                          }}>
+                            {item.time}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: spacing.lg, color: colors.neutral[600] }}>
+                      No items completed today
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Pending Tasks Column */}
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: spacing.lg,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                border: `1px solid ${colors.neutral[200]}`,
+                minHeight: '400px'
+              }}>
+                <div style={{ marginBottom: spacing.md }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+                    <Clock style={{ width: '20px', height: '20px', color: colors.status.warning }} />
+                    <h4 style={{ 
+                      ...typography.subheader,
+                      fontSize: '16px',
+                      color: colors.neutral[900],
+                      margin: 0,
+                      fontWeight: 600
+                    }}>
+                      Pending Tasks
+                    </h4>
+                    <span style={{
+                      padding: '2px 8px',
+                      background: colors.status.warning + '20',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      color: colors.status.warning,
+                      fontWeight: 600
+                    }}>
+                      {stats.kanban.pending_tasks?.length || 0}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, maxHeight: '350px', overflowY: 'auto' }}>
+                  {loading ? (
+                    <div style={{ textAlign: 'center', padding: spacing.lg, color: colors.neutral[600] }}>
+                      Loading...
+                    </div>
+                  ) : stats.kanban.pending_tasks && stats.kanban.pending_tasks.length > 0 ? (
+                    stats.kanban.pending_tasks.map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() => navigate(item.url)}
+                        style={{
+                          padding: spacing.md,
+                          background: colors.neutral[50],
+                          borderRadius: '12px',
+                          border: `1px solid ${colors.neutral[200]}`,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = colors.neutral[100];
+                          e.currentTarget.style.transform = 'translateX(4px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = colors.neutral[50];
+                          e.currentTarget.style.transform = 'translateX(0)';
+                        }}
+                      >
+                        <p style={{ 
+                          ...typography.label,
+                          fontSize: '14px',
+                          color: colors.neutral[900],
+                          margin: 0,
+                          marginBottom: spacing.xs,
+                          fontWeight: 600
+                        }}>
+                          {item.title}
+                        </p>
+                        <p style={{ 
+                          ...typography.bodySmall,
+                          fontSize: '12px',
+                          color: colors.neutral[600],
+                          margin: 0,
+                          marginBottom: spacing.xs
+                        }}>
+                          {item.subtitle}
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xs }}>
+                          <span style={{ 
+                            ...typography.bodySmall,
+                            fontSize: '11px',
+                            color: colors.neutral[500]
+                          }}>
+                            {item.assignee}
+                          </span>
+                          <span style={{ 
+                            ...typography.bodySmall,
+                            fontSize: '11px',
+                            color: colors.neutral[500]
+                          }}>
+                            {item.time}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: spacing.lg, color: colors.neutral[600] }}>
+                      No pending tasks
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Urgent Items Column */}
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: spacing.lg,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                border: `1px solid ${colors.status.critical}`,
+                minHeight: '400px'
+              }}>
+                <div style={{ marginBottom: spacing.md }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+                    <AlertCircle style={{ width: '20px', height: '20px', color: colors.status.critical }} />
+                    <h4 style={{ 
+                      ...typography.subheader,
+                      fontSize: '16px',
+                      color: colors.neutral[900],
+                      margin: 0,
+                      fontWeight: 600
+                    }}>
+                      Urgent Items
+                    </h4>
+                    <span style={{
+                      padding: '2px 8px',
+                      background: colors.status.critical + '20',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      color: colors.status.critical,
+                      fontWeight: 600
+                    }}>
+                      {stats.kanban.urgent_items?.length || 0}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, maxHeight: '350px', overflowY: 'auto' }}>
+                  {loading ? (
+                    <div style={{ textAlign: 'center', padding: spacing.lg, color: colors.neutral[600] }}>
+                      Loading...
+                    </div>
+                  ) : stats.kanban.urgent_items && stats.kanban.urgent_items.length > 0 ? (
+                    stats.kanban.urgent_items.map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() => navigate(item.url)}
+                        style={{
+                          padding: spacing.md,
+                          background: colors.status.critical + '10',
+                          borderRadius: '12px',
+                          border: `1px solid ${colors.status.critical}`,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = colors.status.critical + '20';
+                          e.currentTarget.style.transform = 'translateX(4px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = colors.status.critical + '10';
+                          e.currentTarget.style.transform = 'translateX(0)';
+                        }}
+                      >
+                        <p style={{ 
+                          ...typography.label,
+                          fontSize: '14px',
+                          color: colors.neutral[900],
+                          margin: 0,
+                          marginBottom: spacing.xs,
+                          fontWeight: 600
+                        }}>
+                          {item.title}
+                        </p>
+                        <p style={{ 
+                          ...typography.bodySmall,
+                          fontSize: '12px',
+                          color: colors.neutral[600],
+                          margin: 0,
+                          marginBottom: spacing.xs
+                        }}>
+                          {item.subtitle}
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xs }}>
+                          <span style={{ 
+                            ...typography.bodySmall,
+                            fontSize: '11px',
+                            color: colors.neutral[500]
+                          }}>
+                            {item.assignee}
+                          </span>
+                          <span style={{ 
+                            ...typography.bodySmall,
+                            fontSize: '11px',
+                            color: colors.status.critical,
+                            fontWeight: 600
+                          }}>
+                            {item.time}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: spacing.lg, color: colors.neutral[600] }}>
+                      No urgent items
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Module Cards Grid */}
         <div style={{ marginBottom: spacing.xl }}>
@@ -844,12 +1261,12 @@ export default function Dashboard() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            {[
-              { action: 'Completed vehicle inspection', user: 'John Doe', time: '2 minutes ago', type: 'success' },
-              { action: 'New gate pass created', user: 'Jane Smith', time: '15 minutes ago', type: 'info' },
-              { action: 'Expense submitted for approval', user: 'Mike Johnson', time: '1 hour ago', type: 'warning' },
-              { action: 'Stockyard inventory updated', user: 'Sarah Wilson', time: '2 hours ago', type: 'info' }
-            ].map((activity, index) => (
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: spacing.xl, color: colors.neutral[600] }}>
+                Loading recent activity...
+              </div>
+            ) : stats?.recent_activity && stats.recent_activity.length > 0 ? (
+              stats.recent_activity.map((activity, index) => (
               <div key={index} style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -890,7 +1307,12 @@ export default function Dashboard() {
                   </p>
                 </div>
               </div>
-            ))}
+              ))
+            ) : (
+              <div style={{ textAlign: 'center', padding: spacing.xl, color: colors.neutral[600] }}>
+                No recent activity
+              </div>
+            )}
           </div>
         </div>
       </main>

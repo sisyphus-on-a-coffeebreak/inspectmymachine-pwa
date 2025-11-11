@@ -1,5 +1,5 @@
 import { get, set, del, keys } from 'idb-keyval';
-import { SerializedInspectionAnswers } from './inspection-serialization-types';
+import type { SerializedInspectionAnswers } from './inspection-serialization-types';
 
 const QUEUE_PREFIX = 'inspection-queue:';
 const DRAFT_PREFIX = 'inspection-draft:';

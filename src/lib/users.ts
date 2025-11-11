@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { postWithCsrf, putWithCsrf } from './csrf';
 
 export interface User {
   id: number;
@@ -47,7 +48,8 @@ const API_BASE = import.meta.env.VITE_API_BASE ||
  */
 export async function getUsers(): Promise<User[]> {
   try {
-    const response = await axios.get<UsersResponse | User[]>(`${API_BASE}/v1/users`, {
+    // Use /v1/users since axios.defaults.baseURL already includes /api
+    const response = await axios.get<UsersResponse | User[]>('/v1/users', {
       withCredentials: true,
       validateStatus: (status) => status < 500,
     });
@@ -73,7 +75,7 @@ export async function getUsers(): Promise<User[]> {
  */
 export async function getUser(id: number): Promise<User> {
   try {
-    const response = await axios.get<{ data: User } | User>(`${API_BASE}/v1/users/${id}`, {
+    const response = await axios.get<{ data: User } | User>(`/v1/users/${id}`, {
       withCredentials: true,
       validateStatus: (status) => status < 500,
     });
@@ -95,13 +97,7 @@ export async function getUser(id: number): Promise<User> {
  */
 export async function createUser(payload: CreateUserPayload): Promise<User> {
   try {
-    const response = await axios.post<{ data: User } | User>(`${API_BASE}/v1/users`, payload, {
-      withCredentials: true,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    });
+    const response = await postWithCsrf<{ data: User } | User>('/v1/users', payload);
     
     if ('data' in response.data) {
       return response.data.data;
@@ -120,13 +116,7 @@ export async function createUser(payload: CreateUserPayload): Promise<User> {
  */
 export async function updateUser(id: number, payload: UpdateUserPayload): Promise<User> {
   try {
-    const response = await axios.put<{ data: User } | User>(`${API_BASE}/v1/users/${id}`, payload, {
-      withCredentials: true,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    });
+    const response = await putWithCsrf<{ data: User } | User>(`/v1/users/${id}`, payload);
     
     if ('data' in response.data) {
       return response.data.data;
@@ -145,8 +135,11 @@ export async function updateUser(id: number, payload: UpdateUserPayload): Promis
  */
 export async function deleteUser(id: number): Promise<void> {
   try {
-    await axios.delete(`${API_BASE}/v1/users/${id}`, {
+    const { createCsrfHeaders } = await import('./csrf');
+    const headers = await createCsrfHeaders();
+    await axios.delete(`/v1/users/${id}`, {
       withCredentials: true,
+      headers,
     });
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -161,16 +154,9 @@ export async function deleteUser(id: number): Promise<void> {
  */
 export async function resetUserPassword(id: number, newPassword: string): Promise<void> {
   try {
-    await axios.post(
-      `${API_BASE}/v1/users/${id}/reset-password`,
-      { password: newPassword },
-      {
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      }
+    await postWithCsrf(
+      `/v1/users/${id}/reset-password`,
+      { password: newPassword }
     );
   } catch (error) {
     if (axios.isAxiosError(error)) {

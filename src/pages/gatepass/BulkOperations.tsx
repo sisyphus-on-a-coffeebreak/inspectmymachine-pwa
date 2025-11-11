@@ -59,7 +59,7 @@ export const BulkOperations: React.FC = () => {
   const fetchBulkOperations = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/gate-pass-bulk/operations');
+      const response = await axios.get('/gate-pass-bulk/operations');
       setBulkOperations(response.data);
     } catch (error) {
       console.error('Failed to fetch bulk operations:', error);
@@ -96,7 +96,7 @@ export const BulkOperations: React.FC = () => {
 
   const fetchBulkTemplates = useCallback(async () => {
     try {
-      const response = await axios.get('/api/gate-pass-bulk/templates');
+      const response = await axios.get('/gate-pass-bulk/templates');
       setBulkTemplates(response.data);
     } catch (error) {
       console.error('Failed to fetch bulk templates:', error);
@@ -198,7 +198,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
 
     try {
       setLoading(true);
-      const response = await axios.post('/api/gate-pass-bulk/execute', {
+      const response = await axios.post('/gate-pass-bulk/execute', {
         operation_type: operationType,
         data: bulkData,
         template_id: selectedTemplate?.id
@@ -219,7 +219,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
   const exportPasses = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/gate-pass-bulk/export', {
+      const response = await axios.get('/gate-pass-bulk/export', {
         params: {
           format: 'csv',
           date_range: 'month',
@@ -315,7 +315,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
         <div style={{ display: 'flex', gap: spacing.sm }}>
           <Button
             variant="secondary"
-            onClick={() => navigate('/app/gate-pass')}
+            onClick={() => navigate('/dashboard')}
             icon="🚪"
           >
             Back to Dashboard

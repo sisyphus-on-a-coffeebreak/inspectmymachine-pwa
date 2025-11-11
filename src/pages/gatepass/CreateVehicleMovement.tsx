@@ -51,7 +51,7 @@ export const CreateVehicleMovement: React.FC = () => {
   useEffect(() => {
     const fetchYards = async () => {
       try {
-        const response = await axios.get('/api/yards');
+        const response = await axios.get('/yards');
         setYards(response.data);
         // Set default yard if user has one
         if (user?.yard_id && response.data.length > 0) {
@@ -80,7 +80,7 @@ export const CreateVehicleMovement: React.FC = () => {
 
     try {
       setCreatingYard(true);
-      const response = await axios.post('/api/yards', customYard);
+      const response = await axios.post('/yards', customYard);
       const newYard = response.data.yard;
       
       // Add the new yard to the list
@@ -175,7 +175,11 @@ export const CreateVehicleMovement: React.FC = () => {
 
       // Ensure CSRF token is available
       try {
-        await axios.get('/sanctum/csrf-cookie');
+        const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 'http://localhost:8000';
+        await axios.get(`${API_ORIGIN}/sanctum/csrf-cookie`, {
+          withCredentials: true,
+          baseURL: '', // Override baseURL to use full URL
+        });
         console.log('CSRF token obtained');
       } catch (csrfError) {
         console.error('CSRF token failed:', csrfError);
@@ -286,8 +290,8 @@ export const CreateVehicleMovement: React.FC = () => {
 
       // Use the correct endpoint based on direction
       const endpoint = formData.direction === 'outbound' 
-        ? '/api/vehicle-exit-passes' 
-        : '/api/vehicle-entry-passes';
+        ? '/vehicle-exit-passes' 
+        : '/vehicle-entry-passes';
       
       console.log('Using endpoint:', endpoint);
 
@@ -295,8 +299,9 @@ export const CreateVehicleMovement: React.FC = () => {
         headers
       });
 
-      alert(`Vehicle Movement Pass #${response.data.pass_number} created successfully!`);
-      navigate('/app/gate-pass');
+      const passNumber = response.data.pass?.pass_number || response.data.pass_number || 'N/A';
+      alert(`Vehicle Movement Pass #${passNumber} created successfully!`);
+      navigate('/dashboard');
 
     } catch (error) {
       console.error('Failed to create movement pass:', error);
@@ -381,7 +386,7 @@ export const CreateVehicleMovement: React.FC = () => {
         borderBottom: '1px solid #E5E7EB'
       }}>
         <button
-          onClick={() => navigate('/app/gate-pass')}
+          onClick={() => navigate('/dashboard')}
           style={{
             border: 'none',
             background: 'none',
@@ -786,7 +791,7 @@ export const CreateVehicleMovement: React.FC = () => {
                   multiple={false}
                   label="Select Vehicle Currently Out"
                   required={true}
-                  apiEndpoint="/api/vehicles?status=In Service"
+                  apiEndpoint="/vehicles?status=In Service"
                   yardId={formData.yard_id}
                 />
               ) : (

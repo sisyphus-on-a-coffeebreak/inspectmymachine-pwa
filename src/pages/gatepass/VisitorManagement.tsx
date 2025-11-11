@@ -222,7 +222,7 @@ export const VisitorManagement: React.FC = () => {
         
         <Button
           variant="primary"
-          onClick={() => navigate('/app/gate-pass')}
+          onClick={() => navigate('/dashboard')}
           icon="🚪"
         >
           Back to Dashboard

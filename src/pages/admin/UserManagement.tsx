@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/providers/useAuth';
 import { useToast } from '@/providers/ToastProvider';
 import {
@@ -12,12 +13,20 @@ import {
   type CreateUserPayload,
   type UpdateUserPayload,
 } from '@/lib/users';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { LoadingError } from '@/components/ui/LoadingError';
+import { colors, typography, spacing, cardStyles, borderRadius, shadows } from '@/lib/theme';
+import { UserCog, Search, Plus, Edit2, Trash2, Key, Users as UsersIcon, Filter } from 'lucide-react';
 
 export default function UserManagement() {
+  const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const { showToast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -49,12 +58,15 @@ export default function UserManagement() {
   const loadUsers = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await getUsers();
       setUsers(data);
-    } catch (error) {
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to load users');
+      setError(error);
       showToast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to load users',
+        description: error.message,
         variant: 'error',
       });
     } finally {
@@ -74,10 +86,10 @@ export default function UserManagement() {
       setShowCreateModal(false);
       resetForm();
       loadUsers();
-    } catch (error) {
+    } catch (err) {
       showToast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to create user',
+        description: err instanceof Error ? err.message : 'Failed to create user',
         variant: 'error',
       });
     }
@@ -104,10 +116,10 @@ export default function UserManagement() {
       setShowEditModal(false);
       resetForm();
       loadUsers();
-    } catch (error) {
+    } catch (err) {
       showToast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to update user',
+        description: err instanceof Error ? err.message : 'Failed to update user',
         variant: 'error',
       });
     }
@@ -126,10 +138,10 @@ export default function UserManagement() {
       setShowDeleteModal(false);
       setSelectedUser(null);
       loadUsers();
-    } catch (error) {
+    } catch (err) {
       showToast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to delete user',
+        description: err instanceof Error ? err.message : 'Failed to delete user',
         variant: 'error',
       });
     }
@@ -158,10 +170,10 @@ export default function UserManagement() {
       setShowPasswordModal(false);
       setPasswordData({ password: '', confirmPassword: '' });
       setSelectedUser(null);
-    } catch (error) {
+    } catch (err) {
       showToast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to reset password',
+        description: err instanceof Error ? err.message : 'Failed to reset password',
         variant: 'error',
       });
     }
@@ -205,15 +217,39 @@ export default function UserManagement() {
   };
 
   const getRoleColor = (role: User['role']) => {
-    const colors: Record<User['role'], string> = {
-      super_admin: 'bg-purple-100 text-purple-800 border-purple-200',
-      admin: 'bg-blue-100 text-blue-800 border-blue-200',
-      supervisor: 'bg-green-100 text-green-800 border-green-200',
-      inspector: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      guard: 'bg-orange-100 text-orange-800 border-orange-200',
-      clerk: 'bg-gray-100 text-gray-800 border-gray-200',
+    const roleColors: Record<User['role'], { bg: string; text: string; border: string }> = {
+      super_admin: {
+        bg: '#f3e8ff', // purple-100
+        text: '#6b21a8', // purple-800
+        border: '#e9d5ff' // purple-200
+      },
+      admin: {
+        bg: '#dbeafe', // blue-100
+        text: '#1e40af', // blue-800
+        border: '#bfdbfe' // blue-200
+      },
+      supervisor: {
+        bg: '#dcfce7', // green-100
+        text: '#166534', // green-800
+        border: '#bbf7d0' // green-200
+      },
+      inspector: {
+        bg: '#fef9c3', // yellow-100
+        text: '#854d0e', // yellow-800
+        border: '#fef08a' // yellow-200
+      },
+      guard: {
+        bg: '#fed7aa', // orange-100
+        text: '#9a3412', // orange-800
+        border: '#fdba74' // orange-200
+      },
+      clerk: {
+        bg: '#f3f4f6', // gray-100
+        text: '#1f2937', // gray-800
+        border: '#e5e7eb' // gray-200
+      },
     };
-    return colors[role] || colors.clerk;
+    return roleColors[role] || roleColors.clerk;
   };
 
   const filteredUsers = users.filter((user) => {
@@ -231,178 +267,390 @@ export default function UserManagement() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div style={{ padding: spacing.xl, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div 
+            className="animate-spin"
+            style={{ 
+              width: '48px', 
+              height: '48px', 
+              border: `4px solid ${colors.neutral[200]}`, 
+              borderTop: `4px solid ${colors.primary}`,
+              borderRadius: '50%',
+              margin: '0 auto',
+              marginBottom: spacing.md
+            }} 
+          />
+          <p style={{ ...typography.body, color: colors.neutral[600] }}>Loading users...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: spacing.xl }}>
+        <LoadingError resource="Users" error={error} onRetry={loadUsers} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">User Management</h1>
-          <p className="text-gray-600">Manage users, roles, and permissions</p>
-        </div>
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: colors.background.neutral,
+      padding: spacing.xl 
+    }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        {/* Page Header */}
+        <PageHeader
+          title="User Management"
+          subtitle="Manage users, roles, and permissions"
+          icon={<UserCog size={28} />}
+          backPath="/dashboard"
+          actions={
+            <Button
+              variant="primary"
+              onClick={() => {
+                resetForm();
+                setShowCreateModal(true);
+              }}
+              icon={<Plus size={20} />}
+            >
+              Create User
+            </Button>
+          }
+        />
 
-        {/* Actions Bar */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="flex flex-1 gap-4 w-full md:w-auto">
-              {/* Search */}
-              <div className="relative flex-1 md:flex-initial md:w-64">
-                <input
-                  type="text"
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <svg
-                  className="absolute left-3 top-2.5 w-5 h-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+        {/* Filters and Search */}
+        <div style={{
+          ...cardStyles.base,
+          marginBottom: spacing.lg,
+          padding: spacing.lg
+        }}>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: spacing.md
+          }}>
+            {/* Search Bar */}
+            <div style={{ position: 'relative', flex: 1 }}>
+              <Search 
+                size={20} 
+                style={{
+                  position: 'absolute',
+                  left: spacing.md,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: colors.neutral[400]
+                }}
+              />
+              <input
+                type="text"
+                placeholder="Search by name, email, or employee ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  width: '100%',
+                  paddingLeft: spacing.xxxl,
+                  paddingRight: spacing.md,
+                  paddingTop: spacing.md,
+                  paddingBottom: spacing.md,
+                  border: `1px solid ${colors.neutral[300]}`,
+                  borderRadius: borderRadius.md,
+                  fontSize: '16px',
+                  color: colors.neutral[700],
+                  outline: 'none',
+                  transition: 'all 0.2s ease'
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = colors.primary;
+                  e.currentTarget.style.boxShadow = `0 0 0 3px ${colors.primary}20`;
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = colors.neutral[300];
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
+            </div>
+
+            {/* Filters */}
+            <div style={{
+              display: 'flex',
+              gap: spacing.md,
+              flexWrap: 'wrap'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                <Filter size={18} color={colors.neutral[600]} />
+                <select
+                  value={filterRole}
+                  onChange={(e) => setFilterRole(e.target.value)}
+                  style={{
+                    padding: `${spacing.sm} ${spacing.md}`,
+                    border: `1px solid ${colors.neutral[300]}`,
+                    borderRadius: borderRadius.md,
+                    fontSize: '14px',
+                    color: colors.neutral[700],
+                    backgroundColor: 'white',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+                  <option value="all">All Roles</option>
+                  {roles.map((role) => (
+                    <option key={role.value} value={role.value}>
+                      {role.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* Role Filter */}
-              <select
-                value={filterRole}
-                onChange={(e) => setFilterRole(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">All Roles</option>
-                {roles.map((role) => (
-                  <option key={role.value} value={role.value}>
-                    {role.label}
-                  </option>
-                ))}
-              </select>
-
-              {/* Status Filter */}
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                style={{
+                  padding: `${spacing.sm} ${spacing.md}`,
+                  border: `1px solid ${colors.neutral[300]}`,
+                  borderRadius: borderRadius.md,
+                  fontSize: '14px',
+                  color: colors.neutral[700],
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
               >
                 <option value="all">All Status</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </select>
-            </div>
 
-            {/* Create Button */}
-            <button
-              onClick={() => {
-                resetForm();
-                setShowCreateModal(true);
-              }}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 font-medium transition-colors"
-            >
-              + Create User
-            </button>
+              <div style={{
+                marginLeft: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.sm,
+                color: colors.neutral[600],
+                fontSize: '14px'
+              }}>
+                <UsersIcon size={16} />
+                <span>{filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''}</span>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Users Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Employee ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Last Login</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.length === 0 ? (
+        {filteredUsers.length === 0 ? (
+          <EmptyState
+            icon="👥"
+            title="No users found"
+            description={searchTerm || filterRole !== 'all' || filterStatus !== 'all' 
+              ? "Try adjusting your search or filters"
+              : "Get started by creating your first user"}
+            action={!searchTerm && filterRole === 'all' && filterStatus === 'all' ? {
+              label: 'Create User',
+              onClick: () => {
+                resetForm();
+                setShowCreateModal(true);
+              },
+              variant: 'primary',
+              icon: <Plus size={20} />
+            } : undefined}
+          />
+        ) : (
+          <div style={{
+            ...cardStyles.base,
+            overflow: 'hidden',
+            padding: 0
+          }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead style={{
+                  backgroundColor: colors.neutral[50],
+                  borderBottom: `1px solid ${colors.neutral[200]}`
+                }}>
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                      No users found
-                    </td>
+                    {['Employee ID', 'Name', 'Email', 'Role', 'Status', 'Last Login', 'Actions'].map((header) => (
+                      <th
+                        key={header}
+                        style={{
+                          padding: spacing.md,
+                          textAlign: header === 'Actions' ? 'right' : 'left',
+                          ...typography.label,
+                          color: colors.neutral[600],
+                          fontWeight: 600
+                        }}
+                      >
+                        {header}
+                      </th>
+                    ))}
                   </tr>
-                ) : (
-                  filteredUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm font-medium text-gray-900">{user.employee_id}</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900">{user.name}</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-600">{user.email}</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRoleColor(user.role)}`}>
-                          {roles.find((r) => r.value === user.role)?.label || user.role}
+                </thead>
+                <tbody>
+                  {filteredUsers.map((user, index) => (
+                    <tr
+                      key={user.id}
+                      style={{
+                        borderBottom: index < filteredUsers.length - 1 ? `1px solid ${colors.neutral[200]}` : 'none',
+                        transition: 'background-color 0.2s ease',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = colors.neutral[50];
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'white';
+                      }}
+                    >
+                      <td style={{ padding: spacing.md }}>
+                        <span style={{ ...typography.body, fontWeight: 600, color: colors.neutral[900] }}>
+                          {user.employee_id}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          user.is_active
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
+                      <td style={{ padding: spacing.md }}>
+                        <span style={{ ...typography.body, color: colors.neutral[900] }}>
+                          {user.name}
+                        </span>
+                      </td>
+                      <td style={{ padding: spacing.md }}>
+                        <span style={{ ...typography.body, color: colors.neutral[600] }}>
+                          {user.email}
+                        </span>
+                      </td>
+                      <td style={{ padding: spacing.md }}>
+                        {(() => {
+                          const roleColor = getRoleColor(user.role);
+                          const roleLabel = roles.find((r) => r.value === user.role)?.label || user.role;
+                          return (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: `${spacing.xs} ${spacing.md}`,
+                              borderRadius: borderRadius.full,
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              border: `1px solid ${roleColor.border}`,
+                              backgroundColor: roleColor.bg,
+                              color: roleColor.text,
+                              minWidth: '80px',
+                              textAlign: 'center',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {roleLabel}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      <td style={{ padding: spacing.md }}>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: `${spacing.xs} ${spacing.md}`,
+                          borderRadius: borderRadius.full,
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          backgroundColor: user.is_active ? colors.success : colors.critical,
+                          color: 'white',
+                          minWidth: '70px',
+                          textAlign: 'center',
+                          whiteSpace: 'nowrap'
+                        }}>
                           {user.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {user.last_login_at
-                          ? new Date(user.last_login_at).toLocaleDateString()
-                          : 'Never'}
+                      <td style={{ padding: spacing.md }}>
+                        <span style={{ ...typography.bodySmall, color: colors.neutral[500] }}>
+                          {user.last_login_at
+                            ? new Date(user.last_login_at).toLocaleDateString()
+                            : 'Never'}
+                        </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end gap-2">
+                      <td style={{ padding: spacing.md, textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'flex-end' }}>
                           <button
                             onClick={() => openEditModal(user)}
-                            className="text-blue-600 hover:text-blue-900 transition-colors"
+                            style={{
+                              padding: spacing.sm,
+                              border: 'none',
+                              backgroundColor: 'transparent',
+                              color: colors.primary,
+                              cursor: 'pointer',
+                              borderRadius: borderRadius.sm,
+                              display: 'flex',
+                              alignItems: 'center',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = colors.neutral[100];
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
                             title="Edit"
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
+                            <Edit2 size={18} />
                           </button>
                           <button
                             onClick={() => openPasswordModal(user)}
-                            className="text-yellow-600 hover:text-yellow-900 transition-colors"
+                            style={{
+                              padding: spacing.sm,
+                              border: 'none',
+                              backgroundColor: 'transparent',
+                              color: colors.warning,
+                              cursor: 'pointer',
+                              borderRadius: borderRadius.sm,
+                              display: 'flex',
+                              alignItems: 'center',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = colors.neutral[100];
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
                             title="Reset Password"
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                            </svg>
+                            <Key size={18} />
                           </button>
                           {currentUser?.id !== user.id && (
                             <button
                               onClick={() => openDeleteModal(user)}
-                              className="text-red-600 hover:text-red-900 transition-colors"
+                              style={{
+                                padding: spacing.sm,
+                                border: 'none',
+                                backgroundColor: 'transparent',
+                                color: colors.critical,
+                                cursor: 'pointer',
+                                borderRadius: borderRadius.sm,
+                                display: 'flex',
+                                alignItems: 'center',
+                                transition: 'all 0.2s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = colors.neutral[100];
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                              }}
                               title="Delete"
                             >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
+                              <Trash2 size={18} />
                             </button>
                           )}
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Create Modal */}
+        {/* Modals */}
         {showCreateModal && (
           <Modal
             title="Create User"
@@ -411,54 +659,79 @@ export default function UserManagement() {
               resetForm();
             }}
           >
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
+            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+              <FormField label="Employee ID" required>
                 <input
                   type="text"
                   value={formData.employee_id}
                   onChange={(e) => setFormData({ ...formData, employee_id: e.target.value.toUpperCase() })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  style={{
+                    width: '100%',
+                    padding: spacing.md,
+                    border: `1px solid ${colors.neutral[300]}`,
+                    borderRadius: borderRadius.md,
+                    fontSize: '16px'
+                  }}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              </FormField>
+              <FormField label="Name" required>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  style={{
+                    width: '100%',
+                    padding: spacing.md,
+                    border: `1px solid ${colors.neutral[300]}`,
+                    borderRadius: borderRadius.md,
+                    fontSize: '16px'
+                  }}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              </FormField>
+              <FormField label="Email" required>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  style={{
+                    width: '100%',
+                    padding: spacing.md,
+                    border: `1px solid ${colors.neutral[300]}`,
+                    borderRadius: borderRadius.md,
+                    fontSize: '16px'
+                  }}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              </FormField>
+              <FormField label="Password" required>
                 <input
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  style={{
+                    width: '100%',
+                    padding: spacing.md,
+                    border: `1px solid ${colors.neutral[300]}`,
+                    borderRadius: borderRadius.md,
+                    fontSize: '16px'
+                  }}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+              </FormField>
+              <FormField label="Role" required>
                 <select
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value as User['role'] })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  style={{
+                    width: '100%',
+                    padding: spacing.md,
+                    border: `1px solid ${colors.neutral[300]}`,
+                    borderRadius: borderRadius.md,
+                    fontSize: '16px'
+                  }}
                 >
                   {roles.map((role) => (
                     <option key={role.value} value={role.value}>
@@ -466,42 +739,39 @@ export default function UserManagement() {
                     </option>
                   ))}
                 </select>
-              </div>
-              <div className="flex items-center">
+              </FormField>
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                 <input
                   type="checkbox"
                   id="is_active"
                   checked={formData.is_active}
                   onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  style={{ width: '18px', height: '18px' }}
                 />
-                <label htmlFor="is_active" className="ml-2 block text-sm text-gray-700">
+                <label htmlFor="is_active" style={{ ...typography.body, cursor: 'pointer' }}>
                   Active
                 </label>
               </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
+              <div style={{ display: 'flex', gap: spacing.md, marginTop: spacing.md }}>
+                <Button type="submit" variant="primary" fullWidth>
                   Create
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => {
                     setShowCreateModal(false);
                     resetForm();
                   }}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                  fullWidth
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </form>
           </Modal>
         )}
 
-        {/* Edit Modal */}
         {showEditModal && selectedUser && (
           <Modal
             title="Edit User"
@@ -511,43 +781,65 @@ export default function UserManagement() {
               resetForm();
             }}
           >
-            <form onSubmit={handleUpdate} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
+            <form onSubmit={handleUpdate} style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+              <FormField label="Employee ID">
                 <input
                   type="text"
                   value={formData.employee_id}
                   disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                  style={{
+                    width: '100%',
+                    padding: spacing.md,
+                    border: `1px solid ${colors.neutral[300]}`,
+                    borderRadius: borderRadius.md,
+                    fontSize: '16px',
+                    backgroundColor: colors.neutral[100],
+                    color: colors.neutral[500]
+                  }}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              </FormField>
+              <FormField label="Name" required>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  style={{
+                    width: '100%',
+                    padding: spacing.md,
+                    border: `1px solid ${colors.neutral[300]}`,
+                    borderRadius: borderRadius.md,
+                    fontSize: '16px'
+                  }}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              </FormField>
+              <FormField label="Email" required>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  style={{
+                    width: '100%',
+                    padding: spacing.md,
+                    border: `1px solid ${colors.neutral[300]}`,
+                    borderRadius: borderRadius.md,
+                    fontSize: '16px'
+                  }}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+              </FormField>
+              <FormField label="Role" required>
                 <select
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value as User['role'] })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  style={{
+                    width: '100%',
+                    padding: spacing.md,
+                    border: `1px solid ${colors.neutral[300]}`,
+                    borderRadius: borderRadius.md,
+                    fontSize: '16px'
+                  }}
                 >
                   {roles.map((role) => (
                     <option key={role.value} value={role.value}>
@@ -555,43 +847,40 @@ export default function UserManagement() {
                     </option>
                   ))}
                 </select>
-              </div>
-              <div className="flex items-center">
+              </FormField>
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                 <input
                   type="checkbox"
                   id="is_active_edit"
                   checked={formData.is_active}
                   onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  style={{ width: '18px', height: '18px' }}
                 />
-                <label htmlFor="is_active_edit" className="ml-2 block text-sm text-gray-700">
+                <label htmlFor="is_active_edit" style={{ ...typography.body, cursor: 'pointer' }}>
                   Active
                 </label>
               </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
+              <div style={{ display: 'flex', gap: spacing.md, marginTop: spacing.md }}>
+                <Button type="submit" variant="primary" fullWidth>
                   Update
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => {
                     setShowEditModal(false);
                     setSelectedUser(null);
                     resetForm();
                   }}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                  fullWidth
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </form>
           </Modal>
         )}
 
-        {/* Delete Modal */}
         {showDeleteModal && selectedUser && (
           <Modal
             title="Delete User"
@@ -600,33 +889,34 @@ export default function UserManagement() {
               setSelectedUser(null);
             }}
           >
-            <div className="space-y-4">
-              <p className="text-gray-700">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+              <p style={{ ...typography.body, color: colors.neutral[700] }}>
                 Are you sure you want to delete user <strong>{selectedUser.name}</strong> ({selectedUser.employee_id})?
                 This action cannot be undone.
               </p>
-              <div className="flex gap-3 pt-4">
-                <button
+              <div style={{ display: 'flex', gap: spacing.md, marginTop: spacing.md }}>
+                <Button
+                  variant="critical"
                   onClick={handleDelete}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                  fullWidth
                 >
                   Delete
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="secondary"
                   onClick={() => {
                     setShowDeleteModal(false);
                     setSelectedUser(null);
                   }}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                  fullWidth
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           </Modal>
         )}
 
-        {/* Password Reset Modal */}
         {showPasswordModal && selectedUser && (
           <Modal
             title="Reset Password"
@@ -636,48 +926,56 @@ export default function UserManagement() {
               setPasswordData({ password: '', confirmPassword: '' });
             }}
           >
-            <form onSubmit={handlePasswordReset} className="space-y-4">
-              <p className="text-sm text-gray-600">
+            <form onSubmit={handlePasswordReset} style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+              <p style={{ ...typography.bodySmall, color: colors.neutral[600] }}>
                 Reset password for <strong>{selectedUser.name}</strong> ({selectedUser.employee_id})
               </p>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+              <FormField label="New Password" required>
                 <input
                   type="password"
                   value={passwordData.password}
                   onChange={(e) => setPasswordData({ ...passwordData, password: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  style={{
+                    width: '100%',
+                    padding: spacing.md,
+                    border: `1px solid ${colors.neutral[300]}`,
+                    borderRadius: borderRadius.md,
+                    fontSize: '16px'
+                  }}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+              </FormField>
+              <FormField label="Confirm Password" required>
                 <input
                   type="password"
                   value={passwordData.confirmPassword}
                   onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  style={{
+                    width: '100%',
+                    padding: spacing.md,
+                    border: `1px solid ${colors.neutral[300]}`,
+                    borderRadius: borderRadius.md,
+                    fontSize: '16px'
+                  }}
                 />
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
+              </FormField>
+              <div style={{ display: 'flex', gap: spacing.md, marginTop: spacing.md }}>
+                <Button type="submit" variant="primary" fullWidth>
                   Reset Password
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => {
                     setShowPasswordModal(false);
                     setSelectedUser(null);
                     setPasswordData({ password: '', confirmPassword: '' });
                   }}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                  fullWidth
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </form>
           </Modal>
@@ -690,27 +988,94 @@ export default function UserManagement() {
 // Modal Component
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={onClose}></div>
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <div className="bg-white px-4 pt-5 pb-4 sm:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">{title}</h3>
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-500 transition-colors"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            {children}
-          </div>
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 50,
+      overflowY: 'auto',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.lg
+    }}>
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          transition: 'opacity 0.2s ease'
+        }}
+        onClick={onClose}
+      />
+      <div style={{
+        position: 'relative',
+        backgroundColor: 'white',
+        borderRadius: borderRadius.lg,
+        boxShadow: shadows.xl,
+        width: '100%',
+        maxWidth: '500px',
+        padding: spacing.xl,
+        zIndex: 51
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: spacing.lg
+        }}>
+          <h3 style={{
+            ...typography.header,
+            fontSize: '24px',
+            margin: 0
+          }}>
+            {title}
+          </h3>
+          <button
+            onClick={onClose}
+            style={{
+              padding: spacing.sm,
+              border: 'none',
+              backgroundColor: 'transparent',
+              color: colors.neutral[400],
+              cursor: 'pointer',
+              borderRadius: borderRadius.sm,
+              display: 'flex',
+              alignItems: 'center',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = colors.neutral[600];
+              e.currentTarget.style.backgroundColor = colors.neutral[100];
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = colors.neutral[400];
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
+        {children}
       </div>
     </div>
   );
 }
 
+// Form Field Component
+function FormField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xs }}>
+      <label style={{
+        ...typography.label,
+        fontSize: '14px',
+        textTransform: 'none',
+        color: colors.neutral[700]
+      }}>
+        {label} {required && <span style={{ color: colors.critical }}>*</span>}
+      </label>
+      {children}
+    </div>
+  );
+}

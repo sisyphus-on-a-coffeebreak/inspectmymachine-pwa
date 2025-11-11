@@ -1,4 +1,4 @@
-import { SerializedInspectionAnswers, SerializedAnswerEntry, SerializedFileData } from './inspection-serialization-types';
+import type { SerializedInspectionAnswers, SerializedAnswerEntry, SerializedFileData } from './inspection-serialization-types';
 
 const encoder = new TextEncoder();
 

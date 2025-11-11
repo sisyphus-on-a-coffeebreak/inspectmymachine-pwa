@@ -37,7 +37,7 @@ export function useUploader() {
     if (clean) fd.append("prefix", clean);
     
     // Uses fetchJson so cookies are automatically included
-    return await fetchJson<UploadResult>("/api/v1/files/upload", { 
+    return await fetchJson<UploadResult>("/v1/files/upload", { 
       method: "POST", 
       body: fd 
     });
@@ -57,7 +57,7 @@ export function useUploader() {
         return;
       }
 
-      const url = join(base, "/api/v1/files/upload");
+      const url = join(base, "/v1/files/upload");
       const xhr = new XMLHttpRequest();
       xhr.open("POST", url);
       xhr.setRequestHeader("Accept", "application/json");
@@ -107,15 +107,15 @@ export function useUploader() {
   async function listFiles(prefix: string, recursive = true) {
     const clean = (prefix ?? "").replace(/^\/+/, "");
     const qs = new URLSearchParams({ prefix: clean, recursive: recursive ? "1" : "0" });
-    return await fetchJson(`/api/v1/files?${qs.toString()}`);
+    return await fetchJson(`/v1/files?${qs.toString()}`);
   }
 
   async function exists(key: string) {
-    return await fetchJson(`/api/v1/files/exists?key=${encodeURIComponent(key)}`);
+    return await fetchJson(`/v1/files/exists?key=${encodeURIComponent(key)}`);
   }
 
   async function remove(key: string) {
-    return await fetchJson("/api/v1/files", {
+    return await fetchJson("/v1/files", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key }),

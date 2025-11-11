@@ -79,7 +79,7 @@ export default function Login() {
         {/* Logo/Header */}
         <div style={{ 
           textAlign: 'center', 
-          marginBottom: spacing.xl * 1.5 
+          marginBottom: `${parseInt(spacing.xl) * 1.5}px`
         }}>
           <div style={{
             display: 'inline-flex',
@@ -129,7 +129,7 @@ export default function Login() {
         <div style={{
           background: 'white',
           borderRadius: '24px',
-          padding: spacing.xl * 1.75,
+          padding: `${parseInt(spacing.xl) * 1.75}px`,
           boxShadow: '0 12px 40px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04)',
           border: `1px solid ${colors.neutral[200]}`,
           position: 'relative',
@@ -145,7 +145,7 @@ export default function Login() {
             background: `linear-gradient(90deg, ${colors.primary} 0%, ${colors.primary}80 100%)`
           }} />
 
-          <div style={{ marginBottom: spacing.xl * 1.5 }}>
+          <div style={{ marginBottom: `${parseInt(spacing.xl) * 1.5}px` }}>
             <h2 style={{ 
               ...typography.subheader,
               fontSize: '26px',
@@ -166,7 +166,7 @@ export default function Login() {
             </p>
           </div>
           
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg + 4 }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: `${parseInt(spacing.lg) + 4}px` }}>
             {/* Error Message */}
             {error && (
               <div style={{
@@ -198,7 +198,7 @@ export default function Login() {
                 ...typography.label,
                 display: 'block',
                 color: colors.neutral[700],
-                marginBottom: spacing.sm + 2,
+                marginBottom: `${parseInt(spacing.sm) + 2}px`,
                 fontSize: '14px',
                 fontWeight: 600,
                 textTransform: 'none',
@@ -209,7 +209,7 @@ export default function Login() {
               <div style={{ position: 'relative' }}>
                 <div style={{
                   position: 'absolute',
-                  left: spacing.md + 4,
+                  left: `${parseInt(spacing.md) + 4}px`,
                   top: '50%',
                   transform: 'translateY(-50%)',
                   display: 'flex',
@@ -229,7 +229,7 @@ export default function Login() {
                   disabled={loading}
                   style={{
                     width: '100%',
-                    padding: `${spacing.md + 4}px ${spacing.md + 4}px ${spacing.md + 4}px ${spacing.xl * 2.75}px`,
+                    padding: `${parseInt(spacing.md) + 4}px ${parseInt(spacing.md) + 4}px ${parseInt(spacing.md) + 4}px ${parseInt(spacing.xl) * 2.75}px`,
                     border: `1.5px solid ${colors.neutral[300]}`,
                     borderRadius: '12px',
                     fontSize: '15px',
@@ -260,7 +260,7 @@ export default function Login() {
                 ...typography.label,
                 display: 'block',
                 color: colors.neutral[700],
-                marginBottom: spacing.sm + 2,
+                marginBottom: `${parseInt(spacing.sm) + 2}px`,
                 fontSize: '14px',
                 fontWeight: 600,
                 textTransform: 'none',
@@ -271,7 +271,7 @@ export default function Login() {
               <div style={{ position: 'relative' }}>
                 <div style={{
                   position: 'absolute',
-                  left: spacing.md + 4,
+                  left: `${parseInt(spacing.md) + 4}px`,
                   top: '50%',
                   transform: 'translateY(-50%)',
                   display: 'flex',
@@ -291,7 +291,7 @@ export default function Login() {
                   disabled={loading}
                   style={{
                     width: '100%',
-                    padding: `${spacing.md + 4}px ${spacing.xl * 2.75}px ${spacing.md + 4}px ${spacing.xl * 2.75}px`,
+                    padding: `${parseInt(spacing.md) + 4}px ${parseInt(spacing.xl) * 2.75}px ${parseInt(spacing.md) + 4}px ${parseInt(spacing.xl) * 2.75}px`,
                     border: `1.5px solid ${colors.neutral[300]}`,
                     borderRadius: '12px',
                     fontSize: '15px',
@@ -318,7 +318,7 @@ export default function Login() {
                   onClick={() => setShowPassword(!showPassword)}
                   style={{
                     position: 'absolute',
-                    right: spacing.md + 4,
+                    right: `${parseInt(spacing.md) + 4}px`,
                     top: '50%',
                     transform: 'translateY(-50%)',
                     background: 'transparent',
@@ -354,7 +354,7 @@ export default function Login() {
               disabled={loading}
               style={{
                 width: '100%',
-                padding: `${spacing.md + 6}px ${spacing.lg}`,
+                padding: `${parseInt(spacing.md) + 6}px ${spacing.lg}`,
                 background: loading 
                   ? colors.neutral[400] 
                   : `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,

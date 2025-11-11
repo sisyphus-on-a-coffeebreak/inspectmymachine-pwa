@@ -28,9 +28,9 @@ export default function FloatDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const w = await fetchJson<Who>("/api/v1/whoami");
+      const w = await fetchJson<Who>("/v1/whoami");
       setWho(w);
-      const s = await fetchJson<Statement>("/api/v1/float/statement?mine=1");
+      const s = await fetchJson<Statement>("/v1/float/statement?mine=1");
       setStmt(s);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Failed to load float data";

@@ -243,7 +243,7 @@ export const GatePassReports: React.FC = () => {
           </Button>
           <Button
             variant="primary"
-            onClick={() => navigate('/app/gate-pass')}
+            onClick={() => navigate('/dashboard')}
             icon="🚪"
           >
             Back to Dashboard

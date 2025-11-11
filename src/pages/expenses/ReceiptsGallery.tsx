@@ -24,7 +24,7 @@ export const ReceiptsGallery: React.FC = () => {
   const fetchReceipts = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/v1/expenses', { params: { mine: true } });
+      const res = await axios.get('/v1/expenses', { params: { mine: true } });
       const raw = Array.isArray(res.data) ? res.data : (res.data?.items ?? []);
       const mapped: ReceiptItem[] = raw.map((e: any) => ({
         id: String(e.id),

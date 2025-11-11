@@ -225,7 +225,7 @@ export const CreateExpense: React.FC = () => {
     };
 
     try {
-      await axios.post('/api/v1/expenses', submitData);
+      await axios.post('/v1/expenses', submitData);
       showToast({
         title: 'Expense submitted',
         description: 'Your expense has been sent for review.',

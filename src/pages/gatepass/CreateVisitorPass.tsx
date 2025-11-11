@@ -84,7 +84,7 @@ export const CreateVisitorPass: React.FC = () => {
 
       console.log('Sending data:', requestData);
 
-      const response = await postWithCsrf('/api/visitor-gate-passes', requestData);
+      const response = await postWithCsrf('/visitor-gate-passes', requestData);
 
       // Create a readable pass number from the UUID
       const passId = response.data.pass.id;
@@ -103,7 +103,7 @@ export const CreateVisitorPass: React.FC = () => {
         window.open(`https://wa.me/?text=${message}`, '_blank');
       }
 
-      navigate('/app/gate-pass');
+      navigate('/dashboard');
 
     } catch (error: unknown) {
       console.error('Failed to create pass:', error);
@@ -167,7 +167,7 @@ export const CreateVisitorPass: React.FC = () => {
         borderBottom: '1px solid #E5E7EB'
       }}>
         <button
-          onClick={() => navigate('/app/gate-pass')}
+          onClick={() => navigate('/dashboard')}
           style={{
             border: 'none',
             background: 'none',

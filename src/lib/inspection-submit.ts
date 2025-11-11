@@ -73,7 +73,7 @@ export async function submitInspection({
 
     const response = await withBackoff(
       () =>
-        axios.post('/api/v1/inspections', formData, {
+        axios.post('/v1/inspections', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
           signal,
           onUploadProgress: (event) => {
@@ -166,7 +166,7 @@ export async function syncQueuedInspections({ onItem }: SyncQueuedInspectionsOpt
     try {
       await withBackoff(
         () =>
-          axios.post('/api/v1/inspections', formData, {
+          axios.post('/v1/inspections', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
             onUploadProgress: (event) => {
               const total = typeof event.total === 'number' && event.total > 0 ? event.total : totalBytes || undefined;

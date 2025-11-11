@@ -22,19 +22,27 @@ export const GuardRegister: React.FC = () => {
       // Fetch today's expected and inside passes
       const today = new Date().toISOString().split('T')[0];
       
-      const visitorResponse = await axios.get('/api/visitor-gate-passes', {
+      const visitorResponse = await axios.get('/visitor-gate-passes', {
         params: { 
           date: today,
           status: activeTab === 'expected' ? 'pending' : 'inside'
         }
       });
 
-      const vehicleResponse = await axios.get('/api/vehicle-entry-passes', {
+      const vehicleResponse = await axios.get('/vehicle-entry-passes', {
         params: { status: 'out' }
       });
 
-      setVisitorPasses(visitorResponse.data);
-      setVehicleMovements(vehicleResponse.data);
+      // Handle response structure - backend may return { success: true, data: [...] } or just [...]
+      const visitorData = Array.isArray(visitorResponse.data) 
+        ? visitorResponse.data 
+        : (visitorResponse.data?.data || []);
+      const vehicleData = Array.isArray(vehicleResponse.data) 
+        ? vehicleResponse.data 
+        : (vehicleResponse.data?.data || []);
+
+      setVisitorPasses(Array.isArray(visitorData) ? visitorData : []);
+      setVehicleMovements(Array.isArray(vehicleData) ? vehicleData : []);
 
     } catch (error) {
       console.error('Failed to fetch data:', error);
@@ -55,7 +63,7 @@ export const GuardRegister: React.FC = () => {
     if (!confirm('Mark this visitor as entered?')) return;
 
     try {
-      await postWithCsrf(`/api/visitor-gate-passes/${passId}/entries`, {
+      await postWithCsrf(`/visitor-gate-passes/${passId}/entries`, {
         entry_time: new Date().toISOString()
       });
       alert('Entry marked successfully!');
@@ -70,7 +78,7 @@ export const GuardRegister: React.FC = () => {
     if (!confirm('Mark this visitor as exited?')) return;
 
     try {
-      await postWithCsrf(`/api/visitor-gate-passes/${passId}/exit`, {
+      await postWithCsrf(`/visitor-gate-passes/${passId}/exit`, {
         exit_time: new Date().toISOString()
       });
       alert('Exit marked successfully!');
@@ -610,7 +618,7 @@ export const GuardRegister: React.FC = () => {
 
       {/* Full Register Link */}
       <button
-        onClick={() => navigate('/app/gate-pass')}
+        onClick={() => navigate('/dashboard')}
         style={{
           width: '100%',
           padding: '1rem',

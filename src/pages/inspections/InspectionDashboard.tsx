@@ -48,13 +48,10 @@ export const InspectionDashboard: React.FC = () => {
 
       // Try to fetch from backend, fallback to mock data if not available
       try {
-        const [statsRes, recentRes] = await Promise.all([
-          axios.get('/api/v1/inspection-dashboard'),
-          axios.get('/api/v1/inspections?limit=10')
-        ]);
+        const statsRes = await axios.get('/v1/inspection-dashboard');
 
         setStats(statsRes.data.stats);
-        setRecentInspections(recentRes.data.data || []);
+        setRecentInspections(statsRes.data.recent_inspections || []);
       } catch (apiError) {
         console.warn('Backend not available, using mock data:', apiError);
         setUsingMockData(true);

@@ -58,9 +58,9 @@ const CACHE_KEYS: Record<ResourceKey, string> = {
 };
 
 const FETCH_URLS: Record<ResourceKey, string> = {
-  projects: '/api/v1/projects',
-  assets: '/api/v1/assets',
-  templates: '/api/v1/expense-templates',
+  projects: '/v1/projects',
+  assets: '/v1/assets',
+  templates: '/v1/expense-templates',
 };
 
 const CACHE_TTL = 1000 * 60 * 10; // 10 minutes

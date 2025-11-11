@@ -1,10 +1,16 @@
 import axios from 'axios';
 
+const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 
+  (import.meta.env.PROD ? "https://inspectmymachine.in" : "http://localhost:8000");
+
 // CSRF Token Utility for Laravel Sanctum
 export const ensureCsrfToken = async (): Promise<string> => {
   try {
-    // Fetch CSRF cookie
-    await axios.get('/sanctum/csrf-cookie');
+    // Fetch CSRF cookie - use full URL (not relative, since it's outside /api)
+    await axios.get(`${API_ORIGIN}/sanctum/csrf-cookie`, {
+      withCredentials: true,
+      baseURL: '', // Override baseURL to use full URL
+    });
     console.log('CSRF token obtained');
     
     // Small delay to ensure cookie is set
@@ -54,15 +60,21 @@ export const createCsrfHeaders = async (): Promise<Record<string, string>> => {
 };
 
 // Helper function for POST requests with CSRF
-export const postWithCsrf = async (url: string, data: any) => {
+export const postWithCsrf = async <T = any>(url: string, data: any) => {
   const headers = await createCsrfHeaders();
-  return axios.post(url, data, { headers });
+  return axios.post<T>(url, data, { 
+    headers,
+    withCredentials: true 
+  });
 };
 
 // Helper function for PUT requests with CSRF
-export const putWithCsrf = async (url: string, data: any) => {
+export const putWithCsrf = async <T = any>(url: string, data: any) => {
   const headers = await createCsrfHeaders();
-  return axios.put(url, data, { headers });
+  return axios.put<T>(url, data, { 
+    headers,
+    withCredentials: true 
+  });
 };
 
 export default {

@@ -46,7 +46,7 @@ export const GatePassCalendar: React.FC = () => {
       const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
       
-      const response = await axios.get('/api/gate-pass-calendar', {
+      const response = await axios.get('/gate-pass-calendar', {
         params: {
           start_date: startDate.toISOString().split('T')[0],
           end_date: endDate.toISOString().split('T')[0]
@@ -223,7 +223,7 @@ export const GatePassCalendar: React.FC = () => {
         <div style={{ display: 'flex', gap: spacing.sm }}>
           <Button
             variant="secondary"
-            onClick={() => navigate('/app/gate-pass')}
+            onClick={() => navigate('/dashboard')}
             icon="🚪"
           >
             Back to Dashboard

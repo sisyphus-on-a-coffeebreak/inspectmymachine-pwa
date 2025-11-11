@@ -86,7 +86,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const checkAuth = async () => {
     try {
-      const response = await axios.get<{ user: User }>("/api/user", {
+      const response = await axios.get<{ user: User }>("/user", {
         // Don't retry on 401 - user is just not authenticated
         validateStatus: (status) => status < 500
       });
@@ -135,7 +135,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('[Auth] Login response status:', loginResponse.status);
 
       // Step 3: Get user data
-      const response = await axios.get<{ user: User }>("/api/user");
+      const response = await axios.get<{ user: User }>("/user");
       console.log('[Auth] User data fetched successfully');
       setUser(response.data.user);  // 🎯 Extract the nested user object
     } catch (err) {
@@ -181,7 +181,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = async () => {
     try {
-      await axios.post("/api/logout", {}, {
+      await axios.post("/logout", {}, {
         headers: {
           'X-Requested-With': 'XMLHttpRequest',
           'Accept': 'application/json',

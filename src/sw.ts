@@ -22,7 +22,7 @@ const uploadBgSync = new BackgroundSyncPlugin("photo-uploads", {
 
 registerRoute(
   ({ url, request }) =>
-    url.pathname.startsWith("/api/v1/files/upload") && request.method === "POST",
+    url.pathname.startsWith("/v1/files/upload") && request.method === "POST",
   new NetworkOnly({ plugins: [uploadBgSync] }),
   "POST"
 )

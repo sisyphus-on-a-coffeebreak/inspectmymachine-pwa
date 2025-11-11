@@ -24,7 +24,7 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   multiple = true,
   label = 'Select Vehicle(s)',
   required = false,
-  apiEndpoint = '/api/vehicles',
+  apiEndpoint = '/vehicles',
   yardId = null
 }) => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -41,16 +41,32 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     try {
       setLoading(true);
       
-      // Parse the API endpoint to extract URL and params
-      const url = new URL(apiEndpoint, window.location.origin);
-      
-      // Add yard filter if yardId is provided
+      // Build query params
+      const params: any = {};
       if (yardId) {
-        url.searchParams.set('yard_id', yardId);
+        params.yard_id = yardId;
       }
       
-      const fullUrl = url.pathname + url.search;
-      const response = await axios.get(fullUrl);
+      // Extract pathname and query params from apiEndpoint
+      // apiEndpoint might be like '/v1/vehicles' or '/v1/vehicles?status=In Service'
+      let endpointPath = apiEndpoint;
+      
+      // If endpoint contains query params, extract them
+      if (apiEndpoint.includes('?')) {
+        const url = new URL(apiEndpoint, 'http://dummy.com');
+        endpointPath = url.pathname;
+        // Extract existing query params
+        url.searchParams.forEach((value, key) => {
+          params[key] = value;
+        });
+      }
+      
+      // Ensure endpointPath starts with / (axios baseURL already includes /api)
+      if (!endpointPath.startsWith('/')) {
+        endpointPath = '/' + endpointPath;
+      }
+      
+      const response = await axios.get(endpointPath, { params });
       
       // Handle Laravel API response format (wrapped in { data: [] })
       const vehicleData = Array.isArray(response.data) 

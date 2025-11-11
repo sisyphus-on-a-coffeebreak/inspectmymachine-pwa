@@ -64,8 +64,8 @@ export const EmployeeExpenseDashboard: React.FC = () => {
 
       // Fetch my expenses and float balance
       const [expensesRes, floatRes] = await Promise.all([
-        axios.get('/api/v1/expenses', { params: { mine: true } }),
-        axios.get('/api/v1/float/me')
+        axios.get('/v1/expenses', { params: { mine: true } }),
+        axios.get('/v1/float/me')
       ]);
 
       type ApiExpense = { id?: string|number; amount?: number; category?: string; notes?: string; ts?: string|Date; status?: string };
