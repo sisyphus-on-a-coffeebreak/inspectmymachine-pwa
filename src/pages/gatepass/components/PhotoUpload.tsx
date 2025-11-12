@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { useToast } from '../../../providers/ToastProvider';
 
 // 📸 PhotoUpload Component
 // Handles photo uploads with preview - works on mobile camera and desktop file picker
@@ -21,6 +22,7 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
   maxPhotos = 5,
   hint
 }) => {
+  const { showToast } = useToast();
   const [previews, setPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -31,7 +33,11 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
 
     // Check max photos limit
     if (multiple && files.length > maxPhotos) {
-      alert(`Maximum ${maxPhotos} photos allowed`);
+      showToast({
+        title: 'Limit Exceeded',
+        description: `Maximum ${maxPhotos} photos allowed`,
+        variant: 'error',
+      });
       return;
     }
 

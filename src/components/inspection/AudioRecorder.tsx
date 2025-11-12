@@ -1,20 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { colors, spacing } from '../../lib/theme';
 import { Button } from '../ui/button';
+import { useToast } from '../../providers/ToastProvider';
 
 interface AudioRecorderProps {
   value?: any;
   onChange: (audioData: any) => void;
   maxDuration?: number;
   disabled?: boolean;
+  onError?: (message: string) => void;
 }
 
 export const AudioRecorder: React.FC<AudioRecorderProps> = ({
   value,
   onChange,
   maxDuration = 60,
-  disabled = false
+  disabled = false,
+  onError
 }) => {
+  const { showToast } = useToast();
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -23,6 +27,18 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleError = (message: string) => {
+    if (onError) {
+      onError(message);
+    } else {
+      showToast({
+        title: 'Audio Error',
+        description: message,
+        variant: 'error',
+      });
+    }
+  };
 
   useEffect(() => {
     if (isRecording) {
@@ -81,7 +97,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
       setRecordingTime(0);
     } catch (error) {
       console.error('Microphone access denied:', error);
-      alert('Microphone access is required for audio recording');
+      handleError('Microphone access is required for audio recording');
     }
   };
 

@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { apiClient } from '../../lib/apiClient';
+import { useToast } from '../../providers/ToastProvider';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 
@@ -41,6 +43,7 @@ interface ApprovalStats {
 
 export const ExpenseApproval: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [expenses, setExpenses] = useState<ExpenseApproval[]>([]);
   const [stats, setStats] = useState<ApprovalStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,10 +55,14 @@ export const ExpenseApproval: React.FC = () => {
   const fetchExpenses = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/expense-approval/pending', {
+      const response = await apiClient.get<{ success: boolean; data: ExpenseApproval[] } | ExpenseApproval[]>('/expense-approval/pending', {
         params: { status: filter }
       });
-      setExpenses(response.data);
+      // Handle both response formats: { success: true, data: [...] } or [...]
+      const expensesData = Array.isArray(response.data) 
+        ? response.data 
+        : (response.data as any).data || [];
+      setExpenses(expensesData);
     } catch (error) {
       console.error('Failed to fetch expenses:', error);
       // Mock data for development
@@ -94,8 +101,10 @@ export const ExpenseApproval: React.FC = () => {
 
   const fetchStats = useCallback(async () => {
     try {
-      const response = await axios.get('/api/expense-approval/stats');
-      setStats(response.data);
+      const response = await apiClient.get<ApprovalStats | { data: ApprovalStats }>('/expense-approval/stats');
+      // Handle both response formats: { ... } or { data: { ... } }
+      const statsData = (response.data as any).data || response.data;
+      setStats(statsData as ApprovalStats);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
       // Mock data for development
@@ -124,13 +133,21 @@ export const ExpenseApproval: React.FC = () => {
   const approveExpense = async (expenseId: string) => {
     try {
       setLoading(true);
-      await axios.post(`/api/expense-approval/approve/${expenseId}`);
-      alert('Expense approved successfully!');
+      await apiClient.post(`/expense-approval/approve/${expenseId}`);
+      showToast({
+        title: 'Success',
+        description: 'Expense approved successfully!',
+        variant: 'success',
+      });
       fetchExpenses();
       fetchStats();
     } catch (error) {
       console.error('Failed to approve expense:', error);
-      alert('Failed to approve expense. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to approve expense. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -139,17 +156,25 @@ export const ExpenseApproval: React.FC = () => {
   const rejectExpense = async (expenseId: string, reason: string) => {
     try {
       setLoading(true);
-      await axios.post(`/api/expense-approval/reject/${expenseId}`, {
+      await apiClient.post(`/expense-approval/reject/${expenseId}`, {
         reason: reason
       });
-      alert('Expense rejected successfully!');
+      showToast({
+        title: 'Success',
+        description: 'Expense rejected successfully!',
+        variant: 'success',
+      });
       setShowRejectionModal(false);
       setRejectionReason('');
       fetchExpenses();
       fetchStats();
     } catch (error) {
       console.error('Failed to reject expense:', error);
-      alert('Failed to reject expense. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to reject expense. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -157,22 +182,35 @@ export const ExpenseApproval: React.FC = () => {
 
   const bulkApprove = async () => {
     if (selectedExpenses.length === 0) {
-      alert('Please select expenses to approve');
+      showToast({
+        title: 'Validation Error',
+        description: 'Please select expenses to approve',
+        variant: 'error',
+      });
       return;
     }
 
     try {
       setLoading(true);
-      await axios.post('/api/expense-approval/bulk-approve', {
+      await apiClient.post('/expense-approval/bulk-approve', {
         expense_ids: selectedExpenses
       });
-      alert(`${selectedExpenses.length} expenses approved successfully!`);
+      showToast({
+        title: 'Success',
+        description: `${selectedExpenses.length} expenses approved successfully!`,
+        variant: 'success',
+        duration: 5000,
+      });
       setSelectedExpenses([]);
       fetchExpenses();
       fetchStats();
     } catch (error) {
       console.error('Failed to bulk approve:', error);
-      alert('Failed to bulk approve expenses. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to bulk approve expenses. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -180,29 +218,46 @@ export const ExpenseApproval: React.FC = () => {
 
   const bulkReject = async () => {
     if (selectedExpenses.length === 0) {
-      alert('Please select expenses to reject');
+      showToast({
+        title: 'Validation Error',
+        description: 'Please select expenses to reject',
+        variant: 'error',
+      });
       return;
     }
 
     if (!rejectionReason.trim()) {
-      alert('Please provide a rejection reason');
+      showToast({
+        title: 'Validation Error',
+        description: 'Please provide a rejection reason',
+        variant: 'error',
+      });
       return;
     }
 
     try {
       setLoading(true);
-      await axios.post('/api/expense-approval/bulk-reject', {
+      await apiClient.post('/expense-approval/bulk-reject', {
         expense_ids: selectedExpenses,
         reason: rejectionReason
       });
-      alert(`${selectedExpenses.length} expenses rejected successfully!`);
+      showToast({
+        title: 'Success',
+        description: `${selectedExpenses.length} expenses rejected successfully!`,
+        variant: 'success',
+        duration: 5000,
+      });
       setSelectedExpenses([]);
       setRejectionReason('');
       fetchExpenses();
       fetchStats();
     } catch (error) {
       console.error('Failed to bulk reject:', error);
-      alert('Failed to bulk reject expenses. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to bulk reject expenses. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -223,9 +278,9 @@ export const ExpenseApproval: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return colors.status.warning;
-      case 'approved': return colors.status.normal;
-      case 'rejected': return colors.status.critical;
+      case 'pending': return colors.warning[500];
+      case 'approved': return colors.success[500];
+      case 'rejected': return colors.error[500];
       default: return colors.neutral[400];
     }
   };
@@ -308,12 +363,12 @@ export const ExpenseApproval: React.FC = () => {
           }}>
             <div style={{ 
               padding: spacing.lg,
-              backgroundColor: colors.status.warning + '10',
+              backgroundColor: colors.warning[100],
               borderRadius: '12px',
-              border: `1px solid ${colors.status.warning}`
+              border: `1px solid ${colors.warning[500]}`
             }}>
               <div style={{ ...typography.label, color: colors.neutral[600] }}>Pending</div>
-              <div style={{ ...typography.header, color: colors.status.warning, margin: 0 }}>
+              <div style={{ ...typography.header, color: colors.warning[500], margin: 0 }}>
                 {stats.pending}
               </div>
               <div style={{ ...typography.caption, color: colors.neutral[500] }}>
@@ -322,12 +377,12 @@ export const ExpenseApproval: React.FC = () => {
             </div>
             <div style={{ 
               padding: spacing.lg,
-              backgroundColor: colors.status.normal + '10',
+              backgroundColor: colors.success[100],
               borderRadius: '12px',
-              border: `1px solid ${colors.status.normal}`
+              border: `1px solid ${colors.success[500]}`
             }}>
               <div style={{ ...typography.label, color: colors.neutral[600] }}>Approved</div>
-              <div style={{ ...typography.header, color: colors.status.normal, margin: 0 }}>
+              <div style={{ ...typography.header, color: colors.success[500], margin: 0 }}>
                 {stats.approved}
               </div>
               <div style={{ ...typography.caption, color: colors.neutral[500] }}>
@@ -336,12 +391,12 @@ export const ExpenseApproval: React.FC = () => {
             </div>
             <div style={{ 
               padding: spacing.lg,
-              backgroundColor: colors.status.critical + '10',
+              backgroundColor: colors.error[100],
               borderRadius: '12px',
-              border: `1px solid ${colors.status.critical}`
+              border: `1px solid ${colors.error[500]}`
             }}>
               <div style={{ ...typography.label, color: colors.neutral[600] }}>Rejected</div>
-              <div style={{ ...typography.header, color: colors.status.critical, margin: 0 }}>
+              <div style={{ ...typography.header, color: colors.error[500], margin: 0 }}>
                 {stats.rejected}
               </div>
             </div>
@@ -577,7 +632,7 @@ export const ExpenseApproval: React.FC = () => {
             {expense.status === 'approved' && expense.approved_by && (
               <div style={{ 
                 ...typography.caption, 
-                color: colors.status.normal,
+                color: colors.success[500],
                 margin: 0,
                 marginTop: spacing.sm
               }}>
@@ -588,7 +643,7 @@ export const ExpenseApproval: React.FC = () => {
             {expense.status === 'rejected' && expense.rejected_by && (
               <div style={{ 
                 ...typography.caption, 
-                color: colors.status.critical,
+                color: colors.error[500],
                 margin: 0,
                 marginTop: spacing.sm
               }}>

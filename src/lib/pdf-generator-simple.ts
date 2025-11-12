@@ -407,7 +407,13 @@ const downloadPDF = (passData: PassData, pdfBlob: Blob): void => {
   URL.revokeObjectURL(url);
 };
 
-const copyToClipboard = async (passData: PassData): Promise<void> => {
+const copyToClipboard = async (
+  passData: PassData,
+  callbacks?: {
+    onSuccess?: () => void;
+    onError?: (error: Error) => void;
+  }
+): Promise<void> => {
   const text = `Gate Pass #${passData.passNumber}` +
     `\nType: ${passData.passType === 'visitor' ? 'Visitor' : 'Vehicle'}` +
     `\nPurpose: ${passData.purpose}` +
@@ -417,14 +423,20 @@ const copyToClipboard = async (passData: PassData): Promise<void> => {
 
   try {
     await navigator.clipboard.writeText(text);
-    alert('Pass details copied to clipboard!');
+    callbacks?.onSuccess?.();
   } catch (error) {
     console.error('Error copying to clipboard:', error);
-    alert('Failed to copy to clipboard');
+    callbacks?.onError?.(error instanceof Error ? error : new Error('Failed to copy to clipboard'));
   }
 };
 
-export const sharePass = async (passData: PassData): Promise<void> => {
+export const sharePass = async (
+  passData: PassData,
+  callbacks?: {
+    onSuccess?: () => void;
+    onError?: (error: Error) => void;
+  }
+): Promise<void> => {
   try {
     const pdfBlob = await generatePDFPass(passData);
 
@@ -432,18 +444,25 @@ export const sharePass = async (passData: PassData): Promise<void> => {
       const file = new File([pdfBlob], `gate-pass-${passData.passNumber}.pdf`, { type: 'application/pdf' });
       if (navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file] });
+        callbacks?.onSuccess?.();
         return;
       }
     }
 
     downloadPDF(passData, pdfBlob);
+    callbacks?.onSuccess?.();
   } catch (error) {
     console.error('Error sharing PDF:', error);
-    await copyToClipboard(passData);
+    await copyToClipboard(passData, callbacks);
   }
 };
 
-export const printPass = async (passData: PassData): Promise<void> => {
+export const printPass = async (
+  passData: PassData,
+  callbacks?: {
+    onError?: (error: Error) => void;
+  }
+): Promise<void> => {
   try {
     const pdfBlob = await generatePDFPass(passData);
     const url = URL.createObjectURL(pdfBlob);
@@ -457,7 +476,7 @@ export const printPass = async (passData: PassData): Promise<void> => {
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   } catch (error) {
     console.error('Error printing pass:', error);
-    alert('Failed to print pass. Please try again.');
+    callbacks?.onError?.(error instanceof Error ? error : new Error('Failed to print pass. Please try again.'));
   }
 };
 

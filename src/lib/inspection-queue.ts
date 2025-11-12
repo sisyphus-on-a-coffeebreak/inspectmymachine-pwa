@@ -29,6 +29,11 @@ export interface InspectionDraftRecord {
   vehicleId?: string;
   updatedAt: number;
   answers: SerializedInspectionAnswers;
+  metadata?: {
+    templateVersion?: number;
+    conflictResolved?: boolean;
+    [key: string]: any;
+  };
 }
 
 export async function queueInspectionSubmission(options: {

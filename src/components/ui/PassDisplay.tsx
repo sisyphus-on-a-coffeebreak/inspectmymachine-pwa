@@ -5,6 +5,7 @@ import { Button } from './button';
 import { colors, spacing, typography } from '../../lib/theme';
 import { syncGatePassRecord } from '../../lib/gate-pass-records';
 import type { GatePassRecord } from '../../lib/gate-pass-records';
+import { useToast } from '../../providers/ToastProvider';
 
 interface PassDisplayProps {
   passData: {
@@ -31,6 +32,7 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
   onClose,
   showActions = true
 }) => {
+  const { showToast } = useToast();
   const [passRecord, setPassRecord] = useState<GatePassRecord | null>(null);
   const [loadingRecord, setLoadingRecord] = useState<boolean>(true);
   const [recordError, setRecordError] = useState<string | null>(null);
@@ -142,7 +144,11 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
 
   const handleDownloadPDF = async () => {
     if (!passRecord) {
-      alert('Pass record is still loading. Please wait a moment.');
+      showToast({
+        title: 'Loading',
+        description: 'Pass record is still loading. Please wait a moment.',
+        variant: 'warning',
+      });
       return;
     }
 
@@ -176,7 +182,11 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
       
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to generate PDF. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -186,7 +196,11 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
   const handleShare = async () => {
     try {
       if (!passRecord) {
-        alert('Pass record is still loading. Please wait a moment.');
+        showToast({
+          title: 'Loading',
+          description: 'Pass record is still loading. Please wait a moment.',
+          variant: 'warning',
+        });
         return;
       }
 
@@ -205,10 +219,29 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
         qrCode,
         companyName: passData.companyName,
         companyLogo: passData.companyLogo
+      }, {
+        onSuccess: () => {
+          showToast({
+            title: 'Success',
+            description: 'Pass shared successfully!',
+            variant: 'success',
+          });
+        },
+        onError: () => {
+          showToast({
+            title: 'Error',
+            description: 'Failed to share pass',
+            variant: 'error',
+          });
+        }
       });
     } catch (error) {
       console.error('Error sharing:', error);
-      alert('Failed to share. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to share. Please try again.',
+        variant: 'error',
+      });
     }
   };
 

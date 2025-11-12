@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useToast } from '../../providers/ToastProvider';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { Label } from '../../components/ui/label';
@@ -43,6 +44,7 @@ interface FilterOptions {
 
 export const ExpenseHistory: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [expenses, setExpenses] = useState<ExpenseHistoryItem[]>([]);
   const [filteredExpenses, setFilteredExpenses] = useState<ExpenseHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -224,7 +226,11 @@ export const ExpenseHistory: React.FC = () => {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Failed to export expenses. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to export expenses. Please try again.',
+        variant: 'error',
+      });
     }
   };
 

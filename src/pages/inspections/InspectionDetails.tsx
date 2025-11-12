@@ -5,6 +5,7 @@ import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { useToast } from '../../providers/ToastProvider';
 
 interface InspectionDetails {
   id: string;
@@ -76,6 +77,7 @@ interface InspectionDetails {
 export const InspectionDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [inspection, setInspection] = useState<InspectionDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -217,7 +219,11 @@ export const InspectionDetails: React.FC = () => {
       await generateClientSidePDF();
     } catch (error) {
       console.error('Failed to generate PDF:', error);
-      alert('Failed to generate PDF. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to generate PDF. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setGeneratingPDF(false);
     }
@@ -377,7 +383,12 @@ export const InspectionDetails: React.FC = () => {
     window.URL.revokeObjectURL(url);
     
     // Show instructions to user
-    alert('HTML file downloaded. You can open it in your browser and use "Print to PDF" to save as PDF.');
+    showToast({
+      title: 'Download Complete',
+      description: 'HTML file downloaded. You can open it in your browser and use "Print to PDF" to save as PDF.',
+      variant: 'success',
+      duration: 7000,
+    });
   };
 
   const generatePDFHTML = () => {

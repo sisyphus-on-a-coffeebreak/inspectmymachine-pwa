@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
+import { useToast } from '../../providers/ToastProvider';
+import { useConfirm } from '../../components/ui/Modal';
 
 // ✅ Pass Approval Workflow
 // Multi-level approval system for gate passes
@@ -52,6 +54,8 @@ interface PassDetails {
 
 export const PassApproval: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const { confirm, ConfirmComponent } = useConfirm();
   const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(null);
   const [passDetails, setPassDetails] = useState<PassDetails | null>(null);
@@ -173,13 +177,21 @@ export const PassApproval: React.FC = () => {
         notes: approvalNotes
       });
 
-      alert('Request approved successfully!');
+      showToast({
+        title: 'Success',
+        description: 'Request approved successfully!',
+        variant: 'success',
+      });
       setSelectedRequest(null);
       setApprovalNotes('');
       fetchApprovalRequests();
     } catch (error) {
       console.error('Failed to approve request:', error);
-      alert('Failed to approve request. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to approve request. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -187,7 +199,11 @@ export const PassApproval: React.FC = () => {
 
   const rejectRequest = async () => {
     if (!selectedRequest || !rejectionReason.trim()) {
-      alert('Please provide a rejection reason');
+      showToast({
+        title: 'Validation Error',
+        description: 'Please provide a rejection reason',
+        variant: 'error',
+      });
       return;
     }
 
@@ -197,13 +213,21 @@ export const PassApproval: React.FC = () => {
         reason: rejectionReason
       });
 
-      alert('Request rejected successfully!');
+      showToast({
+        title: 'Success',
+        description: 'Request rejected successfully!',
+        variant: 'success',
+      });
       setSelectedRequest(null);
       setRejectionReason('');
       fetchApprovalRequests();
     } catch (error) {
       console.error('Failed to reject request:', error);
-      alert('Failed to reject request. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to reject request. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -218,13 +242,21 @@ export const PassApproval: React.FC = () => {
         reason: approvalNotes
       });
 
-      alert('Request escalated successfully!');
+      showToast({
+        title: 'Success',
+        description: 'Request escalated successfully!',
+        variant: 'success',
+      });
       setSelectedRequest(null);
       setApprovalNotes('');
       fetchApprovalRequests();
     } catch (error) {
       console.error('Failed to escalate request:', error);
-      alert('Failed to escalate request. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to escalate request. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -260,9 +292,11 @@ export const PassApproval: React.FC = () => {
   }
 
   return (
-    <div style={{ 
-      maxWidth: '1400px', 
-      margin: '0 auto', 
+    <>
+      {ConfirmComponent}
+      <div style={{ 
+        maxWidth: '1400px', 
+        margin: '0 auto', 
       padding: spacing.xl,
       fontFamily: 'system-ui, -apple-system, sans-serif',
       backgroundColor: colors.neutral[50],
@@ -668,7 +702,8 @@ export const PassApproval: React.FC = () => {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

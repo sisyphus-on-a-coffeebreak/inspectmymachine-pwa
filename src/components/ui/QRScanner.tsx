@@ -10,6 +10,7 @@ interface QRScannerProps {
   hint?: string;
   className?: string;
   autoStart?: boolean;
+  onManualEntry?: (code: string) => void;
 }
 
 export const QRScanner: React.FC<QRScannerProps> = ({
@@ -19,8 +20,11 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   title = 'Scan QR Code',
   hint = 'Point camera at QR code',
   className = '',
-  autoStart = true
+  autoStart = true,
+  onManualEntry
 }) => {
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [manualCode, setManualCode] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -30,6 +34,31 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   const animationRef = useRef<number | null>(null);
   const detectorRef = useRef<any | null>(null);
   const isDetectingRef = useRef(false);
+
+  // Extract QR data - handles URLs with tokens or direct codes
+  const extractQRData = useCallback((scannedData: string): string => {
+    // If it's a URL, try to extract the token parameter
+    if (scannedData.startsWith('http://') || scannedData.startsWith('https://')) {
+      try {
+        const url = new URL(scannedData);
+        const token = url.searchParams.get('token');
+        if (token) {
+          return token;
+        }
+        // If no token param, return the full URL (backend will handle it)
+        return scannedData;
+      } catch {
+        // Invalid URL, return as-is
+        return scannedData;
+      }
+    }
+    // If it's a token-like string (32 chars alphanumeric), return as-is
+    if (/^[a-zA-Z0-9]{32}$/.test(scannedData)) {
+      return scannedData;
+    }
+    // Otherwise return as-is (could be access code or other format)
+    return scannedData;
+  }, []);
 
   const stopScanning = useCallback(() => {
     if (animationRef.current) {
@@ -86,7 +115,9 @@ export const QRScanner: React.FC<QRScannerProps> = ({
         .then((codes: any[]) => {
           isDetectingRef.current = false;
           if (codes && codes.length > 0) {
-            onScan(codes[0].rawValue);
+            const scannedData = codes[0].rawValue;
+            const processedData = extractQRData(scannedData);
+            onScan(processedData);
             stopScanning();
             return;
           }
@@ -98,7 +129,8 @@ export const QRScanner: React.FC<QRScannerProps> = ({
           try {
             const code = jsQR(imageData.data, imageData.width, imageData.height);
             if (code) {
-              onScan(code.data);
+              const processedData = extractQRData(code.data);
+              onScan(processedData);
               stopScanning();
               return;
             }
@@ -115,7 +147,8 @@ export const QRScanner: React.FC<QRScannerProps> = ({
       try {
         const code = jsQR(imageData.data, imageData.width, imageData.height);
         if (code) {
-          onScan(code.data);
+          const processedData = extractQRData(code.data);
+          onScan(processedData);
           stopScanning();
           return;
         }
@@ -127,7 +160,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
       // Continue scanning
       animationRef.current = requestAnimationFrame(detectFrame);
     }
-  }, [isScanning, onScan, stopScanning]);
+  }, [isScanning, onScan, stopScanning, extractQRData]);
 
   const startScanning = useCallback(async () => {
     try {
@@ -220,12 +253,21 @@ export const QRScanner: React.FC<QRScannerProps> = ({
 
   // Handle manual entry
   const handleManualEntry = useCallback(() => {
-    const code = prompt('Enter access code manually:');
-    if (code && code.trim()) {
-      onScan(code.trim());
+    setShowManualEntry(true);
+  }, []);
+
+  const submitManualEntry = useCallback(() => {
+    if (manualCode.trim()) {
+      if (onManualEntry) {
+        onManualEntry(manualCode.trim());
+      } else {
+        onScan(manualCode.trim());
+      }
       stopScanning();
+      setShowManualEntry(false);
+      setManualCode('');
     }
-  }, [onScan, stopScanning]);
+  }, [manualCode, onScan, onManualEntry, stopScanning]);
 
   // Handle escape key
   useEffect(() => {
@@ -366,8 +408,21 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   };
 
   return (
-    <div style={scannerStyle} className={className}>
-      <div style={headerStyle}>
+    <>
+      <style>{`
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+          }
+          50% {
+            opacity: 0.7;
+            transform: translate(-50%, -50%) scale(1.05);
+          }
+        }
+      `}</style>
+      <div style={scannerStyle} className={className}>
+        <div style={headerStyle}>
         <h2 style={{ 
           ...typography.header, 
           color: 'white', 
@@ -427,10 +482,108 @@ export const QRScanner: React.FC<QRScannerProps> = ({
             transition: 'all 0.2s ease'
           }}
           onClick={handleManualEntry}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+          }}
         >
           ⌨️ Enter Access Code Instead
         </button>
       </div>
+
+      {/* Manual Entry Modal */}
+      {showManualEntry && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          zIndex: 1002,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: spacing.lg,
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: borderRadius.lg,
+            padding: spacing.xl,
+            maxWidth: '400px',
+            width: '100%',
+          }}>
+            <h3 style={{ ...typography.subheader, marginBottom: spacing.md }}>
+              Enter Access Code
+            </h3>
+            <input
+              type="text"
+              value={manualCode}
+              onChange={(e) => setManualCode(e.target.value)}
+              placeholder="Enter access code or scan QR code"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  submitManualEntry();
+                } else if (e.key === 'Escape') {
+                  setShowManualEntry(false);
+                  setManualCode('');
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: spacing.md,
+                border: `1px solid ${colors.neutral[300]}`,
+                borderRadius: borderRadius.md,
+                fontSize: '18px',
+                textAlign: 'center',
+                letterSpacing: '2px',
+                marginBottom: spacing.md,
+              }}
+            />
+            <div style={{ display: 'flex', gap: spacing.md }}>
+              <button
+                onClick={submitManualEntry}
+                disabled={!manualCode.trim()}
+                style={{
+                  flex: 1,
+                  padding: spacing.md,
+                  backgroundColor: manualCode.trim() ? colors.primary : colors.neutral[300],
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: borderRadius.md,
+                  fontSize: '16px',
+                  fontWeight: 600,
+                  cursor: manualCode.trim() ? 'pointer' : 'not-allowed',
+                }}
+              >
+                Submit
+              </button>
+              <button
+                onClick={() => {
+                  setShowManualEntry(false);
+                  setManualCode('');
+                }}
+                style={{
+                  flex: 1,
+                  padding: spacing.md,
+                  backgroundColor: colors.neutral[200],
+                  color: colors.neutral[700],
+                  border: 'none',
+                  borderRadius: borderRadius.md,
+                  fontSize: '16px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!isScanning && !error && (
         <button
@@ -440,7 +593,8 @@ export const QRScanner: React.FC<QRScannerProps> = ({
           📷 Start Camera
         </button>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

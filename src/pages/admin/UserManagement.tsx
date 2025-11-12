@@ -12,6 +12,9 @@ import {
   type User,
   type CreateUserPayload,
   type UpdateUserPayload,
+  type UserCapabilities,
+  type CapabilityModule,
+  type CapabilityAction,
 } from '@/lib/users';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -43,9 +46,11 @@ export default function UserManagement() {
     email: '',
     password: '',
     role: 'clerk',
+    capabilities: undefined,
     yard_id: null,
     is_active: true,
   });
+  const [showCapabilityMatrix, setShowCapabilityMatrix] = useState(false);
 
   const [passwordData, setPasswordData] = useState({ password: '', confirmPassword: '' });
 
@@ -104,6 +109,7 @@ export default function UserManagement() {
         name: formData.name,
         email: formData.email,
         role: formData.role,
+        capabilities: formData.capabilities,
         yard_id: formData.yard_id,
         is_active: formData.is_active,
       };
@@ -186,9 +192,11 @@ export default function UserManagement() {
       email: '',
       password: '',
       role: 'clerk',
+      capabilities: undefined,
       yard_id: null,
       is_active: true,
     });
+    setShowCapabilityMatrix(false);
   };
 
   const openEditModal = (user: User) => {
@@ -199,6 +207,7 @@ export default function UserManagement() {
       email: user.email,
       password: '',
       role: user.role,
+      capabilities: user.capabilities,
       yard_id: user.yard_id,
       is_active: user.is_active,
     });
@@ -720,11 +729,18 @@ export default function UserManagement() {
                   }}
                 />
               </FormField>
-              <FormField label="Role" required>
+              <FormField label="Role">
                 <select
                   value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as User['role'] })}
-                  required
+                  onChange={(e) => {
+                    const newRole = e.target.value as User['role'];
+                    setFormData({ 
+                      ...formData, 
+                      role: newRole,
+                      // Auto-populate capabilities from role if not manually set
+                      capabilities: showCapabilityMatrix ? formData.capabilities : undefined,
+                    });
+                  }}
                   style={{
                     width: '100%',
                     padding: spacing.md,
@@ -739,7 +755,39 @@ export default function UserManagement() {
                     </option>
                   ))}
                 </select>
+                <p style={{ ...typography.caption, color: colors.neutral[600], marginTop: spacing.xs }}>
+                  Role sets default capabilities. Use capability matrix below for custom permissions.
+                </p>
               </FormField>
+              
+              {/* Capability Matrix */}
+              <div style={{ marginTop: spacing.md }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+                  <label style={{ ...typography.label }}>Capability Matrix</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowCapabilityMatrix(!showCapabilityMatrix)}
+                    style={{
+                      padding: `${spacing.xs} ${spacing.sm}`,
+                      border: `1px solid ${colors.neutral[300]}`,
+                      borderRadius: borderRadius.sm,
+                      backgroundColor: showCapabilityMatrix ? colors.primary : 'white',
+                      color: showCapabilityMatrix ? 'white' : colors.neutral[700],
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                    }}
+                  >
+                    {showCapabilityMatrix ? 'Hide' : 'Show'} Custom Permissions
+                  </button>
+                </div>
+                {showCapabilityMatrix && (
+                  <CapabilityMatrixEditor
+                    capabilities={formData.capabilities}
+                    onChange={(capabilities) => setFormData({ ...formData, capabilities })}
+                  />
+                )}
+              </div>
+              
               <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                 <input
                   type="checkbox"
@@ -828,11 +876,18 @@ export default function UserManagement() {
                   }}
                 />
               </FormField>
-              <FormField label="Role" required>
+              <FormField label="Role">
                 <select
                   value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as User['role'] })}
-                  required
+                  onChange={(e) => {
+                    const newRole = e.target.value as User['role'];
+                    setFormData({ 
+                      ...formData, 
+                      role: newRole,
+                      // Auto-populate capabilities from role if not manually set
+                      capabilities: showCapabilityMatrix ? formData.capabilities : undefined,
+                    });
+                  }}
                   style={{
                     width: '100%',
                     padding: spacing.md,
@@ -847,7 +902,39 @@ export default function UserManagement() {
                     </option>
                   ))}
                 </select>
+                <p style={{ ...typography.caption, color: colors.neutral[600], marginTop: spacing.xs }}>
+                  Role sets default capabilities. Use capability matrix below for custom permissions.
+                </p>
               </FormField>
+              
+              {/* Capability Matrix */}
+              <div style={{ marginTop: spacing.md }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+                  <label style={{ ...typography.label }}>Capability Matrix</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowCapabilityMatrix(!showCapabilityMatrix)}
+                    style={{
+                      padding: `${spacing.xs} ${spacing.sm}`,
+                      border: `1px solid ${colors.neutral[300]}`,
+                      borderRadius: borderRadius.sm,
+                      backgroundColor: showCapabilityMatrix ? colors.primary : 'white',
+                      color: showCapabilityMatrix ? 'white' : colors.neutral[700],
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                    }}
+                  >
+                    {showCapabilityMatrix ? 'Hide' : 'Show'} Custom Permissions
+                  </button>
+                </div>
+                {showCapabilityMatrix && (
+                  <CapabilityMatrixEditor
+                    capabilities={formData.capabilities}
+                    onChange={(capabilities) => setFormData({ ...formData, capabilities })}
+                  />
+                )}
+              </div>
+              
               <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                 <input
                   type="checkbox"
@@ -980,6 +1067,126 @@ export default function UserManagement() {
             </form>
           </Modal>
         )}
+      </div>
+    </div>
+  );
+}
+
+// Capability Matrix Editor Component
+function CapabilityMatrixEditor({
+  capabilities,
+  onChange,
+}: {
+  capabilities?: UserCapabilities;
+  onChange: (capabilities: UserCapabilities) => void;
+}) {
+  const modules: CapabilityModule[] = ['gate_pass', 'inspection', 'expense', 'user_management', 'reports'];
+  const actions: CapabilityAction[] = ['create', 'read', 'update', 'delete', 'approve', 'validate', 'review', 'reassign', 'export'];
+  
+  const moduleLabels: Record<CapabilityModule, string> = {
+    gate_pass: 'Gate Pass',
+    inspection: 'Inspection',
+    expense: 'Expense',
+    user_management: 'User Management',
+    reports: 'Reports',
+  };
+  
+  const actionLabels: Record<CapabilityAction, string> = {
+    create: 'Create',
+    read: 'Read',
+    update: 'Update',
+    delete: 'Delete',
+    approve: 'Approve',
+    validate: 'Validate',
+    review: 'Review',
+    reassign: 'Reassign',
+    export: 'Export',
+  };
+
+  const toggleCapability = (module: CapabilityModule, action: CapabilityAction) => {
+    const current = capabilities?.[module] || [];
+    const newCapabilities = { ...capabilities };
+    
+    if (current.includes(action)) {
+      newCapabilities[module] = current.filter(a => a !== action);
+    } else {
+      newCapabilities[module] = [...current, action];
+    }
+    
+    // Remove empty arrays
+    if (newCapabilities[module]?.length === 0) {
+      delete newCapabilities[module];
+    }
+    
+    onChange(newCapabilities);
+  };
+
+  const hasCapability = (module: CapabilityModule, action: CapabilityAction): boolean => {
+    return capabilities?.[module]?.includes(action) ?? false;
+  };
+
+  return (
+    <div style={{
+      padding: spacing.md,
+      backgroundColor: colors.neutral[50],
+      borderRadius: borderRadius.md,
+      border: `1px solid ${colors.neutral[200]}`,
+      maxHeight: '400px',
+      overflowY: 'auto',
+    }}>
+      <div style={{ ...typography.caption, color: colors.neutral[600], marginBottom: spacing.md }}>
+        Select capabilities for each module. Capabilities override role-based permissions.
+      </div>
+      <div style={{ display: 'grid', gap: spacing.md }}>
+        {modules.map((module) => (
+          <div key={module} style={{
+            padding: spacing.sm,
+            backgroundColor: 'white',
+            borderRadius: borderRadius.sm,
+            border: `1px solid ${colors.neutral[200]}`,
+          }}>
+            <div style={{ ...typography.label, marginBottom: spacing.xs, fontSize: '13px' }}>
+              {moduleLabels[module]}
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.xs }}>
+              {actions.map((action) => {
+                // Filter actions by module relevance
+                if (module === 'gate_pass' && !['create', 'read', 'update', 'delete', 'approve', 'validate'].includes(action)) return null;
+                if (module === 'inspection' && !['create', 'read', 'update', 'delete', 'approve', 'review'].includes(action)) return null;
+                if (module === 'expense' && !['create', 'read', 'update', 'delete', 'approve', 'reassign'].includes(action)) return null;
+                if (module === 'user_management' && !['create', 'read', 'update', 'delete'].includes(action)) return null;
+                if (module === 'reports' && !['read', 'export'].includes(action)) return null;
+                
+                const checked = hasCapability(module, action);
+                return (
+                  <label
+                    key={action}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: spacing.xs,
+                      padding: `${spacing.xs} ${spacing.sm}`,
+                      backgroundColor: checked ? colors.primary + '20' : 'transparent',
+                      border: `1px solid ${checked ? colors.primary : colors.neutral[300]}`,
+                      borderRadius: borderRadius.sm,
+                      cursor: 'pointer',
+                      fontSize: '11px',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleCapability(module, action)}
+                      style={{ width: '14px', height: '14px', cursor: 'pointer' }}
+                    />
+                    {actionLabels[action]}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

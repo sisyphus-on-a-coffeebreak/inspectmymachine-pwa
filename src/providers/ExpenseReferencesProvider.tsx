@@ -168,11 +168,37 @@ export const ExpenseReferencesProvider: React.FC<React.PropsWithChildren> = ({ c
         hasFetchedRef.current.add(key);
         if (typeof window !== 'undefined') {
           localStorage.setItem(CACHE_KEYS[key], JSON.stringify(nextState));
+          // Also save as fallback for offline/error scenarios
+          localStorage.setItem(`expense:${key}:fallback`, JSON.stringify(data));
         }
       } catch (err) {
         const message = errorMessage(err);
         const is404 = axios.isAxiosError(err) && err.response?.status === 404;
         const is401 = axios.isAxiosError(err) && err.response?.status === 401;
+        const is500 = axios.isAxiosError(err) && err.response?.status === 500;
+        
+        // Try JSON fallback for 404/500 errors
+        if ((is404 || is500) && typeof window !== 'undefined') {
+          try {
+            const fallbackKey = `expense:${key}:fallback`;
+            const fallbackData = localStorage.getItem(fallbackKey);
+            if (fallbackData) {
+              const parsed = JSON.parse(fallbackData);
+              if (Array.isArray(parsed)) {
+                setState({
+                  data: parsed as T[],
+                  status: 'success',
+                  error: null,
+                  lastFetched: Date.now(),
+                });
+                hasFetchedRef.current.add(key);
+                return;
+              }
+            }
+          } catch (fallbackError) {
+            // Ignore fallback errors
+          }
+        }
         
         // Silently handle 401 (not authenticated) and 404 (endpoints don't exist yet)
         if (is401 || is404) {

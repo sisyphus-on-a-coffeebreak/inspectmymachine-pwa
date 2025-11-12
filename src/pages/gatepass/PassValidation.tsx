@@ -5,6 +5,7 @@ import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import QRScanner from '../../components/ui/QRScanner';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { useToast } from '../../providers/ToastProvider';
 
 // 🛡️ Pass Validation System
 // For guards to validate and process gate pass entries/exits
@@ -38,6 +39,7 @@ interface ValidationResult {
 
 export const PassValidation: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [currentPass, setCurrentPass] = useState<PassValidationData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -123,7 +125,11 @@ export const PassValidation: React.FC = () => {
 
   const handleManualValidation = () => {
     if (!manualPassNumber.trim()) {
-      alert('Please enter a pass number');
+      showToast({
+        title: 'Validation Error',
+        description: 'Please enter a pass number',
+        variant: 'error',
+      });
       return;
     }
     validatePass(manualPassNumber.trim());
@@ -410,7 +416,11 @@ export const PassValidation: React.FC = () => {
             onScan={handleQRScan}
             onError={(error) => {
               console.error('QR Scan error:', error);
-              alert('Failed to scan QR code. Please try again.');
+              showToast({
+                title: 'Scan Error',
+                description: 'Failed to scan QR code. Please try again.',
+                variant: 'error',
+              });
             }}
             onClose={() => setShowQRScanner(false)}
             autoStart

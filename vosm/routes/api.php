@@ -7,6 +7,9 @@ use App\Http\Controllers\InspectionController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\InspectionDashboardController;
 use App\Http\Controllers\InspectionReportController;
+use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\AssetController;
+use App\Http\Controllers\ExpenseTemplateController;
 use App\Http\Controllers\Api\GatePassApprovalController;
 use App\Http\Controllers\Api\ExpenseApprovalController;
 use App\Http\Controllers\Api\VisitorGatePassController;
@@ -45,6 +48,32 @@ Route::prefix('v1')->middleware(['web', 'auth:sanctum'])->group(function () {
     Route::apiResource('vehicles', VehicleController::class);
     Route::get('vehicles/search', [VehicleController::class, 'search']);
     
+    // Projects (for expense linking)
+    Route::get('projects', [ProjectController::class, 'index']);
+    Route::get('projects/{id}', [ProjectController::class, 'show']);
+    
+    // Assets (for expense linking - vehicles/equipment)
+    Route::get('assets', [AssetController::class, 'index']);
+    Route::get('assets/{id}', [AssetController::class, 'show']);
+    
+    // Expense Templates
+    Route::get('expense-templates', [ExpenseTemplateController::class, 'index']);
+    Route::get('expense-templates/{id}', [ExpenseTemplateController::class, 'show']);
+    
+    // Expenses (CRUD + special endpoints)
+    Route::apiResource('expenses', \App\Http\Controllers\ExpenseController::class);
+    Route::get('expenses/{id}/audit', [\App\Http\Controllers\ExpenseController::class, 'getAudit']);
+    Route::patch('expenses/{id}/reassign', [\App\Http\Controllers\ExpenseController::class, 'reassign']);
+    Route::get('expenses/vehicle-kpis', [\App\Http\Controllers\ExpenseController::class, 'getVehicleKPIs']);
+    
+    // User Management (with capability matrix)
+    Route::get('users', [\App\Http\Controllers\UserController::class, 'index']);
+    Route::get('users/{id}', [\App\Http\Controllers\UserController::class, 'show']);
+    Route::get('users/{id}/permissions', [\App\Http\Controllers\UserController::class, 'permissions']);
+    Route::post('users', [\App\Http\Controllers\UserController::class, 'store']);
+    Route::put('users/{id}', [\App\Http\Controllers\UserController::class, 'update']);
+    Route::delete('users/{id}', [\App\Http\Controllers\UserController::class, 'destroy']);
+    
     // Dashboard
     Route::get('inspection-dashboard', [InspectionDashboardController::class, 'index']);
     
@@ -56,10 +85,20 @@ Route::prefix('v1')->middleware(['web', 'auth:sanctum'])->group(function () {
     
 });
 
+// Gate Pass Record Sync Route (unified endpoint for QR payload generation)
+Route::prefix('gate-pass-records')->middleware(['web', 'auth:sanctum'])->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\GatePassRecordController::class, 'index']);
+    Route::get('stats', [\App\Http\Controllers\Api\GatePassRecordController::class, 'stats']);
+    Route::post('sync', [\App\Http\Controllers\Api\GatePassRecordController::class, 'sync']);
+});
+
 // Gate Pass Routes (outside v1 prefix as frontend calls them directly)
 Route::prefix('visitor-gate-passes')->middleware(['web', 'auth:sanctum'])->group(function () {
     Route::get('/', [VisitorGatePassController::class, 'index']);
     Route::post('/', [VisitorGatePassController::class, 'store']);
+    Route::get('{id}', [VisitorGatePassController::class, 'show']);
+    Route::post('{id}/entry', [VisitorGatePassController::class, 'entry']);
+    Route::post('{id}/exit', [VisitorGatePassController::class, 'exit']);
 });
 
 Route::prefix('vehicle-entry-passes')->middleware(['web', 'auth:sanctum'])->group(function () {
@@ -70,6 +109,10 @@ Route::prefix('vehicle-entry-passes')->middleware(['web', 'auth:sanctum'])->grou
 Route::prefix('vehicle-exit-passes')->middleware(['web', 'auth:sanctum'])->group(function () {
     Route::get('/', [VehicleExitPassController::class, 'index']);
     Route::post('/', [VehicleExitPassController::class, 'store']);
+    Route::get('{id}', [VehicleExitPassController::class, 'show']);
+    Route::put('{id}', [VehicleExitPassController::class, 'update']);
+    Route::post('{id}/entry', [VehicleExitPassController::class, 'entry']);
+    Route::post('{id}/exit', [VehicleExitPassController::class, 'exit']);
 });
 
 // Gate Pass Approval Routes (outside v1 prefix)
@@ -90,5 +133,13 @@ Route::prefix('expense-approval')->middleware(['web', 'auth:sanctum'])->group(fu
     Route::post('reject/{expenseId}', [ExpenseApprovalController::class, 'reject']);
     Route::post('bulk-approve', [ExpenseApprovalController::class, 'bulkApprove']);
     Route::post('bulk-reject', [ExpenseApprovalController::class, 'bulkReject']);
+});
+
+// Gate Pass Validation Routes (for guards to validate QR codes)
+Route::prefix('gate-pass-validation')->middleware(['web', 'auth:sanctum'])->group(function () {
+    Route::post('validate', [\App\Http\Controllers\Api\GatePassValidationController::class, 'validate']);
+    Route::get('verify', [\App\Http\Controllers\Api\GatePassValidationController::class, 'verify']);
+    Route::post('entry', [\App\Http\Controllers\Api\GatePassValidationController::class, 'entry']);
+    Route::post('exit', [\App\Http\Controllers\Api\GatePassValidationController::class, 'exit']);
 });
 

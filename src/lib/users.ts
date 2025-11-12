@@ -1,12 +1,24 @@
 import axios from 'axios';
 import { postWithCsrf, putWithCsrf } from './csrf';
 
+export type CapabilityAction = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'validate' | 'review' | 'reassign' | 'export';
+export type CapabilityModule = 'gate_pass' | 'inspection' | 'expense' | 'user_management' | 'reports';
+
+export interface UserCapabilities {
+  gate_pass?: CapabilityAction[];
+  inspection?: CapabilityAction[];
+  expense?: CapabilityAction[];
+  user_management?: CapabilityAction[];
+  reports?: CapabilityAction[];
+}
+
 export interface User {
   id: number;
   employee_id: string;
   name: string;
   email: string;
   role: 'super_admin' | 'admin' | 'inspector' | 'supervisor' | 'guard' | 'clerk';
+  capabilities?: UserCapabilities; // Capability matrix (module-level + CRUD flags)
   yard_id: string | null;
   is_active: boolean;
   last_login_at: string | null;
@@ -19,7 +31,8 @@ export interface CreateUserPayload {
   name: string;
   email: string;
   password: string;
-  role: User['role'];
+  role?: User['role']; // Optional - can use capabilities instead
+  capabilities?: UserCapabilities; // Capability matrix
   yard_id?: string | null;
   is_active?: boolean;
 }
@@ -28,7 +41,8 @@ export interface UpdateUserPayload {
   name?: string;
   email?: string;
   password?: string;
-  role?: User['role'];
+  role?: User['role']; // Optional - can use capabilities instead
+  capabilities?: UserCapabilities; // Capability matrix
   yard_id?: string | null;
   is_active?: boolean;
 }
@@ -178,5 +192,94 @@ export function getAvailableRoles(): Array<{ value: User['role']; label: string;
     { value: 'guard', label: 'Guard', description: 'Can validate gate passes' },
     { value: 'clerk', label: 'Clerk', description: 'Basic operations' },
   ];
+}
+
+/**
+ * Get user permissions
+ * GET /v1/users/{id}/permissions
+ */
+export async function getUserPermissions(id: number): Promise<{ user_id: number; role: string; capabilities: UserCapabilities }> {
+  try {
+    const response = await axios.get<{ user_id: number; role: string; capabilities: UserCapabilities }>(`/v1/users/${id}/permissions`, {
+      withCredentials: true,
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      throw new Error(error.response?.data?.message || 'Failed to fetch user permissions');
+    }
+    throw error;
+  }
+}
+
+/**
+ * Check if user has capability
+ */
+export function hasCapability(user: User | null, module: CapabilityModule, action: CapabilityAction): boolean {
+  if (!user) return false;
+  
+  // Super admin has all capabilities
+  if (user.role === 'super_admin') return true;
+  
+  // Check capability matrix
+  if (user.capabilities && user.capabilities[module]) {
+    return user.capabilities[module]!.includes(action);
+  }
+  
+  // Fallback to role-based check (backward compatibility)
+  return hasRoleCapability(user.role, module, action);
+}
+
+/**
+ * Check if role has capability (backward compatibility)
+ */
+function hasRoleCapability(role: User['role'], module: CapabilityModule, action: CapabilityAction): boolean {
+  const roleCapabilities: Record<User['role'], UserCapabilities> = {
+    super_admin: {
+      gate_pass: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
+      inspection: ['create', 'read', 'update', 'delete', 'approve', 'review'],
+      expense: ['create', 'read', 'update', 'delete', 'approve', 'reassign'],
+      user_management: ['create', 'read', 'update', 'delete'],
+      reports: ['read', 'export'],
+    },
+    admin: {
+      gate_pass: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
+      inspection: ['create', 'read', 'update', 'delete', 'approve', 'review'],
+      expense: ['create', 'read', 'update', 'delete', 'approve', 'reassign'],
+      user_management: ['read', 'update'],
+      reports: ['read', 'export'],
+    },
+    supervisor: {
+      gate_pass: ['read', 'approve', 'validate'],
+      inspection: ['read', 'approve', 'review'],
+      expense: ['read', 'approve'],
+      user_management: [],
+      reports: ['read'],
+    },
+    inspector: {
+      gate_pass: ['read'],
+      inspection: ['create', 'read', 'update'],
+      expense: ['create', 'read'],
+      user_management: [],
+      reports: [],
+    },
+    guard: {
+      gate_pass: ['read', 'validate'],
+      inspection: ['read'],
+      expense: ['read'],
+      user_management: [],
+      reports: [],
+    },
+    clerk: {
+      gate_pass: ['create', 'read'],
+      inspection: ['read'],
+      expense: ['create', 'read'],
+      user_management: [],
+      reports: [],
+    },
+  };
+  
+  const capabilities = roleCapabilities[role];
+  return capabilities[module]?.includes(action) ?? false;
 }
 

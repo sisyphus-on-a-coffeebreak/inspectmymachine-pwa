@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios, { AxiosError } from 'axios';
+import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -41,6 +42,19 @@ const EXPENSE_CATEGORIES = [
   'PARTS_REPAIR', 'RTO_COMPLIANCE', 'DRIVER_PAYMENT', 'RECHARGE', 'CONSUMABLES_MISC',
   'VENDOR_AGENT_FEE', 'MISC'
 ];
+
+// Fleet-related categories that require asset_id (vehicle linkage)
+const FLEET_RELATED_CATEGORIES = [
+  'FUEL',
+  'PARTS_REPAIR',
+  'RTO_COMPLIANCE',
+  'DRIVER_PAYMENT',
+  'TOLLS_PARKING', // Vehicle tolls/parking
+] as const;
+
+const isFleetRelatedCategory = (category: string): boolean => {
+  return FLEET_RELATED_CATEGORIES.includes(category as typeof FLEET_RELATED_CATEGORIES[number]);
+};
 
 const PAYMENT_METHODS = [
   { value: 'CASH', label: 'Cash' },
@@ -182,11 +196,18 @@ export const CreateExpense: React.FC = () => {
       errors.time = 'Time is required';
     }
 
+    // Enforce vehicle linkage for fleet-related categories
+    if (isFleetRelatedCategory(formData.category) && !formData.asset_id) {
+      errors.asset_id = `Vehicle linkage is required for ${getCategoryLabel(formData.category)} expenses. Please select a vehicle/asset.`;
+    }
+
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
       showToast({
         title: 'Missing information',
-        description: 'Please review the highlighted fields before submitting.',
+        description: isFleetRelatedCategory(formData.category) && !formData.asset_id
+          ? `Vehicle linkage is required for ${getCategoryLabel(formData.category)} expenses.`
+          : 'Please review the highlighted fields before submitting.',
         variant: 'error',
       });
       return;
@@ -225,7 +246,7 @@ export const CreateExpense: React.FC = () => {
     };
 
     try {
-      await axios.post('/v1/expenses', submitData);
+      await apiClient.post('/v1/expenses', submitData);
       showToast({
         title: 'Expense submitted',
         description: 'Your expense has been sent for review.',
@@ -500,7 +521,20 @@ export const CreateExpense: React.FC = () => {
               <Label>Category *</Label>
               <select
                 value={formData.category}
-                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                onChange={(e) => {
+                  const newCategory = e.target.value;
+                  setFormData(prev => {
+                    // Clear asset_id if switching from fleet-related to non-fleet category
+                    const shouldClearAsset = isFleetRelatedCategory(prev.category) && !isFleetRelatedCategory(newCategory);
+                    return { 
+                      ...prev, 
+                      category: newCategory,
+                      asset_id: shouldClearAsset ? undefined : prev.asset_id,
+                    };
+                  });
+                  clearFieldError('category');
+                  clearFieldError('asset_id');
+                }}
                 style={{
                   width: '100%',
                   padding: spacing.sm,
@@ -688,7 +722,14 @@ export const CreateExpense: React.FC = () => {
             </div>
 
             <div>
-              <Label>Asset (Optional)</Label>
+              <Label>
+                Asset {isFleetRelatedCategory(formData.category) ? '*' : '(Optional)'}
+                {isFleetRelatedCategory(formData.category) && (
+                  <span style={{ color: colors.warning, fontSize: '12px', marginLeft: spacing.xs }}>
+                    Required for {getCategoryLabel(formData.category)}
+                  </span>
+                )}
+              </Label>
               <select
                 value={formData.asset_id || ''}
                 onChange={(e) => {
@@ -697,10 +738,13 @@ export const CreateExpense: React.FC = () => {
                   clearFieldError('asset_id');
                   clearFieldError('asset');
                 }}
+                required={isFleetRelatedCategory(formData.category)}
                 style={{
                   width: '100%',
                   padding: spacing.sm,
-                  border: '1px solid #D1D5DB',
+                  border: `1px solid ${isFleetRelatedCategory(formData.category) && !formData.asset_id 
+                    ? colors.error[500] 
+                    : '#D1D5DB'}`,
                   borderRadius: '8px',
                   fontSize: '14px',
                   marginTop: spacing.xs

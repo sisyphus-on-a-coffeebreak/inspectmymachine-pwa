@@ -114,6 +114,42 @@ class VisitorGatePassController extends Controller
     }
 
     /**
+     * Get a single visitor gate pass
+     * GET /api/visitor-gate-passes/{id}
+     */
+    public function show(string $id): JsonResponse
+    {
+        try {
+            $pass = DB::table('visitor_gate_passes')->where('id', $id)->first();
+
+            if (!$pass) {
+                return response()->json(['error' => 'Gate pass not found'], 404);
+            }
+
+            return response()->json([
+                'id' => $pass->id,
+                'pass_number' => 'VP' . strtoupper(substr($pass->id, 0, 8)),
+                'visitor_name' => $pass->visitor_name,
+                'visitor_phone' => $pass->visitor_phone,
+                'visitor_company' => $pass->visitor_company,
+                'purpose' => $pass->purpose,
+                'valid_from' => $pass->valid_from,
+                'valid_to' => $pass->valid_to,
+                'status' => $pass->status,
+                'access_code' => $pass->access_code,
+                'qr_payload' => $pass->qr_payload,
+                'entry_time' => $pass->entry_time ?? null,
+                'exit_time' => $pass->exit_time ?? null,
+                'created_at' => $pass->created_at,
+                'updated_at' => $pass->updated_at,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching visitor gate pass: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch visitor gate pass'], 500);
+        }
+    }
+
+    /**
      * List visitor gate passes
      * GET /api/visitor-gate-passes
      */
@@ -163,6 +199,78 @@ class VisitorGatePassController extends Controller
                 'message' => 'Failed to fetch visitor gate passes',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Mark entry for a visitor gate pass
+     * POST /api/visitor-gate-passes/{id}/entry
+     */
+    public function entry(Request $request, string $id): JsonResponse
+    {
+        try {
+            $pass = DB::table('visitor_gate_passes')->where('id', $id)->first();
+
+            if (!$pass) {
+                return response()->json(['error' => 'Gate pass not found'], 404);
+            }
+
+            DB::table('visitor_gate_passes')
+                ->where('id', $id)
+                ->update([
+                    'status' => 'active',
+                    'entry_time' => now(),
+                    'updated_at' => now(),
+                ]);
+
+            Log::info('Visitor gate pass entry marked', [
+                'pass_id' => $id,
+                'marked_by' => $request->user()->id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Entry marked successfully',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to mark entry: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to mark entry'], 500);
+        }
+    }
+
+    /**
+     * Mark exit for a visitor gate pass
+     * POST /api/visitor-gate-passes/{id}/exit
+     */
+    public function exit(Request $request, string $id): JsonResponse
+    {
+        try {
+            $pass = DB::table('visitor_gate_passes')->where('id', $id)->first();
+
+            if (!$pass) {
+                return response()->json(['error' => 'Gate pass not found'], 404);
+            }
+
+            DB::table('visitor_gate_passes')
+                ->where('id', $id)
+                ->update([
+                    'status' => 'completed',
+                    'exit_time' => now(),
+                    'updated_at' => now(),
+                ]);
+
+            Log::info('Visitor gate pass exit marked', [
+                'pass_id' => $id,
+                'marked_by' => $request->user()->id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Exit marked successfully',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to mark exit: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to mark exit'], 500);
         }
     }
 }

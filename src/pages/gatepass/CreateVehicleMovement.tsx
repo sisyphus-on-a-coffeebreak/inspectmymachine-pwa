@@ -4,6 +4,8 @@ import axios from 'axios';
 import { VehicleSelector } from './components//VehicleSelector';
 import { PhotoUpload } from './components/PhotoUpload';
 import { useAuth } from '../../providers/useAuth';
+import { useToast } from '../../providers/ToastProvider';
+import { useConfirm } from '../../components/ui/Modal';
 import type { VehicleMovementFormData } from './gatePassTypes';
 import { validateMobileNumber, formatMobileNumber } from '../../lib/validation';
 
@@ -13,6 +15,8 @@ import { validateMobileNumber, formatMobileNumber } from '../../lib/validation';
 export const CreateVehicleMovement: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
+  const { confirm, ConfirmComponent } = useConfirm();
   const [loading, setLoading] = useState(false);
   const [mobileError, setMobileError] = useState<string>('');
   const [yards, setYards] = useState<Array<{id: string, name: string}>>([]);
@@ -74,7 +78,11 @@ export const CreateVehicleMovement: React.FC = () => {
   // Create custom yard
   const createCustomYard = async () => {
     if (!customYard.name.trim() || !customYard.city.trim() || !customYard.state.trim()) {
-      alert('Please fill in all custom yard details');
+      showToast({
+        title: 'Validation Error',
+        description: 'Please fill in all custom yard details',
+        variant: 'error',
+      });
       return;
     }
 
@@ -93,10 +101,18 @@ export const CreateVehicleMovement: React.FC = () => {
       setCustomYard({ name: '', city: '', state: '' });
       setShowCustomYard(false);
       
-      alert(`Custom yard "${newYard.name}" created successfully!`);
+      showToast({
+        title: 'Success',
+        description: `Custom yard "${newYard.name}" created successfully!`,
+        variant: 'success',
+      });
     } catch (error) {
       console.error('Failed to create custom yard:', error);
-      alert('Failed to create custom yard. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to create custom yard. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setCreatingYard(false);
     }
@@ -107,7 +123,11 @@ export const CreateVehicleMovement: React.FC = () => {
 
     // Check authentication
     if (!user) {
-      alert('Please log in to create a vehicle movement pass');
+      showToast({
+        title: 'Authentication Required',
+        description: 'Please log in to create a vehicle movement pass',
+        variant: 'error',
+      });
       navigate('/login');
       return;
     }
@@ -116,56 +136,96 @@ export const CreateVehicleMovement: React.FC = () => {
 
     // Validation
     if (!formData.yard_id) {
-      alert('Please select a yard');
+      showToast({
+        title: 'Validation Error',
+        description: 'Please select a yard',
+        variant: 'error',
+      });
       return;
     }
 
     if (formData.direction === 'outbound') {
       if (!formData.vehicle_id) {
-        alert('Please select a vehicle');
+        showToast({
+          title: 'Validation Error',
+          description: 'Please select a vehicle',
+          variant: 'error',
+        });
         return;
       }
     } else {
       // Inbound validation
       if (formData.vehicle_selection_type === 'existing' && !formData.vehicle_id) {
-        alert('Please select a vehicle currently out');
+        showToast({
+          title: 'Validation Error',
+          description: 'Please select a vehicle currently out',
+          variant: 'error',
+        });
         return;
       }
       if (formData.vehicle_selection_type === 'manual' && !formData.manual_vehicle?.registration_number) {
-        alert('Please enter vehicle registration number');
+        showToast({
+          title: 'Validation Error',
+          description: 'Please enter vehicle registration number',
+          variant: 'error',
+        });
         return;
       }
     }
 
     // Common validation for both inbound and outbound
     if (!formData.driver_name.trim()) {
-      alert('Please enter driver name');
+      showToast({
+        title: 'Validation Error',
+        description: 'Please enter driver name',
+        variant: 'error',
+      });
       return;
     }
     if (!formData.driver_contact.trim()) {
-      alert('Please enter driver contact number');
+      showToast({
+        title: 'Validation Error',
+        description: 'Please enter driver contact number',
+        variant: 'error',
+      });
       return;
     }
 
     // Validate mobile number
     const mobileValidation = validateMobileNumber(formData.driver_contact);
     if (!mobileValidation.isValid) {
-      alert(mobileValidation.error || 'Please enter a valid mobile number');
+      showToast({
+        title: 'Validation Error',
+        description: mobileValidation.error || 'Please enter a valid mobile number',
+        variant: 'error',
+      });
       return;
     }
 
     if (formData.direction === 'outbound') {
       if (!formData.driver_license_photo) {
-        alert('Please upload driver license photo');
+        showToast({
+          title: 'Validation Error',
+          description: 'Please upload driver license photo',
+          variant: 'error',
+        });
         return;
       }
       if (formData.exit_photos.length === 0) {
-        alert('Please upload vehicle condition photos');
+        showToast({
+          title: 'Validation Error',
+          description: 'Please upload vehicle condition photos',
+          variant: 'error',
+        });
         return;
       }
       // Only require expected return date for non-sold vehicles
       if (formData.purpose !== 'sold' && !formData.expected_return_date) {
-        alert('Please enter expected return date');
+        showToast({
+          title: 'Validation Error',
+          description: 'Please enter expected return date',
+          variant: 'error',
+        });
         return;
       }
     }
@@ -183,7 +243,11 @@ export const CreateVehicleMovement: React.FC = () => {
         console.log('CSRF token obtained');
       } catch (csrfError) {
         console.error('CSRF token failed:', csrfError);
-        alert('Authentication issue. Please refresh the page and try again.');
+        showToast({
+          title: 'Authentication Error',
+          description: 'Authentication issue. Please refresh the page and try again.',
+          variant: 'error',
+        });
         return;
       }
 
@@ -206,7 +270,11 @@ export const CreateVehicleMovement: React.FC = () => {
       
       if (!csrfToken) {
         console.error('No CSRF token found in cookies');
-        alert('CSRF token not found. Please refresh the page and try again.');
+        showToast({
+          title: 'Authentication Error',
+          description: 'CSRF token not found. Please refresh the page and try again.',
+          variant: 'error',
+        });
         return;
       }
 
@@ -300,7 +368,12 @@ export const CreateVehicleMovement: React.FC = () => {
       });
 
       const passNumber = response.data.pass?.pass_number || response.data.pass_number || 'N/A';
-      alert(`Vehicle Movement Pass #${passNumber} created successfully!`);
+      showToast({
+        title: 'Success',
+        description: `Vehicle Movement Pass #${passNumber} created successfully!`,
+        variant: 'success',
+        duration: 5000,
+      });
       navigate('/dashboard');
 
     } catch (error) {
@@ -309,11 +382,19 @@ export const CreateVehicleMovement: React.FC = () => {
       // Handle specific error types
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 419) {
-          alert('Session expired. Please log in again.');
+          showToast({
+            title: 'Session Expired',
+            description: 'Session expired. Please log in again.',
+            variant: 'error',
+          });
           navigate('/login');
           return;
         } else if (error.response?.status === 401) {
-          alert('Please log in to create a vehicle movement pass.');
+          showToast({
+            title: 'Authentication Required',
+            description: 'Please log in to create a vehicle movement pass.',
+            variant: 'error',
+          });
           navigate('/login');
           return;
         } else if (error.response?.status === 422) {
@@ -321,12 +402,24 @@ export const CreateVehicleMovement: React.FC = () => {
           console.error('Validation errors:', error.response.data);
           const validationErrors = error.response.data?.errors || error.response.data?.message;
           console.error('Laravel validation errors:', validationErrors);
-          alert(`Validation error: ${JSON.stringify(validationErrors)}`);
+          const errorMessage = typeof validationErrors === 'string' 
+            ? validationErrors 
+            : JSON.stringify(validationErrors);
+          showToast({
+            title: 'Validation Error',
+            description: errorMessage,
+            variant: 'error',
+            duration: 7000,
+          });
           return;
         }
       }
       
-      alert('Failed to create movement pass. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to create movement pass. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -371,12 +464,14 @@ export const CreateVehicleMovement: React.FC = () => {
   };
 
   return (
-    <div style={{ 
-      maxWidth: '600px', 
-      margin: '0 auto', 
-      padding: '1rem',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    }}>
+    <>
+      {ConfirmComponent}
+      <div style={{ 
+        maxWidth: '600px', 
+        margin: '0 auto', 
+        padding: '1rem',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      }}>
       {/* Header */}
       <div style={{ 
         display: 'flex', 
@@ -1236,6 +1331,7 @@ export const CreateVehicleMovement: React.FC = () => {
           {loading ? 'Creating Pass...' : 'Create Movement Pass'}
         </button>
       </form>
-    </div>
+      </div>
+    </>
   );
 };

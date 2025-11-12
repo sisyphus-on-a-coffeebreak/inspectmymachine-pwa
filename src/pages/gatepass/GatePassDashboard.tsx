@@ -10,6 +10,8 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { postWithCsrf, putWithCsrf } from '../../lib/csrf';
+import { useToast } from '../../providers/ToastProvider';
+import { useConfirm } from '../../components/ui/Modal';
 
 // 🚪 Gate Pass Dashboard
 // Main screen for office staff to manage all gate passes
@@ -17,6 +19,8 @@ import { postWithCsrf, putWithCsrf } from '../../lib/csrf';
 
 export const GatePassDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const { confirm, ConfirmComponent } = useConfirm();
   const [visitorPasses, setVisitorPasses] = useState<VisitorGatePass[]>([]);
   const [vehicleMovements, setVehicleMovements] = useState<VehicleMovementPass[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
@@ -160,7 +164,14 @@ export const GatePassDashboard: React.FC = () => {
     }, [fetchPasses]);
 
   const handleMarkExit = async (passId: number, type: 'visitor' | 'vehicle') => {
-    if (!confirm('Mark this pass as exited?')) return;
+    const confirmed = await confirm({
+      title: 'Mark Exit',
+      message: 'Mark this pass as exited?',
+      confirmLabel: 'Mark Exit',
+      cancelLabel: 'Cancel',
+    });
+    
+    if (!confirmed) return;
 
     try {
       if (type === 'visitor') {
@@ -170,11 +181,19 @@ export const GatePassDashboard: React.FC = () => {
           status: 'completed'
         });
       }
-      alert('Exit marked successfully!');
+      showToast({
+        title: 'Success',
+        description: 'Exit marked successfully!',
+        variant: 'success',
+      });
       fetchPasses(); // Refresh data
     } catch (error) {
       console.error('Failed to mark exit:', error);
-      alert('Failed to mark exit. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to mark exit. Please try again.',
+        variant: 'error',
+      });
     }
   };
 
@@ -218,7 +237,11 @@ export const GatePassDashboard: React.FC = () => {
         : vehicleMovements.find(p => Number(p.id) === Number(passId));
 
       if (!pass) {
-        alert('Pass not found');
+        showToast({
+          title: 'Error',
+          description: 'Pass not found',
+          variant: 'error',
+        });
         return;
       }
 
@@ -275,7 +298,11 @@ export const GatePassDashboard: React.FC = () => {
 
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      alert('Failed to download PDF. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to download PDF. Please try again.',
+        variant: 'error',
+      });
     }
   };
 
@@ -287,7 +314,11 @@ export const GatePassDashboard: React.FC = () => {
         : vehicleMovements.find(p => Number(p.id) === Number(passId));
 
       if (!pass) {
-        alert('Pass not found');
+        showToast({
+          title: 'Error',
+          description: 'Pass not found',
+          variant: 'error',
+        });
         return;
       }
 
@@ -331,7 +362,11 @@ export const GatePassDashboard: React.FC = () => {
       });
     } catch (error) {
       console.error('Error sharing pass:', error);
-      alert('Failed to share pass. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to share pass. Please try again.',
+        variant: 'error',
+      });
     }
   };
 
@@ -397,9 +432,11 @@ export const GatePassDashboard: React.FC = () => {
   }
 
   return (
-    <div style={{ 
-      maxWidth: '1200px', 
-      margin: '0 auto', 
+    <>
+      {ConfirmComponent}
+      <div style={{ 
+        maxWidth: '1200px', 
+        margin: '0 auto', 
       padding: `${spacing.xl} ${spacing.lg}`,
       fontFamily: 'system-ui, -apple-system, sans-serif',
       backgroundColor: colors.neutral[50],
@@ -1421,6 +1458,7 @@ export const GatePassDashboard: React.FC = () => {
           onClose={() => setSelectedPass(null)}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 };

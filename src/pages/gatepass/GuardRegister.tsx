@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import type { VisitorGatePass, VehicleMovementPass } from './gatePassTypes';
 import { postWithCsrf } from '../../lib/csrf';
+import { useToast } from '../../providers/ToastProvider';
+import { useConfirm } from '../../components/ui/Modal';
+import { GuardDetailsModal, type GuardActionData } from '../../components/gatepass/GuardDetailsModal';
+import { gatePassService, type UnifiedGatePassRecord } from '../../lib/services/GatePassService';
 
 // 🛡️ Guard Register
 // Mobile-first interface for security guards to manage gate activities
@@ -10,10 +14,13 @@ import { postWithCsrf } from '../../lib/csrf';
 
 export const GuardRegister: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const { confirm, ConfirmComponent } = useConfirm();
   const [visitorPasses, setVisitorPasses] = useState<VisitorGatePass[]>([]);
   const [vehicleMovements, setVehicleMovements] = useState<VehicleMovementPass[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'expected' | 'inside'>('expected');
+  const [selectedRecord, setSelectedRecord] = useState<UnifiedGatePassRecord | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -59,33 +66,76 @@ export const GuardRegister: React.FC = () => {
   }, [fetchData]);
 
 
-  const handleMarkEntry = async (passId: number) => {
-    if (!confirm('Mark this visitor as entered?')) return;
-
+  const handleMarkEntry = async (passId: number, type: 'visitor' | 'vehicle') => {
     try {
-      await postWithCsrf(`/visitor-gate-passes/${passId}/entries`, {
-        entry_time: new Date().toISOString()
-      });
-      alert('Entry marked successfully!');
-      fetchData();
+      // Fetch the full record to show in Guard Details Modal
+      const record = await gatePassService.get(String(passId), type);
+      setSelectedRecord(record);
     } catch (error) {
-      console.error('Failed to mark entry:', error);
-      alert('Failed to mark entry. Please try again.');
+      console.error('Failed to fetch record:', error);
+      showToast({
+        title: 'Error',
+        description: 'Failed to load pass details. Please try again.',
+        variant: 'error',
+      });
     }
   };
 
-  const handleMarkExit = async (passId: number) => {
-    if (!confirm('Mark this visitor as exited?')) return;
+  const handleConfirmEntry = async (data: GuardActionData) => {
+    if (!selectedRecord) return;
+    
+    try {
+      await gatePassService.markEntry(selectedRecord.id, selectedRecord.type, {
+        notes: data.notes,
+        incident_log: data.incident_log,
+        escort_required: data.escort_required,
+        asset_checklist: data.asset_checklist,
+      });
+      
+      showToast({
+        title: 'Success',
+        description: 'Entry marked successfully!',
+        variant: 'success',
+      });
+      
+      setSelectedRecord(null);
+      fetchData();
+    } catch (error) {
+      console.error('Failed to mark entry:', error);
+      showToast({
+        title: 'Error',
+        description: 'Failed to mark entry. Please try again.',
+        variant: 'error',
+      });
+      throw error; // Re-throw so modal can handle it
+    }
+  };
+
+  const handleMarkExit = async (passId: number, type: 'visitor' | 'vehicle') => {
+    const confirmed = await confirm({
+      title: 'Mark Exit',
+      message: `Mark this ${type === 'visitor' ? 'visitor' : 'vehicle'} as exited?`,
+      confirmLabel: 'Mark Exit',
+      cancelLabel: 'Cancel',
+    });
+    
+    if (!confirmed) return;
 
     try {
-      await postWithCsrf(`/visitor-gate-passes/${passId}/exit`, {
-        exit_time: new Date().toISOString()
+      await gatePassService.markExit(String(passId), type);
+      showToast({
+        title: 'Success',
+        description: 'Exit marked successfully!',
+        variant: 'success',
       });
-      alert('Exit marked successfully!');
       fetchData();
     } catch (error) {
       console.error('Failed to mark exit:', error);
-      alert('Failed to mark exit. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to mark exit. Please try again.',
+        variant: 'error',
+      });
     }
   };
 
@@ -131,11 +181,23 @@ export const GuardRegister: React.FC = () => {
   }
 
   return (
-    <div style={{ 
-      maxWidth: '600px', 
-      margin: '0 auto', 
-      padding: '1rem',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    <>
+      {ConfirmComponent}
+      {selectedRecord && (
+        <GuardDetailsModal
+          record={selectedRecord}
+          onConfirm={handleConfirmEntry}
+          onCancel={() => setSelectedRecord(null)}
+          onClose={() => setSelectedRecord(null)}
+          showSlaTimer={true}
+          slaSeconds={300}
+        />
+      )}
+      <div style={{ 
+        maxWidth: '600px', 
+        margin: '0 auto', 
+        padding: '1rem',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       paddingBottom: '5rem' // Space for bottom nav
     }}>
       {/* Header */}
@@ -327,7 +389,7 @@ export const GuardRegister: React.FC = () => {
                   </div>
 
                   <button
-                    onClick={() => handleMarkEntry(pass.id!)}
+                    onClick={() => handleMarkEntry(pass.id!, 'visitor')}
                     style={{
                       width: '100%',
                       padding: '0.75rem',
@@ -439,7 +501,7 @@ export const GuardRegister: React.FC = () => {
                         👁️ Details
                       </button>
                       <button
-                        onClick={() => handleMarkExit(pass.id!)}
+                        onClick={() => handleMarkExit(pass.id!, 'visitor')}
                         style={{
                           flex: 1,
                           padding: '0.75rem',
@@ -634,6 +696,7 @@ export const GuardRegister: React.FC = () => {
       >
         📋 View Full Dashboard
       </button>
-    </div>
+      </div>
+    </>
   );
 };

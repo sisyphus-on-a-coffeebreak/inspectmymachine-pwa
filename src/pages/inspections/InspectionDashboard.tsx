@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/button';
 import { StatsGrid, ActionGrid } from '../../components/ui/ResponsiveGrid';
 import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { useAuth } from '../../providers/useAuth';
 
 interface DashboardStats {
   total_today: number;
@@ -35,6 +36,7 @@ interface RecentInspection {
 
 export const InspectionDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentInspections, setRecentInspections] = useState<RecentInspection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -271,6 +273,15 @@ export const InspectionDashboard: React.FC = () => {
           >
             Back
           </Button>
+          {(user?.role === 'super_admin' || user?.role === 'admin') && (
+            <Button
+              variant="secondary"
+              onClick={() => navigate('/app/inspections/studio')}
+              icon="🎨"
+            >
+              Studio
+            </Button>
+          )}
           <Button
             variant="primary"
             onClick={() => navigate('/app/inspections/new')}
@@ -486,40 +497,42 @@ export const InspectionDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div
-            onClick={() => navigate('/app/inspections/templates')}
-            style={{
-              backgroundColor: 'white',
-              padding: spacing.lg,
-              cursor: 'pointer',
-              minHeight: '100px',
-              display: 'flex',
-              flexDirection: 'column' as const,
-              justifyContent: 'center',
-              alignItems: 'center',
-              textAlign: 'center' as const,
-              border: `2px solid ${colors.status.warning}`,
-              borderRadius: '12px',
-              position: 'relative' as const
-            }}
-            className="card-hover touch-feedback"
-          >
-            <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>📝</div>
-            <div style={{ 
-              ...typography.subheader,
-              fontSize: '16px',
-              color: colors.neutral[900],
-              marginBottom: spacing.xs
-            }}>
-              Templates
+          {(user?.role === 'super_admin' || user?.role === 'admin') && (
+            <div
+              onClick={() => navigate('/app/inspections/studio')}
+              style={{
+                backgroundColor: 'white',
+                padding: spacing.lg,
+                cursor: 'pointer',
+                minHeight: '100px',
+                display: 'flex',
+                flexDirection: 'column' as const,
+                justifyContent: 'center',
+                alignItems: 'center',
+                textAlign: 'center' as const,
+                border: `2px solid ${colors.status.warning}`,
+                borderRadius: '12px',
+                position: 'relative' as const
+              }}
+              className="card-hover touch-feedback"
+            >
+              <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>🎨</div>
+              <div style={{ 
+                ...typography.subheader,
+                fontSize: '16px',
+                color: colors.neutral[900],
+                marginBottom: spacing.xs
+              }}>
+                Inspection Studio
+              </div>
+              <div style={{ 
+                ...typography.bodySmall,
+                color: colors.neutral[600]
+              }}>
+                Create and manage templates
+              </div>
             </div>
-            <div style={{ 
-              ...typography.bodySmall,
-              color: colors.neutral[600]
-            }}>
-              Manage inspection templates
-            </div>
-          </div>
+          )}
 
           <div
             onClick={() => navigate('/app/inspections/reports')}

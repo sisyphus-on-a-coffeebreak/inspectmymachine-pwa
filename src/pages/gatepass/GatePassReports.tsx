@@ -4,6 +4,7 @@ import axios from 'axios';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { StatsGrid } from '../../components/ui/ResponsiveGrid';
+import { useToast } from '../../providers/ToastProvider';
 
 // 📊 Gate Pass Reports & Analytics
 // Comprehensive reporting dashboard for gate pass analytics
@@ -42,6 +43,7 @@ interface YardStats {
 
 export const GatePassReports: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [stats, setStats] = useState<ReportStats | null>(null);
   const [trends, setTrends] = useState<PassTrend[]>([]);
   const [popularTimes, setPopularTimes] = useState<PopularTimes[]>([]);
@@ -150,7 +152,11 @@ export const GatePassReports: React.FC = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Failed to export data:', error);
-      alert('Failed to export data. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to export data. Please try again.',
+        variant: 'error',
+      });
     }
   };
 
@@ -175,7 +181,11 @@ export const GatePassReports: React.FC = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Failed to export PDF:', error);
-      alert('Failed to export PDF. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to export PDF. Please try again.',
+        variant: 'error',
+      });
     }
   };
 

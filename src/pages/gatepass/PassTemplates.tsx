@@ -4,6 +4,8 @@ import axios from 'axios';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
+import { useToast } from '../../providers/ToastProvider';
+import { useConfirm } from '../../components/ui/Modal';
 
 // 📋 Pass Templates
 // Manage saved templates for common gate passes
@@ -29,6 +31,8 @@ interface PassTemplate {
 
 export const PassTemplates: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
+  const { confirm, ConfirmComponent } = useConfirm();
   const [templates, setTemplates] = useState<PassTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -132,10 +136,18 @@ export const PassTemplates: React.FC = () => {
         notes: '',
         auto_assign_escort: false
       });
-      alert('Template created successfully!');
+      showToast({
+        title: 'Success',
+        description: 'Template created successfully!',
+        variant: 'success',
+      });
     } catch (error) {
       console.error('Failed to create template:', error);
-      alert('Failed to create template. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to create template. Please try again.',
+        variant: 'error',
+      });
     }
   };
 
@@ -152,15 +164,31 @@ export const PassTemplates: React.FC = () => {
   };
 
   const deleteTemplate = async (templateId: string) => {
-    if (!confirm('Are you sure you want to delete this template?')) return;
+    const confirmed = await confirm({
+      title: 'Delete Template',
+      message: 'Are you sure you want to delete this template?',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      variant: 'critical',
+    });
+    
+    if (!confirmed) return;
     
     try {
       await axios.delete(`/api/gate-pass-templates/${templateId}`);
       setTemplates(prev => prev.filter(t => t.id !== templateId));
-      alert('Template deleted successfully!');
+      showToast({
+        title: 'Success',
+        description: 'Template deleted successfully!',
+        variant: 'success',
+      });
     } catch (error) {
       console.error('Failed to delete template:', error);
-      alert('Failed to delete template. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to delete template. Please try again.',
+        variant: 'error',
+      });
     }
   };
 
@@ -174,9 +202,11 @@ export const PassTemplates: React.FC = () => {
   }
 
   return (
-    <div style={{ 
-      maxWidth: '1200px', 
-      margin: '0 auto', 
+    <>
+      {ConfirmComponent}
+      <div style={{ 
+        maxWidth: '1200px', 
+        margin: '0 auto', 
       padding: spacing.xl,
       fontFamily: typography.body.fontFamily,
       backgroundColor: colors.neutral[50],
@@ -538,7 +568,8 @@ export const PassTemplates: React.FC = () => {
           </Button>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

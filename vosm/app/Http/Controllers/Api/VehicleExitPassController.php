@@ -117,6 +117,42 @@ class VehicleExitPassController extends Controller
     }
 
     /**
+     * Get a single vehicle exit pass
+     * GET /api/vehicle-exit-passes/{id}
+     */
+    public function show(string $id): JsonResponse
+    {
+        try {
+            $pass = DB::table('vehicle_exit_passes')->where('id', $id)->first();
+
+            if (!$pass) {
+                return response()->json(['error' => 'Gate pass not found'], 404);
+            }
+
+            return response()->json([
+                'id' => $pass->id,
+                'pass_number' => 'VX' . strtoupper(substr($pass->id, 0, 8)),
+                'vehicle_id' => $pass->vehicle_id,
+                'purpose' => $pass->purpose,
+                'driver_name' => $pass->driver_name,
+                'driver_contact' => $pass->driver_contact,
+                'valid_from' => $pass->valid_from,
+                'valid_to' => $pass->valid_to,
+                'status' => $pass->status,
+                'access_code' => $pass->access_code,
+                'qr_payload' => $pass->qr_payload,
+                'exit_time' => $pass->exit_time ?? null,
+                'entry_time' => $pass->entry_time ?? null,
+                'created_at' => $pass->created_at,
+                'updated_at' => $pass->updated_at,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching vehicle exit pass: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch vehicle exit pass'], 500);
+        }
+    }
+
+    /**
      * List vehicle exit passes
      * GET /api/vehicle-exit-passes
      */
@@ -159,6 +195,132 @@ class VehicleExitPassController extends Controller
                 'message' => 'Failed to fetch vehicle exit passes',
                 'error' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Mark entry for a vehicle exit pass (when vehicle returns)
+     * POST /api/vehicle-exit-passes/{id}/entry
+     */
+    public function entry(Request $request, string $id): JsonResponse
+    {
+        try {
+            $pass = DB::table('vehicle_exit_passes')->where('id', $id)->first();
+
+            if (!$pass) {
+                return response()->json(['error' => 'Gate pass not found'], 404);
+            }
+
+            DB::table('vehicle_exit_passes')
+                ->where('id', $id)
+                ->update([
+                    'status' => 'completed',
+                    'entry_time' => now(),
+                    'updated_at' => now(),
+                ]);
+
+            Log::info('Vehicle exit pass entry marked (vehicle returned)', [
+                'pass_id' => $id,
+                'marked_by' => $request->user()->id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Entry marked successfully',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to mark entry: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to mark entry'], 500);
+        }
+    }
+
+    /**
+     * Mark exit for a vehicle exit pass (when vehicle leaves)
+     * POST /api/vehicle-exit-passes/{id}/exit
+     */
+    public function exit(Request $request, string $id): JsonResponse
+    {
+        try {
+            $pass = DB::table('vehicle_exit_passes')->where('id', $id)->first();
+
+            if (!$pass) {
+                return response()->json(['error' => 'Gate pass not found'], 404);
+            }
+
+            DB::table('vehicle_exit_passes')
+                ->where('id', $id)
+                ->update([
+                    'status' => 'active',
+                    'exit_time' => now(),
+                    'updated_at' => now(),
+                ]);
+
+            Log::info('Vehicle exit pass exit marked (vehicle left)', [
+                'pass_id' => $id,
+                'marked_by' => $request->user()->id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Exit marked successfully',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to mark exit: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to mark exit'], 500);
+        }
+    }
+
+    /**
+     * Update a vehicle exit pass
+     * PUT /api/vehicle-exit-passes/{id}
+     */
+    public function update(Request $request, string $id): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'status' => 'sometimes|in:pending,active,completed,cancelled',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            $pass = DB::table('vehicle_exit_passes')->where('id', $id)->first();
+
+            if (!$pass) {
+                return response()->json(['error' => 'Gate pass not found'], 404);
+            }
+
+            $updateData = [];
+            if ($request->has('status')) {
+                $updateData['status'] = $request->input('status');
+            }
+            if ($request->has('notes')) {
+                $updateData['notes'] = $request->input('notes');
+            }
+            $updateData['updated_at'] = now();
+
+            DB::table('vehicle_exit_passes')
+                ->where('id', $id)
+                ->update($updateData);
+
+            Log::info('Vehicle exit pass updated', [
+                'pass_id' => $id,
+                'updated_by' => $request->user()->id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Gate pass updated successfully',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to update vehicle exit pass: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to update gate pass'], 500);
         }
     }
 }

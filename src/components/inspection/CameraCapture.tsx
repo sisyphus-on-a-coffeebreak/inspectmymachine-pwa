@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { colors, spacing } from '../../lib/theme';
 import { Button } from '../ui/button';
+import { useToast } from '../../providers/ToastProvider';
 
 interface CameraCaptureProps {
   value?: any[];
@@ -8,6 +9,7 @@ interface CameraCaptureProps {
   maxFiles?: number;
   maxSize?: string;
   disabled?: boolean;
+  onError?: (message: string) => void;
 }
 
 export const CameraCapture: React.FC<CameraCaptureProps> = ({
@@ -15,8 +17,10 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   onChange,
   maxFiles = 5,
   maxSize = '5MB',
-  disabled = false
+  disabled = false,
+  onError
 }) => {
+  const { showToast } = useToast();
   const [isCapturing, setIsCapturing] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -25,10 +29,22 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   const retryCountRef = useRef(0);
   const readyCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  const handleError = (message: string) => {
+    if (onError) {
+      onError(message);
+    } else {
+      showToast({
+        title: 'Camera Error',
+        description: message,
+        variant: 'error',
+      });
+    }
+  };
+
   const handleCameraCapture = async () => {
     // Check if getUserMedia is available
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      alert('Camera is not supported in this browser. Please use a modern browser or upload photos from your gallery.');
+      handleError('Camera is not supported in this browser. Please use a modern browser or upload photos from your gallery.');
       return;
     }
 
@@ -90,7 +106,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       setTimeout(() => {
         if (!videoRef.current) {
           console.error('Video element not found in DOM');
-          alert('Camera interface not ready. Please try again.');
+          handleError('Camera interface not ready. Please try again.');
           stopCamera();
           return;
         }
@@ -334,7 +350,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             clearInterval(readyCheckIntervalRef.current);
             readyCheckIntervalRef.current = null;
           }
-          alert('Camera error occurred. Please try again.');
+          handleError('Camera error occurred. Please try again.');
           stopCamera();
         };
       }, 100); // Close setTimeout callback
@@ -355,14 +371,14 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         errorMessage += 'Please check your camera permissions and try again.';
       }
       
-      alert(errorMessage);
+      handleError(errorMessage);
     }
   };
 
   const capturePhoto = () => {
     if (!videoRef.current || !canvasRef.current) {
       console.error('Video or canvas element not available');
-      alert('Camera not ready. Please wait for the camera to initialize.');
+      handleError('Camera not ready. Please wait for the camera to initialize.');
       return;
     }
 
@@ -375,7 +391,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       
       if (retryCountRef.current > 50) { // Max 5 seconds (50 * 100ms)
         console.error('Video not ready after maximum retries');
-        alert('Camera is taking too long to initialize. Please try again.');
+        handleError('Camera is taking too long to initialize. Please try again.');
         stopCamera();
         return;
       }
@@ -394,7 +410,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     
     if (!videoWidth || !videoHeight || videoWidth === 0 || videoHeight === 0) {
       console.error('Video dimensions not available', { videoWidth, videoHeight });
-      alert('Camera video not ready. Please wait a moment and try again.');
+      handleError('Camera video not ready. Please wait a moment and try again.');
       return;
     }
 
@@ -402,7 +418,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     
     if (!context) {
       console.error('Could not get canvas context');
-      alert('Could not capture photo. Please try again.');
+      handleError('Could not capture photo. Please try again.');
       return;
     }
     
@@ -415,7 +431,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       context.drawImage(video, 0, 0, videoWidth, videoHeight);
     } catch (drawError) {
       console.error('Error drawing image to canvas:', drawError);
-      alert('Could not capture photo. Please try again.');
+      handleError('Could not capture photo. Please try again.');
       return;
     }
     
@@ -429,7 +445,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         console.log('Photo captured successfully');
       } else {
         console.error('Failed to create blob from canvas');
-        alert('Failed to save photo. Please try again.');
+        handleError('Failed to save photo. Please try again.');
       }
     }, 'image/jpeg', 0.9); // Higher quality (0.9 instead of 0.8)
     

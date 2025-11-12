@@ -880,17 +880,11 @@ export const InspectionCapture: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-          <div>
-            <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
-              Template
-            </div>
-            <div style={{ ...typography.subheader, color: colors.neutral[900] }}>
-              {template.name}
-            </div>
+          {template.description && (
             <div style={{ ...typography.bodySmall, color: colors.neutral[600] }}>
               {template.description}
             </div>
-          </div>
+          )}
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.md }}>
             {templateSource && (

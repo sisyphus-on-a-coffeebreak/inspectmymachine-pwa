@@ -8,7 +8,13 @@ import { InspectionCapture } from "@/pages/inspections/InspectionCapture";
 import { InspectionDetails } from './pages/inspections/InspectionDetails';
 import InspectionsCompleted from "@/pages/InspectionsCompleted";
 import { InspectionDashboard } from './pages/inspections/InspectionDashboard';
+import { InspectionStudio } from './pages/inspections/InspectionStudio';
+import { InspectionSyncCenter } from './pages/inspections/InspectionSyncCenter';
 import AdminStockyard from "@/pages/AdminStockyard";
+import { StockyardDashboard } from './pages/stockyard/StockyardDashboard';
+import { CreateStockyardRequest } from './pages/stockyard/CreateStockyardRequest';
+import { StockyardRequestDetails } from './pages/stockyard/StockyardRequestDetails';
+import { StockyardScan } from './pages/stockyard/StockyardScan';
 import { GatePassDashboard } from './pages/gatepass/GatePassDashboard';
 import { CreateVisitorPass } from './pages/gatepass/CreateVisitorPass';
 import { CreateVehicleMovement } from './pages/gatepass/CreateVehicleMovement';
@@ -29,6 +35,7 @@ import { CashflowAnalysisDashboard } from './pages/expenses/CashflowAnalysisDash
 import { ExpenseApproval } from './pages/expenses/ExpenseApproval';
 import { ExpenseReports } from './pages/expenses/ExpenseReports';
 import { ReceiptsGallery } from './pages/expenses/ReceiptsGallery';
+import { AccountsDashboard } from './pages/expenses/AccountsDashboard';
 import UserManagement from './pages/admin/UserManagement';
 import NotFound from './pages/NotFound';
 
@@ -98,6 +105,14 @@ export default function App() {
         path="/app/inspections"
         element={<RequireAuth><InspectionDashboard /></RequireAuth>}
       />
+      <Route
+        path="/app/inspections/studio"
+        element={<RequireRole roles={["super_admin","admin"]}><InspectionStudio /></RequireRole>}
+      />
+      <Route
+        path="/app/inspections/sync"
+        element={<RequireAuth><InspectionSyncCenter /></RequireAuth>}
+      />
 
       {/* Inspections - Sub Routes */}
       <Route
@@ -106,6 +121,10 @@ export default function App() {
       />
       <Route
         path="/app/inspections/new"
+        element={<RequireAuth><InspectionCapture /></RequireAuth>}
+      />
+      <Route
+        path="/app/inspections/:templateId/capture"
         element={<RequireAuth><InspectionCapture /></RequireAuth>}
       />
       <Route
@@ -154,6 +173,10 @@ export default function App() {
         path="/app/expenses/reports"
         element={<RequireAuth><RequireRole roles={['super_admin', 'admin']}><ExpenseReports /></RequireRole></RequireAuth>}
       />
+      <Route
+        path="/app/expenses/accounts"
+        element={<RequireAuth><RequireRole roles={['super_admin', 'admin']}><AccountsDashboard /></RequireRole></RequireAuth>}
+      />
 
       {/* Aliases to avoid 404s from dashboard quick links */}
       <Route
@@ -170,7 +193,19 @@ export default function App() {
       {/* 🎯 Stockyard Module */}
       <Route
         path="/app/stockyard"
-        element={<RequireAuth><AdminStockyard /></RequireAuth>}
+        element={<RequireAuth><StockyardDashboard /></RequireAuth>}
+      />
+      <Route
+        path="/app/stockyard/create"
+        element={<RequireAuth><CreateStockyardRequest /></RequireAuth>}
+      />
+      <Route
+        path="/app/stockyard/:id"
+        element={<RequireAuth><StockyardRequestDetails /></RequireAuth>}
+      />
+      <Route
+        path="/app/stockyard/scan"
+        element={<RequireAuth><StockyardScan /></RequireAuth>}
       />
 
       {/* 👥 User Management Module */}

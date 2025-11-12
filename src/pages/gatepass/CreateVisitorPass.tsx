@@ -5,6 +5,8 @@ import { VehicleSelector } from './components/VehicleSelector';
 import type { VisitorPassFormData } from './gatePassTypes';
 import { postWithCsrf } from '../../lib/csrf';
 import { useAuth } from '../../providers/useAuth';
+import { useToast } from '../../providers/ToastProvider';
+import { useConfirm } from '../../components/ui/Modal';
 import { validateMobileNumber, formatMobileNumber, formatMobileDisplay } from '../../lib/validation';
 
 // 👥 Create Visitor Pass Form
@@ -14,6 +16,8 @@ import { validateMobileNumber, formatMobileNumber, formatMobileDisplay } from '.
 export const CreateVisitorPass: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
+  const { confirm, ConfirmComponent } = useConfirm();
   const [loading, setLoading] = useState(false);
   const [mobileError, setMobileError] = useState<string>('');
   const [formData, setFormData] = useState<VisitorPassFormData>({
@@ -34,36 +38,60 @@ export const CreateVisitorPass: React.FC = () => {
 
     // Check authentication
     if (!user) {
-      alert('Please log in to create a visitor pass');
+      showToast({
+        title: 'Authentication Required',
+        description: 'Please log in to create a visitor pass',
+        variant: 'error',
+      });
       navigate('/login');
       return;
     }
 
     // Validation
     if (!formData.primary_visitor_name.trim()) {
-      alert('Please enter visitor name');
+      showToast({
+        title: 'Validation Error',
+        description: 'Please enter visitor name',
+        variant: 'error',
+      });
       return;
     }
 
     if (formData.selected_vehicle_ids.length === 0) {
-      alert('Please select at least one vehicle');
+      showToast({
+        title: 'Validation Error',
+        description: 'Please select at least one vehicle',
+        variant: 'error',
+      });
       return;
     }
 
     if (!formData.referred_by.trim()) {
-      alert('Please enter who referred this visitor');
+      showToast({
+        title: 'Validation Error',
+        description: 'Please enter who referred this visitor',
+        variant: 'error',
+      });
       return;
     }
 
     if (!formData.contact_number.trim()) {
-      alert('Please enter contact number');
+      showToast({
+        title: 'Validation Error',
+        description: 'Please enter contact number',
+        variant: 'error',
+      });
       return;
     }
 
     // Validate mobile number
     const mobileValidation = validateMobileNumber(formData.contact_number);
     if (!mobileValidation.isValid) {
-      alert(mobileValidation.error || 'Please enter a valid mobile number');
+      showToast({
+        title: 'Validation Error',
+        description: mobileValidation.error || 'Please enter a valid mobile number',
+        variant: 'error',
+      });
       return;
     }
 
@@ -90,10 +118,22 @@ export const CreateVisitorPass: React.FC = () => {
       const passId = response.data.pass.id;
       const shortPassNumber = `VP${passId.substring(0, 8).toUpperCase()}`;
       
-      alert(`Gate Pass #${shortPassNumber} created successfully!`);
+      showToast({
+        title: 'Success',
+        description: `Gate Pass #${shortPassNumber} created successfully!`,
+        variant: 'success',
+        duration: 5000,
+      });
       
       // Ask if they want to share on WhatsApp
-      if (confirm('Share this pass on WhatsApp?')) {
+      const shouldShare = await confirm({
+        title: 'Share on WhatsApp?',
+        message: 'Would you like to share this gate pass on WhatsApp?',
+        confirmLabel: 'Share',
+        cancelLabel: 'Skip',
+      });
+      
+      if (shouldShare) {
         const message = encodeURIComponent(
           `Gate Pass #${shortPassNumber}\n` +
           `Visitor: ${formData.primary_visitor_name}\n` +
@@ -116,12 +156,25 @@ export const CreateVisitorPass: React.FC = () => {
           const errorMessages = Object.entries(errors)
             .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
             .join('\n');
-          alert(`Validation errors:\n${errorMessages}`);
+          showToast({
+            title: 'Validation Errors',
+            description: errorMessages,
+            variant: 'error',
+            duration: 7000,
+          });
         } else {
-          alert('Failed to create gate pass. Please try again.');
+          showToast({
+            title: 'Error',
+            description: 'Failed to create gate pass. Please try again.',
+            variant: 'error',
+          });
         }
       } else {
-        alert('Failed to create gate pass. Please try again.');
+        showToast({
+          title: 'Error',
+          description: 'Failed to create gate pass. Please try again.',
+          variant: 'error',
+        });
       }
     } finally {
       setLoading(false);
@@ -152,12 +205,14 @@ export const CreateVisitorPass: React.FC = () => {
   };
 
   return (
-    <div style={{ 
-      maxWidth: '600px', 
-      margin: '0 auto', 
-      padding: '1rem',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    }}>
+    <>
+      {ConfirmComponent}
+      <div style={{ 
+        maxWidth: '600px', 
+        margin: '0 auto', 
+        padding: '1rem',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      }}>
       {/* Header */}
       <div style={{ 
         display: 'flex', 
@@ -604,6 +659,7 @@ export const CreateVisitorPass: React.FC = () => {
           (Will generate PDF for WhatsApp)
         </div>
       </form>
-    </div>
+      </div>
+    </>
   );
 };

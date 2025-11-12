@@ -80,7 +80,12 @@ const navItems: NavItem[] = [
     label: "Stockyard",
     icon: Warehouse,
     path: "/app/stockyard",
-    roles: ["super_admin", "admin"]
+    roles: ["super_admin", "admin"],
+    children: [
+      { id: "dashboard", label: "Dashboard", icon: Warehouse, path: "/app/stockyard", roles: ["super_admin", "admin"] },
+      { id: "create", label: "Create Request", icon: Warehouse, path: "/app/stockyard/create", roles: ["super_admin", "admin"] },
+      { id: "scan", label: "Scan Vehicle", icon: Warehouse, path: "/app/stockyard/scan", roles: ["super_admin", "admin", "guard"] },
+    ]
   },
   {
     id: "users",

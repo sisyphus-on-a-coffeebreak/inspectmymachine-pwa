@@ -4,6 +4,7 @@ import axios from 'axios';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
+import { useToast } from '../../providers/ToastProvider';
 
 // 👥 Visitor Management
 // Manage visitor database and history
@@ -34,6 +35,7 @@ interface VisitorStats {
 
 export const VisitorManagement: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [stats, setStats] = useState<VisitorStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -143,10 +145,18 @@ export const VisitorManagement: React.FC = () => {
       setVisitors(prev => prev.map(v => 
         v.id === visitorId ? { ...v, status: newStatus as any } : v
       ));
-      alert('Visitor status updated successfully!');
+      showToast({
+        title: 'Success',
+        description: 'Visitor status updated successfully!',
+        variant: 'success',
+      });
     } catch (error) {
       console.error('Failed to update visitor status:', error);
-      alert('Failed to update visitor status. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to update visitor status. Please try again.',
+        variant: 'error',
+      });
     }
   };
 
@@ -158,10 +168,18 @@ export const VisitorManagement: React.FC = () => {
       setVisitors(prev => prev.map(v => 
         v.id === visitorId ? { ...v, notes: note } : v
       ));
-      alert('Note added successfully!');
+      showToast({
+        title: 'Success',
+        description: 'Note added successfully!',
+        variant: 'success',
+      });
     } catch (error) {
       console.error('Failed to add note:', error);
-      alert('Failed to add note. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to add note. Please try again.',
+        variant: 'error',
+      });
     }
   };
 

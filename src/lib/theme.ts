@@ -5,10 +5,44 @@ export const colors = {
   // Primary Actions
   primary: '#2563eb',      // Blue for primary actions (buttons, links)
   
-  // Status Colors
-  success: '#10b981',      // Green for success/normal (🟢)
-  warning: '#f59e0b',      // Orange for warnings 1hr+ (🟠)
-  critical: '#ef4444',     // Red for critical 8PM+ (🔴)
+  // Status Colors (with scales)
+  success: {
+    50: '#ecfdf5',
+    100: '#d1fae5',
+    200: '#a7f3d0',
+    300: '#6ee7b7',
+    400: '#34d399',
+    500: '#10b981',      // Base green
+    600: '#059669',
+    700: '#047857',
+    800: '#065f46',
+    900: '#064e3b',
+  },
+  warning: {
+    50: '#fffbeb',
+    100: '#fef3c7',
+    200: '#fde68a',
+    300: '#fcd34d',
+    400: '#fbbf24',
+    500: '#f59e0b',      // Base orange
+    600: '#d97706',
+    700: '#b45309',
+    800: '#92400e',
+    900: '#78350f',
+  },
+  error: {
+    50: '#fef2f2',
+    100: '#fee2e2',
+    200: '#fecaca',
+    300: '#fca5a5',
+    400: '#f87171',
+    500: '#ef4444',      // Base red
+    600: '#dc2626',
+    700: '#b91c1c',
+    800: '#991b1b',
+    900: '#7f1d1d',
+  },
+  critical: '#ef4444',     // Red for critical 8PM+ (🔴) - alias for error[500]
   
   // Brand Colors
   brand: '#eb8b00',        // Orange for passes, branding, accents
@@ -151,14 +185,14 @@ export const getStatusColor = (entryTime: Date, currentTime: Date, closingTime?:
   defaultClosing.setHours(20, 0, 0, 0);
   const isAfterClosing = currentTime > (closingTime || defaultClosing);
   
-  if (isAfterClosing) return colors.status.critical;  // 🔴 Red
-  if (hours >= 1) return colors.status.warning;      // 🟠 Orange
-  return colors.status.normal;                       // 🟢 Green
+  if (isAfterClosing) return colors.error[500];  // 🔴 Red
+  if (hours >= 1) return colors.warning[500];      // 🟠 Orange
+  return colors.success[500];                       // 🟢 Green
 };
 
 // Status dot component props
 export const getStatusDot = (status: 'normal' | 'warning' | 'critical') => ({
-  color: colors.status[status],
+  color: status === 'normal' ? colors.success[500] : status === 'warning' ? colors.warning[500] : colors.error[500],
   size: '12px',
   borderRadius: '50%',
   display: 'inline-block',
@@ -200,7 +234,7 @@ export const buttonStyles = {
   },
   
   success: {
-    backgroundColor: colors.success,
+    backgroundColor: colors.success[500],
     color: 'white',
     border: 'none',
     borderRadius: borderRadius.md,
@@ -212,7 +246,7 @@ export const buttonStyles = {
   },
   
   warning: {
-    backgroundColor: colors.warning,
+    backgroundColor: colors.warning[500],
     color: 'white',
     border: 'none',
     borderRadius: borderRadius.md,
@@ -224,7 +258,7 @@ export const buttonStyles = {
   },
   
   critical: {
-    backgroundColor: colors.critical,
+    backgroundColor: colors.error[500],
     color: 'white',
     border: 'none',
     borderRadius: borderRadius.md,
@@ -267,13 +301,13 @@ export const formStyles = {
   },
   
   error: {
-    color: colors.critical,
+    color: colors.error[500],
     fontSize: '14px',
     marginTop: spacing.xs
   },
   
   success: {
-    color: colors.success,
+    color: colors.success[500],
     fontSize: '14px',
     marginTop: spacing.xs
   }
@@ -304,7 +338,7 @@ export const cardStyles = {
 // Status badge styles
 export const statusBadgeStyles = {
   normal: {
-    backgroundColor: colors.status.normal,
+    backgroundColor: colors.success[500],
     color: 'white',
     padding: `${spacing.xs} ${spacing.sm}`,
     borderRadius: borderRadius.full,
@@ -314,7 +348,7 @@ export const statusBadgeStyles = {
   },
   
   warning: {
-    backgroundColor: colors.status.warning,
+    backgroundColor: colors.warning[500],
     color: 'white',
     padding: `${spacing.xs} ${spacing.sm}`,
     borderRadius: borderRadius.full,
@@ -324,7 +358,7 @@ export const statusBadgeStyles = {
   },
   
   critical: {
-    backgroundColor: colors.status.critical,
+    backgroundColor: colors.error[500],
     color: 'white',
     padding: `${spacing.xs} ${spacing.sm}`,
     borderRadius: borderRadius.full,

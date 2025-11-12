@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useToast } from '../../providers/ToastProvider';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { StatsGrid } from '../../components/ui/ResponsiveGrid';
@@ -65,6 +66,7 @@ interface AssetExpense {
 
 export const ExpenseReports: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [stats, setStats] = useState<ExpenseStats | null>(null);
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown[]>([]);
   const [paymentMethodBreakdown, setPaymentMethodBreakdown] = useState<PaymentMethodBreakdown[]>([]);
@@ -208,7 +210,11 @@ export const ExpenseReports: React.FC = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Failed to export data:', error);
-      alert('Failed to export data. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Failed to export data. Please try again.',
+        variant: 'error',
+      });
     }
   };
 

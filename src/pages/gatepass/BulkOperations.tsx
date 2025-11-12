@@ -4,6 +4,7 @@ import axios from 'axios';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
+import { useToast } from '../../providers/ToastProvider';
 
 // 🔄 Bulk Operations
 // Handle bulk operations on gate passes
@@ -47,6 +48,7 @@ interface BulkTemplate {
 
 export const BulkOperations: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [bulkOperations, setBulkOperations] = useState<BulkOperation[]>([]);
   const [bulkTemplates, setBulkTemplates] = useState<BulkTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<BulkTemplate | null>(null);
@@ -192,7 +194,11 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
 
   const executeBulkOperation = async () => {
     if (bulkData.length === 0) {
-      alert('No data to process');
+      showToast({
+        title: 'Validation Error',
+        description: 'No data to process',
+        variant: 'error',
+      });
       return;
     }
 
@@ -204,13 +210,22 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
         template_id: selectedTemplate?.id
       });
 
-      alert(`Bulk operation completed! Processed ${response.data.processed_count} items.`);
+      showToast({
+        title: 'Success',
+        description: `Bulk operation completed! Processed ${response.data.processed_count} items.`,
+        variant: 'success',
+        duration: 5000,
+      });
       setBulkData([]);
       setCsvData('');
       fetchBulkOperations();
     } catch (error) {
       console.error('Bulk operation failed:', error);
-      alert('Bulk operation failed. Please check your data and try again.');
+      showToast({
+        title: 'Error',
+        description: 'Bulk operation failed. Please check your data and try again.',
+        variant: 'error',
+      });
     } finally {
       setLoading(false);
     }
@@ -238,7 +253,11 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Export failed. Please try again.');
+      showToast({
+        title: 'Error',
+        description: 'Export failed. Please try again.',
+        variant: 'error',
+      });
     } finally {
       setLoading(false);
     }
