@@ -71,7 +71,6 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
       return generated;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate QR code';
-      console.error('Failed to generate QR code for pass:', errorMessage);
       throw new Error(`QR code generation failed: ${errorMessage}`);
     }
   }, [passRecord]);
@@ -116,7 +115,6 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
           });
         }
       } catch (error) {
-        console.error('Failed to sync gate-pass record with backend:', error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         
         if (!cancelled) {
@@ -181,7 +179,6 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
       URL.revokeObjectURL(url);
       
     } catch (error) {
-      console.error('Error generating PDF:', error);
       showToast({
         title: 'Error',
         description: 'Failed to generate PDF. Please try again.',
@@ -236,7 +233,6 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
         }
       });
     } catch (error) {
-      console.error('Error sharing:', error);
       showToast({
         title: 'Error',
         description: 'Failed to share. Please try again.',

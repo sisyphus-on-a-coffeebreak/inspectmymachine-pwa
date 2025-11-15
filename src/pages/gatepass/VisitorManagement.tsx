@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
@@ -47,7 +47,7 @@ export const VisitorManagement: React.FC = () => {
   const fetchVisitors = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/visitor-management/visitors', {
+      const response = await apiClient.get('/api/visitor-management/visitors', {
         params: {
           search: searchTerm,
           status: filterStatus,
@@ -57,8 +57,7 @@ export const VisitorManagement: React.FC = () => {
       });
       setVisitors(response.data);
     } catch (error) {
-      console.error('Failed to fetch visitors:', error);
-      // Mock data for development
+      // Mock data for development (fallback)
       setVisitors([
         {
           id: '1',
@@ -105,10 +104,9 @@ export const VisitorManagement: React.FC = () => {
 
   const fetchStats = useCallback(async () => {
     try {
-      const response = await axios.get('/api/visitor-management/stats');
+      const response = await apiClient.get('/api/visitor-management/stats');
       setStats(response.data);
     } catch (error) {
-      console.error('Failed to fetch visitor stats:', error);
       // Mock data for development
       setStats({
         total_visitors: 156,
@@ -139,7 +137,7 @@ export const VisitorManagement: React.FC = () => {
 
   const updateVisitorStatus = async (visitorId: string, newStatus: string) => {
     try {
-      await axios.put(`/api/visitor-management/visitors/${visitorId}`, {
+      await apiClient.put(`/api/visitor-management/visitors/${visitorId}`, {
         status: newStatus
       });
       setVisitors(prev => prev.map(v => 
@@ -151,7 +149,6 @@ export const VisitorManagement: React.FC = () => {
         variant: 'success',
       });
     } catch (error) {
-      console.error('Failed to update visitor status:', error);
       showToast({
         title: 'Error',
         description: 'Failed to update visitor status. Please try again.',
@@ -162,7 +159,7 @@ export const VisitorManagement: React.FC = () => {
 
   const addVisitorNote = async (visitorId: string, note: string) => {
     try {
-      await axios.put(`/api/visitor-management/visitors/${visitorId}`, {
+      await apiClient.put(`/api/visitor-management/visitors/${visitorId}`, {
         notes: note
       });
       setVisitors(prev => prev.map(v => 
@@ -174,7 +171,6 @@ export const VisitorManagement: React.FC = () => {
         variant: 'success',
       });
     } catch (error) {
-      console.error('Failed to add note:', error);
       showToast({
         title: 'Error',
         description: 'Failed to add note. Please try again.',

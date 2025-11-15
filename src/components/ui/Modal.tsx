@@ -30,10 +30,10 @@ export function Modal({
   children,
   onClose,
   size = 'md',
-  showCloseButton = true,
   footer,
   className = '',
 }: ModalProps) {
+  const showCloseButton = true;
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -190,7 +190,7 @@ export function ConfirmModal({
       await onConfirm();
       onClose();
     } catch (error) {
-      console.error('Confirm action failed:', error);
+      // Confirm action failed
     } finally {
       setLoading(false);
     }

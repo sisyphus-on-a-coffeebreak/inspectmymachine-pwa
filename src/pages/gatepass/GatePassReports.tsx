@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { StatsGrid } from '../../components/ui/ResponsiveGrid';
@@ -57,7 +57,7 @@ export const GatePassReports: React.FC = () => {
       setLoading(true);
 
       // Fetch comprehensive statistics
-      const statsResponse = await axios.get('/api/gate-pass-reports/summary', {
+      const statsResponse = await apiClient.get('/api/gate-pass-reports/summary', {
         params: { 
           date_range: dateRange,
           yard_id: selectedYard !== 'all' ? selectedYard : undefined
@@ -65,7 +65,7 @@ export const GatePassReports: React.FC = () => {
       });
 
       // Fetch trend data
-      const trendsResponse = await axios.get('/api/gate-pass-reports/analytics', {
+      const trendsResponse = await apiClient.get('/api/gate-pass-reports/analytics', {
         params: { 
           date_range: dateRange,
           yard_id: selectedYard !== 'all' ? selectedYard : undefined
@@ -73,7 +73,7 @@ export const GatePassReports: React.FC = () => {
       });
 
       // Fetch popular times
-      const timesResponse = await axios.get('/api/gate-pass-reports/dashboard', {
+      const timesResponse = await apiClient.get('/api/gate-pass-reports/dashboard', {
         params: { 
           date_range: dateRange,
           yard_id: selectedYard !== 'all' ? selectedYard : undefined
@@ -81,7 +81,7 @@ export const GatePassReports: React.FC = () => {
       });
 
       // Fetch yard statistics
-      const yardsResponse = await axios.get('/api/gate-pass-reports/yards');
+      const yardsResponse = await apiClient.get('/gate-pass-reports/yards');
 
       setStats(statsResponse.data);
       setTrends(trendsResponse.data);
@@ -89,8 +89,7 @@ export const GatePassReports: React.FC = () => {
       setYardStats(yardsResponse.data);
 
     } catch (error) {
-      console.error('Failed to fetch report data:', error);
-      // Set mock data for development
+      // Failed to fetch report data, using mock data for development
       setStats({
         total_passes: 1247,
         visitor_passes: 892,
@@ -133,13 +132,23 @@ export const GatePassReports: React.FC = () => {
 
   const exportToCSV = async () => {
     try {
+      // For blob responses, use axios directly with apiClient's CSRF handling
+      const axios = (await import('axios')).default;
+      const { apiClient: client } = await import('../../lib/apiClient');
+      await (client as any).ensureCsrfToken?.();
+      const csrfToken = (client as any).getCsrfToken?.();
+      
       const response = await axios.get('/api/gate-pass-reports/export', {
         params: { 
           date_range: dateRange,
           yard_id: selectedYard !== 'all' ? selectedYard : undefined,
           format: 'csv'
         },
-        responseType: 'blob'
+        responseType: 'blob',
+        withCredentials: true,
+        headers: {
+          ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
+        },
       });
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -151,7 +160,6 @@ export const GatePassReports: React.FC = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Failed to export data:', error);
       showToast({
         title: 'Error',
         description: 'Failed to export data. Please try again.',
@@ -162,13 +170,23 @@ export const GatePassReports: React.FC = () => {
 
   const exportToPDF = async () => {
     try {
+      // For blob responses, use axios directly with apiClient's CSRF handling
+      const axios = (await import('axios')).default;
+      const { apiClient: client } = await import('../../lib/apiClient');
+      await (client as any).ensureCsrfToken?.();
+      const csrfToken = (client as any).getCsrfToken?.();
+      
       const response = await axios.get('/api/gate-pass-reports/export', {
         params: { 
           date_range: dateRange,
           yard_id: selectedYard !== 'all' ? selectedYard : undefined,
           format: 'pdf'
         },
-        responseType: 'blob'
+        responseType: 'blob',
+        withCredentials: true,
+        headers: {
+          ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
+        },
       });
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -180,7 +198,6 @@ export const GatePassReports: React.FC = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Failed to export PDF:', error);
       showToast({
         title: 'Error',
         description: 'Failed to export PDF. Please try again.',

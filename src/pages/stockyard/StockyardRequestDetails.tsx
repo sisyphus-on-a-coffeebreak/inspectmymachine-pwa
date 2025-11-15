@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
@@ -13,6 +13,9 @@ import {
   type StockyardRequest,
 } from '../../lib/stockyard';
 import { Warehouse, ArrowLeft, CheckCircle2, XCircle, Clock, AlertCircle, Calendar } from 'lucide-react';
+import { addRecentlyViewed } from '../../lib/recentlyViewed';
+import { RelatedItems } from '../../components/ui/RelatedItems';
+import { useStockyardRequests } from '../../lib/queries';
 
 export const StockyardRequestDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +25,24 @@ export const StockyardRequestDetails: React.FC = () => {
   const [request, setRequest] = useState<StockyardRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Fetch related stockyard requests for the same vehicle
+  const { data: relatedRequestsData } = useStockyardRequests(
+    undefined, // No filters - we'll filter client-side
+    { enabled: !!request?.vehicle_id }
+  );
+  
+  // Filter related requests for the same vehicle, excluding current request
+  const relatedRequests = useMemo(() => {
+    if (!request?.vehicle_id || !relatedRequestsData?.data) return [];
+    
+    return relatedRequestsData.data
+      .filter((r: any) => {
+        // Same vehicle, exclude current request
+        return r.vehicle_id === request.vehicle_id && r.id !== id;
+      })
+      .slice(0, 5); // Limit to 5 most recent
+  }, [request?.vehicle_id, relatedRequestsData, id]);
 
   useEffect(() => {
     if (id) {
@@ -35,6 +56,17 @@ export const StockyardRequestDetails: React.FC = () => {
       setLoading(true);
       const data = await getStockyardRequest(id);
       setRequest(data);
+      
+      // Track in recently viewed
+      if (data && id) {
+        addRecentlyViewed({
+          id: String(id),
+          type: 'stockyard-request',
+          title: `Stockyard Request #${id.substring(0, 8)}`,
+          subtitle: data.vehicle?.registration_number || data.type || 'Stockyard Request',
+          path: `/app/stockyard/${id}`,
+        });
+      }
     } catch (err) {
       showToast({
         title: 'Error',
@@ -173,6 +205,11 @@ export const StockyardRequestDetails: React.FC = () => {
         title="Stockyard Request Details"
         subtitle={`Request ID: ${request.id.substring(0, 8)}...`}
         icon={<Warehouse size={24} />}
+        breadcrumbs={[
+          { label: 'Dashboard', path: '/dashboard' },
+          { label: 'Stockyard', path: '/app/stockyard' },
+          { label: 'Request Details' }
+        ]}
       />
 
       <div style={{ marginBottom: spacing.md }}>
@@ -302,7 +339,55 @@ export const StockyardRequestDetails: React.FC = () => {
         </div>
       )}
 
-      <ConfirmComponent />
+      {/* Related Items */}
+      {request && request.vehicle_id && (
+        <div style={{ marginTop: spacing.lg, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: spacing.lg }}>
+          {/* Related Stockyard Requests Panel */}
+          {relatedRequests.length > 0 && (
+            <RelatedItems
+              title="Related Stockyard Requests"
+              items={relatedRequests.map((r: any) => ({
+                id: r.id,
+                title: `Request #${r.id.substring(0, 8)}`,
+                subtitle: `${r.type || 'Request'} - ${r.status || 'Unknown'}`,
+                path: `/app/stockyard/${r.id}`,
+                icon: '📦',
+              }))}
+              variant="compact"
+            />
+          )}
+          
+          <RelatedItems
+            title="Vehicle History"
+            items={[
+              {
+                id: 'all-requests',
+                title: 'All Stockyard Requests',
+                subtitle: `View all stockyard requests for this vehicle`,
+                path: `/app/stockyard?vehicle=${request.vehicle_id}`,
+                icon: '📦',
+              },
+              {
+                id: 'inspections',
+                title: 'Vehicle Inspections',
+                subtitle: 'View inspection history for this vehicle',
+                path: `/app/inspections?vehicle=${request.vehicle_id}`,
+                icon: '🔍',
+              },
+              {
+                id: 'gate-passes',
+                title: 'Gate Passes',
+                subtitle: 'View gate passes for this vehicle',
+                path: `/app/gate-pass?vehicle=${request.vehicle_id}`,
+                icon: '🚪',
+              },
+            ]}
+            variant="compact"
+          />
+        </div>
+      )}
+
+      {ConfirmComponent}
     </div>
   );
 };

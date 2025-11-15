@@ -96,7 +96,6 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
       setIsRecording(true);
       setRecordingTime(0);
     } catch (error) {
-      console.error('Microphone access denied:', error);
       handleError('Microphone access is required for audio recording');
     }
   };

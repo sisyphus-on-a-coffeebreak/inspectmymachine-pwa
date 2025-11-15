@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { apiClient } from './apiClient';
 import { formatPassNumber } from './pdf-generator-simple';
 
 type GatePassType = 'visitor' | 'vehicle';
@@ -129,8 +129,8 @@ export const syncGatePassRecord = async ({
     payload.access_code = preferredAccessCode;
   }
 
-  const response = await axios.post('/api/gate-pass-records/sync', payload);
-  const raw: RawGatePassRecord = response.data?.record || response.data?.data || response.data || {};
+  const response = await apiClient.post('/api/gate-pass-records/sync', payload);
+  const raw: RawGatePassRecord = (response.data as any)?.record || (response.data as any)?.data || response.data || {};
 
   const recordId = resolveRecordId(raw, String(passId));
   const accessCode = resolveAccessCode(raw, preferredAccessCode);

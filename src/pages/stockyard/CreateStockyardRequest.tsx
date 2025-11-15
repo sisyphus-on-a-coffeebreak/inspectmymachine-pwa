@@ -8,7 +8,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { useToast } from '../../providers/ToastProvider';
 import { createStockyardRequest, type CreateStockyardRequestPayload, type StockyardRequestType } from '../../lib/stockyard';
 import { Warehouse, ArrowLeft } from 'lucide-react';
-import axios from 'axios';
+import { apiClient } from '../../lib/apiClient';
 
 interface Vehicle {
   id: string;
@@ -40,13 +40,13 @@ export const CreateStockyardRequest: React.FC = () => {
     const fetchData = async () => {
       try {
         const [vehiclesRes, yardsRes] = await Promise.all([
-          axios.get('/v1/vehicles').catch(() => ({ data: [] })),
-          axios.get('/v1/yards').catch(() => ({ data: [] })),
+          apiClient.get('/v1/vehicles').catch(() => ({ data: [] })),
+          apiClient.get('/v1/yards').catch(() => ({ data: [] })),
         ]);
         setVehicles(Array.isArray(vehiclesRes.data) ? vehiclesRes.data : vehiclesRes.data.data || []);
         setYards(Array.isArray(yardsRes.data) ? yardsRes.data : yardsRes.data.data || []);
       } catch (err) {
-        console.error('Failed to fetch vehicles/yards:', err);
+        // Error is already handled by apiClient
       }
     };
     fetchData();
@@ -89,6 +89,11 @@ export const CreateStockyardRequest: React.FC = () => {
         title="Create Stockyard Request"
         subtitle="Request vehicle entry or exit from stockyard"
         icon={<Warehouse size={24} />}
+        breadcrumbs={[
+          { label: 'Dashboard', path: '/dashboard' },
+          { label: 'Stockyard', path: '/app/stockyard' },
+          { label: 'Create Request' }
+        ]}
       />
 
       <div style={{ ...cardStyles.card, marginTop: spacing.lg }}>
@@ -131,7 +136,7 @@ export const CreateStockyardRequest: React.FC = () => {
             >
               <option value="">Select a vehicle</option>
               {vehicles.map((vehicle) => (
-                <option key={vehicle.id} value={vehicle.id}>
+                <option key={`vehicle-${vehicle.id}`} value={vehicle.id}>
                   {vehicle.registration_number} {vehicle.make && vehicle.model ? `(${vehicle.make} ${vehicle.model})` : ''}
                 </option>
               ))}
@@ -156,7 +161,7 @@ export const CreateStockyardRequest: React.FC = () => {
             >
               <option value="">Select a stockyard</option>
               {yards.map((yard) => (
-                <option key={yard.id} value={yard.id}>
+                <option key={`yard-${yard.id}`} value={yard.id}>
                   {yard.name}
                 </option>
               ))}

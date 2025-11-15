@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { apiClient } from './apiClient';
 import { withBackoff } from './retry';
 import {
   serializeAnswers,
@@ -71,27 +71,36 @@ export async function submitInspection({
   const upload = async () => {
     onProgress?.({ phase: 'preparing', mode, message: 'Preparing inspection payload…' });
 
-    const response = await withBackoff(
-      () =>
-        axios.post('/v1/inspections', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          signal,
-          onUploadProgress: (event) => {
-            const { loaded, total } = event;
-            const size = typeof total === 'number' && total > 0 ? total : totalBytes || undefined;
-            const percent = size ? Math.min(100, Math.round((loaded / size) * 100)) : undefined;
-            onProgress?.({
-              phase: 'uploading',
-              mode,
-              loaded,
-              total: size,
-              percent,
-              message: 'Uploading inspection…',
-            });
-          },
-        }),
-      { tries: 2, baseMs: 600 },
-    );
+    // Note: apiClient.upload doesn't support onUploadProgress yet
+    // For progress tracking, we use axios directly with CSRF handling
+    const axios = (await import('axios')).default;
+    const { apiClient: client } = await import('./apiClient');
+    
+    // Ensure CSRF token is initialized
+    await (client as any).ensureCsrfToken?.();
+    const csrfToken = (client as any).getCsrfToken?.();
+    
+    const response = await axios.post('/v1/inspections', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
+      },
+      withCredentials: true,
+      signal,
+      onUploadProgress: (event) => {
+        const { loaded, total } = event;
+        const size = typeof total === 'number' && total > 0 ? total : totalBytes || undefined;
+        const percent = size ? Math.min(100, Math.round((loaded / size) * 100)) : undefined;
+        onProgress?.({
+          phase: 'uploading',
+          mode,
+          loaded,
+          total: size,
+          percent,
+          message: 'Uploading inspection…',
+        });
+      },
+    });
 
     onProgress?.({ phase: 'completed', mode, message: 'Inspection submitted successfully.' });
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
@@ -46,7 +46,7 @@ export const GatePassCalendar: React.FC = () => {
       const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
       
-      const response = await axios.get('/gate-pass-calendar', {
+      const response = await apiClient.get('/gate-pass-calendar', {
         params: {
           start_date: startDate.toISOString().split('T')[0],
           end_date: endDate.toISOString().split('T')[0]
@@ -57,7 +57,7 @@ export const GatePassCalendar: React.FC = () => {
       const days = generateCalendarDays(currentDate, response.data);
       setCalendarDays(days);
     } catch (error) {
-      console.error('Failed to fetch calendar data:', error);
+      // Error is already handled by apiClient
       // Mock data for development
       const mockPasses: CalendarPass[] = [
         {
@@ -476,14 +476,7 @@ export const GatePassCalendar: React.FC = () => {
                   }}>
                     <Button
                       variant="secondary"
-                      onClick={() => {
-                        // Navigate to pass details
-                        if (pass.type === 'visitor') {
-                          navigate('/app/gate-pass/visitor-details', { state: { passId: pass.id } });
-                        } else {
-                          navigate('/app/gate-pass/vehicle-details', { state: { passId: pass.id } });
-                        }
-                      }}
+                      onClick={() => navigate(`/app/gate-pass/${pass.id}`)}
                       icon="👁️"
                     >
                       View Details

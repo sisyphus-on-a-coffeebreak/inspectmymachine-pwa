@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { useToast } from '../../providers/ToastProvider';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
@@ -9,6 +8,8 @@ import { Input } from '../../components/ui/input';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
 import { LoadingError } from '../../components/ui/LoadingError';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Pagination } from '../../components/ui/Pagination';
+import { useExpenses } from '../../lib/queries';
 
 // 📊 Expense History
 // Complete expense history with advanced filtering and search
@@ -45,10 +46,6 @@ interface FilterOptions {
 export const ExpenseHistory: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [expenses, setExpenses] = useState<ExpenseHistoryItem[]>([]);
-  const [filteredExpenses, setFilteredExpenses] = useState<ExpenseHistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<FilterOptions>({
     status: 'all',
@@ -61,87 +58,25 @@ export const ExpenseHistory: React.FC = () => {
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'status'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedExpense, setSelectedExpense] = useState<ExpenseHistoryItem | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
+  
+  // Use React Query for expenses
+  const { data: expensesData, isLoading: loading, error: queryError, refetch } = useExpenses(
+    { mine: true, page: currentPage, per_page: perPage }
+  );
+  
+  const expenses = (expensesData?.data || []) as ExpenseHistoryItem[];
+  const totalItems = expensesData?.total || 0;
+  const error = queryError ? (queryError instanceof Error ? queryError : new Error('Failed to fetch expenses')) : null;
 
-  const fetchExpenses = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      // Backend supports minimal params: mine (bool) and optional week=current
-      const res = await axios.get('/v1/expenses', { params: { mine: true } });
-      const payload = res.data;
-      const items = Array.isArray(payload) ? payload : (payload?.items ?? []);
-      if (Array.isArray(items)) {
-        setExpenses(items as any);
-      } else {
-        // Unexpected shape → fallback to mock
-        setExpenses([
-        {
-          id: '1',
-          amount: 2500,
-          category: 'FUEL',
-          description: 'Petrol for vehicle ABC-1234',
-          date: '2024-01-20T10:30:00Z',
-          status: 'approved',
-          payment_method: 'CASH',
-          location: 'Mumbai, Maharashtra',
-          project_name: 'Project Alpha',
-          asset_name: 'Vehicle ABC-1234',
-          created_at: '2024-01-20T10:30:00Z',
-          approved_by: 'Manager Name',
-          approved_at: '2024-01-20T11:00:00Z'
-        },
-        {
-          id: '2',
-          amount: 1200,
-          category: 'FOOD',
-          description: 'Client lunch meeting',
-          date: '2024-01-19T14:15:00Z',
-          status: 'pending',
-          payment_method: 'COMPANY_UPI',
-          project_name: 'Project Beta',
-          created_at: '2024-01-19T14:15:00Z'
-        },
-        {
-          id: '3',
-          amount: 800,
-          category: 'LOCAL_TRANSPORT',
-          description: 'Taxi fare to client site',
-          date: '2024-01-18T09:45:00Z',
-          status: 'approved',
-          payment_method: 'PERSONAL_UPI',
-          location: 'Delhi, NCR',
-          created_at: '2024-01-18T09:45:00Z',
-          approved_by: 'Supervisor Name',
-          approved_at: '2024-01-18T10:30:00Z'
-        },
-        {
-          id: '4',
-          amount: 5000,
-          category: 'PARTS_REPAIR',
-          description: 'Vehicle maintenance and repair',
-          date: '2024-01-17T16:20:00Z',
-          status: 'rejected',
-          payment_method: 'CASH',
-          asset_name: 'Vehicle XYZ-5678',
-          created_at: '2024-01-17T16:20:00Z',
-          rejection_reason: 'Receipt not provided'
-        }
-        ]);
-      }
-    } catch (error) {
-      console.error('Failed to fetch expenses:', error);
-      setError(error);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, searchTerm, sortBy, sortOrder]);
-
+  // Reset to page 1 when filters or search change
   useEffect(() => {
-    fetchExpenses();
-  }, [fetchExpenses]);
+    setCurrentPage(1);
+  }, [filters, searchTerm]);
 
-  useEffect(() => {
-    // Apply filters to expenses
+  // Apply filters, search, and sorting with useMemo
+  const filteredExpenses = useMemo(() => {
     let filtered = expenses;
 
     // Search filter
@@ -154,8 +89,81 @@ export const ExpenseHistory: React.FC = () => {
       );
     }
 
-    setFilteredExpenses(filtered);
-  }, [expenses, searchTerm]);
+    // Status filter
+    if (filters.status !== 'all') {
+      filtered = filtered.filter(expense => expense.status === filters.status);
+    }
+
+    // Category filter
+    if (filters.category !== 'all') {
+      filtered = filtered.filter(expense => expense.category === filters.category);
+    }
+
+    // Project filter
+    if (filters.project !== 'all') {
+      filtered = filtered.filter(expense => expense.project_name === filters.project);
+    }
+
+    // Asset filter
+    if (filters.asset !== 'all') {
+      filtered = filtered.filter(expense => expense.asset_name === filters.asset);
+    }
+
+    // Date range filter
+    if (filters.dateRange !== 'all') {
+      const now = new Date();
+      const start = new Date(now);
+      switch (filters.dateRange) {
+        case 'week':
+          start.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          start.setMonth(now.getMonth() - 1);
+          break;
+        case 'quarter':
+          start.setMonth(now.getMonth() - 3);
+          break;
+        case 'year':
+          start.setFullYear(now.getFullYear() - 1);
+          break;
+      }
+      filtered = filtered.filter(expense => new Date(expense.date) >= start);
+    }
+
+    // Amount range filter
+    if (filters.amountRange !== 'all') {
+      switch (filters.amountRange) {
+        case 'low':
+          filtered = filtered.filter(expense => expense.amount < 1000);
+          break;
+        case 'medium':
+          filtered = filtered.filter(expense => expense.amount >= 1000 && expense.amount < 5000);
+          break;
+        case 'high':
+          filtered = filtered.filter(expense => expense.amount >= 5000);
+          break;
+      }
+    }
+
+    // Sorting
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case 'date':
+          comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+          break;
+        case 'amount':
+          comparison = a.amount - b.amount;
+          break;
+        case 'status':
+          comparison = a.status.localeCompare(b.status);
+          break;
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    return filtered;
+  }, [expenses, searchTerm, filters, sortBy, sortOrder]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -225,7 +233,6 @@ export const ExpenseHistory: React.FC = () => {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Export failed:', error);
       showToast({
         title: 'Error',
         description: 'Failed to export expenses. Please try again.',
@@ -249,7 +256,7 @@ export const ExpenseHistory: React.FC = () => {
         <LoadingError
           resource="Expense History"
           error={error}
-          onRetry={fetchExpenses}
+          onRetry={() => refetch()}
           onRefresh={() => window.location.reload()}
         />
       </div>
@@ -266,51 +273,34 @@ export const ExpenseHistory: React.FC = () => {
       minHeight: '100vh'
     }}>
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: spacing.xl,
-        padding: spacing.lg,
-        backgroundColor: 'white',
-        borderRadius: '16px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-        border: '1px solid rgba(0,0,0,0.05)'
-      }}>
-        <div>
-          <h1 style={{ 
-            ...typography.header,
-            fontSize: '28px',
-            color: colors.neutral[900],
-            margin: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: spacing.sm
-          }}>
-            📊 Expense History
-          </h1>
-          <p style={{ color: colors.neutral[600], marginTop: spacing.xs }}>
-            View and manage all your expenses
-          </p>
-        </div>
-        
-        <div style={{ display: 'flex', gap: spacing.sm }}>
-          <Button
-            variant="secondary"
-            onClick={exportExpenses}
-            icon="📤"
-          >
-            Export
-          </Button>
-          <Button
-            variant="primary"
-            onClick={() => navigate('/app/expenses/create')}
-            icon="➕"
-          >
-            Add Expense
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Expense History"
+        subtitle="View and manage all your expenses"
+        icon="📊"
+        breadcrumbs={[
+          { label: 'Dashboard', path: '/dashboard' },
+          { label: 'Expenses', path: '/app/expenses' },
+          { label: 'History' }
+        ]}
+        actions={
+          <div style={{ display: 'flex', gap: spacing.sm }}>
+            <Button
+              variant="secondary"
+              onClick={exportExpenses}
+              icon="📤"
+            >
+              Export
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => navigate('/app/expenses/create')}
+              icon="➕"
+            >
+              Add Expense
+            </Button>
+          </div>
+        }
+      />
 
       {/* Filters */}
       <div style={{
@@ -462,7 +452,16 @@ export const ExpenseHistory: React.FC = () => {
           {filteredExpenses.map((expense) => (
             <div
               key={expense.id}
-              onClick={() => setSelectedExpense(expense)}
+              onClick={() => navigate(`/app/expenses/${expense.id}`)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  navigate(`/app/expenses/${expense.id}`);
+                }
+              }}
+              tabIndex={0}
+              role="button"
+              aria-label={`View expense details: ${expense.description}`}
               style={{
                 padding: spacing.lg,
                 border: '1px solid #E5E7EB',
@@ -653,6 +652,24 @@ export const ExpenseHistory: React.FC = () => {
             }}
           />
         )}
+
+      {/* Pagination */}
+      {totalItems > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={Math.ceil(totalItems / perPage)}
+          totalItems={totalItems}
+          perPage={perPage}
+          onPageChange={(page) => {
+            setCurrentPage(page);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onPerPageChange={(newPerPage) => {
+            setPerPage(newPerPage);
+            setCurrentPage(1);
+          }}
+        />
+      )}
       </div>
     </div>
   );

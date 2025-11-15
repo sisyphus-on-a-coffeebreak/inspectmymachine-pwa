@@ -317,25 +317,29 @@ export default function InspectionsCompleted() {
               </thead>
               <tbody>
                 {loading && filteredRows.length === 0 && (
-                  <tr>
-                    <td colSpan={7} style={{
-                      padding: `${parseInt(spacing.xxl)}px`,
-                      textAlign: 'center' as const,
-                      color: colors.neutral[500]
-                    }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: spacing.md }}>
-                        <div style={{
-                          width: '40px',
-                          height: '40px',
-                          border: `3px solid ${colors.neutral[200]}`,
-                          borderTopColor: colors.primary,
-                          borderRadius: '50%',
-                          animation: 'spin 1s linear infinite'
-                        }} />
-                        <span>Loading inspections...</span>
-                      </div>
-                    </td>
-                  </tr>
+                  <>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={`skeleton-${i}`}>
+                        {Array.from({ length: 7 }).map((_, j) => (
+                          <td key={`skeleton-${i}-${j}`} style={{ padding: spacing.md }}>
+                            <div style={{
+                              height: '20px',
+                              backgroundColor: colors.neutral[200],
+                              borderRadius: '4px',
+                              animation: 'pulse 1.5s ease-in-out infinite',
+                              animationDelay: `${(i * 7 + j) * 0.1}s`,
+                            }} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                    <style>{`
+                      @keyframes pulse {
+                        0%, 100% { opacity: 1; }
+                        50% { opacity: 0.5; }
+                      }
+                    `}</style>
+                  </>
                 )}
 
                 {!loading && filteredRows.length === 0 && (

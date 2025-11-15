@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import axios from "axios";
 import type { AxiosError } from "axios";
+import { apiClient, normalizeError } from "../lib/apiClient";
 import { AuthContext } from "./AuthContext";
 import type { User, AuthContextType, ApiErrorResponse } from "./authTypes";
 
@@ -34,8 +35,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
       (r) => r,
       async (error) => {
         const status = error?.response?.status;
+        const url = error?.config?.url || '';
+        const method = error?.config?.method?.toLowerCase() || '';
+        const headers = error?.config?.headers || {};
+        const isAuthCheck = (url.includes('/user') || url.endsWith('/user')) && method === 'get';
+        const isAuthCheckHeader = headers['X-Auth-Check'] === 'true' || (headers as any).common?.['X-Auth-Check'] === 'true';
+        const skipRetry = error?.config?.skipRetry === true;
+        
+        // Don't retry 401s for auth check requests or requests with skipRetry flag
+        // These are expected when user is not logged in
+        if (status === 401 && (isAuthCheck || isAuthCheckHeader || skipRetry)) {
+          setUser(null);
+          // Suppress error logging for expected auth check failures
+          return Promise.reject(error);
+        }
+        
         // 419 CSRF or 401 unauthenticated → try to refresh CSRF + retry once
-        if ((status === 419 || status === 401) && !retrying) {
+        // But only if not already retrying and not an auth check
+        if ((status === 419 || status === 401) && !retrying && !isAuthCheck && !isAuthCheckHeader && !skipRetry) {
           try {
             retrying = true;
             const csrfUrl = `${API_ORIGIN}/sanctum/csrf-cookie`;
@@ -61,22 +78,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     );
 
-    // Initialize CSRF token
-    const initCSRF = async () => {
-      try {
-        // Use API_ORIGIN (not API_BASE) for Sanctum CSRF cookie
-        const csrfUrl = `${API_ORIGIN}/sanctum/csrf-cookie`;
-        await axios.get(csrfUrl, {
-          withCredentials: true,
-          baseURL: '', // Override baseURL to use full URL
-        });
-        console.log('CSRF token initialized');
-      } catch (error) {
-        console.warn('Failed to initialize CSRF token:', error);
-      }
-    };
-
-    initCSRF();
+    // CSRF token initialization is handled automatically by apiClient on first request
+    // No need to pre-initialize - it will happen when needed
     checkAuth();
 
     return () => {
@@ -86,11 +89,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const checkAuth = async () => {
     try {
-      const response = await axios.get<{ user: User }>("/user", {
-        // Don't retry on 401 - user is just not authenticated
-        validateStatus: (status) => status < 500
-      });
-      setUser(response.data.user);  // 🎯 Extract the nested user object
+      // Mark this request as an auth check by using a custom header that the interceptor can check
+      const response = await apiClient.get<{ user: User }>("/user", {
+        skipRetry: true, // Don't retry on 401 - user is just not authenticated
+        headers: {
+          'X-Auth-Check': 'true', // Custom header to identify auth check requests
+        },
+      } as any);
+      // Handle both { user: User } and direct User response formats
+      setUser((response.data as any).user || response.data);
     } catch (err) {
       // Silently handle authentication check failures
       // 401 means user is not logged in, which is fine
@@ -102,95 +109,49 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (employeeId: string, password: string) => {
     try {
-      // Step 1: Get CSRF token - use API_ORIGIN (not API_BASE) for Sanctum
-      const csrfUrl = `${API_ORIGIN}/sanctum/csrf-cookie`;
-      console.log('[Auth] Fetching CSRF token from:', csrfUrl);
-
-      await axios.get(csrfUrl, {
-        withCredentials: true,
-        baseURL: '', // Override baseURL to use full URL
-      });
-
-      // Small delay to ensure cookie is set
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Step 2: Login - use API_ORIGIN for login endpoint
-      const loginUrl = `${API_ORIGIN}/api/login`;
-      console.log('[Auth] Sending login request to:', loginUrl);
-      console.log('[Auth] Request payload:', { employee_id: employeeId.trim(), password: '[REDACTED]' });
-
-      const loginResponse = await axios.post(loginUrl, {
+      // apiClient automatically handles CSRF token initialization
+      // Step 1: Login - apiClient handles CSRF and headers automatically
+      await apiClient.post("/login", {
         employee_id: employeeId.trim(),
         password: password,
-      }, {
-        withCredentials: true,
-        baseURL: '', // Override baseURL to use full URL
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
       });
 
-      console.log('[Auth] Login response status:', loginResponse.status);
-
-      // Step 3: Get user data
-      const response = await axios.get<{ user: User }>("/user");
-      console.log('[Auth] User data fetched successfully');
-      setUser(response.data.user);  // 🎯 Extract the nested user object
+      // Step 2: Get user data
+      const response = await apiClient.get<{ user: User }>("/user");
+      // Handle both { user: User } and direct User response formats
+      setUser((response.data as any).user || response.data);
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        const axiosError = err as AxiosError<ApiErrorResponse | { errors?: Record<string, string[]>; message?: string }>;
-
-        // Log detailed error information for debugging
-        console.error('[Auth] Login failed with status:', axiosError.response?.status);
-        console.error('[Auth] Error response:', axiosError.response?.data);
-        console.error('[Auth] Error headers:', axiosError.response?.headers);
-
-        // Handle 500 Internal Server Error
-        if (axiosError.response?.status === 500) {
-          console.error('[Auth] Backend server error. Check backend logs for details.');
-          throw new Error(
-            'Server error occurred. Please contact support if this persists. ' +
-            'Error details logged to console.'
-          );
-        }
-
-        // Handle validation errors (422)
-        if (axiosError.response?.status === 422) {
-          const errorData = axiosError.response.data;
-          if (errorData && typeof errorData === 'object' && 'errors' in errorData) {
-            // Laravel validation errors
-            const errors = errorData.errors as Record<string, string[]>;
-            const firstError = Object.values(errors)[0]?.[0];
-            throw new Error(firstError || 'Validation failed. Please check your credentials.');
-          }
-          throw new Error(errorData?.message || 'Invalid credentials. Please check your employee ID and password.');
-        }
-
-        // Handle other errors
+      const apiError = normalizeError(err);
+      
+      // Handle 500 Internal Server Error
+      if (apiError.status === 500) {
         throw new Error(
-          axiosError.response?.data?.message ||
-          axiosError.message ||
-          "Login failed"
+          'Server error occurred. Please contact support if this persists.'
         );
       }
-      throw new Error("An unexpected error occurred");
+
+      // Handle validation errors (422)
+      if (apiError.status === 422) {
+        const errorData = apiError.data as { errors?: Record<string, string[]>; message?: string };
+        if (errorData && typeof errorData === 'object' && 'errors' in errorData) {
+          // Laravel validation errors
+          const errors = errorData.errors as Record<string, string[]>;
+          const firstError = Object.values(errors)[0]?.[0];
+          throw new Error(firstError || 'Validation failed. Please check your credentials.');
+        }
+        throw new Error(errorData?.message || 'Invalid credentials. Please check your employee ID and password.');
+      }
+
+      // Handle other errors
+      throw new Error(apiError.message || "Login failed");
     }
   };
 
   const logout = async () => {
     try {
-      await axios.post("/logout", {}, {
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
+      await apiClient.post("/logout", {});
       setUser(null);
     } catch (err) {
-      console.error("Logout error:", err);
       // Even if logout fails on server, clear local state
       setUser(null);
     }

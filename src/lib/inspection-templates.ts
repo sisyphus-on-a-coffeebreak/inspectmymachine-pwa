@@ -1,6 +1,5 @@
-import axios from 'axios';
+import { apiClient } from './apiClient';
 import { get, set, del, keys } from 'idb-keyval';
-import { withBackoff } from './retry';
 import type { InspectionTemplate } from '@/types/inspection';
 
 const CACHE_PREFIX = 'inspection-template:';
@@ -45,10 +44,9 @@ export async function fetchInspectionTemplate(
   }
 
   try {
-    const response = await withBackoff(
-      () => axios.get<InspectionTemplate>(`/v1/inspection-templates/${templateId}`, { signal }),
-      { tries: 3, baseMs: 400 },
-    );
+    const response = await apiClient.get<InspectionTemplate>(`/v1/inspection-templates/${templateId}`, {
+      skipRetry: false, // apiClient handles retry internally
+    });
 
     const template = response.data;
     const record: CachedTemplateRecord = {

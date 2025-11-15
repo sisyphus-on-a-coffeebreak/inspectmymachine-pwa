@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import { apiClient } from '../../../lib/apiClient';
+import { buttonHoverStates } from '../../../lib/theme';
 import type { Vehicle } from '../gatePassTypes';
 
 // 🚗 VehicleSelector Component
@@ -66,7 +67,7 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
         endpointPath = '/' + endpointPath;
       }
       
-      const response = await axios.get(endpointPath, { params });
+      const response = await apiClient.get(endpointPath, { params });
       
       // Handle Laravel API response format (wrapped in { data: [] })
       const vehicleData = Array.isArray(response.data) 
@@ -75,7 +76,7 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
         
       setVehicles(vehicleData);
     } catch (error) {
-      console.error('Failed to fetch vehicles:', error);
+      // Error is already handled by apiClient
       setVehicles([]); // Graceful degradation - show empty list instead of blocking alert
     } finally {
       setLoading(false);
@@ -183,8 +184,15 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
                     cursor: 'pointer',
                     transition: 'background-color 0.2s'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#F9FAFB';
+                    Object.assign(e.currentTarget.style, buttonHoverStates.hover);
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'white';
+                    e.currentTarget.style.transform = 'none';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
                 >
                   <div style={{ fontWeight: 500, fontSize: '0.875rem', color: '#111827' }}>
                     🚛 {vehicle.registration_number}

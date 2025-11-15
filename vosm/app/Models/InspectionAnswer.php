@@ -13,6 +13,8 @@ class InspectionAnswer extends Model
     protected $fillable = [
         'inspection_id',
         'question_id',
+        'component_type',
+        'component_id',
         'answer_value',
         'answer_files',
         'answer_metadata',

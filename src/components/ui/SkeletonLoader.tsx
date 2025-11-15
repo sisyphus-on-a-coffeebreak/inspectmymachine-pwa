@@ -1,145 +1,145 @@
-import React from 'react';
-import { colors, spacing } from '../../lib/theme';
+/**
+ * SkeletonLoader Component
+ * 
+ * Loading placeholders that match content structure for better perceived performance
+ * Includes variants for cards, tables, and custom content
+ */
 
-interface SkeletonLoaderProps {
-  width?: string | number;
-  height?: string | number;
-  borderRadius?: string;
+import React from 'react';
+import { colors, spacing, borderRadius, cardStyles } from '../../lib/theme';
+
+export interface SkeletonLoaderProps {
+  variant?: 'card' | 'table' | 'text' | 'custom';
+  rows?: number;
+  columns?: number;
   className?: string;
-  style?: React.CSSProperties;
-  animation?: 'pulse' | 'wave' | 'none';
 }
 
-export const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({
-  width = '100%',
-  height = '20px',
-  borderRadius = '4px',
-  className = '',
-  style = {},
-  animation = 'pulse'
-}) => {
-  const animationStyle = {
-    pulse: {
-      animation: 'skeleton-pulse 1.5s ease-in-out infinite'
-    },
-    wave: {
-      animation: 'skeleton-wave 1.5s ease-in-out infinite'
-    },
-    none: {}
-  };
-
-  return (
-    <div
-      className={`skeleton-loader ${className}`}
-      style={{
-        width,
-        height,
-        backgroundColor: colors.neutral[200],
-        borderRadius,
-        ...animationStyle[animation],
-        ...style
-      }}
-    />
-  );
-};
-
-// Skeleton components for common patterns
+/**
+ * Skeleton Card - For card-based layouts
+ */
 export const SkeletonCard: React.FC<{ className?: string }> = ({ className = '' }) => (
-  <div 
+  <div
     className={`skeleton-card ${className}`}
     style={{
-      padding: spacing.lg,
-      backgroundColor: 'white',
-      borderRadius: '12px',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-      border: '1px solid rgba(0,0,0,0.05)'
+      ...cardStyles.base,
+      animation: 'pulse 1.5s ease-in-out infinite',
     }}
   >
-    <SkeletonLoader height="24px" width="60%" style={{ marginBottom: spacing.sm }} />
-    <SkeletonLoader height="16px" width="100%" style={{ marginBottom: spacing.xs }} />
-    <SkeletonLoader height="16px" width="80%" style={{ marginBottom: spacing.md }} />
-    <SkeletonLoader height="32px" width="40%" />
+    <div style={{
+      height: '20px',
+      width: '60%',
+      backgroundColor: colors.neutral[200],
+      borderRadius: borderRadius.sm,
+      marginBottom: spacing.md,
+    }} />
+    <div style={{
+      height: '32px',
+      width: '40%',
+      backgroundColor: colors.neutral[200],
+      borderRadius: borderRadius.sm,
+      marginBottom: spacing.sm,
+    }} />
+    <div style={{
+      height: '16px',
+      width: '80%',
+      backgroundColor: colors.neutral[200],
+      borderRadius: borderRadius.sm,
+    }} />
+    <style>{`
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+    `}</style>
   </div>
 );
 
-export const SkeletonTable: React.FC<{ rows?: number; columns?: number; className?: string }> = ({ 
-  rows = 5, 
-  columns = 4, 
-  className = '' 
-}) => (
-  <div className={`skeleton-table ${className}`}>
-    {/* Header */}
-    <div style={{ display: 'flex', gap: spacing.md, marginBottom: spacing.md }}>
-      {Array.from({ length: columns }).map((_, i) => (
-        <SkeletonLoader key={i} height="20px" width="100%" />
-      ))}
-    </div>
-    {/* Rows */}
-    {Array.from({ length: rows }).map((_, rowIndex) => (
-      <div key={rowIndex} style={{ display: 'flex', gap: spacing.md, marginBottom: spacing.sm }}>
-        {Array.from({ length: columns }).map((_, colIndex) => (
-          <SkeletonLoader key={colIndex} height="16px" width="100%" />
+/**
+ * Skeleton Table - For table/list layouts
+ */
+export const SkeletonTable: React.FC<{ rows?: number; columns?: number }> = ({ rows = 5, columns = 4 }) => (
+  <div style={{ ...cardStyles.base }}>
+    {Array.from({ length: rows }).map((_, i) => (
+      <div
+        key={i}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${columns}, 1fr)`,
+          gap: spacing.md,
+          padding: spacing.md,
+          borderBottom: i < rows - 1 ? `1px solid ${colors.neutral[200]}` : 'none',
+        }}
+      >
+        {Array.from({ length: columns }).map((_, j) => (
+          <div
+            key={j}
+            style={{
+              height: '20px',
+              backgroundColor: colors.neutral[200],
+              borderRadius: borderRadius.sm,
+              animation: 'pulse 1.5s ease-in-out infinite',
+              animationDelay: `${(i * columns + j) * 0.1}s`,
+            }}
+          />
         ))}
       </div>
     ))}
+    <style>{`
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+    `}</style>
   </div>
 );
 
-export const SkeletonList: React.FC<{ items?: number; className?: string }> = ({ 
-  items = 3, 
-  className = '' 
-}) => (
-  <div className={`skeleton-list ${className}`}>
-    {Array.from({ length: items }).map((_, i) => (
-      <div key={i} style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: spacing.md, 
-        marginBottom: spacing.md,
-        padding: spacing.sm,
-        backgroundColor: 'white',
-        borderRadius: '8px',
-        border: '1px solid rgba(0,0,0,0.05)'
-      }}>
-        <SkeletonLoader width="40px" height="40px" borderRadius="50%" />
-        <div style={{ flex: 1 }}>
-          <SkeletonLoader height="16px" width="70%" style={{ marginBottom: spacing.xs }} />
-          <SkeletonLoader height="14px" width="50%" />
-        </div>
-        <SkeletonLoader width="60px" height="24px" borderRadius="12px" />
-      </div>
+/**
+ * Skeleton Text - For text content
+ */
+export const SkeletonText: React.FC<{ lines?: number; width?: string }> = ({ lines = 3, width = '100%' }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+    {Array.from({ length: lines }).map((_, i) => (
+      <div
+        key={i}
+        style={{
+          height: '16px',
+          width: i === lines - 1 ? '60%' : width,
+          backgroundColor: colors.neutral[200],
+          borderRadius: borderRadius.sm,
+          animation: 'pulse 1.5s ease-in-out infinite',
+          animationDelay: `${i * 0.1}s`,
+        }}
+      />
     ))}
+    <style>{`
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+    `}</style>
   </div>
 );
 
-export const SkeletonStats: React.FC<{ cards?: number; className?: string }> = ({ 
-  cards = 4, 
-  className = '' 
-}) => (
-  <div 
-    className={`skeleton-stats ${className}`}
-    style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-      gap: spacing.lg
-    }}
-  >
-    {Array.from({ length: cards }).map((_, i) => (
-      <div key={i} style={{
-        padding: spacing.lg,
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-        border: '1px solid rgba(0,0,0,0.05)'
-      }}>
-        <SkeletonLoader height="16px" width="60%" style={{ marginBottom: spacing.sm }} />
-        <SkeletonLoader height="32px" width="40%" style={{ marginBottom: spacing.sm }} />
-        <SkeletonLoader height="12px" width="80%" />
-      </div>
-    ))}
-  </div>
-);
+/**
+ * Generic Skeleton Loader
+ */
+export const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({
+  variant = 'card',
+  rows = 3,
+  columns = 4,
+  className = '',
+}) => {
+  switch (variant) {
+    case 'card':
+      return <SkeletonCard className={className} />;
+    case 'table':
+      return <SkeletonTable rows={rows} columns={columns} />;
+    case 'text':
+      return <SkeletonText lines={rows} />;
+    default:
+      return <SkeletonCard className={className} />;
+  }
+};
 
 export default SkeletonLoader;
-
-

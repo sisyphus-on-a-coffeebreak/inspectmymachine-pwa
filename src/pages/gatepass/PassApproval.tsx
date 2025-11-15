@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
+import { PolicyLinks } from '../../components/ui/PolicyLinks';
 import { useToast } from '../../providers/ToastProvider';
 import { useConfirm } from '../../components/ui/Modal';
 
@@ -68,13 +69,12 @@ export const PassApproval: React.FC = () => {
   const fetchApprovalRequests = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/gate-pass-approval/pending', {
+      const response = await apiClient.get('/api/gate-pass-approval/pending', {
         params: { status: filter }
       });
       setApprovalRequests(response.data);
     } catch (error) {
-      console.error('Failed to fetch approval requests:', error);
-      // Mock data for development
+      // Mock data for development (fallback)
       setApprovalRequests([
         {
           id: '1',
@@ -112,11 +112,10 @@ export const PassApproval: React.FC = () => {
 
   const fetchPassDetails = async (passId: string) => {
     try {
-      const response = await axios.get(`/api/gate-pass-approval/pass-details/${passId}`);
+      const response = await apiClient.get(`/api/gate-pass-approval/pass-details/${passId}`);
       setPassDetails(response.data);
     } catch (error) {
-      console.error('Failed to fetch pass details:', error);
-      // Mock data for development
+      // Mock data for development (fallback)
       setPassDetails({
         id: passId,
         pass_number: 'VP123456',
@@ -134,10 +133,9 @@ export const PassApproval: React.FC = () => {
 
   const fetchApprovalLevels = async () => {
     try {
-      const response = await axios.get(`/api/gate-pass-approval/history`);
+      const response = await apiClient.get(`/api/gate-pass-approval/history`);
       setApprovalLevels(response.data);
     } catch (error) {
-      console.error('Failed to fetch approval levels:', error);
       // Mock data for development
       setApprovalLevels([
         {
@@ -173,7 +171,7 @@ export const PassApproval: React.FC = () => {
 
     try {
       setLoading(true);
-      await axios.post(`/api/gate-pass-approval/approve/${selectedRequest.id}`, {
+      await apiClient.post(`/api/gate-pass-approval/approve/${selectedRequest.id}`, {
         notes: approvalNotes
       });
 
@@ -186,7 +184,6 @@ export const PassApproval: React.FC = () => {
       setApprovalNotes('');
       fetchApprovalRequests();
     } catch (error) {
-      console.error('Failed to approve request:', error);
       showToast({
         title: 'Error',
         description: 'Failed to approve request. Please try again.',
@@ -209,7 +206,7 @@ export const PassApproval: React.FC = () => {
 
     try {
       setLoading(true);
-      await axios.post(`/api/gate-pass-approval/reject/${selectedRequest.id}`, {
+      await apiClient.post(`/api/gate-pass-approval/reject/${selectedRequest.id}`, {
         reason: rejectionReason
       });
 
@@ -222,7 +219,6 @@ export const PassApproval: React.FC = () => {
       setRejectionReason('');
       fetchApprovalRequests();
     } catch (error) {
-      console.error('Failed to reject request:', error);
       showToast({
         title: 'Error',
         description: 'Failed to reject request. Please try again.',
@@ -238,7 +234,7 @@ export const PassApproval: React.FC = () => {
 
     try {
       setLoading(true);
-      await axios.post(`/api/gate-pass-approval/escalate/${selectedRequest.id}`, {
+      await apiClient.post(`/api/gate-pass-approval/escalate/${selectedRequest.id}`, {
         reason: approvalNotes
       });
 
@@ -251,7 +247,6 @@ export const PassApproval: React.FC = () => {
       setApprovalNotes('');
       fetchApprovalRequests();
     } catch (error) {
-      console.error('Failed to escalate request:', error);
       showToast({
         title: 'Error',
         description: 'Failed to escalate request. Please try again.',
@@ -341,6 +336,32 @@ export const PassApproval: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Policy Links */}
+      <PolicyLinks
+        title="Approval Policy & Escalation Rules"
+        links={[
+          {
+            label: 'Escalation Rules',
+            url: '/policies/escalation-rules',
+            external: false,
+            icon: '⚡'
+          },
+          {
+            label: 'Approval Workflow',
+            url: '/policies/approval-workflow',
+            external: false,
+            icon: '🔄'
+          },
+          {
+            label: 'Gate Pass Policy',
+            url: '/policies/gate-pass-policy',
+            external: false,
+            icon: '📋'
+          }
+        ]}
+        variant="compact"
+      />
 
       {/* Filters */}
       <div style={{

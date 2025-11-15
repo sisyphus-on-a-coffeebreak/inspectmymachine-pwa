@@ -135,7 +135,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
               return;
             }
           } catch (err) {
-            console.warn('jsQR detection error:', err);
+            // jsQR detection error
           } finally {
             isDetectingRef.current = false;
           }
@@ -153,7 +153,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
           return;
         }
       } catch (err) {
-        console.warn('jsQR detection error:', err);
+        // jsQR detection error
       } finally {
         isDetectingRef.current = false;
       }
@@ -174,7 +174,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
             formats: ['qr_code'] 
           });
         } catch (err) {
-          console.warn('BarcodeDetector not supported:', err);
+          // BarcodeDetector not supported
           detectorRef.current = null;
         }
       }
@@ -193,7 +193,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
           }
         });
       } catch (envError) {
-        console.warn('Environment camera not available, trying user camera:', envError);
+        // Environment camera not available, trying user camera
         error = envError as Error;
         
         // Second try: user (front camera on mobile, built-in on laptops)
@@ -207,7 +207,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
           });
           error = null;
         } catch (userError) {
-          console.warn('User camera not available, trying any camera:', userError);
+          // User camera not available, trying any camera
           
           // Third try: any available camera (no facingMode constraint)
           try {

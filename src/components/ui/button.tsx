@@ -12,6 +12,8 @@ interface ButtonProps {
   className?: string;
   fullWidth?: boolean;
   icon?: React.ReactNode;
+  'aria-label'?: string;
+  'aria-labelledby'?: string;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -24,7 +26,9 @@ export const Button: React.FC<ButtonProps> = ({
   type = 'button',
   className = '',
   fullWidth = false,
-  icon
+  icon,
+  'aria-label': ariaLabel,
+  'aria-labelledby': ariaLabelledBy
 }) => {
   const sizeMap = {
     sm: {
@@ -105,6 +109,8 @@ export const Button: React.FC<ButtonProps> = ({
       disabled={disabled || loading}
       className={`btn-hover-scale touch-feedback ${className}`}
       aria-disabled={disabled || loading}
+      aria-label={ariaLabel || (typeof children === 'string' ? children : undefined)}
+      aria-labelledby={ariaLabelledBy}
     >
       {loading && (
         <div 

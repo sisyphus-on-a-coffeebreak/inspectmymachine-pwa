@@ -1,11 +1,12 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useExpenses, useFloatBalance } from '../../lib/queries';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
 import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { PolicyLinks } from '../../components/ui/PolicyLinks';
 
 // 💰 Employee Expense Dashboard
 // Personal expense management for employees
@@ -50,109 +51,94 @@ interface BudgetAlert {
 
 export const EmployeeExpenseDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [summary, setSummary] = useState<ExpenseSummary | null>(null);
-  const [recentExpenses, setRecentExpenses] = useState<RecentExpense[]>([]);
-  const [budgetAlerts, setBudgetAlerts] = useState<BudgetAlert[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<'day' | 'week' | 'month' | 'quarter'>('month');
+  
+  // Use React Query for expenses and float balance
+  const { data: expensesData, isLoading: expensesLoading, error: expensesError, refetch: refetchExpenses } = useExpenses(
+    { mine: true }
+  );
+  const { data: floatData, isLoading: floatLoading, error: floatError } = useFloatBalance();
+  
+  const loading = expensesLoading || floatLoading;
+  const error = expensesError || floatError;
+  
+  // Process expenses data
+  type ApiExpense = { id?: string|number; amount?: number; category?: string; notes?: string; ts?: string|Date; status?: string };
+  const raw = expensesData?.data || [];
+  const expenses = useMemo(() => raw.map((e: ApiExpense) => ({
+    id: String(e.id ?? ''),
+    amount: Number(e.amount ?? 0),
+    category: String(e.category ?? 'OTHER'),
+    description: String(e.notes ?? e.category ?? 'Expense'),
+    date: (e.ts ? new Date(e.ts).toISOString() : new Date().toISOString()),
+    status: (String(e.status ?? 'pending') as 'pending'|'approved'|'rejected'),
+  })), [raw]);
+  
+  // Compute summary from expenses and float balance
+  const { summary, recentExpenses, budgetAlerts } = useMemo(() => {
+    // Filter by selected period (client-side)
+    const now = new Date();
+    const start = new Date(now);
+    if (selectedPeriod === 'day') start.setDate(now.getDate() - 1);
+    if (selectedPeriod === 'week') start.setDate(now.getDate() - 7);
+    if (selectedPeriod === 'month') start.setMonth(now.getMonth() - 1);
+    if (selectedPeriod === 'quarter') start.setMonth(now.getMonth() - 3);
 
-  const fetchDashboardData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+    const inPeriod = expenses.filter(e => new Date(e.date) >= start);
 
-      // Fetch my expenses and float balance
-      const [expensesRes, floatRes] = await Promise.all([
-        axios.get('/v1/expenses', { params: { mine: true } }),
-        axios.get('/v1/float/me')
-      ]);
+    const total_spent = inPeriod.reduce((s, e) => s + (e.amount || 0), 0);
+    const pending_approval = inPeriod.filter(e => e.status === 'pending')
+      .reduce((s, e) => s + (e.amount || 0), 0);
+    const approved_this_period = inPeriod.filter(e => e.status === 'approved')
+      .reduce((s, e) => s + (e.amount || 0), 0);
 
-      type ApiExpense = { id?: string|number; amount?: number; category?: string; notes?: string; ts?: string|Date; status?: string };
-      const raw = (Array.isArray(expensesRes.data) ? expensesRes.data : (expensesRes.data?.items ?? [])) as ApiExpense[];
-      const expenses = raw.map((e) => ({
-        id: String(e.id ?? ''),
-        amount: Number(e.amount ?? 0),
-        category: String(e.category ?? 'OTHER'),
-        description: String(e.notes ?? e.category ?? 'Expense'),
-        date: (e.ts ? new Date(e.ts).toISOString() : new Date().toISOString()),
-        status: (String(e.status ?? 'pending') as 'pending'|'approved'|'rejected'),
-      }));
+    // Category breakdown
+    const byCat: Record<string, number> = {};
+    inPeriod.forEach(e => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
+    const catEntries = Object.entries(byCat);
+    const catTotal = Math.max(1, catEntries.reduce((s, [, v]) => s + v, 0));
+    const colorsList = [colors.primary, colors.status.normal, colors.status.warning, colors.status.critical, colors.neutral[500]];
+    const category_breakdown = catEntries.map(([category, amount], idx) => ({
+      category,
+      amount,
+      percentage: Math.round((amount / catTotal) * 1000) / 10,
+      color: colorsList[idx % colorsList.length]
+    }));
 
-      // Filter by selected period (client-side)
-      const now = new Date();
-      const start = new Date(now);
-      if (selectedPeriod === 'day') start.setDate(now.getDate() - 1);
-      if (selectedPeriod === 'week') start.setDate(now.getDate() - 7);
-      if (selectedPeriod === 'month') start.setMonth(now.getMonth() - 1);
-      if (selectedPeriod === 'quarter') start.setMonth(now.getMonth() - 3);
+    // Recent trends (last 5 days)
+    const recent_trends = Array.from({ length: 5 }).map((_, i) => {
+      const d = new Date(now);
+      d.setDate(now.getDate() - (4 - i));
+      const dayTotal = inPeriod.filter(e => new Date(e.date).toDateString() === d.toDateString())
+        .reduce((s, e) => s + e.amount, 0);
+      return { date: d.toISOString().slice(0, 10), amount: dayTotal };
+    });
 
-      const inPeriod = expenses.filter(e => new Date(e.date) >= start);
+    // Float balance → show as Advance Balance (remaining_budget field)
+    const advanceBalance = Number(floatData?.balance ?? 0);
 
-      const total_spent = inPeriod.reduce((s, e) => s + (e.amount || 0), 0);
-      const pending_approval = inPeriod.filter(e => e.status === 'pending')
-        .reduce((s, e) => s + (e.amount || 0), 0);
-      const approved_this_period = inPeriod.filter(e => e.status === 'approved')
-        .reduce((s, e) => s + (e.amount || 0), 0);
+    const summary: ExpenseSummary = {
+      total_spent,
+      remaining_budget: advanceBalance,
+      pending_approval,
+      approved_this_month: approved_this_period,
+      category_breakdown,
+      recent_trends,
+    };
 
-      // Category breakdown
-      const byCat: Record<string, number> = {};
-      inPeriod.forEach(e => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
-      const catEntries = Object.entries(byCat);
-      const catTotal = Math.max(1, catEntries.reduce((s, [, v]) => s + v, 0));
-      const colorsList = [colors.primary, colors.status.normal, colors.status.warning, colors.status.critical, colors.neutral[500]];
-      const category_breakdown = catEntries.map(([category, amount], idx) => ({
-        category,
-        amount,
-        percentage: Math.round((amount / catTotal) * 1000) / 10,
-        color: colorsList[idx % colorsList.length]
-      }));
+    // Recent expenses list (top 10)
+    const recentExpenses: RecentExpense[] = inPeriod
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 10);
 
-      // Recent trends (last 5 days)
-      const recent_trends = Array.from({ length: 5 }).map((_, i) => {
-        const d = new Date(now);
-        d.setDate(now.getDate() - (4 - i));
-        const dayTotal = inPeriod.filter(e => new Date(e.date).toDateString() === d.toDateString())
-          .reduce((s, e) => s + e.amount, 0);
-        return { date: d.toISOString().slice(0, 10), amount: dayTotal };
-      });
-
-      // Float balance → show as Advance Balance (remaining_budget field)
-      const advanceBalance = Number(floatRes.data?.balance ?? 0);
-
-      setSummary({
-        total_spent,
-        remaining_budget: advanceBalance,
-        pending_approval,
-        approved_this_month: approved_this_period,
-        category_breakdown,
-        recent_trends,
-      });
-
-      // Recent expenses list (top 10)
-      setRecentExpenses(inPeriod
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, 10)
-      );
-
-      // Alerts: pending items and low advance balance
-      const alerts: BudgetAlert[] = [];
-      const pendingCount = inPeriod.filter(e => e.status === 'pending').length;
-      if (pendingCount > 0) alerts.push({ type: 'info', message: `${pendingCount} expenses are pending approval`, percentage: 0 });
-      if (advanceBalance < 1000) alerts.push({ type: 'warning', message: 'Advance balance is running low', percentage: 0 });
-      setBudgetAlerts(alerts);
-
-    } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
-      setError(error as Error);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedPeriod]);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+    // Alerts: pending items and low advance balance
+    const alerts: BudgetAlert[] = [];
+    const pendingCount = inPeriod.filter(e => e.status === 'pending').length;
+    if (pendingCount > 0) alerts.push({ type: 'info', message: `${pendingCount} expenses are pending approval`, percentage: 0 });
+    if (advanceBalance < 1000) alerts.push({ type: 'warning', message: 'Advance balance is running low', percentage: 0 });
+    
+    return { summary, recentExpenses, budgetAlerts: alerts };
+  }, [expenses, selectedPeriod, floatData]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -195,7 +181,7 @@ export const EmployeeExpenseDashboard: React.FC = () => {
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: spacing.sm }}>
         <NetworkError
           error={error}
-          onRetry={fetchDashboardData}
+          onRetry={() => refetchExpenses()}
           onGoBack={() => navigate('/dashboard')}
         />
       </div>
@@ -258,12 +244,38 @@ export const EmployeeExpenseDashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Policy Links */}
+      <PolicyLinks
+        title="Expense Policy & Guidelines"
+        links={[
+          {
+            label: 'Expense Policy',
+            url: '/policies/expense-policy',
+            external: false,
+            icon: '📋'
+          },
+          {
+            label: 'Receipt Requirements',
+            url: '/policies/receipt-requirements',
+            external: false,
+            icon: '🧾'
+          },
+          {
+            label: 'Approval Process',
+            url: '/policies/approval-process',
+            external: false,
+            icon: '✅'
+          }
+        ]}
+        variant="compact"
+      />
+
       {/* Budget Alerts (only info-level) */}
       {budgetAlerts.filter(a => a.type === 'info').length > 0 && (
         <div style={{ marginBottom: spacing.xl }}>
           {budgetAlerts.filter(a => a.type === 'info').map((alert, index) => (
             <div
-              key={index}
+              key={`budget-alert-${alert.category || index}`}
               style={{
                 padding: spacing.lg,
                 backgroundColor: colors.primary + '10',
@@ -628,7 +640,7 @@ export const EmployeeExpenseDashboard: React.FC = () => {
           
           <div style={{ display: 'grid', gap: spacing.md }}>
             {summary.category_breakdown.map((category, index) => (
-              <div key={index} style={{
+              <div key={`category-${category.category || index}`} style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: spacing.md,

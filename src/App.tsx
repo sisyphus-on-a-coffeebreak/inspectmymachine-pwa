@@ -1,6 +1,7 @@
 // src/App.tsx
 import { Routes, Route, Navigate } from "react-router-dom";
 import RequireAuth, { RequireRole } from "@/components/RequireAuth";
+import ErrorBoundary from "@/components/ErrorBoundary";
 // import FloatDashboard from "@/pages/FloatDashboard";
 import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
@@ -15,7 +16,15 @@ import { StockyardDashboard } from './pages/stockyard/StockyardDashboard';
 import { CreateStockyardRequest } from './pages/stockyard/CreateStockyardRequest';
 import { StockyardRequestDetails } from './pages/stockyard/StockyardRequestDetails';
 import { StockyardScan } from './pages/stockyard/StockyardScan';
+import { ComponentLedger } from './pages/stockyard/ComponentLedger';
+import { CreateComponent } from './pages/stockyard/CreateComponent';
+import { ComponentDetails } from './pages/stockyard/ComponentDetails';
+import { EditComponent } from './pages/stockyard/EditComponent';
+import { ComponentTransferApproval } from './pages/stockyard/ComponentTransferApproval';
+import { ComponentCostAnalysis } from './pages/stockyard/ComponentCostAnalysis';
+import { ComponentHealthDashboard } from './pages/stockyard/ComponentHealthDashboard';
 import { GatePassDashboard } from './pages/gatepass/GatePassDashboard';
+import { GatePassDetails } from './pages/gatepass/GatePassDetails';
 import { CreateVisitorPass } from './pages/gatepass/CreateVisitorPass';
 import { CreateVehicleMovement } from './pages/gatepass/CreateVehicleMovement';
 import { GuardRegister } from './pages/gatepass/GuardRegister';
@@ -26,7 +35,10 @@ import { GatePassCalendar } from './pages/gatepass/GatePassCalendar';
 import { PassValidation } from './pages/gatepass/PassValidation';
 import { PassApproval } from './pages/gatepass/PassApproval';
 import { BulkOperations } from './pages/gatepass/BulkOperations';
+import { AlertDashboard } from './pages/alerts/AlertDashboard';
+import { NotificationsPage } from './pages/notifications/NotificationsPage';
 import { EmployeeExpenseDashboard } from './pages/expenses/EmployeeExpenseDashboard';
+import { ExpenseDetails } from './pages/expenses/ExpenseDetails';
 import { CreateExpense } from './pages/expenses/CreateExpense';
 import { ExpenseHistory } from './pages/expenses/ExpenseHistory';
 import { AssetManagementDashboard } from './pages/expenses/AssetManagementDashboard';
@@ -37,11 +49,16 @@ import { ExpenseReports } from './pages/expenses/ExpenseReports';
 import { ReceiptsGallery } from './pages/expenses/ReceiptsGallery';
 import { AccountsDashboard } from './pages/expenses/AccountsDashboard';
 import UserManagement from './pages/admin/UserManagement';
+import { UserDetails } from './pages/admin/UserDetails';
+import { UserActivityDashboard } from './pages/admin/UserActivityDashboard';
+import { CapabilityMatrix } from './pages/admin/CapabilityMatrix';
+import { BulkUserOperations } from './pages/admin/BulkUserOperations';
 import NotFound from './pages/NotFound';
 
 export default function App() {
   return (
-    <Routes>
+    <ErrorBoundary>
+      <Routes>
       {/* Root redirects to dashboard */}
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       
@@ -55,6 +72,11 @@ export default function App() {
       />
 
       {/* 🚪 Gate Pass Module - UPDATED */}
+      {/* Gate Pass Details - Deep linking (must come before dashboard) */}
+      <Route
+        path="/app/gate-pass/:id"
+        element={<RequireAuth><GatePassDetails /></RequireAuth>}
+      />
       <Route
         path="/app/gate-pass"
         element={<RequireAuth><GatePassDashboard /></RequireAuth>}
@@ -115,6 +137,11 @@ export default function App() {
       />
 
       {/* Inspections - Sub Routes */}
+      {/* Inspection Details - Deep linking (must come before capture routes with :id) */}
+      <Route 
+        path="/app/inspections/:id" 
+        element={<RequireAuth><InspectionDetails /></RequireAuth>} 
+      />
       <Route
         path="/app/inspections/completed"
         element={<RequireAuth><InspectionsCompleted /></RequireAuth>}
@@ -131,16 +158,18 @@ export default function App() {
         path="/app/inspections/:templateId/:vehicleId/capture"
         element={<RequireAuth><InspectionCapture /></RequireAuth>}
       />
+      {/* Legacy route redirect */}
       <Route 
         path="/inspections/:id" 
-        element={<RequireAuth><InspectionDetails /></RequireAuth>} 
-      />
-      <Route 
-        path="/app/inspections/:id" 
-        element={<RequireAuth><InspectionDetails /></RequireAuth>} 
+        element={<Navigate to="/app/inspections/:id" replace />} 
       />
 
       {/* 💰 Expenses Module - Enhanced */}
+      {/* Expense Details - Deep linking (must come before other routes) */}
+      <Route
+        path="/app/expenses/:id"
+        element={<RequireAuth><ExpenseDetails /></RequireAuth>}
+      />
       <Route
         path="/app/expenses"
         element={<RequireAuth><EmployeeExpenseDashboard /></RequireAuth>}
@@ -190,6 +219,16 @@ export default function App() {
 
       {/* Float module removed (legacy) */}
 
+      {/* 🚨 Alerts Module */}
+      <Route
+        path="/app/alerts"
+        element={<RequireAuth><RequireRole roles={['super_admin', 'admin', 'supervisor']}><AlertDashboard /></RequireRole></RequireAuth>}
+      />
+      <Route
+        path="/app/notifications"
+        element={<RequireAuth><NotificationsPage /></RequireAuth>}
+      />
+
       {/* 🎯 Stockyard Module */}
       <Route
         path="/app/stockyard"
@@ -207,8 +246,52 @@ export default function App() {
         path="/app/stockyard/scan"
         element={<RequireAuth><StockyardScan /></RequireAuth>}
       />
+      <Route
+        path="/app/stockyard/components"
+        element={<RequireAuth><ComponentLedger /></RequireAuth>}
+      />
+      <Route
+        path="/app/stockyard/components/create"
+        element={<RequireAuth><CreateComponent /></RequireAuth>}
+      />
+      <Route
+        path="/app/stockyard/components/:type/:id/edit"
+        element={<RequireAuth><EditComponent /></RequireAuth>}
+      />
+      <Route
+        path="/app/stockyard/components/:type/:id"
+        element={<RequireAuth><ComponentDetails /></RequireAuth>}
+      />
+      <Route
+        path="/app/stockyard/components/transfers/approvals"
+        element={<RequireAuth><ComponentTransferApproval /></RequireAuth>}
+      />
+      <Route
+        path="/app/stockyard/components/cost-analysis"
+        element={<RequireAuth><ComponentCostAnalysis /></RequireAuth>}
+      />
+      <Route
+        path="/app/stockyard/components/health"
+        element={<RequireAuth><ComponentHealthDashboard /></RequireAuth>}
+      />
 
       {/* 👥 User Management Module */}
+      <Route
+        path="/app/admin/users/activity"
+        element={<RequireAuth><RequireRole roles={['super_admin', 'admin']}><UserActivityDashboard /></RequireRole></RequireAuth>}
+      />
+      <Route
+        path="/app/admin/users/capability-matrix"
+        element={<RequireAuth><RequireRole roles={['super_admin', 'admin']}><CapabilityMatrix /></RequireRole></RequireAuth>}
+      />
+      <Route
+        path="/app/admin/users/bulk-operations"
+        element={<RequireAuth><RequireRole roles={['super_admin', 'admin']}><BulkUserOperations /></RequireRole></RequireAuth>}
+      />
+      <Route
+        path="/app/admin/users/:id"
+        element={<RequireAuth><RequireRole roles={['super_admin', 'admin']}><UserDetails /></RequireRole></RequireAuth>}
+      />
       <Route
         path="/app/admin/users"
         element={<RequireAuth><RequireRole roles={['super_admin', 'admin']}><UserManagement /></RequireRole></RequireAuth>}
@@ -220,5 +303,6 @@ export default function App() {
         element={<NotFound />} 
       />
     </Routes>
+    </ErrorBoundary>
   );
 }

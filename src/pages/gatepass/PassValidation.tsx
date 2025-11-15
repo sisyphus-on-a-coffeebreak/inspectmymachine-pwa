@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import QRScanner from '../../components/ui/QRScanner';
@@ -74,9 +74,9 @@ export const PassValidation: React.FC = () => {
 
   const refreshHistory = useCallback(async (passId: string) => {
     try {
-      const hist = await axios.get(`/api/gate-pass-validation/history/${passId}`);
-      if (hist.data.success) {
-        setHistory(hist.data.history || []);
+      const hist = await apiClient.get(`/api/gate-pass-validation/history/${passId}`);
+      if ((hist.data as any).success) {
+        setHistory((hist.data as any).history || []);
       } else {
         setHistory([]);
       }
@@ -91,11 +91,11 @@ export const PassValidation: React.FC = () => {
       setValidationResult(null);
       setHistory([]);
 
-      const response = await axios.post('/api/gate-pass-validation/validate', {
+      const response = await apiClient.post('/api/gate-pass-validation/validate', {
         access_code: passIdentifier
       });
 
-      const result: ValidationResult = response.data;
+      const result: ValidationResult = response.data as ValidationResult;
       setValidationResult(result);
       beep(result.success); vibrate(result.success);
 
@@ -107,7 +107,6 @@ export const PassValidation: React.FC = () => {
       }
 
     } catch (error) {
-      console.error('Validation failed:', error);
       setValidationResult({
         success: false,
         message: 'Failed to validate pass. Please try again.',
@@ -140,7 +139,7 @@ export const PassValidation: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await axios.post('/api/gate-pass-validation/entry', {
+      const response = await apiClient.post('/api/gate-pass-validation/entry', {
         pass_id: currentPass.id,
         pass_type: currentPass.type === 'visitor' ? 'visitor' : 'vehicle_entry',
         notes: validationNotes || undefined,
@@ -169,7 +168,6 @@ export const PassValidation: React.FC = () => {
       vibrate(success);
       await refreshHistory(updatedPass.id);
     } catch (error) {
-      console.error('Entry processing failed:', error);
       let message = 'Failed to record entry. Please try again.';
       if (error && typeof error === 'object' && 'response' in error) {
         const err = error as any;
@@ -195,7 +193,7 @@ export const PassValidation: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await axios.post('/api/gate-pass-validation/exit', {
+      const response = await apiClient.post('/api/gate-pass-validation/exit', {
         pass_id: currentPass.id,
         pass_type: currentPass.type === 'visitor' ? 'visitor' : 'vehicle_exit',
         notes: validationNotes || undefined,
@@ -224,7 +222,6 @@ export const PassValidation: React.FC = () => {
       vibrate(success);
       await refreshHistory(updatedPass.id);
     } catch (error) {
-      console.error('Exit processing failed:', error);
       let message = 'Failed to record exit. Please try again.';
       if (error && typeof error === 'object' && 'response' in error) {
         const err = error as any;
@@ -415,7 +412,6 @@ export const PassValidation: React.FC = () => {
           <QRScanner
             onScan={handleQRScan}
             onError={(error) => {
-              console.error('QR Scan error:', error);
               showToast({
                 title: 'Scan Error',
                 description: 'Failed to scan QR code. Please try again.',

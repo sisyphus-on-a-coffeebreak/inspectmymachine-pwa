@@ -20,6 +20,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingError } from '@/components/ui/LoadingError';
+import { SkeletonTable } from '@/components/ui/SkeletonLoader';
 import { colors, typography, spacing, cardStyles, borderRadius, shadows } from '@/lib/theme';
 import { UserCog, Search, Plus, Edit2, Trash2, Key, Users as UsersIcon, Filter } from 'lucide-react';
 
@@ -262,10 +263,29 @@ export default function UserManagement() {
   };
 
   const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.employee_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchLower = searchTerm.toLowerCase();
+    
+    // Enhanced search: employee_id, name, email, role, and capabilities
+    const matchesSearch = searchTerm === '' || (
+      user.employee_id.toLowerCase().includes(searchLower) ||
+      user.name.toLowerCase().includes(searchLower) ||
+      user.email.toLowerCase().includes(searchLower) ||
+      user.role.toLowerCase().includes(searchLower) ||
+      // Search in role label
+      (roles.find((r) => r.value === user.role)?.label || '').toLowerCase().includes(searchLower) ||
+      // Search in capabilities (capabilities is an object with module keys, each containing an array of actions)
+      (user.capabilities && Object.keys(user.capabilities).some((module) => {
+        const moduleCaps = user.capabilities?.[module as CapabilityModule];
+        if (!moduleCaps || !Array.isArray(moduleCaps)) return false;
+        // Search by module name
+        if (module.toLowerCase().includes(searchLower)) return true;
+        // Search by action names in the array
+        return moduleCaps.some((action) => 
+          action.toLowerCase().includes(searchLower)
+        );
+      }))
+    );
+    
     const matchesRole = filterRole === 'all' || user.role === filterRole;
     const matchesStatus =
       filterStatus === 'all' ||
@@ -276,22 +296,8 @@ export default function UserManagement() {
 
   if (loading) {
     return (
-      <div style={{ padding: spacing.xl, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div 
-            className="animate-spin"
-            style={{ 
-              width: '48px', 
-              height: '48px', 
-              border: `4px solid ${colors.neutral[200]}`, 
-              borderTop: `4px solid ${colors.primary}`,
-              borderRadius: '50%',
-              margin: '0 auto',
-              marginBottom: spacing.md
-            }} 
-          />
-          <p style={{ ...typography.body, color: colors.neutral[600] }}>Loading users...</p>
-        </div>
+      <div style={{ padding: spacing.xl }}>
+        <SkeletonTable rows={8} columns={6} />
       </div>
     );
   }
@@ -316,7 +322,10 @@ export default function UserManagement() {
           title="User Management"
           subtitle="Manage users, roles, and permissions"
           icon={<UserCog size={28} />}
-          backPath="/dashboard"
+          breadcrumbs={[
+            { label: 'Dashboard', path: '/dashboard' },
+            { label: 'User Management' }
+          ]}
           actions={
             <Button
               variant="primary"
@@ -356,9 +365,10 @@ export default function UserManagement() {
               />
               <input
                 type="text"
-                placeholder="Search by name, email, or employee ID..."
+                placeholder="Search by name, email, employee ID, role, or capability..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                aria-label="Search users by name, email, employee ID, role, or capability"
                 style={{
                   width: '100%',
                   paddingLeft: spacing.xxxl,
@@ -499,6 +509,16 @@ export default function UserManagement() {
                   {filteredUsers.map((user, index) => (
                     <tr
                       key={user.id}
+                      onClick={() => navigate(`/app/admin/users/${user.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          navigate(`/app/admin/users/${user.id}`);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`View user details: ${user.name} (${user.employee_id})`}
                       style={{
                         borderBottom: index < filteredUsers.length - 1 ? `1px solid ${colors.neutral[200]}` : 'none',
                         transition: 'background-color 0.2s ease',
@@ -579,7 +599,11 @@ export default function UserManagement() {
                       <td style={{ padding: spacing.md, textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'flex-end' }}>
                           <button
-                            onClick={() => openEditModal(user)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditModal(user);
+                            }}
+                            aria-label={`Edit user ${user.name}`}
                             style={{
                               padding: spacing.sm,
                               border: 'none',
@@ -602,7 +626,11 @@ export default function UserManagement() {
                             <Edit2 size={18} />
                           </button>
                           <button
-                            onClick={() => openPasswordModal(user)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openPasswordModal(user);
+                            }}
+                            aria-label={`Reset password for ${user.name}`}
                             style={{
                               padding: spacing.sm,
                               border: 'none',
@@ -626,7 +654,11 @@ export default function UserManagement() {
                           </button>
                           {currentUser?.id !== user.id && (
                             <button
-                              onClick={() => openDeleteModal(user)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDeleteModal(user);
+                              }}
+                              aria-label={`Delete user ${user.name}`}
                               style={{
                                 padding: spacing.sm,
                                 border: 'none',

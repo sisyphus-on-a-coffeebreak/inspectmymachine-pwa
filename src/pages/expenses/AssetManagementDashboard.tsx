@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
@@ -67,13 +67,12 @@ export const AssetManagementDashboard: React.FC = () => {
   const fetchAssets = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/assets/management', {
+      const response = await apiClient.get('/api/assets/management', {
         params: { period: selectedPeriod, type: filterType }
       });
       setAssets(response.data);
     } catch (error) {
-      console.error('Failed to fetch assets:', error);
-      // Mock data for development
+      // Mock data for development (fallback)
       setAssets([
         {
           id: '1',
@@ -144,12 +143,12 @@ export const AssetManagementDashboard: React.FC = () => {
 
   const fetchAssetExpenses = useCallback(async (assetId: string) => {
     try {
-      const response = await axios.get(`/api/assets/${assetId}/expenses`, {
+      const response = await apiClient.get(`/api/assets/${assetId}/expenses`, {
         params: { period: selectedPeriod }
       });
       setAssetExpenses(response.data);
     } catch (error) {
-      console.error('Failed to fetch asset expenses:', error);
+      // Error is already handled by apiClient
       // Mock data for development
       setAssetExpenses([
         {
@@ -183,12 +182,12 @@ export const AssetManagementDashboard: React.FC = () => {
 
   const fetchAssetPerformance = useCallback(async () => {
     try {
-      const response = await axios.get('/api/assets/performance', {
+      const response = await apiClient.get('/api/assets/performance', {
         params: { period: selectedPeriod }
       });
       setAssetPerformance(response.data);
     } catch (error) {
-      console.error('Failed to fetch asset performance:', error);
+      // Error is already handled by apiClient
       // Mock data for development
       setAssetPerformance([
         {

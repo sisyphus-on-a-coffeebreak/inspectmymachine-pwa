@@ -4,6 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\QRCodeService;
+use App\Models\Battery;
+use App\Models\Tyre;
+use App\Models\SparePart;
+use App\Models\ComponentCustodyHistory;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -92,6 +96,12 @@ class VehicleExitPassController extends Controller
                 'created_by' => $user->id
             ]);
 
+            // Handle component transfers if vehicle is being sold or auctioned
+            $purpose = $request->input('purpose');
+            if (in_array($purpose, ['sold', 'auction'])) {
+                $this->handleComponentTransfersOnExit($request->input('vehicle_id'), $passId, $user->id);
+            }
+
             DB::commit();
 
             return response()->json([
@@ -129,6 +139,75 @@ class VehicleExitPassController extends Controller
                 return response()->json(['error' => 'Gate pass not found'], 404);
             }
 
+            // Get linked expenses
+            $linkedExpenses = DB::table('expense_links')
+                ->where('linked_type', 'vehicle_exit_pass')
+                ->where('linked_id', $id)
+                ->join('expenses', 'expense_links.expense_id', '=', 'expenses.id')
+                ->select(
+                    'expenses.id',
+                    'expenses.amount',
+                    'expenses.category',
+                    'expenses.description',
+                    'expenses.date',
+                    'expenses.status',
+                    'expense_links.link_reason',
+                    'expense_links.confidence_score'
+                )
+                ->orderBy('expenses.date', 'desc')
+                ->get()
+                ->map(function($expense) {
+                    return [
+                        'id' => $expense->id,
+                        'amount' => (float) $expense->amount,
+                        'category' => $expense->category,
+                        'description' => $expense->description,
+                        'date' => $expense->date,
+                        'status' => $expense->status,
+                        'link_reason' => $expense->link_reason,
+                        'confidence_score' => (float) $expense->confidence_score,
+                    ];
+                });
+
+            // Get components that were on the vehicle when exit pass was created
+            $custodyHistory = DB::table('component_custody_history')
+                ->where('from_vehicle_id', $pass->vehicle_id)
+                ->where('reason', 'like', "%exit pass #{$id}%")
+                ->get()
+                ->map(function($history) {
+                    $component = null;
+                    $componentName = 'Unknown Component';
+                    
+                    try {
+                        $component = match($history->component_type) {
+                            'battery' => Battery::find($history->component_id),
+                            'tyre' => Tyre::find($history->component_id),
+                            'spare_part' => SparePart::find($history->component_id),
+                            default => null
+                        };
+                        
+                        if ($component) {
+                            if ($history->component_type === 'spare_part') {
+                                $componentName = $component->name ?? 'Spare Part';
+                            } else {
+                                $componentName = trim(($component->brand ?? '') . ' ' . ($component->model ?? ''));
+                                if (empty($componentName)) {
+                                    $componentName = $component->serial_number ?? $component->part_number ?? 'Component';
+                                }
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to load component for exit pass: ' . $e->getMessage());
+                    }
+                    
+                    return [
+                        'component_type' => $history->component_type,
+                        'component_id' => $history->component_id,
+                        'component_name' => $componentName,
+                        'transferred_at' => $history->transferred_at,
+                    ];
+                });
+
             return response()->json([
                 'id' => $pass->id,
                 'pass_number' => 'VX' . strtoupper(substr($pass->id, 0, 8)),
@@ -145,6 +224,8 @@ class VehicleExitPassController extends Controller
                 'entry_time' => $pass->entry_time ?? null,
                 'created_at' => $pass->created_at,
                 'updated_at' => $pass->updated_at,
+                'components_removed' => $custodyHistory,
+                'linked_expenses' => $linkedExpenses,
             ]);
         } catch (\Exception $e) {
             Log::error('Error fetching vehicle exit pass: ' . $e->getMessage());
@@ -246,7 +327,7 @@ class VehicleExitPassController extends Controller
             if (!$pass) {
                 return response()->json(['error' => 'Gate pass not found'], 404);
             }
-
+            
             DB::table('vehicle_exit_passes')
                 ->where('id', $id)
                 ->update([
@@ -254,6 +335,11 @@ class VehicleExitPassController extends Controller
                     'exit_time' => now(),
                     'updated_at' => now(),
                 ]);
+
+            // Handle component transfers when vehicle actually exits
+            if ($pass && in_array($pass->purpose, ['sold', 'auction'])) {
+                $this->handleComponentTransfersOnExit($pass->vehicle_id, $id, $request->user()->id);
+            }
 
             Log::info('Vehicle exit pass exit marked (vehicle left)', [
                 'pass_id' => $id,
@@ -321,6 +407,62 @@ class VehicleExitPassController extends Controller
         } catch (\Exception $e) {
             Log::error('Failed to update vehicle exit pass: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to update gate pass'], 500);
+        }
+    }
+
+    /**
+     * Handle component transfers when vehicle exits
+     * Removes components from vehicle and creates custody history
+     */
+    protected function handleComponentTransfersOnExit(string $vehicleId, string $exitPassId, string $userId): void
+    {
+        try {
+            // Get all components currently on this vehicle
+            $batteries = Battery::where('current_vehicle_id', $vehicleId)->get();
+            $tyres = Tyre::where('current_vehicle_id', $vehicleId)->get();
+            $spareParts = SparePart::where('current_vehicle_id', $vehicleId)->get();
+            
+            $allComponents = collect()
+                ->merge($batteries->map(fn($b) => ['type' => 'battery', 'id' => $b->id, 'component' => $b]))
+                ->merge($tyres->map(fn($t) => ['type' => 'tyre', 'id' => $t->id, 'component' => $t]))
+                ->merge($spareParts->map(fn($s) => ['type' => 'spare_part', 'id' => $s->id, 'component' => $s]));
+            
+            foreach ($allComponents as $item) {
+                $component = $item['component'];
+                $componentType = $item['type'];
+                
+                // Create custody history record
+                ComponentCustodyHistory::create([
+                    'component_type' => $componentType,
+                    'component_id' => $component->id,
+                    'from_vehicle_id' => $vehicleId,
+                    'to_vehicle_id' => null,
+                    'transferred_by' => $userId,
+                    'transfer_type' => 'remove',
+                    'reason' => "Vehicle exit pass #{$exitPassId} - Vehicle sold/auctioned",
+                    'transferred_at' => now(),
+                ]);
+                
+                // Remove component from vehicle
+                $component->update([
+                    'current_vehicle_id' => null,
+                    'status' => $componentType === 'tyre' ? 'in_stock' : ($componentType === 'battery' ? 'in_stock' : 'in_stock'),
+                ]);
+            }
+            
+            if ($allComponents->count() > 0) {
+                Log::info('Components removed from vehicle on exit', [
+                    'vehicle_id' => $vehicleId,
+                    'exit_pass_id' => $exitPassId,
+                    'components_count' => $allComponents->count(),
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to handle component transfers on exit: ' . $e->getMessage(), [
+                'vehicle_id' => $vehicleId,
+                'exit_pass_id' => $exitPassId,
+            ]);
+            // Don't throw - component transfer failure shouldn't block exit pass creation
         }
     }
 }

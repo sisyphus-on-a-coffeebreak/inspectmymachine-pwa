@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
@@ -78,13 +78,12 @@ export const CashflowAnalysisDashboard: React.FC = () => {
   const fetchCashflowData = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/expenses/cashflow-analysis', {
+      const response = await apiClient.get('/api/expenses/cashflow-analysis', {
         params: { period: selectedPeriod }
       });
       setCashflowData(response.data);
     } catch (error) {
-      console.error('Failed to fetch cashflow data:', error);
-      // Mock data for development
+      // Mock data for development (fallback)
       setCashflowData({
         total_revenue: 2500000,
         total_expenses: 1800000,
@@ -145,12 +144,12 @@ export const CashflowAnalysisDashboard: React.FC = () => {
 
   const fetchInvestmentAnalysis = useCallback(async () => {
     try {
-      const response = await axios.get('/api/expenses/investment-analysis', {
+      const response = await apiClient.get('/api/expenses/investment-analysis', {
         params: { period: selectedPeriod }
       });
       setInvestmentAnalysis(response.data);
     } catch (error) {
-      console.error('Failed to fetch investment analysis:', error);
+      // Error is already handled by apiClient
       // Mock data for development
       setInvestmentAnalysis([
         {
@@ -185,12 +184,12 @@ export const CashflowAnalysisDashboard: React.FC = () => {
 
   const fetchCostEfficiency = useCallback(async () => {
     try {
-      const response = await axios.get('/api/expenses/cost-efficiency', {
+      const response = await apiClient.get('/api/expenses/cost-efficiency', {
         params: { period: selectedPeriod }
       });
       setCostEfficiency(response.data);
     } catch (error) {
-      console.error('Failed to fetch cost efficiency:', error);
+      // Error is already handled by apiClient
       // Mock data for development
       setCostEfficiency([
         {

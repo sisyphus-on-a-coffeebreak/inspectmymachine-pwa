@@ -8,6 +8,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use App\Services\ExpenseLinkingService;
+use App\Models\Battery;
+use App\Models\Tyre;
+use App\Models\SparePart;
+use App\Models\ExpenseLink;
 
 /**
  * Expense Controller
@@ -140,6 +145,67 @@ class ExpenseController extends Controller
                 $assetName = trim(($expense->make ?? '') . ' ' . ($expense->model ?? '') . ' ' . ($expense->asset_registration ?? ''));
             }
 
+            // Fetch linked items (including components)
+            $links = [];
+            $linkedComponents = [];
+            try {
+                $linkingService = app(ExpenseLinkingService::class);
+                $linkData = $linkingService->getExpenseLinks($id);
+                
+                foreach ($linkData as $link) {
+                    if ($link->linked_type === 'component') {
+                        // Load component details - need to determine component type from component itself
+                        try {
+                            // Try to find component in each table
+                            $component = Battery::find($link->linked_id);
+                            $componentType = 'battery';
+                            
+                            if (!$component) {
+                                $component = Tyre::find($link->linked_id);
+                                $componentType = 'tyre';
+                            }
+                            
+                            if (!$component) {
+                                $component = SparePart::find($link->linked_id);
+                                $componentType = 'spare_part';
+                            }
+                            
+                            if ($component) {
+                                $componentName = '';
+                                if ($componentType === 'spare_part') {
+                                    $componentName = $component->name ?? 'Spare Part';
+                                } else {
+                                    $componentName = trim(($component->brand ?? '') . ' ' . ($component->model ?? ''));
+                                    if (empty($componentName)) {
+                                        $componentName = $component->serial_number ?? $component->part_number ?? 'Component';
+                                    }
+                                }
+                                
+                                $linkedComponents[] = [
+                                    'component_type' => $componentType,
+                                    'component_id' => $link->linked_id,
+                                    'component_name' => $componentName,
+                                    'link_reason' => $link->link_reason,
+                                ];
+                            }
+                        } catch (\Exception $e) {
+                            Log::warning('Failed to load component for expense: ' . $e->getMessage());
+                        }
+                    } else {
+                        // Other link types
+                        $links[] = [
+                            'id' => $link->id,
+                            'linked_type' => $link->linked_type,
+                            'linked_id' => $link->linked_id,
+                            'link_reason' => $link->link_reason,
+                            'confidence_score' => $link->confidence_score,
+                        ];
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to fetch expense links: ' . $e->getMessage(), ['expense_id' => $id]);
+            }
+
             return response()->json([
                 'id' => (string) $expense->id,
                 'amount' => (float) $expense->amount,
@@ -154,11 +220,16 @@ class ExpenseController extends Controller
                 'project_name' => $expense->project_name,
                 'asset_id' => $expense->asset_id,
                 'asset_name' => $assetName,
+                'links' => $links,
+                'linked_components' => $linkedComponents,
                 'asset_registration' => $expense->asset_registration,
                 'created_at' => $expense->created_at,
                 'updated_at' => $expense->updated_at,
                 'approved_by' => $expense->approved_by ?? null,
                 'approved_at' => $expense->approved_at ?? null,
+                'escalated_at' => $expense->escalated_at ?? null,
+                'escalated_to' => $expense->escalated_to ?? null,
+                'escalation_level' => $expense->escalation_level ?? 0,
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to fetch expense: ' . $e->getMessage());
@@ -234,6 +305,40 @@ class ExpenseController extends Controller
 
             // Create audit log entry
             $this->createAuditLog($expenseId, 'created', null, null, $user->id, 'Expense created');
+
+            // Auto-link expense to related items
+            try {
+                $linkingService = app(ExpenseLinkingService::class);
+                $expenseData = [
+                    'asset_id' => $request->input('asset_id'),
+                    'project_id' => $request->input('project_id'),
+                    'date' => $request->input('date'),
+                    'description' => $request->input('description'),
+                ];
+                $linksCreated = $linkingService->linkExpenseToRelatedItems($expenseId, $expenseData);
+                
+                if ($linksCreated > 0) {
+                    Log::info('Expense auto-linked to related items', [
+                        'expense_id' => $expenseId,
+                        'links_created' => $linksCreated
+                    ]);
+                }
+            } catch (\Exception $e) {
+                // Log error but don't fail expense creation
+                Log::warning('Failed to auto-link expense: ' . $e->getMessage(), [
+                    'expense_id' => $expenseId
+                ]);
+            }
+
+            // Auto-create component records for component purchase expenses
+            try {
+                $this->createComponentFromExpense($expenseId, $request->all());
+            } catch (\Exception $e) {
+                // Log error but don't fail expense creation
+                Log::warning('Failed to create component from expense: ' . $e->getMessage(), [
+                    'expense_id' => $expenseId
+                ]);
+            }
 
             Log::info('Expense created', [
                 'expense_id' => $expenseId,
@@ -584,6 +689,140 @@ class ExpenseController extends Controller
         } catch (\Exception $e) {
             Log::warning('Failed to create audit log: ' . $e->getMessage());
             // Don't throw - audit logging is non-critical
+        }
+    }
+
+    /**
+     * Create component record from expense if it's a component purchase
+     */
+    protected function createComponentFromExpense(string $expenseId, array $expenseData): void
+    {
+        $category = $expenseData['category'] ?? '';
+        $description = strtolower($expenseData['description'] ?? '');
+        $amount = $expenseData['amount'] ?? 0;
+        $vehicleId = $expenseData['asset_id'] ?? null;
+        $date = $expenseData['date'] ?? now()->format('Y-m-d');
+        
+        // Only process PARTS_REPAIR category expenses
+        if ($category !== 'PARTS_REPAIR') {
+            return;
+        }
+        
+        // Detect component type from description keywords
+        $componentType = null;
+        if (strpos($description, 'battery') !== false || strpos($description, 'batt') !== false) {
+            $componentType = 'battery';
+        } elseif (strpos($description, 'tyre') !== false || strpos($description, 'tire') !== false || strpos($description, 'wheel') !== false) {
+            $componentType = 'tyre';
+        } elseif (strpos($description, 'spare') !== false || strpos($description, 'part') !== false) {
+            $componentType = 'spare_part';
+        }
+        
+        if (!$componentType) {
+            return; // Not a component purchase
+        }
+        
+        // Extract component details from description
+        $brand = null;
+        $model = null;
+        $serialNumber = null;
+        $partNumber = null;
+        $name = null;
+        
+        // Simple extraction - look for common patterns
+        $descriptionParts = preg_split('/[\s,]+/', $description);
+        foreach ($descriptionParts as $part) {
+            $part = trim($part);
+            if (strlen($part) > 2) {
+                // Common battery brands
+                if (in_array(strtolower($part), ['exide', 'amaron', 'luminous', 'livguard', 'okaya'])) {
+                    $brand = ucfirst(strtolower($part));
+                }
+                // Common tyre brands
+                if (in_array(strtolower($part), ['mrf', 'apollo', 'ceat', 'bridgestone', 'michelin', 'goodyear'])) {
+                    $brand = strtoupper($part);
+                }
+            }
+        }
+        
+        // Create component record
+        $component = null;
+        $componentId = null;
+        
+        try {
+            switch ($componentType) {
+                case 'battery':
+                    $component = Battery::create([
+                        'serial_number' => $serialNumber ?? 'EXP-' . substr($expenseId, 0, 8),
+                        'brand' => $brand ?? 'Unknown',
+                        'model' => $model ?? 'Standard',
+                        'capacity' => null,
+                        'voltage' => null,
+                        'purchase_date' => $date,
+                        'purchase_cost' => $amount,
+                        'current_vehicle_id' => $vehicleId,
+                        'status' => $vehicleId ? 'installed' : 'in_stock',
+                        'notes' => "Auto-created from expense #{$expenseId}: {$expenseData['description']}",
+                    ]);
+                    $componentId = $component->id;
+                    break;
+                    
+                case 'tyre':
+                    $component = Tyre::create([
+                        'serial_number' => $serialNumber ?? 'EXP-' . substr($expenseId, 0, 8),
+                        'part_number' => $partNumber ?? null,
+                        'brand' => $brand ?? 'Unknown',
+                        'model' => $model ?? 'Standard',
+                        'size' => null,
+                        'purchase_date' => $date,
+                        'purchase_cost' => $amount,
+                        'current_vehicle_id' => $vehicleId,
+                        'position' => null,
+                        'status' => $vehicleId ? 'installed' : 'in_stock',
+                        'notes' => "Auto-created from expense #{$expenseId}: {$expenseData['description']}",
+                    ]);
+                    $componentId = $component->id;
+                    break;
+                    
+                case 'spare_part':
+                    $component = SparePart::create([
+                        'part_number' => $partNumber ?? 'EXP-' . substr($expenseId, 0, 8),
+                        'name' => $name ?? ($expenseData['description'] ?? 'Spare Part'),
+                        'category' => null,
+                        'brand' => $brand ?? 'Unknown',
+                        'model' => $model ?? null,
+                        'purchase_date' => $date,
+                        'purchase_cost' => $amount,
+                        'current_vehicle_id' => $vehicleId,
+                        'status' => $vehicleId ? 'installed' : 'in_stock',
+                        'notes' => "Auto-created from expense #{$expenseId}: {$expenseData['description']}",
+                    ]);
+                    $componentId = $component->id;
+                    break;
+            }
+            
+            if ($component && $componentId) {
+                // Link expense to component
+                ExpenseLink::create([
+                    'expense_id' => $expenseId,
+                    'linked_type' => 'component',
+                    'linked_id' => $componentId,
+                    'link_reason' => 'auto_created_from_expense',
+                    'confidence_score' => 0.9,
+                ]);
+                
+                Log::info('Component created from expense', [
+                    'expense_id' => $expenseId,
+                    'component_type' => $componentType,
+                    'component_id' => $componentId,
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to create component from expense: ' . $e->getMessage(), [
+                'expense_id' => $expenseId,
+                'component_type' => $componentType,
+            ]);
+            throw $e;
         }
     }
 }

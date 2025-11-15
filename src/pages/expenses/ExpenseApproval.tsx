@@ -5,6 +5,8 @@ import { apiClient } from '../../lib/apiClient';
 import { useToast } from '../../providers/ToastProvider';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
+import { ReceiptPreview } from '../../components/ui/ReceiptPreview';
+import { PolicyLinks } from '../../components/ui/PolicyLinks';
 
 // ✅ Expense Approval Workflow
 // Admin approval system for employee expenses
@@ -29,6 +31,9 @@ interface ExpenseApproval {
   rejected_by?: string;
   rejected_at?: string;
   rejection_reason?: string;
+  escalated_at?: string;
+  escalated_to?: string;
+  escalation_level?: number;
 }
 
 interface ApprovalStats {
@@ -44,121 +49,56 @@ interface ApprovalStats {
 export const ExpenseApproval: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [expenses, setExpenses] = useState<ExpenseApproval[]>([]);
-  const [stats, setStats] = useState<ApprovalStats | null>(null);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [selectedExpenses, setSelectedExpenses] = useState<string[]>([]);
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
 
-  const fetchExpenses = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await apiClient.get<{ success: boolean; data: ExpenseApproval[] } | ExpenseApproval[]>('/expense-approval/pending', {
-        params: { status: filter }
-      });
-      // Handle both response formats: { success: true, data: [...] } or [...]
-      const expensesData = Array.isArray(response.data) 
-        ? response.data 
-        : (response.data as any).data || [];
-      setExpenses(expensesData);
-    } catch (error) {
-      console.error('Failed to fetch expenses:', error);
-      // Mock data for development
-      setExpenses([
-        {
-          id: '1',
-          amount: 2500,
-          category: 'fuel',
-          payment_method: 'cash',
-          status: 'pending',
-          notes: 'Fuel for site visit',
-          receipt_key: 'receipt-123',
-          created_at: '2024-01-20T10:00:00Z',
-          updated_at: '2024-01-20T10:00:00Z',
-          employee_name: 'John Smith',
-          employee_id: 'EMP001',
-          project_name: 'Project Alpha'
-        },
-        {
-          id: '2',
-          amount: 1500,
-          category: 'meals',
-          payment_method: 'card',
-          status: 'pending',
-          notes: 'Client lunch meeting',
-          receipt_key: 'receipt-124',
-          created_at: '2024-01-20T11:00:00Z',
-          updated_at: '2024-01-20T11:00:00Z',
-          employee_name: 'Jane Doe',
-          employee_id: 'EMP002',
-          project_name: 'Project Beta'
-        }
-      ]);
-    }
+  // Use React Query for expenses and stats
+  const { data: expensesData, isLoading: loading } = useExpenseApprovals(
+    { status: filter, page: currentPage, per_page: perPage },
+    { enabled: filter !== 'all' } // Only fetch when filter is not 'all'
+  );
+  const expenses = expensesData?.data || [];
+  const totalItems = expensesData?.total || 0;
+
+  const { data: stats } = useExpenseApprovalStats();
+  
+  // Mutations for approve/reject
+  const approveMutation = useApproveExpense();
+  const rejectMutation = useRejectExpense();
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
   }, [filter]);
 
-  const fetchStats = useCallback(async () => {
-    try {
-      const response = await apiClient.get<ApprovalStats | { data: ApprovalStats }>('/expense-approval/stats');
-      // Handle both response formats: { ... } or { data: { ... } }
-      const statsData = (response.data as any).data || response.data;
-      setStats(statsData as ApprovalStats);
-    } catch (error) {
-      console.error('Failed to fetch stats:', error);
-      // Mock data for development
-      setStats({
-        total_expenses: 45,
-        pending: 12,
-        approved: 28,
-        rejected: 5,
-        approved_amount: 125000,
-        pending_amount: 35000,
-        average_amount: 3500
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchExpenses();
-    fetchStats();
-  }, [fetchExpenses, fetchStats]);
-
   const handleExpenseClick = (expense: ExpenseApproval) => {
-    // Navigate to expense details or show modal
-    console.log('Expense clicked:', expense);
+    navigate(`/app/expenses/${expense.id}`);
   };
 
   const approveExpense = async (expenseId: string) => {
     try {
-      setLoading(true);
-      await apiClient.post(`/expense-approval/approve/${expenseId}`);
+      await approveMutation.mutateAsync({ id: expenseId });
       showToast({
         title: 'Success',
         description: 'Expense approved successfully!',
         variant: 'success',
       });
-      fetchExpenses();
-      fetchStats();
     } catch (error) {
-      console.error('Failed to approve expense:', error);
       showToast({
         title: 'Error',
         description: 'Failed to approve expense. Please try again.',
         variant: 'error',
       });
-    } finally {
-      setLoading(false);
     }
   };
 
   const rejectExpense = async (expenseId: string, reason: string) => {
     try {
-      setLoading(true);
-      await apiClient.post(`/expense-approval/reject/${expenseId}`, {
-        reason: reason
-      });
+      await rejectMutation.mutateAsync({ id: expenseId, reason });
       showToast({
         title: 'Success',
         description: 'Expense rejected successfully!',
@@ -166,17 +106,12 @@ export const ExpenseApproval: React.FC = () => {
       });
       setShowRejectionModal(false);
       setRejectionReason('');
-      fetchExpenses();
-      fetchStats();
     } catch (error) {
-      console.error('Failed to reject expense:', error);
       showToast({
         title: 'Error',
         description: 'Failed to reject expense. Please try again.',
         variant: 'error',
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -205,7 +140,6 @@ export const ExpenseApproval: React.FC = () => {
       fetchExpenses();
       fetchStats();
     } catch (error) {
-      console.error('Failed to bulk approve:', error);
       showToast({
         title: 'Error',
         description: 'Failed to bulk approve expenses. Please try again.',
@@ -249,10 +183,7 @@ export const ExpenseApproval: React.FC = () => {
       });
       setSelectedExpenses([]);
       setRejectionReason('');
-      fetchExpenses();
-      fetchStats();
     } catch (error) {
-      console.error('Failed to bulk reject:', error);
       showToast({
         title: 'Error',
         description: 'Failed to bulk reject expenses. Please try again.',
@@ -311,109 +242,155 @@ export const ExpenseApproval: React.FC = () => {
       minHeight: '100vh'
     }}>
       {/* Header */}
-      <div style={{ 
-        marginBottom: spacing.xl,
-        padding: spacing.xl,
-        backgroundColor: 'white',
-        borderRadius: '16px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-        border: '1px solid rgba(0,0,0,0.05)'
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: spacing.lg
-        }}>
-          <div>
-            <h1 style={{ 
-              ...typography.header, 
-              margin: 0, 
-              color: colors.neutral[900],
-              fontSize: '2rem',
-              fontWeight: 700
-            }}>
-              💰 Expense Approval
-            </h1>
-            <p style={{ 
-              ...typography.body, 
-              color: colors.neutral[600], 
-              margin: 0,
-              marginTop: spacing.sm
-            }}>
-              Review and approve employee expense claims
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: spacing.sm }}>
-            <Button
-              variant="secondary"
-              onClick={() => navigate('/app/expenses')}
-            >
-              ← Back to Expenses
-            </Button>
-          </div>
-        </div>
+      <PageHeader
+        title="Expense Approval"
+        subtitle="Review and approve employee expense claims"
+        icon="💰"
+        breadcrumbs={[
+          { label: 'Dashboard', path: '/dashboard' },
+          { label: 'Expenses', path: '/app/expenses' },
+          { label: 'Approval' }
+        ]}
+        actions={
+          <Button
+            variant="secondary"
+            onClick={() => navigate('/app/expenses')}
+          >
+            ← Back to Expenses
+          </Button>
+        }
+      />
 
-        {/* Statistics */}
-        {stats && (
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-            gap: spacing.lg 
-          }}>
-            <div style={{ 
-              padding: spacing.lg,
-              backgroundColor: colors.warning[100],
-              borderRadius: '12px',
-              border: `1px solid ${colors.warning[500]}`
-            }}>
-              <div style={{ ...typography.label, color: colors.neutral[600] }}>Pending</div>
-              <div style={{ ...typography.header, color: colors.warning[500], margin: 0 }}>
-                {stats.pending}
-              </div>
-              <div style={{ ...typography.caption, color: colors.neutral[500] }}>
-                {formatCurrency(stats.pending_amount)}
-              </div>
-            </div>
-            <div style={{ 
-              padding: spacing.lg,
-              backgroundColor: colors.success[100],
-              borderRadius: '12px',
-              border: `1px solid ${colors.success[500]}`
-            }}>
-              <div style={{ ...typography.label, color: colors.neutral[600] }}>Approved</div>
-              <div style={{ ...typography.header, color: colors.success[500], margin: 0 }}>
-                {stats.approved}
-              </div>
-              <div style={{ ...typography.caption, color: colors.neutral[500] }}>
-                {formatCurrency(stats.approved_amount)}
-              </div>
-            </div>
-            <div style={{ 
-              padding: spacing.lg,
-              backgroundColor: colors.error[100],
-              borderRadius: '12px',
-              border: `1px solid ${colors.error[500]}`
-            }}>
-              <div style={{ ...typography.label, color: colors.neutral[600] }}>Rejected</div>
-              <div style={{ ...typography.header, color: colors.error[500], margin: 0 }}>
-                {stats.rejected}
-              </div>
-            </div>
-            <div style={{ 
-              padding: spacing.lg,
-              backgroundColor: colors.primary + '10',
-              borderRadius: '12px',
-              border: `1px solid ${colors.primary}`
-            }}>
-              <div style={{ ...typography.label, color: colors.neutral[600] }}>Average</div>
-              <div style={{ ...typography.header, color: colors.primary, margin: 0 }}>
-                {formatCurrency(stats.average_amount)}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Policy Links */}
+      <PolicyLinks
+        title="Expense Policy & Guidelines"
+        links={[
+          {
+            label: 'Expense Policy',
+            url: '/policies/expense-policy',
+            external: false,
+            icon: '📋'
+          },
+          {
+            label: 'Approval Limits',
+            url: '/policies/approval-limits',
+            external: false,
+            icon: '💰'
+          },
+          {
+            label: 'Receipt Requirements',
+            url: '/policies/receipt-requirements',
+            external: false,
+            icon: '🧾'
+          }
+        ]}
+        variant="compact"
+      />
+
+      {/* Anomaly Alerts */}
+      {(() => {
+        const now = new Date();
+        const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+        
+        // Check for expenses pending > 3 days
+        const oldPending = expenses.filter((expense) => {
+          if (expense.status !== 'pending') return false;
+          const createdDate = new Date(expense.created_at || expense.date || now);
+          return createdDate < threeDaysAgo;
+        });
+
+        // Check for high-value expenses without approval
+        const highValuePending = expenses.filter((expense) => {
+          return expense.status === 'pending' && expense.amount > 10000;
+        });
+
+        // Check for expenses without receipts
+        const missingReceipts = expenses.filter((expense) => {
+          return expense.status === 'pending' && expense.amount > 500 && !expense.receipt_key;
+        });
+
+        return (
+          <>
+            {oldPending.length > 0 && (
+              <AnomalyAlert
+                title={`${oldPending.length} Expense${oldPending.length > 1 ? 's' : ''} Pending > 3 Days`}
+                description="Some expenses have been pending approval for more than 3 days. Please review them."
+                severity="warning"
+                actions={[
+                  {
+                    label: 'Review Old Pending',
+                    onClick: () => setFilter('pending'),
+                    variant: 'primary',
+                  },
+                ]}
+              />
+            )}
+            {highValuePending.length > 0 && (
+              <AnomalyAlert
+                title={`${highValuePending.length} High-Value Expense${highValuePending.length > 1 ? 's' : ''} (> ₹10,000) Pending Approval`}
+                description="High-value expenses require immediate attention and approval."
+                severity="error"
+                actions={[
+                  {
+                    label: 'Review High-Value',
+                    onClick: () => setFilter('pending'),
+                    variant: 'primary',
+                  },
+                ]}
+              />
+            )}
+            {missingReceipts.length > 0 && (
+              <AnomalyAlert
+                title={`${missingReceipts.length} Expense${missingReceipts.length > 1 ? 's' : ''} Missing Receipts (> ₹500)`}
+                description="Some expenses above ₹500 are missing receipt attachments."
+                severity="warning"
+                actions={[
+                  {
+                    label: 'Review Missing Receipts',
+                    onClick: () => setFilter('pending'),
+                    variant: 'primary',
+                  },
+                ]}
+              />
+            )}
+          </>
+        );
+      })()}
+
+      {/* Statistics */}
+      {stats && (
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: spacing.lg 
+        }}>
+          <StatCard
+            label="Pending"
+            value={stats.pending}
+            color={colors.warning[500]}
+            description={formatCurrency(stats.pending_amount)}
+            href="/app/expenses/approval?filter=pending"
+          />
+          <StatCard
+            label="Approved"
+            value={stats.approved}
+            color={colors.success[500]}
+            description={formatCurrency(stats.approved_amount)}
+            href="/app/expenses/approval?filter=approved"
+          />
+          <StatCard
+            label="Rejected"
+            value={stats.rejected}
+            color={colors.error[500]}
+            href="/app/expenses/approval?filter=rejected"
+          />
+          <StatCard
+            label="Average"
+            value={formatCurrency(stats.average_amount)}
+            color={colors.primary}
+          />
+        </div>
+      )}
 
       {/* Filters and Actions */}
       <div style={{ 
@@ -490,6 +467,15 @@ export const ExpenseApproval: React.FC = () => {
               borderLeft: `4px solid ${getStatusColor(expense.status)}`
             }}
             onClick={() => handleExpenseClick(expense)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleExpenseClick(expense);
+              }
+            }}
+            tabIndex={0}
+            role="button"
+            aria-label={`View expense details for ${formatCurrency(expense.amount)}`}
           >
             <div style={{ 
               display: 'flex', 
@@ -535,17 +521,32 @@ export const ExpenseApproval: React.FC = () => {
                     }}
                   />
                 )}
-                <span style={{
-                  padding: '4px 12px',
-                  backgroundColor: getStatusColor(expense.status),
-                  color: 'white',
-                  borderRadius: '12px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  textTransform: 'capitalize'
-                }}>
-                  {expense.status}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.xs }}>
+                  {expense.escalation_level && expense.escalation_level > 0 && (
+                    <span style={{
+                      padding: '4px 8px',
+                      backgroundColor: expense.escalation_level >= 2 ? colors.error[600] : colors.warning[500],
+                      color: 'white',
+                      borderRadius: '8px',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      textTransform: 'uppercase'
+                    }} title={`Escalated to level ${expense.escalation_level}`}>
+                      ⚠️ L{expense.escalation_level}
+                    </span>
+                  )}
+                  <span style={{
+                    padding: '4px 12px',
+                    backgroundColor: getStatusColor(expense.status),
+                    color: 'white',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    textTransform: 'capitalize'
+                  }}>
+                    {expense.status}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -611,7 +612,7 @@ export const ExpenseApproval: React.FC = () => {
                     e.stopPropagation();
                     approveExpense(expense.id);
                   }}
-                  disabled={loading}
+                  disabled={loading || approveMutation.isPending}
                 >
                   ✅ Approve
                 </Button>
@@ -622,7 +623,7 @@ export const ExpenseApproval: React.FC = () => {
                     setShowRejectionModal(true);
                     setSelectedExpenses([expense.id]);
                   }}
-                  disabled={loading}
+                  disabled={loading || approveMutation.isPending}
                 >
                   ❌ Reject
                 </Button>
@@ -653,6 +654,20 @@ export const ExpenseApproval: React.FC = () => {
                     <strong>Reason:</strong> {expense.rejection_reason}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Receipt Preview */}
+            {expense.receipt_key && (
+              <div style={{ marginTop: spacing.md }}>
+                <ReceiptPreview
+                  receipts={[{
+                    id: expense.id,
+                    url: `/storage/${expense.receipt_key}`,
+                    name: `Receipt for ${expense.category || 'expense'}`
+                  }]}
+                  maxThumbnails={1}
+                />
               </div>
             )}
           </div>
@@ -759,6 +774,24 @@ export const ExpenseApproval: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Pagination */}
+      {totalItems > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={Math.ceil(totalItems / perPage)}
+          totalItems={totalItems}
+          perPage={perPage}
+          onPageChange={(page) => {
+            setCurrentPage(page);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onPerPageChange={(newPerPage) => {
+            setPerPage(newPerPage);
+            setCurrentPage(1);
+          }}
+        />
       )}
     </div>
   );

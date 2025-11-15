@@ -100,6 +100,11 @@ export const StockyardScan: React.FC = () => {
         title="Scan Stockyard Request"
         subtitle="Scan QR code or enter request ID to process vehicle entry/exit"
         icon={<Search size={24} />}
+        breadcrumbs={[
+          { label: 'Dashboard', path: '/dashboard' },
+          { label: 'Stockyard', path: '/app/stockyard' },
+          { label: 'Scan Vehicle' }
+        ]}
       />
 
       <div style={{ marginBottom: spacing.md }}>

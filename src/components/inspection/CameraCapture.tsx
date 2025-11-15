@@ -63,7 +63,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           } 
         });
       } catch (envError) {
-        console.warn('Environment camera not available, trying user camera:', envError);
+        // Environment camera not available, trying user camera
         error = envError as Error;
         
         // Second try: user (front camera)
@@ -77,7 +77,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           });
           error = null;
         } catch (userError) {
-          console.warn('User camera not available, trying any camera:', userError);
+          // User camera not available, trying any camera
           
           // Third try: any available camera (no facingMode constraint)
           try {
@@ -105,7 +105,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       // Wait a bit for the video element to be in the DOM
       setTimeout(() => {
         if (!videoRef.current) {
-          console.error('Video element not found in DOM');
           handleError('Camera interface not ready. Please try again.');
           stopCamera();
           return;
@@ -115,11 +114,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         
         // Assign stream to video element
         video.srcObject = stream;
-        console.log('Stream assigned to video element', {
-          streamActive: stream.active,
-          tracks: stream.getTracks().length,
-          videoTracks: stream.getVideoTracks().length
-        });
         
         // Ensure video attributes are set
         video.playsInline = true;
@@ -137,12 +131,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             if (video.readyState >= video.HAVE_CURRENT_DATA && 
                 video.videoWidth > 0 && 
                 video.videoHeight > 0) {
-              console.log('Video is ready!', {
-                readyState: video.readyState,
-                videoWidth: video.videoWidth,
-                videoHeight: video.videoHeight,
-                paused: video.paused
-              });
+              // Video is ready
               setIsVideoReady(true);
               
               // Clear the interval since video is ready
@@ -170,20 +159,14 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           if (video.srcObject) {
             const currentStream = video.srcObject as MediaStream;
             if (!currentStream.active) {
-              console.warn('Stream is not active');
+              // Stream is not active
               return;
             }
           }
           
           try {
             await video.play();
-            console.log('Video play() succeeded', {
-              readyState: video.readyState,
-              videoWidth: video.videoWidth,
-              videoHeight: video.videoHeight,
-              paused: video.paused
-            });
-            
+            // Video play() succeeded
             // Check if ready after playing
             setTimeout(() => {
               if (!checkVideoReady()) {
@@ -194,8 +177,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               }
             }, 200);
           } catch (playError: any) {
-            console.error('Error playing video:', playError);
-            // Don't retry indefinitely - just log and wait for events
+            // Don't retry indefinitely - just wait for events
             if (playError.name !== 'NotAllowedError') {
               // Try again after a short delay for non-permission errors
               setTimeout(() => {
@@ -207,22 +189,18 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
 
         // Try to set ready state when metadata loads
         video.onloadedmetadata = () => {
-          console.log('Video metadata loaded', {
-            readyState: video.readyState,
-            videoWidth: video.videoWidth,
-            videoHeight: video.videoHeight
-          });
+          // Video metadata loaded
           tryPlay();
         };
 
         // Handle video playing event - most reliable indicator
         video.onplaying = () => {
-          console.log('Video is playing, checking if ready...');
+          // Video is playing, checking if ready
           setTimeout(() => {
             if (checkVideoReady()) {
-              console.log('Video is ready!');
+              // Video is ready
             } else {
-              console.warn('Video playing but not ready yet, will check again...');
+              // Video playing but not ready yet, will check again
               // Check again after a bit more time
               setTimeout(() => {
                 checkVideoReady();
@@ -233,11 +211,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
 
         // Handle canplay event - video can start playing
         video.oncanplay = () => {
-          console.log('Video can play', {
-            readyState: video.readyState,
-            videoWidth: video.videoWidth,
-            videoHeight: video.videoHeight
-          });
+          // Video can play
           if (!video.paused) {
             checkVideoReady();
           } else {
@@ -248,29 +222,25 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
 
         // Handle loadeddata event
         video.onloadeddata = () => {
-          console.log('Video data loaded', {
-            readyState: video.readyState,
-            videoWidth: video.videoWidth,
-            videoHeight: video.videoHeight
-          });
+          // Video data loaded
           tryPlay();
         };
 
         // Try to play immediately if stream is already available
         if (stream.active) {
-          console.log('Stream is active, trying to play immediately');
+          // Stream is active, trying to play immediately
           setTimeout(() => {
             tryPlay();
           }, 200);
         } else {
-          console.warn('Stream is not active yet');
+          // Stream is not active yet
         }
 
         // Fallback: check periodically if video becomes ready
         let readyCheckCount = 0;
         readyCheckIntervalRef.current = setInterval(() => {
           if (!videoRef.current) {
-            console.warn('Video element lost during check');
+            // Video element lost during check
             if (readyCheckIntervalRef.current) {
               clearInterval(readyCheckIntervalRef.current);
               readyCheckIntervalRef.current = null;
@@ -282,14 +252,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           
           // Log current state for debugging
           if (readyCheckCount % 10 === 0) { // Log every second
-            console.log('Video state check:', {
-              readyState: video.readyState,
-              videoWidth: video.videoWidth,
-              videoHeight: video.videoHeight,
-              paused: video.paused,
-              srcObject: !!video.srcObject,
-              streamActive: video.srcObject ? (video.srcObject as MediaStream).active : false
-            });
+            // Video state check
           }
 
           // Check if video is ready
@@ -310,22 +273,19 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           
           // Try to play if video is paused and has some data
           if (video.paused && video.readyState >= video.HAVE_METADATA) {
-            console.log('Video is paused but has metadata, trying to play...');
-            video.play().catch(err => {
-              console.warn('Failed to play video:', err);
+            // Video is paused but has metadata, trying to play
+            video.play().catch(() => {
+              // Failed to play video
             });
           }
           
           // After 3 seconds, give up and mark as ready anyway if video has metadata
           if (readyCheckCount > 30) {
             if (video.readyState >= video.HAVE_METADATA) {
-              console.warn('Video taking too long, but metadata is loaded. Marking as ready.');
+              // Video taking too long, but metadata is loaded. Marking as ready
               setIsVideoReady(true);
             } else {
-              console.error('Video still not ready after 3 seconds', {
-                readyState: video.readyState,
-                srcObject: !!video.srcObject
-              });
+              // Video still not ready after 3 seconds
             }
             if (readyCheckIntervalRef.current) {
               clearInterval(readyCheckIntervalRef.current);
@@ -345,7 +305,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
 
         // Handle video errors
         video.onerror = (e) => {
-          console.error('Video error:', e);
+          // Video error
           if (readyCheckIntervalRef.current) {
             clearInterval(readyCheckIntervalRef.current);
             readyCheckIntervalRef.current = null;
@@ -355,8 +315,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         };
       }, 100); // Close setTimeout callback
     } catch (error: any) {
-      console.error('Camera access error:', error);
-      
       let errorMessage = 'Camera access is required for photo capture. ';
       
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
@@ -377,7 +335,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
 
   const capturePhoto = () => {
     if (!videoRef.current || !canvasRef.current) {
-      console.error('Video or canvas element not available');
       handleError('Camera not ready. Please wait for the camera to initialize.');
       return;
     }
@@ -390,13 +347,12 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       retryCountRef.current += 1;
       
       if (retryCountRef.current > 50) { // Max 5 seconds (50 * 100ms)
-        console.error('Video not ready after maximum retries');
         handleError('Camera is taking too long to initialize. Please try again.');
         stopCamera();
         return;
       }
       
-      console.warn('Video not ready, waiting...', retryCountRef.current);
+      // Video not ready, waiting
       setTimeout(() => capturePhoto(), 100);
       return;
     }
@@ -409,7 +365,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     const videoHeight = video.videoHeight;
     
     if (!videoWidth || !videoHeight || videoWidth === 0 || videoHeight === 0) {
-      console.error('Video dimensions not available', { videoWidth, videoHeight });
       handleError('Camera video not ready. Please wait a moment and try again.');
       return;
     }
@@ -417,7 +372,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     const context = canvas.getContext('2d');
     
     if (!context) {
-      console.error('Could not get canvas context');
       handleError('Could not capture photo. Please try again.');
       return;
     }
@@ -430,7 +384,6 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     try {
       context.drawImage(video, 0, 0, videoWidth, videoHeight);
     } catch (drawError) {
-      console.error('Error drawing image to canvas:', drawError);
       handleError('Could not capture photo. Please try again.');
       return;
     }
@@ -442,9 +395,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         onChange(newFiles);
         
         // Provide feedback
-        console.log('Photo captured successfully');
+        // Photo captured successfully
       } else {
-        console.error('Failed to create blob from canvas');
         handleError('Failed to save photo. Please try again.');
       }
     }, 'image/jpeg', 0.9); // Higher quality (0.9 instead of 0.8)
@@ -489,14 +441,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   // Debug: Log video ready state changes
   useEffect(() => {
     if (isCapturing && videoRef.current) {
-      console.log('Video ready state:', {
-        isVideoReady,
-        readyState: videoRef.current.readyState,
-        videoWidth: videoRef.current.videoWidth,
-        videoHeight: videoRef.current.videoHeight,
-        paused: videoRef.current.paused,
-        ended: videoRef.current.ended
-      });
+      // Video ready state check
     }
   }, [isCapturing, isVideoReady]);
 

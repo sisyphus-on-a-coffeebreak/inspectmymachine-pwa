@@ -316,10 +316,10 @@ const PDFPass: React.FC<PDFPassProps> = ({
                   display: 'block'
                 }}
                 onLoad={() => {
-                  console.log('✅ QR Code image loaded successfully');
+                  // QR Code image loaded successfully
                 }}
                 onError={(e) => {
-                  console.error('❌ QR Code image failed to load');
+                  // QR Code image failed to load
                   e.currentTarget.style.display = 'none';
                 }}
               />

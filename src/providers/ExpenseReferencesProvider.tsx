@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import axios, { AxiosError } from 'axios';
+import { apiClient, normalizeError } from '../lib/apiClient';
 import { useToast } from './ToastProvider';
 import { useAuth } from './useAuth';
 
@@ -93,14 +93,12 @@ function extractList<T>(payload: unknown): T[] {
 }
 
 function errorMessage(err: unknown): string {
-  if (axios.isAxiosError(err)) {
-    const axiosErr = err as AxiosError<{ message?: string } & Record<string, unknown>>;
-    return (
-      axiosErr.response?.data?.message ||
-      axiosErr.response?.statusText ||
-      axiosErr.message ||
-      'Unable to reach server'
-    );
+  const apiError = normalizeError(err);
+  if (apiError.message) {
+    return apiError.message;
+  }
+  if (apiError.status) {
+    return `HTTP ${apiError.status}: ${apiError.statusText || 'Unknown error'}`;
   }
   return err instanceof Error ? err.message : 'Something went wrong';
 }
@@ -153,9 +151,8 @@ export const ExpenseReferencesProvider: React.FC<React.PropsWithChildren> = ({ c
       
       setState((prev) => ({ ...prev, status: 'loading', error: null }));
       try {
-        const response = await axios.get(FETCH_URLS[key], {
-          // Prevent retries for 404 and 401 errors
-          validateStatus: (status) => status < 500
+        const response = await apiClient.get(FETCH_URLS[key], {
+          skipRetry: true, // Prevent retries for 404 and 401 errors
         });
         const data = extractList<T>(response.data);
         const nextState: ResourceState<T> = {
@@ -173,9 +170,10 @@ export const ExpenseReferencesProvider: React.FC<React.PropsWithChildren> = ({ c
         }
       } catch (err) {
         const message = errorMessage(err);
-        const is404 = axios.isAxiosError(err) && err.response?.status === 404;
-        const is401 = axios.isAxiosError(err) && err.response?.status === 401;
-        const is500 = axios.isAxiosError(err) && err.response?.status === 500;
+        const apiError = normalizeError(err);
+        const is404 = apiError.status === 404;
+        const is401 = apiError.status === 401;
+        const is500 = apiError.status === 500;
         
         // Try JSON fallback for 404/500 errors
         if ((is404 || is500) && typeof window !== 'undefined') {

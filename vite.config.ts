@@ -84,15 +84,18 @@ export default defineConfig({
         changeOrigin: true,
         secure: process.env.NODE_ENV === 'production',
         configure: (proxy) => {
-          proxy.on("proxyReq", (_proxyReq, req) => {
-            console.log("[proxy] →", req.method, req.url);
-          });
-          proxy.on("proxyRes", (res, req) => {
-            console.log("[proxy] ←", res.statusCode, req.url);
-          });
-          proxy.on("error", (err) => {
-            console.error("[proxy] error:", err.message);
-          });
+          // Only log proxy requests in development
+          if (process.env.NODE_ENV !== 'production') {
+            proxy.on("proxyReq", (_proxyReq, req) => {
+              console.log("[proxy] →", req.method, req.url);
+            });
+            proxy.on("proxyRes", (res, req) => {
+              console.log("[proxy] ←", res.statusCode, req.url);
+            });
+            proxy.on("error", (err) => {
+              console.error("[proxy] error:", err.message);
+            });
+          }
         },
       },
     },
@@ -102,6 +105,13 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: process.env.NODE_ENV !== 'production',
     minify: 'terser',
+    terserOptions: process.env.NODE_ENV === 'production' ? {
+      compress: {
+        drop_console: true, // Remove all console.* calls in production
+        drop_debugger: true, // Remove debugger statements
+        pure_funcs: ['console.log', 'console.info', 'console.debug'], // Remove specific console methods
+      },
+    } : undefined,
     rollupOptions: {
       output: {
         manualChunks: {

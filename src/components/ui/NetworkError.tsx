@@ -1,85 +1,24 @@
 import React from 'react';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from './button';
+import { getUserFriendlyError } from '../../lib/errorHandling';
 
 interface NetworkErrorProps {
-  error?: any;
+  error?: unknown;
   onRetry?: () => void;
   onGoBack?: () => void;
   className?: string;
+  context?: string;
 }
 
 export const NetworkError: React.FC<NetworkErrorProps> = ({
   error,
   onRetry,
   onGoBack,
-  className = ''
+  className = '',
+  context
 }) => {
-  const getErrorMessage = () => {
-    if (!error) return 'Unable to connect to the server.';
-    
-    if (error.response) {
-      const status = error.response.status;
-      switch (status) {
-        case 401:
-          return 'Your session has expired. Please log in again.';
-        case 403:
-          return 'You don\'t have permission to access this resource.';
-        case 404:
-          return 'The requested resource was not found.';
-        case 422:
-          return 'The data you provided is invalid. Please check your input.';
-        case 429:
-          return 'Too many requests. Please wait a moment and try again.';
-        case 500:
-          return 'Server error. Please try again later.';
-        case 503:
-          return 'Service temporarily unavailable. Please try again later.';
-        default:
-          return `Server error (${status}). Please try again.`;
-      }
-    }
-    
-    if (error.code === 'ERR_NETWORK') {
-      return 'Network error. Please check your internet connection.';
-    }
-    
-    if (error.code === 'ERR_TIMEOUT') {
-      return 'Request timed out. Please try again.';
-    }
-    
-    return 'Something went wrong. Please try again.';
-  };
-
-  const getErrorTitle = () => {
-    if (!error) return 'Connection Error';
-    
-    if (error.response) {
-      const status = error.response.status;
-      if (status >= 400 && status < 500) {
-        return 'Request Error';
-      } else if (status >= 500) {
-        return 'Server Error';
-      }
-    }
-    
-    if (error.code === 'ERR_NETWORK') {
-      return 'Network Error';
-    }
-    
-    return 'Error';
-  };
-
-  const shouldShowGoBack = () => {
-    if (!error) return true;
-    
-    if (error.response) {
-      const status = error.response.status;
-      return status === 404 || status === 403;
-    }
-    
-    return error.code === 'ERR_NETWORK';
-  };
+  const friendlyError = getUserFriendlyError(error, context);
 
   return (
     <div
@@ -101,10 +40,12 @@ export const NetworkError: React.FC<NetworkErrorProps> = ({
       <h2 style={{ 
         ...typography.header,
         fontSize: '24px',
-        color: colors.status.critical,
+        color: friendlyError.severity === 'error' ? colors.error[600] 
+          : friendlyError.severity === 'warning' ? colors.warning[600]
+          : colors.primary,
         marginBottom: spacing.sm
       }}>
-        {getErrorTitle()}
+        {friendlyError.title}
       </h2>
       
       <p style={{ 
@@ -114,7 +55,7 @@ export const NetworkError: React.FC<NetworkErrorProps> = ({
         margin: '0 auto',
         marginBottom: spacing.xl
       }}>
-        {getErrorMessage()}
+        {friendlyError.message}
       </p>
       
       {error && error.response && (
@@ -153,7 +94,7 @@ export const NetworkError: React.FC<NetworkErrorProps> = ({
       )}
       
       <div style={{ display: 'flex', gap: spacing.md, justifyContent: 'center', flexWrap: 'wrap' }}>
-        {onRetry && (
+        {onRetry && friendlyError.showRetry && (
           <Button
             variant="primary"
             onClick={onRetry}
@@ -163,7 +104,7 @@ export const NetworkError: React.FC<NetworkErrorProps> = ({
           </Button>
         )}
         
-        {onGoBack && shouldShowGoBack() && (
+        {onGoBack && friendlyError.showGoBack && (
           <Button
             variant="secondary"
             onClick={onGoBack}

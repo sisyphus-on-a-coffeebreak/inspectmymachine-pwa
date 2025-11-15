@@ -11,6 +11,8 @@
 import axios, { AxiosError } from 'axios';
 import type { AxiosRequestConfig, AxiosResponse } from 'axios';
 import { withBackoff } from './retry';
+import { offlineQueue } from './offlineQueue';
+import { isNetworkError, isRetryableError } from './errorHandling';
 
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 
   (import.meta.env.PROD ? "https://inspectmymachine.in" : "http://localhost:8000");
@@ -40,6 +42,7 @@ export interface ApiRequestConfig extends AxiosRequestConfig {
   skipAuth?: boolean;
   skipRetry?: boolean;
   retryCount?: number;
+  suppressErrorLog?: boolean; // Suppress console errors for expected failures (e.g., auth checks)
 }
 
 /**
@@ -98,7 +101,7 @@ class ApiClient {
       await new Promise(resolve => setTimeout(resolve, 100));
       this.csrfInitialized = true;
     } catch (error) {
-      console.warn('Failed to initialize CSRF token:', error);
+      // CSRF token initialization failed - will retry on next request
     }
   }
 
@@ -108,16 +111,33 @@ class ApiClient {
   async get<T = unknown>(path: string, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
     await this.ensureCsrfToken();
     
-    const requestFn = () => axios.get<T>(path, config);
-    const response = config?.skipRetry 
-      ? await requestFn()
-      : await withBackoff(requestFn, { tries: config?.retryCount || 3, baseMs: 400 });
-
-    return {
-      data: response.data,
-      status: response.status,
-      statusText: response.statusText,
+    const requestFn = async () => {
+      // Re-ensure CSRF token on retry (in case it expired)
+      await this.ensureCsrfToken();
+      return axios.get<T>(path, config);
     };
+    
+    try {
+      const response = config?.skipRetry 
+        ? await requestFn()
+        : await withBackoff(requestFn, { 
+            tries: config?.retryCount || 3, 
+            baseMs: 400,
+            maxDelayMs: 5000,
+          });
+
+      return {
+        data: response.data,
+        status: response.status,
+        statusText: response.statusText,
+      };
+    } catch (error) {
+      // Queue request if it's a network error and queueing is enabled
+      if (isNetworkError(error) && !config?.skipRetry) {
+        await offlineQueue.enqueue('GET', path, undefined, config, error);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -125,26 +145,43 @@ class ApiClient {
    */
   async post<T = unknown>(path: string, data?: unknown, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
     await this.ensureCsrfToken();
-    const csrfToken = this.getCsrfToken();
     
-    const requestFn = () => axios.post<T>(path, data, {
-      ...config,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
-        ...config?.headers,
-      },
-    });
-    
-    const response = config?.skipRetry
-      ? await requestFn()
-      : await withBackoff(requestFn, { tries: config?.retryCount || 3, baseMs: 400 });
-
-    return {
-      data: response.data,
-      status: response.status,
-      statusText: response.statusText,
+    const requestFn = async () => {
+      // Re-ensure CSRF token on retry (in case it expired)
+      await this.ensureCsrfToken();
+      const csrfToken = this.getCsrfToken();
+      
+      return axios.post<T>(path, data, {
+        ...config,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
+          ...config?.headers,
+        },
+      });
     };
+    
+    try {
+      const response = config?.skipRetry
+        ? await requestFn()
+        : await withBackoff(requestFn, { 
+            tries: config?.retryCount || 3, 
+            baseMs: 400,
+            maxDelayMs: 5000,
+          });
+
+      return {
+        data: response.data,
+        status: response.status,
+        statusText: response.statusText,
+      };
+    } catch (error) {
+      // Queue request if it's a network error and queueing is enabled
+      if (isNetworkError(error) && !config?.skipRetry) {
+        await offlineQueue.enqueue('POST', path, data, config, error);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -152,26 +189,42 @@ class ApiClient {
    */
   async put<T = unknown>(path: string, data?: unknown, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
     await this.ensureCsrfToken();
-    const csrfToken = this.getCsrfToken();
     
-    const requestFn = () => axios.put<T>(path, data, {
-      ...config,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
-        ...config?.headers,
-      },
-    });
-    
-    const response = config?.skipRetry
-      ? await requestFn()
-      : await withBackoff(requestFn, { tries: config?.retryCount || 3, baseMs: 400 });
-
-    return {
-      data: response.data,
-      status: response.status,
-      statusText: response.statusText,
+    const requestFn = async () => {
+      await this.ensureCsrfToken();
+      const csrfToken = this.getCsrfToken();
+      
+      return axios.put<T>(path, data, {
+        ...config,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
+          ...config?.headers,
+        },
+      });
     };
+    
+    try {
+      const response = config?.skipRetry
+        ? await requestFn()
+        : await withBackoff(requestFn, { 
+            tries: config?.retryCount || 3, 
+            baseMs: 400,
+            maxDelayMs: 5000,
+          });
+
+      return {
+        data: response.data,
+        status: response.status,
+        statusText: response.statusText,
+      };
+    } catch (error) {
+      // Queue request if it's a network error and queueing is enabled
+      if (isNetworkError(error) && !config?.skipRetry) {
+        await offlineQueue.enqueue('PUT', path, data, config, error);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -179,26 +232,42 @@ class ApiClient {
    */
   async patch<T = unknown>(path: string, data?: unknown, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
     await this.ensureCsrfToken();
-    const csrfToken = this.getCsrfToken();
     
-    const requestFn = () => axios.patch<T>(path, data, {
-      ...config,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
-        ...config?.headers,
-      },
-    });
-    
-    const response = config?.skipRetry
-      ? await requestFn()
-      : await withBackoff(requestFn, { tries: config?.retryCount || 3, baseMs: 400 });
-
-    return {
-      data: response.data,
-      status: response.status,
-      statusText: response.statusText,
+    const requestFn = async () => {
+      await this.ensureCsrfToken();
+      const csrfToken = this.getCsrfToken();
+      
+      return axios.patch<T>(path, data, {
+        ...config,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
+          ...config?.headers,
+        },
+      });
     };
+    
+    try {
+      const response = config?.skipRetry
+        ? await requestFn()
+        : await withBackoff(requestFn, { 
+            tries: config?.retryCount || 3, 
+            baseMs: 400,
+            maxDelayMs: 5000,
+          });
+
+      return {
+        data: response.data,
+        status: response.status,
+        statusText: response.statusText,
+      };
+    } catch (error) {
+      // Queue request if it's a network error and queueing is enabled
+      if (isNetworkError(error) && !config?.skipRetry) {
+        await offlineQueue.enqueue('PATCH', path, data, config, error);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -206,24 +275,41 @@ class ApiClient {
    */
   async delete<T = unknown>(path: string, config?: ApiRequestConfig): Promise<ApiResponse<T>> {
     await this.ensureCsrfToken();
-    const csrfToken = this.getCsrfToken();
     
-    const requestFn = () => axios.delete<T>(path, {
-      ...config,
-      headers: {
-        ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
-        ...config?.headers,
-      },
-    });
-    const response = config?.skipRetry
-      ? await requestFn()
-      : await withBackoff(requestFn, { tries: config?.retryCount || 3, baseMs: 400 });
-
-    return {
-      data: response.data,
-      status: response.status,
-      statusText: response.statusText,
+    const requestFn = async () => {
+      await this.ensureCsrfToken();
+      const csrfToken = this.getCsrfToken();
+      
+      return axios.delete<T>(path, {
+        ...config,
+        headers: {
+          ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
+          ...config?.headers,
+        },
+      });
     };
+    
+    try {
+      const response = config?.skipRetry
+        ? await requestFn()
+        : await withBackoff(requestFn, { 
+            tries: config?.retryCount || 3, 
+            baseMs: 400,
+            maxDelayMs: 5000,
+          });
+
+      return {
+        data: response.data,
+        status: response.status,
+        statusText: response.statusText,
+      };
+    } catch (error) {
+      // Queue request if it's a network error and queueing is enabled
+      if (isNetworkError(error) && !config?.skipRetry) {
+        await offlineQueue.enqueue('DELETE', path, undefined, config, error);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -235,20 +321,29 @@ class ApiClient {
     config?: ApiRequestConfig
   ): Promise<ApiResponse<T>> {
     await this.ensureCsrfToken();
-    const csrfToken = this.getCsrfToken();
     
-    const requestFn = () => axios.post<T>(path, formData, {
-      ...config,
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
-        ...config?.headers,
-      },
-    });
+    const requestFn = async () => {
+      await this.ensureCsrfToken();
+      const csrfToken = this.getCsrfToken();
+      
+      return axios.post<T>(path, formData, {
+        ...config,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
+          ...config?.headers,
+        },
+      });
+    };
     
+    // For uploads, use fewer retries and longer delays to avoid timeout issues
     const response = config?.skipRetry
       ? await requestFn()
-      : await withBackoff(requestFn, { tries: config?.retryCount || 3, baseMs: 400 });
+      : await withBackoff(requestFn, { 
+          tries: config?.retryCount || 2, 
+          baseMs: 1000,
+          maxDelayMs: 8000,
+        });
 
     return {
       data: response.data,

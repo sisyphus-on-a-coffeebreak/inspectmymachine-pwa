@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
@@ -71,13 +71,12 @@ export const ProjectManagementDashboard: React.FC = () => {
   const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/projects/management', {
+      const response = await apiClient.get('/api/projects/management', {
         params: { period: selectedPeriod, status: filterStatus }
       });
       setProjects(response.data);
     } catch (error) {
-      console.error('Failed to fetch projects:', error);
-      // Mock data for development
+      // Mock data for development (fallback)
       setProjects([
         {
           id: '1',
@@ -165,12 +164,12 @@ export const ProjectManagementDashboard: React.FC = () => {
 
   const fetchProjectExpenses = useCallback(async (projectId: string) => {
     try {
-      const response = await axios.get(`/api/projects/${projectId}/expenses`, {
+      const response = await apiClient.get(`/api/projects/${projectId}/expenses`, {
         params: { period: selectedPeriod }
       });
       setProjectExpenses(response.data);
     } catch (error) {
-      console.error('Failed to fetch project expenses:', error);
+      // Error is already handled by apiClient
       // Mock data for development
       setProjectExpenses([
         {
@@ -206,10 +205,10 @@ export const ProjectManagementDashboard: React.FC = () => {
 
   const fetchProjectPhases = useCallback(async (projectId: string) => {
     try {
-      const response = await axios.get(`/api/projects/${projectId}/phases`);
+      const response = await apiClient.get(`/api/projects/${projectId}/phases`);
       setProjectPhases(response.data);
     } catch (error) {
-      console.error('Failed to fetch project phases:', error);
+      // Error is already handled by apiClient
       // Mock data for development
       setProjectPhases([
         {

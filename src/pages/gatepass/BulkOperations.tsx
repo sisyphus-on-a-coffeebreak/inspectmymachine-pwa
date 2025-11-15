@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
@@ -61,10 +61,9 @@ export const BulkOperations: React.FC = () => {
   const fetchBulkOperations = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/gate-pass-bulk/operations');
+      const response = await apiClient.get('/gate-pass-bulk/operations');
       setBulkOperations(response.data);
     } catch (error) {
-      console.error('Failed to fetch bulk operations:', error);
       // Mock data for development
       setBulkOperations([
         {
@@ -98,11 +97,10 @@ export const BulkOperations: React.FC = () => {
 
   const fetchBulkTemplates = useCallback(async () => {
     try {
-      const response = await axios.get('/gate-pass-bulk/templates');
+      const response = await apiClient.get('/gate-pass-bulk/templates');
       setBulkTemplates(response.data);
     } catch (error) {
-      console.error('Failed to fetch bulk templates:', error);
-      // Mock data for development
+      // Mock data for development (fallback)
       setBulkTemplates([
         {
           id: '1',
@@ -204,7 +202,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
 
     try {
       setLoading(true);
-      const response = await axios.post('/gate-pass-bulk/execute', {
+      const response = await apiClient.post('/gate-pass-bulk/execute', {
         operation_type: operationType,
         data: bulkData,
         template_id: selectedTemplate?.id
@@ -220,7 +218,6 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
       setCsvData('');
       fetchBulkOperations();
     } catch (error) {
-      console.error('Bulk operation failed:', error);
       showToast({
         title: 'Error',
         description: 'Bulk operation failed. Please check your data and try again.',
@@ -234,7 +231,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
   const exportPasses = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/gate-pass-bulk/export', {
+      const response = await apiClient.get('/gate-pass-bulk/export', {
         params: {
           format: 'csv',
           date_range: 'month',
@@ -252,7 +249,6 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Export failed:', error);
       showToast({
         title: 'Error',
         description: 'Export failed. Please try again.',

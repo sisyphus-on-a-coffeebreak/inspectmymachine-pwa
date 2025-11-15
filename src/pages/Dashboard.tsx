@@ -1,8 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "../providers/useAuth";
 import { colors, typography, spacing } from "../lib/theme";
-import axios from "axios";
+import { StatCard } from "../components/ui/StatCard";
+import { AnomalyAlert } from "../components/ui/AnomalyAlert";
+import { SkeletonCard } from "../components/ui/SkeletonLoader";
+import { useDashboardStats } from "../lib/queries";
 import { 
   ClipboardList, 
   FileText, 
@@ -176,9 +179,8 @@ interface DashboardStats {
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  // Use React Query for dashboard stats
+  const { data: stats, isLoading: loading, error: queryError } = useDashboardStats();
 
   const handleLogout = async () => {
     await logout();
@@ -209,29 +211,8 @@ export default function Dashboard() {
     return roleMap[role] || role;
   };
 
-  useEffect(() => {
-    loadDashboardStats();
-  }, []);
-
-  const loadDashboardStats = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await axios.get<{ success: boolean; data: DashboardStats }>('/v1/dashboard', {
-        withCredentials: true,
-      });
-      
-      if (response.data.success && response.data.data) {
-        setStats(response.data.data);
-      }
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to load dashboard stats');
-      setError(error);
-      console.error('Failed to load dashboard stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Error handling - convert React Query error to Error type if needed
+  const error = queryError ? (queryError instanceof Error ? queryError : new Error('Failed to load dashboard stats')) : null;
 
   return (
     <div style={{ 
@@ -293,25 +274,28 @@ export default function Dashboard() {
           {/* User Info & Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
             {/* Notifications */}
-            <button style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              border: 'none',
-              background: colors.neutral[100],
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              position: 'relative'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = colors.neutral[200];
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = colors.neutral[100];
-            }}>
+            <button 
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                border: 'none',
+                background: colors.neutral[100],
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                position: 'relative'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = colors.neutral[200];
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = colors.neutral[100];
+              }}
+              aria-label="View notifications"
+            >
               <Bell style={{ width: '18px', height: '18px', color: colors.neutral[600] }} />
               <div style={{
                 position: 'absolute',
@@ -325,24 +309,27 @@ export default function Dashboard() {
             </button>
 
             {/* Settings */}
-            <button style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              border: 'none',
-              background: colors.neutral[100],
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = colors.neutral[200];
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = colors.neutral[100];
-            }}>
+            <button 
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                border: 'none',
+                background: colors.neutral[100],
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = colors.neutral[200];
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = colors.neutral[100];
+              }}
+              aria-label="Open settings"
+            >
               <Settings style={{ width: '18px', height: '18px', color: colors.neutral[600] }} />
             </button>
 
@@ -411,6 +398,7 @@ export default function Dashboard() {
                 e.currentTarget.style.background = 'transparent';
                 e.currentTarget.style.color = colors.status.critical;
               }}
+              aria-label="Logout from account"
             >
               <LogOut style={{ width: '16px', height: '16px' }} />
               <span style={{ fontSize: '14px' }}>Logout</span>
@@ -458,6 +446,37 @@ export default function Dashboard() {
           </p>
         </div>
 
+        {/* Anomaly Alerts */}
+        {stats && stats.overall && stats.overall.urgent_items > 0 && (
+          <AnomalyAlert
+            title={`${stats.overall.urgent_items} Urgent Item${stats.overall.urgent_items > 1 ? 's' : ''} Require Attention`}
+            description="Critical issues detected across modules. Review and take action."
+            severity="critical"
+            actions={[
+              {
+                label: 'View Urgent Items',
+                onClick: () => navigate('/dashboard?filter=urgent'),
+                variant: 'primary',
+              },
+            ]}
+            dismissible={false}
+          />
+        )}
+        {stats && stats.expense && stats.expense.pending_approval > 0 && stats.expense.pending_approval > 5 && (
+          <AnomalyAlert
+            title={`${stats.expense.pending_approval} Expenses Pending Approval`}
+            description="Multiple expense approvals are waiting for review."
+            severity="warning"
+            actions={[
+              {
+                label: 'Review Expenses',
+                onClick: () => navigate('/app/expenses/approval'),
+                variant: 'primary',
+              },
+            ]}
+          />
+        )}
+
         {/* Quick Stats */}
         <div style={{ 
           display: 'grid', 
@@ -465,173 +484,37 @@ export default function Dashboard() {
           gap: spacing.lg,
           marginBottom: spacing.xl
         }}>
-          <div style={{
-            background: 'white',
-            padding: spacing.lg,
-            borderRadius: '16px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-            border: `1px solid ${colors.neutral[200]}`,
-            display: 'flex',
-            alignItems: 'center',
-            gap: spacing.md
-          }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              background: `linear-gradient(135deg, ${colors.status.normal} 0%, ${colors.status.normal}80 100%)`,
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <CheckCircle style={{ width: '24px', height: '24px', color: 'white' }} />
-            </div>
-            <div>
-              <p style={{ 
-                ...typography.label,
-                color: colors.neutral[600],
-                margin: 0,
-                fontSize: '12px'
-              }}>
-                Completed Today
-              </p>
-              <p style={{ 
-                ...typography.header,
-                fontSize: '24px',
-                color: colors.neutral[900],
-                margin: 0,
-                fontWeight: 700
-              }}>
-                {loading ? '...' : (stats?.overall?.completed_today ?? 0)}
-              </p>
-            </div>
-          </div>
-
-          <div style={{
-            background: 'white',
-            padding: spacing.lg,
-            borderRadius: '16px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-            border: `1px solid ${colors.neutral[200]}`,
-            display: 'flex',
-            alignItems: 'center',
-            gap: spacing.md
-          }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              background: `linear-gradient(135deg, ${colors.status.warning} 0%, ${colors.status.warning}80 100%)`,
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Clock style={{ width: '24px', height: '24px', color: 'white' }} />
-            </div>
-            <div>
-              <p style={{ 
-                ...typography.label,
-                color: colors.neutral[600],
-                margin: 0,
-                fontSize: '12px'
-              }}>
-                Pending Tasks
-              </p>
-              <p style={{ 
-                ...typography.header,
-                fontSize: '24px',
-                color: colors.neutral[900],
-                margin: 0,
-                fontWeight: 700
-              }}>
-                {loading ? '...' : (stats?.overall?.pending_tasks ?? 0)}
-              </p>
-            </div>
-          </div>
-
-          <div style={{
-            background: 'white',
-            padding: spacing.lg,
-            borderRadius: '16px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-            border: `1px solid ${colors.neutral[200]}`,
-            display: 'flex',
-            alignItems: 'center',
-            gap: spacing.md
-          }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              background: `linear-gradient(135deg, ${colors.status.critical} 0%, ${colors.status.critical}80 100%)`,
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <AlertCircle style={{ width: '24px', height: '24px', color: 'white' }} />
-            </div>
-            <div>
-              <p style={{ 
-                ...typography.label,
-                color: colors.neutral[600],
-                margin: 0,
-                fontSize: '12px'
-              }}>
-                Urgent Items
-              </p>
-              <p style={{ 
-                ...typography.header,
-                fontSize: '24px',
-                color: colors.neutral[900],
-                margin: 0,
-                fontWeight: 700
-              }}>
-                {loading ? '...' : (stats?.overall?.urgent_items ?? 0)}
-              </p>
-            </div>
-          </div>
-
-          <div style={{
-            background: 'white',
-            padding: spacing.lg,
-            borderRadius: '16px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-            border: `1px solid ${colors.neutral[200]}`,
-            display: 'flex',
-            alignItems: 'center',
-            gap: spacing.md
-          }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <TrendingUp style={{ width: '24px', height: '24px', color: 'white' }} />
-            </div>
-            <div>
-              <p style={{ 
-                ...typography.label,
-                color: colors.neutral[600],
-                margin: 0,
-                fontSize: '12px'
-              }}>
-                Efficiency
-              </p>
-              <p style={{ 
-                ...typography.header,
-                fontSize: '24px',
-                color: colors.neutral[900],
-                margin: 0,
-                fontWeight: 700
-              }}>
-                {loading ? '...' : (stats?.overall?.efficiency?.toFixed(0) ?? 0)}%
-              </p>
-            </div>
-          </div>
+          <StatCard
+            label="Completed Today"
+            value={loading ? '...' : (stats?.overall?.completed_today ?? 0)}
+            icon={<CheckCircle size={20} />}
+            color={colors.success[500]}
+            loading={loading}
+            href="/dashboard?filter=completed"
+          />
+          <StatCard
+            label="Pending Tasks"
+            value={loading ? '...' : (stats?.overall?.pending_tasks ?? 0)}
+            icon={<Clock size={20} />}
+            color={colors.warning[500]}
+            loading={loading}
+            href="/dashboard?filter=pending"
+          />
+          <StatCard
+            label="Urgent Items"
+            value={loading ? '...' : (stats?.overall?.urgent_items ?? 0)}
+            icon={<AlertCircle size={20} />}
+            color={colors.error[500]}
+            loading={loading}
+            href="/dashboard?filter=urgent"
+          />
+          <StatCard
+            label="Efficiency"
+            value={loading ? '...' : `${stats?.overall?.efficiency?.toFixed(0) ?? 0}%`}
+            icon={<TrendingUp size={20} />}
+            color={colors.primary}
+            loading={loading}
+          />
         </div>
 
         {/* Kanban Board */}
@@ -988,35 +871,41 @@ export default function Dashboard() {
               🚀 Available Modules
             </h3>
             <div style={{ display: 'flex', gap: spacing.sm }}>
-              <button style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: spacing.sm,
-                padding: `${spacing.sm} ${spacing.md}`,
-                background: colors.neutral[100],
-                border: 'none',
-                borderRadius: '10px',
-                color: colors.neutral[700],
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: 500
-              }}>
+              <button 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing.sm,
+                  padding: `${spacing.sm} ${spacing.md}`,
+                  background: colors.neutral[100],
+                  border: 'none',
+                  borderRadius: '10px',
+                  color: colors.neutral[700],
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 500
+                }}
+                aria-label="View Analytics"
+              >
                 <BarChart3 style={{ width: '16px', height: '16px' }} />
                 Analytics
               </button>
-              <button style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: spacing.sm,
-                padding: `${spacing.sm} ${spacing.md}`,
-                background: colors.neutral[100],
-                border: 'none',
-                borderRadius: '10px',
-                color: colors.neutral[700],
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: 500
-              }}>
+              <button 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing.sm,
+                  padding: `${spacing.sm} ${spacing.md}`,
+                  background: colors.neutral[100],
+                  border: 'none',
+                  borderRadius: '10px',
+                  color: colors.neutral[700],
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 500
+                }}
+                aria-label="View Calendar"
+              >
                 <Calendar style={{ width: '16px', height: '16px' }} />
                 Calendar
               </button>
@@ -1028,7 +917,13 @@ export default function Dashboard() {
             gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
             gap: spacing.lg
           }}>
-            {accessibleModules.map((module) => {
+            {loading ? (
+              // Show skeleton loaders while loading
+              Array.from({ length: accessibleModules.length || 4 }).map((_, index) => (
+                <SkeletonCard key={`skeleton-${index}`} />
+              ))
+            ) : (
+              accessibleModules.map((module) => {
               const Icon = module.icon;
               return (
                 <div
@@ -1182,7 +1077,8 @@ export default function Dashboard() {
                   </div>
                 </div>
               );
-            })}
+              })
+            )}
           </div>
         </div>
 
@@ -1242,19 +1138,22 @@ export default function Dashboard() {
             }}>
               📈 Recent Activity
             </h3>
-            <button style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: spacing.sm,
-              padding: `${spacing.sm} ${spacing.md}`,
-              background: colors.neutral[100],
-              border: 'none',
-              borderRadius: '10px',
-              color: colors.neutral[700],
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: 500
-            }}>
+            <button 
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.sm,
+                padding: `${spacing.sm} ${spacing.md}`,
+                background: colors.neutral[100],
+                border: 'none',
+                borderRadius: '10px',
+                color: colors.neutral[700],
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 500
+              }}
+              aria-label="View all recent activity"
+            >
               <Users style={{ width: '16px', height: '16px' }} />
               View All
             </button>

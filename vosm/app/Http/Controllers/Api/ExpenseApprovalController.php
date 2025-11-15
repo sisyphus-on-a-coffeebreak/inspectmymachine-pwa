@@ -56,7 +56,10 @@ class ExpenseApprovalController extends Controller
                     'approved_at' => $expense->approved_at ?? null,
                     'rejected_by' => $expense->rejected_by ?? null,
                     'rejected_at' => $expense->rejected_at ?? null,
-                    'rejection_reason' => $expense->rejection_reason ?? null
+                    'rejection_reason' => $expense->rejection_reason ?? null,
+                    'escalated_at' => $expense->escalated_at ?? null,
+                    'escalated_to' => $expense->escalated_to ?? null,
+                    'escalation_level' => $expense->escalation_level ?? 0,
                 ];
             });
             
@@ -156,6 +159,10 @@ class ExpenseApprovalController extends Controller
                     'status' => 'approved',
                     'approved_by' => $user->id,
                     'approved_at' => now(),
+                    // Clear escalation when approved
+                    'escalated_at' => null,
+                    'escalated_to' => null,
+                    'escalation_level' => 0,
                     'updated_at' => now()
                 ]);
             
@@ -228,6 +235,10 @@ class ExpenseApprovalController extends Controller
                     'rejected_by' => $user->id,
                     'rejected_at' => now(),
                     'rejection_reason' => $request->input('reason'),
+                    // Clear escalation when rejected
+                    'escalated_at' => null,
+                    'escalated_to' => null,
+                    'escalation_level' => 0,
                     'updated_at' => now()
                 ]);
             
@@ -299,6 +310,10 @@ class ExpenseApprovalController extends Controller
                     'status' => 'approved',
                     'approved_by' => $user->id,
                     'approved_at' => now(),
+                    // Clear escalation when approved
+                    'escalated_at' => null,
+                    'escalated_to' => null,
+                    'escalation_level' => 0,
                     'updated_at' => now()
                 ]);
             
@@ -375,6 +390,10 @@ class ExpenseApprovalController extends Controller
                     'rejected_by' => $user->id,
                     'rejected_at' => now(),
                     'rejection_reason' => $request->input('reason'),
+                    // Clear escalation when rejected
+                    'escalated_at' => null,
+                    'escalated_to' => null,
+                    'escalation_level' => 0,
                     'updated_at' => now()
                 ]);
             

@@ -1,14 +1,20 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useGatePasses } from '../../lib/queries';
+import { useQueryClient } from '@tanstack/react-query';
 import type { VisitorGatePass, VehicleMovementPass, DashboardStats } from './gatePassTypes';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
+import { StatCard } from '../../components/ui/StatCard';
+import { AnomalyAlert } from '../../components/ui/AnomalyAlert';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
 import PassDisplay from '../../components/ui/PassDisplay';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Pagination } from '../../components/ui/Pagination';
+import { SkeletonCard } from '../../components/ui/SkeletonLoader';
+import { PolicyLinks } from '../../components/ui/PolicyLinks';
 import { postWithCsrf, putWithCsrf } from '../../lib/csrf';
 import { useToast } from '../../providers/ToastProvider';
 import { useConfirm } from '../../components/ui/Modal';
@@ -21,17 +27,60 @@ export const GatePassDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { confirm, ConfirmComponent } = useConfirm();
-  const [visitorPasses, setVisitorPasses] = useState<VisitorGatePass[]>([]);
-  const [vehicleMovements, setVehicleMovements] = useState<VehicleMovementPass[]>([]);
-  const [stats, setStats] = useState<DashboardStats>({
-    visitors_inside: 0,
-    vehicles_out: 0,
-    expected_today: 0,
-    total_today: 0
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<'all' | 'active' | 'pending'>('active');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
+  
+  // Map frontend filter to backend status values
+  const getStatusFilter = (filter: string) => {
+    switch (filter) {
+      case 'active':
+        return 'active';
+      case 'pending':
+        return 'pending';
+      case 'all':
+      default:
+        return undefined;
+    }
+  };
+  
+  // Use React Query for gate passes
+  const { data: passesData, isLoading: loading, error: queryError, refetch } = useGatePasses(
+    { 
+      status: getStatusFilter(filter),
+      page: currentPage,
+      per_page: perPage,
+    }
+  );
+  
+  const visitorPasses = passesData?.visitorPasses || [];
+  const vehicleMovements = passesData?.vehicleMovements || [];
+  const totalItems = passesData?.total || 0;
+  
+  // Calculate stats from fetched data
+  const visitorsInside = visitorPasses.filter((p: VisitorGatePass) => p.status === 'inside').length;
+  const vehiclesOut = vehicleMovements.filter((v: VehicleMovementPass) => v.status === 'out').length;
+  const expectedToday = visitorPasses.filter((p: VisitorGatePass) => {
+    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const validFromDate = p.valid_from ? p.valid_from.split('T')[0] : null;
+    if (validFromDate !== today) return false;
+    if (p.valid_to) {
+      const validToDate = new Date(p.valid_to);
+      if (validToDate < now) return false;
+    }
+    return p.status === 'pending' || p.status === 'active';
+  }).length;
+  
+  const stats: DashboardStats = {
+    visitors_inside: visitorsInside,
+    vehicles_out: vehiclesOut,
+    expected_today: expectedToday,
+    total_today: visitorPasses.length + vehicleMovements.length
+  };
+  
+  const error = queryError ? (queryError instanceof Error ? queryError : new Error('Failed to load gate passes')) : null;
   const [selectedPass, setSelectedPass] = useState<{
     id: number | string;
     passType: 'visitor' | 'vehicle';
@@ -48,120 +97,10 @@ export const GatePassDashboard: React.FC = () => {
     companyLogo?: string;
   } | null>(null);
 
-  const fetchPasses = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Map frontend filter to backend status values
-      const getStatusFilter = (filter: string) => {
-        switch (filter) {
-          case 'active':
-            return 'active'; // Show active passes
-          case 'pending':
-            return 'pending';
-          case 'all':
-          default:
-            return undefined; // No filter
-        }
-      };
-
-      // Fetch visitor passes
-      const visitorResponse = await axios.get('/visitor-gate-passes', {
-        params: { status: getStatusFilter(filter) }
-      });
-
-
-        // Fetch vehicle movements (both entry and exit passes) with status filtering
-      const vehicleEntryResponse = await axios.get('/vehicle-entry-passes', {
-        params: { status: getStatusFilter(filter) }
-      });
-      const vehicleExitResponse = await axios.get('/vehicle-exit-passes', {
-        params: { status: getStatusFilter(filter) }
-      });
-      
-      // Combine both entry and exit passes
-      const vehicleEntryData = Array.isArray(vehicleEntryResponse.data) 
-        ? vehicleEntryResponse.data 
-        : (vehicleEntryResponse.data.data || []);
-      const vehicleExitData = Array.isArray(vehicleExitResponse.data) 
-        ? vehicleExitResponse.data 
-        : (vehicleExitResponse.data.data || []);
-      
-      const vehicleResponse = { data: [...vehicleEntryData, ...vehicleExitData] };
-
-        // Handle Laravel API response format (wrapped in { data: [] })
-      const visitorData = Array.isArray(visitorResponse.data) 
-      ? visitorResponse.data 
-      : ((visitorResponse.data as any)?.data || []);
-
-      const vehicleData = Array.isArray(vehicleResponse.data) 
-      ? vehicleResponse.data 
-      : ((vehicleResponse.data as any)?.data || []);
-
-      console.log('Fetched visitor passes:', visitorData);
-      console.log('Fetched vehicle movements:', vehicleData);
-      
-      // Debug today's date and visitor pass dates
-      const today = new Date().toISOString().split('T')[0];
-      console.log('Today:', today);
-      visitorData.forEach((pass: any, index: number) => {
-        console.log(`Pass ${index}:`, {
-          id: pass.id,
-          status: pass.status,
-          valid_from: pass.valid_from,
-          valid_from_date: pass.valid_from ? pass.valid_from.split('T')[0] : 'null'
-        });
-      });
-      
-      setVisitorPasses(visitorData);
-      setVehicleMovements(vehicleData);
-
-      // Calculate stats
-    const visitorsInside = visitorData.filter((p: VisitorGatePass) =>  // ✅ CORRECT
-    p.status === 'inside'
-    ).length;
-
-    const vehiclesOut = vehicleData.filter((v: VehicleMovementPass) =>  // ✅ CORRECT
-    v.status === 'out'
-    ).length;
-
-    const expectedToday = visitorData.filter((p: VisitorGatePass) => {
-    const today = new Date().toISOString().split('T')[0];
-    const now = new Date();
-    
-    // Check if valid_from date matches today
-    const validFromDate = p.valid_from ? p.valid_from.split('T')[0] : null;
-    if (validFromDate !== today) return false;
-    
-    // Check if pass has expired (valid_to is in the past)
-    if (p.valid_to) {
-      const validToDate = new Date(p.valid_to);
-      if (validToDate < now) return false; // Pass has expired
-    }
-    
-    // Only count pending or active passes that haven't expired
-    return p.status === 'pending' || p.status === 'active';
-    }).length;
-
-    setStats({
-    visitors_inside: visitorsInside,
-    vehicles_out: vehiclesOut,
-    expected_today: expectedToday,
-    total_today: visitorData.length + vehicleData.length  // ✅ CORRECT
-    });
-
-    } catch (error) {
-      console.error('Failed to fetch passes:', error);
-      setError(error as Error);
-    } finally {
-      setLoading(false);
-    }
-  }, [filter]);
-
+  // Reset to page 1 when filter changes
   useEffect(() => {
-    fetchPasses();
-    }, [fetchPasses]);
+    setCurrentPage(1);
+  }, [filter]);
 
   const handleMarkExit = async (passId: number, type: 'visitor' | 'vehicle') => {
     const confirmed = await confirm({
@@ -186,9 +125,10 @@ export const GatePassDashboard: React.FC = () => {
         description: 'Exit marked successfully!',
         variant: 'success',
       });
-      fetchPasses(); // Refresh data
+      // Invalidate and refetch gate passes
+      queryClient.invalidateQueries({ queryKey: ['gate-passes'] });
+      refetch();
     } catch (error) {
-      console.error('Failed to mark exit:', error);
       showToast({
         title: 'Error',
         description: 'Failed to mark exit. Please try again.',
@@ -297,7 +237,6 @@ export const GatePassDashboard: React.FC = () => {
       URL.revokeObjectURL(url);
 
     } catch (error) {
-      console.error('Error downloading PDF:', error);
       showToast({
         title: 'Error',
         description: 'Failed to download PDF. Please try again.',
@@ -342,7 +281,7 @@ export const GatePassDashboard: React.FC = () => {
         try {
           qrCode = await pdfUtils.generateQRCode(payload);
         } catch (qrError) {
-          console.error('Failed to generate QR code while preparing share payload:', qrError);
+          // Failed to generate QR code while preparing share payload
           qrCode = '';
         }
       }
@@ -361,7 +300,6 @@ export const GatePassDashboard: React.FC = () => {
         companyLogo: metadata.companyLogo,
       });
     } catch (error) {
-      console.error('Error sharing pass:', error);
       showToast({
         title: 'Error',
         description: 'Failed to share pass. Please try again.',
@@ -403,9 +341,32 @@ export const GatePassDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: spacing.xl, textAlign: 'center' }}>
-        <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>⏳</div>
-        <div style={{ color: colors.neutral[600] }}>Loading gate passes...</div>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: spacing.sm }}>
+        <PageHeader
+          title="Gate Pass Management"
+          subtitle="Manage visitor passes, vehicle movements, and gate operations"
+          icon="🚪"
+          breadcrumbs={[
+            { label: 'Dashboard', path: '/dashboard', icon: '🏠' },
+            { label: 'Gate Pass', icon: '🚪' }
+          ]}
+        />
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+          gap: spacing.md,
+          marginTop: spacing.lg,
+          marginBottom: spacing.lg
+        }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={`stats-skeleton-${i}`} />
+          ))}
+        </div>
+        <div style={{ marginTop: spacing.lg }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonCard key={`list-skeleton-${i}`} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -424,7 +385,7 @@ export const GatePassDashboard: React.FC = () => {
         />
         <NetworkError
           error={error}
-          onRetry={fetchPasses}
+          onRetry={() => refetch()}
           onGoBack={() => navigate('/dashboard')}
         />
       </div>
@@ -468,6 +429,32 @@ export const GatePassDashboard: React.FC = () => {
             ))}
           </div>
         }
+      />
+
+      {/* Policy Links */}
+      <PolicyLinks
+        title="Gate Pass Policy & Compliance"
+        links={[
+          {
+            label: 'Gate Pass Policy',
+            url: '/policies/gate-pass-policy',
+            external: false,
+            icon: '📋'
+          },
+          {
+            label: 'Escalation Rules',
+            url: '/policies/escalation-rules',
+            external: false,
+            icon: '⚡'
+          },
+          {
+            label: 'Compliance Checklist',
+            url: '/policies/compliance-checklist',
+            external: false,
+            icon: '✅'
+          }
+        ]}
+        variant="compact"
       />
 
       {/* Action Cards */}
@@ -995,102 +982,114 @@ export const GatePassDashboard: React.FC = () => {
 
       {/* Stats Row */}
       <StatsGrid gap="lg">
-        <div style={{ 
-          ...cardStyles.base,
-          padding: spacing.xl,
-          backgroundColor: 'white',
-          border: `2px solid ${colors.status.normal}`,
-          position: 'relative' as const,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-          borderRadius: '16px'
-        }}>
-          <div style={{ 
-            ...typography.label,
-            color: colors.neutral[600], 
-            marginBottom: spacing.xs,
-            display: 'flex',
-            alignItems: 'center',
-            gap: spacing.sm
-          }}>
-            <span className="status-dot status-dot-normal" />
-            👥 Visitors Inside
-          </div>
-          <div style={{ 
-            ...typography.header,
-            fontSize: '32px',
-            color: colors.status.normal,
-            fontWeight: 700
-          }}>
-            {stats.visitors_inside}
-          </div>
-        </div>
-        
-        <div style={{ 
-          ...cardStyles.base,
-          padding: spacing.xl,
-          backgroundColor: 'white',
-          border: `2px solid ${colors.status.warning}`,
-          position: 'relative' as const,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-          borderRadius: '16px'
-        }}>
-          <div style={{ 
-            ...typography.label,
-            color: colors.neutral[600], 
-            marginBottom: spacing.xs,
-            display: 'flex',
-            alignItems: 'center',
-            gap: spacing.sm
-          }}>
-            <span className="status-dot status-dot-warning" />
-            🚗 Vehicles Out
-          </div>
-          <div style={{ 
-            ...typography.header,
-            fontSize: '32px',
-            color: colors.status.warning,
-            fontWeight: 700
-          }}>
-            {stats.vehicles_out}
-          </div>
-        </div>
-        
-        <div style={{ 
-          ...cardStyles.base,
-          padding: spacing.xl,
-          backgroundColor: 'white',
-          border: `2px solid ${colors.primary}`,
-          position: 'relative' as const,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-          borderRadius: '16px'
-        }}>
-          <div style={{ 
-            ...typography.label,
-            color: colors.neutral[600], 
-            marginBottom: spacing.xs,
-            display: 'flex',
-            alignItems: 'center',
-            gap: spacing.sm
-          }}>
-            <span style={{ 
-              width: '12px', 
-              height: '12px', 
-              borderRadius: '50%', 
-              backgroundColor: colors.primary,
-              display: 'inline-block'
-            }} />
-            ⏳ Expected Today
-          </div>
-          <div style={{ 
-            ...typography.header,
-            fontSize: '32px',
-            color: colors.primary,
-            fontWeight: 700
-          }}>
-            {stats.expected_today}
-          </div>
-        </div>
+        <StatCard
+          label="Visitors Inside"
+          value={stats.visitors_inside}
+          icon={<span>👥</span>}
+          color={colors.success[500]}
+          href="/app/gate-pass?filter=active&type=visitor"
+          loading={loading}
+        />
+        <StatCard
+          label="Vehicles Out"
+          value={stats.vehicles_out}
+          icon={<span>🚗</span>}
+          color={colors.warning[500]}
+          href="/app/gate-pass?filter=active&type=vehicle"
+          loading={loading}
+        />
+        <StatCard
+          label="Expected Today"
+          value={stats.expected_today}
+          icon={<span>⏳</span>}
+          color={colors.primary}
+          href="/app/gate-pass?filter=all"
+          loading={loading}
+        />
+        <StatCard
+          label="Total Today"
+          value={stats.total_today}
+          icon={<span>📊</span>}
+          color={colors.neutral[500]}
+          href="/app/gate-pass?filter=all"
+          loading={loading}
+        />
       </StatsGrid>
+
+      {/* Anomaly Alerts */}
+      {(() => {
+        const now = new Date();
+        const eightHoursAgo = new Date(now.getTime() - 8 * 60 * 60 * 1000);
+        
+        // Check for visitors inside > 8 hours
+        const longStayVisitors = visitorPasses.filter((pass) => {
+          if (pass.status !== 'inside' || !pass.entry_time) return false;
+          const entryTime = new Date(pass.entry_time);
+          return entryTime < eightHoursAgo;
+        });
+
+        // Check for expired but still active passes
+        const expiredActive = [...visitorPasses, ...vehicleMovements].filter((pass: any) => {
+          if (pass.status !== 'active' && pass.status !== 'inside') return false;
+          if (!pass.valid_to) return false;
+          return new Date(pass.valid_to) < now;
+        });
+
+        // Check for vehicles out without return scan
+        const vehiclesOutLong = vehicleMovements.filter((pass) => {
+          if (pass.status !== 'out' || !pass.exit_time) return false;
+          const exitTime = new Date(pass.exit_time);
+          const hoursOut = (now.getTime() - exitTime.getTime()) / (1000 * 60 * 60);
+          return hoursOut > 24; // Out for more than 24 hours
+        });
+
+        return (
+          <>
+            {longStayVisitors.length > 0 && (
+              <AnomalyAlert
+                title={`${longStayVisitors.length} Visitor${longStayVisitors.length > 1 ? 's' : ''} Inside > 8 Hours`}
+                description="Some visitors have been inside for more than 8 hours. Please verify their status."
+                severity="warning"
+                actions={[
+                  {
+                    label: 'View Long Stay Visitors',
+                    onClick: () => setFilter('active'),
+                    variant: 'primary',
+                  },
+                ]}
+              />
+            )}
+            {expiredActive.length > 0 && (
+              <AnomalyAlert
+                title={`${expiredActive.length} Expired Pass${expiredActive.length > 1 ? 'es' : ''} Still Active`}
+                description="Some passes have expired but are still marked as active. Please review and update their status."
+                severity="error"
+                actions={[
+                  {
+                    label: 'Review Expired Passes',
+                    onClick: () => setFilter('all'),
+                    variant: 'primary',
+                  },
+                ]}
+              />
+            )}
+            {vehiclesOutLong.length > 0 && (
+              <AnomalyAlert
+                title={`${vehiclesOutLong.length} Vehicle${vehiclesOutLong.length > 1 ? 's' : ''} Out > 24 Hours`}
+                description="Some vehicles have been out for more than 24 hours without a return scan."
+                severity="warning"
+                actions={[
+                  {
+                    label: 'View Vehicles Out',
+                    onClick: () => setFilter('active'),
+                    variant: 'primary',
+                  },
+                ]}
+              />
+            )}
+          </>
+        );
+      })()}
 
       {/* Filters */}
       <div style={{ 
@@ -1220,15 +1219,7 @@ export const GatePassDashboard: React.FC = () => {
 
           <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap', marginTop: spacing.md }}>
             <button
-              onClick={() => setSelectedPass({
-                id: pass.id!,
-                passType: 'visitor',
-                visitorName: pass.visitor_name,
-                purpose: pass.purpose,
-                entryTime: pass.valid_from || new Date().toISOString(),
-                expectedReturn: pass.expected_return_date,
-                companyName: 'VOMS'
-              })}
+              onClick={() => navigate(`/app/gate-pass/${pass.id}`)}
               style={{
                 padding: '0.5rem 1rem',
                 border: '1px solid #3B82F6',
@@ -1431,24 +1422,43 @@ export const GatePassDashboard: React.FC = () => {
         </div>
       ))}
 
-        {/* Empty State */}
-        {visitorPasses.length === 0 && vehicleMovements.length === 0 && (
-          <EmptyState
-            icon="📋"
-            title="No Gate Passes Found"
-            description="Get started by creating your first visitor pass or vehicle movement pass."
-            action={{
-              label: "Create Visitor Pass",
-              onClick: () => navigate('/app/gate-pass/create-visitor'),
-              icon: "👤"
-            }}
-            secondaryAction={{
-              label: "Create Vehicle Pass",
-              onClick: () => navigate('/app/gate-pass/create-vehicle'),
-              icon: "🚗"
-            }}
-          />
-        )}
+      {/* Empty State */}
+      {visitorPasses.length === 0 && vehicleMovements.length === 0 && (
+        <EmptyState
+          icon="📋"
+          title="No Gate Passes Found"
+          description="Get started by creating your first visitor pass or vehicle movement pass."
+          action={{
+            label: "Create Visitor Pass",
+            onClick: () => navigate('/app/gate-pass/create-visitor'),
+            icon: "👤"
+          }}
+          secondaryAction={{
+            label: "Create Vehicle Pass",
+            onClick: () => navigate('/app/gate-pass/create-vehicle'),
+            icon: "🚗"
+          }}
+        />
+      )}
+
+      {/* Pagination */}
+      {totalItems > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={Math.ceil(totalItems / perPage)}
+          totalItems={totalItems}
+          perPage={perPage}
+          onPageChange={(page) => {
+            setCurrentPage(page);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onPerPageChange={(newPerPage) => {
+            setPerPage(newPerPage);
+            setCurrentPage(1);
+          }}
+        />
+      )}
+      </div>
       </div>
 
       {/* Pass Display Modal */}
@@ -1458,7 +1468,6 @@ export const GatePassDashboard: React.FC = () => {
           onClose={() => setSelectedPass(null)}
         />
       )}
-      </div>
     </>
   );
 };

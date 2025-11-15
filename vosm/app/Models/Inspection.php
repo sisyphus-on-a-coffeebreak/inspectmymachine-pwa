@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Inspection extends Model
 {
@@ -64,6 +65,21 @@ class Inspection extends Model
     public function getCriticalAnswers()
     {
         return $this->answers()->where('is_critical_finding', true)->get();
+    }
+
+    public function rtoDetails(): HasOne
+    {
+        return $this->hasOne(InspectionRtoDetail::class);
+    }
+
+    public function reportLayouts(): HasMany
+    {
+        return $this->hasMany(InspectionReportLayout::class);
+    }
+
+    public function defaultReportLayout(): HasOne
+    {
+        return $this->hasOne(InspectionReportLayout::class)->where('is_default', true);
     }
 }
 

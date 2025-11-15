@@ -94,7 +94,7 @@ const renderElementToPdf = async (element: HTMLElement): Promise<Blob> => {
 
     return new Blob([blob], { type: 'application/pdf' });
   } catch (error) {
-    console.error('Failed to generate PDF via html2canvas/jsPDF pipeline. Falling back to HTML blob.', error);
+    // Failed to generate PDF via html2canvas/jsPDF pipeline, falling back to HTML blob
     return new Blob([element.outerHTML], { type: 'text/html' });
   }
 };
@@ -425,7 +425,6 @@ const copyToClipboard = async (
     await navigator.clipboard.writeText(text);
     callbacks?.onSuccess?.();
   } catch (error) {
-    console.error('Error copying to clipboard:', error);
     callbacks?.onError?.(error instanceof Error ? error : new Error('Failed to copy to clipboard'));
   }
 };
@@ -452,7 +451,7 @@ export const sharePass = async (
     downloadPDF(passData, pdfBlob);
     callbacks?.onSuccess?.();
   } catch (error) {
-    console.error('Error sharing PDF:', error);
+    // Sharing failed, fallback to clipboard
     await copyToClipboard(passData, callbacks);
   }
 };
@@ -475,7 +474,6 @@ export const printPass = async (
     }
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   } catch (error) {
-    console.error('Error printing pass:', error);
     callbacks?.onError?.(error instanceof Error ? error : new Error('Failed to print pass. Please try again.'));
   }
 };

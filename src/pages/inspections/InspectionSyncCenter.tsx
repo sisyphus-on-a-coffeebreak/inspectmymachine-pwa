@@ -109,7 +109,7 @@ export const InspectionSyncCenter: React.FC = () => {
                 }
               }
             } catch (error) {
-              console.warn('Failed to fetch template for draft:', error);
+              // Failed to fetch template for draft
             }
             
             draftList.push({
@@ -120,7 +120,7 @@ export const InspectionSyncCenter: React.FC = () => {
             });
           }
         } catch (error) {
-          console.error('Error loading draft:', key, error);
+          // Error loading draft
         }
       }
       
@@ -129,7 +129,6 @@ export const InspectionSyncCenter: React.FC = () => {
       
       setDrafts(draftList);
     } catch (error) {
-      console.error('Failed to load drafts:', error);
       showToast({
         title: 'Error',
         description: 'Failed to load inspection drafts',
@@ -228,7 +227,6 @@ export const InspectionSyncCenter: React.FC = () => {
         navigate(url);
       }
     } catch (error) {
-      console.error('Failed to resolve conflict:', error);
       showToast({
         title: 'Error',
         description: 'Failed to resolve conflict. Please try again.',
@@ -259,7 +257,6 @@ export const InspectionSyncCenter: React.FC = () => {
         });
         await loadDrafts();
       } catch (error) {
-        console.error('Failed to delete draft:', error);
         showToast({
           title: 'Error',
           description: 'Failed to delete draft. Please try again.',

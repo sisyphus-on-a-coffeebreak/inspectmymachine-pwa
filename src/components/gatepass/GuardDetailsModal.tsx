@@ -107,7 +107,6 @@ export function GuardDetailsModal({
       await onConfirm(data);
       onClose();
     } catch (error) {
-      console.error('Failed to confirm entry:', error);
       // Error handling should be done by parent via toast
     } finally {
       setLoading(false);

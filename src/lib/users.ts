@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { postWithCsrf, putWithCsrf } from './csrf';
+import { apiClient } from './apiClient';
 
 export type CapabilityAction = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'validate' | 'review' | 'reassign' | 'export';
 export type CapabilityModule = 'gate_pass' | 'inspection' | 'expense' | 'user_management' | 'reports';
@@ -62,25 +61,20 @@ const API_BASE = import.meta.env.VITE_API_BASE ||
  */
 export async function getUsers(): Promise<User[]> {
   try {
-    // Use /v1/users since axios.defaults.baseURL already includes /api
-    const response = await axios.get<UsersResponse | User[]>('/v1/users', {
-      withCredentials: true,
-      validateStatus: (status) => status < 500,
+    const response = await apiClient.get<UsersResponse | User[]>('/v1/users', {
+      skipRetry: true,
     });
     
     if (Array.isArray(response.data)) {
       return response.data;
     }
-    return response.data.data || [];
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response?.status === 404) {
-        // Endpoint doesn't exist yet, return empty array
-        return [];
-      }
-      throw new Error(error.response?.data?.message || 'Failed to fetch users');
+    return (response.data as UsersResponse).data || [];
+  } catch (error: any) {
+    if (error?.status === 404) {
+      // Endpoint doesn't exist yet, return empty array
+      return [];
     }
-    throw error;
+    throw new Error(error?.message || 'Failed to fetch users');
   }
 }
 
@@ -89,20 +83,16 @@ export async function getUsers(): Promise<User[]> {
  */
 export async function getUser(id: number): Promise<User> {
   try {
-    const response = await axios.get<{ data: User } | User>(`/v1/users/${id}`, {
-      withCredentials: true,
-      validateStatus: (status) => status < 500,
+    const response = await apiClient.get<{ data: User } | User>(`/v1/users/${id}`, {
+      skipRetry: true,
     });
     
     if ('data' in response.data) {
       return response.data.data;
     }
-    return response.data;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch user');
-    }
-    throw error;
+    return response.data as User;
+  } catch (error: any) {
+    throw new Error(error?.message || 'Failed to fetch user');
   }
 }
 
@@ -111,17 +101,14 @@ export async function getUser(id: number): Promise<User> {
  */
 export async function createUser(payload: CreateUserPayload): Promise<User> {
   try {
-    const response = await postWithCsrf<{ data: User } | User>('/v1/users', payload);
+    const response = await apiClient.post<{ data: User } | User>('/v1/users', payload);
     
     if ('data' in response.data) {
       return response.data.data;
     }
-    return response.data;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data?.message || 'Failed to create user');
-    }
-    throw error;
+    return response.data as User;
+  } catch (error: any) {
+    throw new Error(error?.message || 'Failed to create user');
   }
 }
 
@@ -130,17 +117,14 @@ export async function createUser(payload: CreateUserPayload): Promise<User> {
  */
 export async function updateUser(id: number, payload: UpdateUserPayload): Promise<User> {
   try {
-    const response = await putWithCsrf<{ data: User } | User>(`/v1/users/${id}`, payload);
+    const response = await apiClient.put<{ data: User } | User>(`/v1/users/${id}`, payload);
     
     if ('data' in response.data) {
       return response.data.data;
     }
-    return response.data;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data?.message || 'Failed to update user');
-    }
-    throw error;
+    return response.data as User;
+  } catch (error: any) {
+    throw new Error(error?.message || 'Failed to update user');
   }
 }
 
@@ -149,17 +133,9 @@ export async function updateUser(id: number, payload: UpdateUserPayload): Promis
  */
 export async function deleteUser(id: number): Promise<void> {
   try {
-    const { createCsrfHeaders } = await import('./csrf');
-    const headers = await createCsrfHeaders();
-    await axios.delete(`/v1/users/${id}`, {
-      withCredentials: true,
-      headers,
-    });
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data?.message || 'Failed to delete user');
-    }
-    throw error;
+    await apiClient.delete(`/v1/users/${id}`);
+  } catch (error: any) {
+    throw new Error(error?.message || 'Failed to delete user');
   }
 }
 
@@ -168,15 +144,9 @@ export async function deleteUser(id: number): Promise<void> {
  */
 export async function resetUserPassword(id: number, newPassword: string): Promise<void> {
   try {
-    await postWithCsrf(
-      `/v1/users/${id}/reset-password`,
-      { password: newPassword }
-    );
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data?.message || 'Failed to reset password');
-    }
-    throw error;
+    await apiClient.post(`/v1/users/${id}/reset-password`, { password: newPassword });
+  } catch (error: any) {
+    throw new Error(error?.message || 'Failed to reset password');
   }
 }
 
@@ -200,15 +170,10 @@ export function getAvailableRoles(): Array<{ value: User['role']; label: string;
  */
 export async function getUserPermissions(id: number): Promise<{ user_id: number; role: string; capabilities: UserCapabilities }> {
   try {
-    const response = await axios.get<{ user_id: number; role: string; capabilities: UserCapabilities }>(`/v1/users/${id}/permissions`, {
-      withCredentials: true,
-    });
+    const response = await apiClient.get<{ user_id: number; role: string; capabilities: UserCapabilities }>(`/v1/users/${id}/permissions`);
     return response.data;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data?.message || 'Failed to fetch user permissions');
-    }
-    throw error;
+  } catch (error: any) {
+    throw new Error(error?.message || 'Failed to fetch user permissions');
   }
 }
 

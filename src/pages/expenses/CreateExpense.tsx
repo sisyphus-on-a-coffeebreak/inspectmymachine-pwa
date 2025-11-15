@@ -1,13 +1,14 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios, { AxiosError } from 'axios';
-import { apiClient } from '../../lib/apiClient';
+import { apiClient, normalizeError } from '../../lib/apiClient';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { useUploader } from '../../lib/upload';
 import { useToast } from '../../providers/ToastProvider';
+import { getErrorToast } from '../../lib/errorHandling';
 import { useExpenseReferences } from '../../providers/ExpenseReferencesProvider';
 
 // 💰 Enhanced Expense Creation Form
@@ -150,12 +151,7 @@ export const CreateExpense: React.FC = () => {
         }
         newReceipts.push({ key: result.key, name: file.name || 'receipt', size: file.size });
       } catch (error) {
-        console.error('File upload failed:', error);
-        showToast({
-          title: 'Upload failed',
-          description: getErrorMessage(error),
-          variant: 'error',
-        });
+        showToast(getErrorToast(error, 'upload receipt'));
       }
     }
 
@@ -223,7 +219,7 @@ export const CreateExpense: React.FC = () => {
       gps_lat = pos.coords.latitude;
       gps_lng = pos.coords.longitude;
     } catch (geoError) {
-      console.warn('Geolocation capture skipped:', geoError);
+      // Geolocation capture skipped (optional feature)
     }
 
     const tsDate = new Date(`${formData.date}T${formData.time}:00`);
@@ -254,10 +250,11 @@ export const CreateExpense: React.FC = () => {
       });
       navigate('/app/expenses');
     } catch (error) {
-      console.error('Failed to create expense:', error);
       const serverErrors: Record<string, string> = {};
-      if (axios.isAxiosError(error)) {
-        const responseData = error.response?.data as
+      const apiError = normalizeError(error);
+      
+      if (apiError.data && typeof apiError.data === 'object') {
+        const responseData = apiError.data as
           | { message?: string; detail?: string; errors?: Record<string, string[] | string> }
           | undefined;
 
@@ -327,42 +324,25 @@ export const CreateExpense: React.FC = () => {
       minHeight: '100vh'
     }}>
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: spacing.xl,
-        padding: spacing.lg,
-        backgroundColor: 'white',
-        borderRadius: '16px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-        border: '1px solid rgba(0,0,0,0.05)'
-      }}>
-        <div>
-          <h1 style={{ 
-            ...typography.header,
-            fontSize: '28px',
-            color: colors.neutral[900],
-            margin: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: spacing.sm
-          }}>
-            💰 Create Expense
-          </h1>
-          <p style={{ color: colors.neutral[600], marginTop: spacing.xs }}>
-            Add a new expense with smart categorization and tracking
-          </p>
-        </div>
-        
-        <Button
-          variant="secondary"
-          onClick={() => navigate('/app/expenses')}
-          icon="🚪"
-        >
-          Back to Dashboard
-        </Button>
-      </div>
+      <PageHeader
+        title="Create Expense"
+        subtitle="Add a new expense with smart categorization and tracking"
+        icon="💰"
+        breadcrumbs={[
+          { label: 'Dashboard', path: '/dashboard' },
+          { label: 'Expenses', path: '/app/expenses' },
+          { label: 'Create' }
+        ]}
+        actions={
+          <Button
+            variant="secondary"
+            onClick={() => navigate('/app/expenses')}
+            icon="🚪"
+          >
+            Back to Dashboard
+          </Button>
+        }
+      />
 
       {/* Templates Section */}
       {(templates.length > 0 || templatesState.status === 'loading' || !!templatesState.error) && (

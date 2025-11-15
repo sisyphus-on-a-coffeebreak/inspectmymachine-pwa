@@ -86,48 +86,53 @@ export const colors = {
 };
 
 export const typography = {
-  // Headers
+  // Headers - Adaptive typography using clamp()
   header: {
-    fontSize: '28px',
+    fontSize: 'clamp(24px, 4vw, 28px)', // Responsive: 24px mobile, scales up to 28px
     fontWeight: 700,
     lineHeight: 1.2,
-    color: colors.neutral[900]
+    color: colors.neutral[900],
+    fontFamily: 'system-ui, -apple-system, sans-serif'
   },
   
   subheader: {
-    fontSize: '24px',
+    fontSize: 'clamp(20px, 3vw, 24px)', // Responsive: 20px mobile, scales up to 24px
     fontWeight: 600,
     lineHeight: 1.3,
-    color: colors.neutral[800]
+    color: colors.neutral[800],
+    fontFamily: 'system-ui, -apple-system, sans-serif'
   },
   
-  // Body Text
+  // Body Text - Adaptive
   body: {
-    fontSize: '16px',
+    fontSize: 'clamp(14px, 2vw, 16px)', // Responsive: 14px mobile, scales up to 16px
     fontWeight: 400,
     lineHeight: 1.5,
-    color: colors.neutral[700]
+    color: colors.neutral[700],
+    fontFamily: 'system-ui, -apple-system, sans-serif'
   },
   
   bodySmall: {
-    fontSize: '14px',
+    fontSize: 'clamp(12px, 1.5vw, 14px)', // Responsive: 12px mobile, scales up to 14px
     fontWeight: 400,
     lineHeight: 1.4,
-    color: colors.neutral[600]
+    color: colors.neutral[600],
+    fontFamily: 'system-ui, -apple-system, sans-serif'
   },
   
   // Labels
   label: {
-    fontSize: '14px',
+    fontSize: 'clamp(12px, 1.5vw, 14px)', // Responsive
     fontWeight: 600,
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
-    color: colors.neutral[600]
+    color: colors.neutral[600],
+    fontFamily: 'system-ui, -apple-system, sans-serif'
   },
   
   // Access Codes (Special)
   accessCode: {
-    fontSize: '32px',
+    fontSize: 'clamp(24px, 5vw, 32px)', // Responsive
     fontWeight: 700,
     letterSpacing: '0.1em',
     color: colors.accessCode,
@@ -136,9 +141,10 @@ export const typography = {
   
   // QR Code Labels
   qrLabel: {
-    fontSize: '18px',
+    fontSize: 'clamp(16px, 2.5vw, 18px)', // Responsive
     fontWeight: 600,
-    color: colors.neutral[800]
+    color: colors.neutral[800],
+    fontFamily: 'system-ui, -apple-system, sans-serif'
   }
 };
 
@@ -175,6 +181,40 @@ export const breakpoints = {
   wide: '1280px'
 };
 
+// Focus ring utilities for accessibility (WCAG 2.1 AA compliant)
+export const focusRings = {
+  // Standard focus ring - 2px solid with 2px offset
+  default: {
+    outline: `2px solid ${colors.primary}`,
+    outlineOffset: '2px',
+  },
+  // Thick focus ring for high contrast mode
+  thick: {
+    outline: `3px solid ${colors.primary}`,
+    outlineOffset: '3px',
+  },
+  // Subtle focus ring for less prominent elements
+  subtle: {
+    outline: `1px solid ${colors.primary}`,
+    outlineOffset: '1px',
+  },
+  // Focus ring with box shadow for better visibility
+  shadow: {
+    outline: `2px solid ${colors.primary}`,
+    outlineOffset: '2px',
+    boxShadow: `0 0 0 4px ${colors.primary}20`,
+  },
+  // No outline (for custom implementations)
+  none: {
+    outline: 'none',
+  },
+};
+
+// Helper function to get focus styles
+export const getFocusStyles = (variant: keyof typeof focusRings = 'default'): React.CSSProperties => {
+  return focusRings[variant] as React.CSSProperties;
+};
+
 // Status calculation helper
 export const getStatusColor = (entryTime: Date, currentTime: Date, closingTime?: Date) => {
   const duration = currentTime.getTime() - entryTime.getTime();
@@ -199,7 +239,27 @@ export const getStatusDot = (status: 'normal' | 'warning' | 'critical') => ({
   marginRight: spacing.sm
 });
 
-// Button styles
+// Standardized button hover/press states
+export const buttonHoverStates = {
+  // Standard hover effect - slight scale and shadow increase
+  hover: {
+    transform: 'translateY(-1px)',
+    boxShadow: shadows.md,
+  },
+  // Active/pressed state
+  active: {
+    transform: 'translateY(0)',
+    boxShadow: shadows.sm,
+  },
+  // Disabled state
+  disabled: {
+    opacity: 0.5,
+    cursor: 'not-allowed',
+    transform: 'none',
+  },
+};
+
+// Button styles with standardized hover states
 export const buttonStyles = {
   primary: {
     backgroundColor: colors.primary,
@@ -212,13 +272,23 @@ export const buttonStyles = {
     cursor: 'pointer',
     transition: 'all 0.2s ease',
     boxShadow: shadows.sm,
-    '&:hover': {
-      transform: 'scale(1.02)',
-      boxShadow: shadows.md
+    // Hover state
+    '&:hover:not(:disabled)': {
+      ...buttonHoverStates.hover,
+      backgroundColor: '#1d4ed8', // Darker blue
     },
-    '&:active': {
-      transform: 'scale(0.98)'
-    }
+    // Active state
+    '&:active:not(:disabled)': {
+      ...buttonHoverStates.active,
+    },
+    // Focus state
+    '&:focus': {
+      ...focusRings.default,
+    },
+    // Disabled state
+    '&:disabled': {
+      ...buttonHoverStates.disabled,
+    },
   },
   
   secondary: {
@@ -230,7 +300,25 @@ export const buttonStyles = {
     fontSize: '16px',
     fontWeight: 600,
     cursor: 'pointer',
-    transition: 'all 0.2s ease'
+    transition: 'all 0.2s ease',
+    // Hover state
+    '&:hover:not(:disabled)': {
+      ...buttonHoverStates.hover,
+      backgroundColor: colors.primary + '10',
+      borderColor: '#1d4ed8',
+    },
+    // Active state
+    '&:active:not(:disabled)': {
+      ...buttonHoverStates.active,
+    },
+    // Focus state
+    '&:focus': {
+      ...focusRings.default,
+    },
+    // Disabled state
+    '&:disabled': {
+      ...buttonHoverStates.disabled,
+    },
   },
   
   success: {
@@ -242,7 +330,25 @@ export const buttonStyles = {
     fontSize: '16px',
     fontWeight: 600,
     cursor: 'pointer',
-    transition: 'all 0.2s ease'
+    transition: 'all 0.2s ease',
+    boxShadow: shadows.sm,
+    // Hover state
+    '&:hover:not(:disabled)': {
+      ...buttonHoverStates.hover,
+      backgroundColor: colors.success[600],
+    },
+    // Active state
+    '&:active:not(:disabled)': {
+      ...buttonHoverStates.active,
+    },
+    // Focus state
+    '&:focus': {
+      ...focusRings.default,
+    },
+    // Disabled state
+    '&:disabled': {
+      ...buttonHoverStates.disabled,
+    },
   },
   
   warning: {
@@ -254,7 +360,25 @@ export const buttonStyles = {
     fontSize: '16px',
     fontWeight: 600,
     cursor: 'pointer',
-    transition: 'all 0.2s ease'
+    transition: 'all 0.2s ease',
+    boxShadow: shadows.sm,
+    // Hover state
+    '&:hover:not(:disabled)': {
+      ...buttonHoverStates.hover,
+      backgroundColor: colors.warning[600],
+    },
+    // Active state
+    '&:active:not(:disabled)': {
+      ...buttonHoverStates.active,
+    },
+    // Focus state
+    '&:focus': {
+      ...focusRings.default,
+    },
+    // Disabled state
+    '&:disabled': {
+      ...buttonHoverStates.disabled,
+    },
   },
   
   critical: {
@@ -267,9 +391,46 @@ export const buttonStyles = {
     fontWeight: 600,
     cursor: 'pointer',
     transition: 'all 0.2s ease',
-    animation: 'pulse 2s infinite'
-  }
+    boxShadow: shadows.sm,
+    // Hover state
+    '&:hover:not(:disabled)': {
+      ...buttonHoverStates.hover,
+      backgroundColor: colors.error[600],
+    },
+    // Active state
+    '&:active:not(:disabled)': {
+      ...buttonHoverStates.active,
+    },
+    // Focus state
+    '&:focus': {
+      ...focusRings.default,
+    },
+    // Disabled state
+    '&:disabled': {
+      ...buttonHoverStates.disabled,
+    },
+  },
 };
+
+// Helper function to get button hover styles (for inline use)
+export const getButtonHoverStyles = () => ({
+  onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
+    const target = e.currentTarget;
+    Object.assign(target.style, buttonHoverStates.hover);
+  },
+  onMouseLeave: (e: React.MouseEvent<HTMLElement>) => {
+    const target = e.currentTarget;
+    Object.assign(target.style, buttonHoverStates.active);
+  },
+  onMouseDown: (e: React.MouseEvent<HTMLElement>) => {
+    const target = e.currentTarget;
+    Object.assign(target.style, buttonHoverStates.active);
+  },
+  onMouseUp: (e: React.MouseEvent<HTMLElement>) => {
+    const target = e.currentTarget;
+    Object.assign(target.style, buttonHoverStates.hover);
+  },
+});
 
 // Form styles
 export const formStyles = {

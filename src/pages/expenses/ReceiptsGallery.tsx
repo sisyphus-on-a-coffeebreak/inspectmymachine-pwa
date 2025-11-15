@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -24,8 +24,8 @@ export const ReceiptsGallery: React.FC = () => {
   const fetchReceipts = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/v1/expenses', { params: { mine: true } });
-      const raw = Array.isArray(res.data) ? res.data : (res.data?.items ?? []);
+      const res = await apiClient.get('/v1/expenses', { params: { mine: true } });
+      const raw = Array.isArray(res.data) ? res.data : ((res.data as any)?.items ?? []);
       const mapped: ReceiptItem[] = raw.map((e: any) => ({
         id: String(e.id),
         amount: Number(e.amount ?? 0),
@@ -38,7 +38,7 @@ export const ReceiptsGallery: React.FC = () => {
       }));
       setItems(mapped);
     } catch (err) {
-      console.error('Failed to fetch receipts', err);
+      // Error is already handled by apiClient
       setItems([]);
     } finally {
       setLoading(false);

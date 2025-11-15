@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { apiClient } from '../../lib/apiClient';
 import { useToast } from '../../providers/ToastProvider';
 import { useConfirm } from '../../components/ui/Modal';
@@ -124,7 +123,7 @@ export const AccountsDashboard: React.FC = () => {
   const fetchExpenses = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/v1/expenses', {
+      const response = await apiClient.get('/v1/expenses', {
         params: {
           limit: 100,
           include_audit: true,
@@ -132,7 +131,6 @@ export const AccountsDashboard: React.FC = () => {
       });
       setExpenses(response.data.data || response.data || []);
     } catch (error) {
-      console.error('Failed to fetch expenses:', error);
       showToast({
         title: 'Error',
         description: 'Failed to load expenses',
@@ -145,23 +143,21 @@ export const AccountsDashboard: React.FC = () => {
 
   const fetchAuditLogs = async (expenseId: string) => {
     try {
-      const response = await axios.get(`/v1/expenses/${expenseId}/audit`);
+      const response = await apiClient.get(`/v1/expenses/${expenseId}/audit`);
       setAuditLogs(prev => ({
         ...prev,
         [expenseId]: response.data.data || response.data || [],
       }));
     } catch (error) {
-      console.error('Failed to fetch audit logs:', error);
-      // Silently fail - audit logs may not be available
+      // Failed to fetch audit logs - silently fail as audit logs may not be available
     }
   };
 
   const fetchVehicleKPIs = async () => {
     try {
-      const response = await axios.get('/v1/expenses/vehicle-kpis');
+      const response = await apiClient.get('/v1/expenses/vehicle-kpis');
       setVehicleKPIs(response.data.data || response.data || []);
     } catch (error) {
-      console.error('Failed to fetch vehicle KPIs:', error);
       // Silently fail - KPIs may not be available
     }
   };
@@ -170,9 +166,9 @@ export const AccountsDashboard: React.FC = () => {
     try {
       // Fetch employees, projects, assets for dropdowns
       const [employeesRes, projectsRes, assetsRes] = await Promise.allSettled([
-        axios.get('/v1/users?role=employee'),
-        axios.get('/v1/projects'),
-        axios.get('/v1/assets'),
+        apiClient.get('/v1/users?role=employee'),
+        apiClient.get('/v1/projects'),
+        apiClient.get('/v1/assets'),
       ]);
 
       if (employeesRes.status === 'fulfilled') {
@@ -185,7 +181,7 @@ export const AccountsDashboard: React.FC = () => {
         setAssets(assetsRes.value.data.data || assetsRes.value.data || []);
       }
     } catch (error) {
-      console.error('Failed to fetch reference data:', error);
+      // Failed to fetch reference data
     }
   };
 
@@ -217,7 +213,6 @@ export const AccountsDashboard: React.FC = () => {
       }
       setEditModal({ expense: null, field: null });
     } catch (error) {
-      console.error('Failed to reassign expense:', error);
       showToast({
         title: 'Error',
         description: 'Failed to reassign expense',
@@ -253,7 +248,6 @@ export const AccountsDashboard: React.FC = () => {
       }
       setEditModal({ expense: null, field: null });
     } catch (error) {
-      console.error('Failed to update category:', error);
       showToast({
         title: 'Error',
         description: 'Failed to update category',

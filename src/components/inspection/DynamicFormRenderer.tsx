@@ -56,7 +56,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
 
   const retryPendingUploads = useCallback(async () => {
     // Implementation for retrying failed uploads when back online
-    console.log('Retrying pending uploads...');
+    // Retrying pending uploads
     setPendingUploads([]);
   }, []);
 

@@ -91,7 +91,7 @@ export default function NotFound() {
           ...typography.body,
           color: colors.neutral[600],
           margin: 0,
-          marginBottom: spacing.xl * 1.5,
+          marginBottom: `${parseInt(spacing.xl) * 1.5}px`,
           fontSize: '16px',
           lineHeight: 1.6
         }}>

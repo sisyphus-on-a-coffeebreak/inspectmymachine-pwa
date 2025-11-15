@@ -15,8 +15,12 @@ import {
   LogOut,
   ChevronRight,
   Settings,
-  Bell
+  Bell,
+  AlertTriangle
 } from "lucide-react";
+import { RecentlyViewed } from "../ui/RecentlyViewed";
+import { NotificationBell } from "../ui/NotificationBell";
+import { OfflineIndicator } from "../ui/OfflineIndicator";
 
 interface NavItem {
   id: string;
@@ -85,14 +89,28 @@ const navItems: NavItem[] = [
       { id: "dashboard", label: "Dashboard", icon: Warehouse, path: "/app/stockyard", roles: ["super_admin", "admin"] },
       { id: "create", label: "Create Request", icon: Warehouse, path: "/app/stockyard/create", roles: ["super_admin", "admin"] },
       { id: "scan", label: "Scan Vehicle", icon: Warehouse, path: "/app/stockyard/scan", roles: ["super_admin", "admin", "guard"] },
+      { id: "components", label: "Component Ledger", icon: Warehouse, path: "/app/stockyard/components", roles: ["super_admin", "admin"] },
+      { id: "transfer-approvals", label: "Transfer Approvals", icon: Warehouse, path: "/app/stockyard/components/transfers/approvals", roles: ["super_admin", "admin", "supervisor"] },
     ]
+  },
+  {
+    id: "alerts",
+    label: "Alerts",
+    icon: AlertTriangle,
+    path: "/app/alerts",
+    roles: ["super_admin", "admin", "supervisor"]
   },
   {
     id: "users",
     label: "User Management",
     icon: UserCog,
     path: "/app/admin/users",
-    roles: ["super_admin", "admin"]
+    roles: ["super_admin", "admin"],
+    children: [
+      { id: "user-activity", label: "Activity Dashboard", icon: UserCog, path: "/app/admin/users/activity", roles: ["super_admin", "admin"] },
+      { id: "capability-matrix", label: "Capability Matrix", icon: UserCog, path: "/app/admin/users/capability-matrix", roles: ["super_admin", "admin"] },
+      { id: "bulk-operations", label: "Bulk Operations", icon: UserCog, path: "/app/admin/users/bulk-operations", roles: ["super_admin", "admin"] }
+    ]
   }
 ];
 
@@ -275,6 +293,7 @@ export default function AppLayout({
             VOMS
           </span>
         </div>
+        <NotificationBell />
       </header>
       )}
 
@@ -324,6 +343,11 @@ export default function AppLayout({
               <nav style={{ marginBottom: spacing.xl }}>
                 {accessibleNavItems.map(item => renderNavItem(item))}
               </nav>
+
+              {/* Recently Viewed */}
+              <div style={{ marginBottom: spacing.xl }}>
+                <RecentlyViewed />
+              </div>
 
               {/* User Section */}
               <div style={{
@@ -432,6 +456,11 @@ export default function AppLayout({
               <nav style={{ marginBottom: spacing.xl }}>
                 {accessibleNavItems.map(item => renderNavItem(item))}
               </nav>
+
+              {/* Recently Viewed */}
+              <div style={{ marginBottom: spacing.lg }}>
+                <RecentlyViewed />
+              </div>
 
               {/* User Section */}
               <div style={{
@@ -556,6 +585,9 @@ export default function AppLayout({
           {children}
         </main>
       </div>
+      
+      {/* Offline Indicator */}
+      <OfflineIndicator position="bottom" showDetails={true} />
     </div>
   );
 }

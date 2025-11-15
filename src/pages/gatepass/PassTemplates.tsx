@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
@@ -49,10 +49,9 @@ export const PassTemplates: React.FC = () => {
   const fetchTemplates = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/gate-pass-templates');
+      const response = await apiClient.get('/api/gate-pass-templates');
       setTemplates(response.data);
     } catch (error) {
-      console.error('Failed to fetch templates:', error);
       // Mock data for development
       setTemplates([
         {
@@ -113,7 +112,7 @@ export const PassTemplates: React.FC = () => {
   const createTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await axios.post('/api/gate-pass-templates', {
+      const response = await apiClient.post('/api/gate-pass-templates', {
         name: newTemplate.name,
         description: newTemplate.description,
         type: newTemplate.type,
@@ -142,7 +141,6 @@ export const PassTemplates: React.FC = () => {
         variant: 'success',
       });
     } catch (error) {
-      console.error('Failed to create template:', error);
       showToast({
         title: 'Error',
         description: 'Failed to create template. Please try again.',
@@ -175,7 +173,7 @@ export const PassTemplates: React.FC = () => {
     if (!confirmed) return;
     
     try {
-      await axios.delete(`/api/gate-pass-templates/${templateId}`);
+      await apiClient.delete(`/api/gate-pass-templates/${templateId}`);
       setTemplates(prev => prev.filter(t => t.id !== templateId));
       showToast({
         title: 'Success',
@@ -183,7 +181,6 @@ export const PassTemplates: React.FC = () => {
         variant: 'success',
       });
     } catch (error) {
-      console.error('Failed to delete template:', error);
       showToast({
         title: 'Error',
         description: 'Failed to delete template. Please try again.',

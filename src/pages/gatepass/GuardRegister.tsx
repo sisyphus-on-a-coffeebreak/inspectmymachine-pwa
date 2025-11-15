@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '../../lib/apiClient';
 import type { VisitorGatePass, VehicleMovementPass } from './gatePassTypes';
-import { postWithCsrf } from '../../lib/csrf';
 import { useToast } from '../../providers/ToastProvider';
 import { useConfirm } from '../../components/ui/Modal';
 import { GuardDetailsModal, type GuardActionData } from '../../components/gatepass/GuardDetailsModal';
@@ -29,14 +28,14 @@ export const GuardRegister: React.FC = () => {
       // Fetch today's expected and inside passes
       const today = new Date().toISOString().split('T')[0];
       
-      const visitorResponse = await axios.get('/visitor-gate-passes', {
+      const visitorResponse = await apiClient.get('/visitor-gate-passes', {
         params: { 
           date: today,
           status: activeTab === 'expected' ? 'pending' : 'inside'
         }
       });
 
-      const vehicleResponse = await axios.get('/vehicle-entry-passes', {
+      const vehicleResponse = await apiClient.get('/vehicle-entry-passes', {
         params: { status: 'out' }
       });
 
@@ -52,7 +51,7 @@ export const GuardRegister: React.FC = () => {
       setVehicleMovements(Array.isArray(vehicleData) ? vehicleData : []);
 
     } catch (error) {
-      console.error('Failed to fetch data:', error);
+      // Error is already handled by apiClient
     } finally {
       setLoading(false);
     }
@@ -72,7 +71,6 @@ export const GuardRegister: React.FC = () => {
       const record = await gatePassService.get(String(passId), type);
       setSelectedRecord(record);
     } catch (error) {
-      console.error('Failed to fetch record:', error);
       showToast({
         title: 'Error',
         description: 'Failed to load pass details. Please try again.',
@@ -101,7 +99,6 @@ export const GuardRegister: React.FC = () => {
       setSelectedRecord(null);
       fetchData();
     } catch (error) {
-      console.error('Failed to mark entry:', error);
       showToast({
         title: 'Error',
         description: 'Failed to mark entry. Please try again.',
@@ -130,7 +127,6 @@ export const GuardRegister: React.FC = () => {
       });
       fetchData();
     } catch (error) {
-      console.error('Failed to mark exit:', error);
       showToast({
         title: 'Error',
         description: 'Failed to mark exit. Please try again.',
@@ -575,7 +571,7 @@ export const GuardRegister: React.FC = () => {
 
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button
-                        onClick={() => navigate(`/app/gate-pass/vehicle/${movement.id}`)}
+                        onClick={() => navigate(`/app/gate-pass/${movement.id}`)}
                         style={{
                           flex: 1,
                           padding: '0.75rem',

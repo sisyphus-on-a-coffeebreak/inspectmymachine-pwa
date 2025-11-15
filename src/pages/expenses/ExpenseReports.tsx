@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '../../lib/apiClient';
 import { useToast } from '../../providers/ToastProvider';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
@@ -92,12 +92,12 @@ export const ExpenseReports: React.FC = () => {
       const days = dateRangeDays[dateRange] || 30;
 
       // Fetch summary data
-      const summaryResponse = await axios.get('/expense-reports/summary', {
+      const summaryResponse = await apiClient.get('/expense-reports/summary', {
         params: { date_range: days }
       });
 
       // Fetch analytics data
-      const analyticsResponse = await axios.get('/expense-reports/analytics', {
+      const analyticsResponse = await apiClient.get('/expense-reports/analytics', {
         params: { date_range: days }
       });
 
@@ -114,7 +114,7 @@ export const ExpenseReports: React.FC = () => {
       setAssetExpenses(analyticsData.asset_expenses || []);
 
     } catch (error) {
-      console.error('Failed to fetch report data:', error);
+      // Error is already handled by apiClient
       // Don't use mock data - show empty state instead
       // This ensures we know when the API is actually failing
       setStats({
@@ -191,7 +191,7 @@ export const ExpenseReports: React.FC = () => {
 
   const exportToCSV = async () => {
     try {
-      const response = await axios.get('/expense-reports/export', {
+      const response = await apiClient.get('/expense-reports/export', {
         params: { 
           date_range: dateRange,
           format: 'csv'
@@ -209,7 +209,6 @@ export const ExpenseReports: React.FC = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Failed to export data:', error);
       showToast({
         title: 'Error',
         description: 'Failed to export data. Please try again.',

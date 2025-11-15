@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { ToastProvider } from "@/providers/ToastProvider";
+import { QueryProvider } from "@/providers/QueryProvider";
 import { ExpenseReferencesProvider } from "@/providers/ExpenseReferencesProvider";
 import "./index.css";
 import App from "./App";
@@ -24,15 +25,17 @@ if (import.meta.env.PROD) {
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <ThemeProvider>
-          <ToastProvider>
-            <ExpenseReferencesProvider>
-              <App />
-            </ExpenseReferencesProvider>
-          </ToastProvider>
-        </ThemeProvider>
-      </AuthProvider>
+      <QueryProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <ToastProvider>
+              <ExpenseReferencesProvider>
+                <App />
+              </ExpenseReferencesProvider>
+            </ToastProvider>
+          </ThemeProvider>
+        </AuthProvider>
+      </QueryProvider>
     </BrowserRouter>
   </React.StrictMode>
 );

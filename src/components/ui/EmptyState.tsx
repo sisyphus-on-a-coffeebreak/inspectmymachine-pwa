@@ -1,4 +1,5 @@
 import React from 'react';
+import { RefreshCw } from 'lucide-react';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from './button';
 
@@ -10,13 +11,17 @@ interface EmptyStateProps {
     label: string;
     onClick: () => void;
     variant?: 'primary' | 'secondary';
-    icon?: string;
+    icon?: string | React.ReactNode;
   };
   secondaryAction?: {
     label: string;
     onClick: () => void;
     variant?: 'primary' | 'secondary';
-    icon?: string;
+    icon?: string | React.ReactNode;
+  };
+  retryAction?: {
+    label?: string;
+    onClick: () => void;
   };
   className?: string;
 }
@@ -27,6 +32,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   description,
   action,
   secondaryAction,
+  retryAction,
   className = ''
 }) => {
   return (
@@ -66,7 +72,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         {description}
       </p>
       
-      {(action || secondaryAction) && (
+      {(action || secondaryAction || retryAction) && (
         <div style={{ display: 'flex', gap: spacing.md, justifyContent: 'center', flexWrap: 'wrap' }}>
           {action && (
             <Button
@@ -85,6 +91,16 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
               icon={secondaryAction.icon}
             >
               {secondaryAction.label}
+            </Button>
+          )}
+          
+          {retryAction && (
+            <Button
+              variant="secondary"
+              onClick={retryAction.onClick}
+              icon={<RefreshCw size={16} />}
+            >
+              {retryAction.label || 'Retry'}
             </Button>
           )}
         </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '../../lib/apiClient';
 import { VehicleSelector } from './components//VehicleSelector';
 import { PhotoUpload } from './components/PhotoUpload';
 import { useAuth } from '../../providers/useAuth';
@@ -55,14 +55,13 @@ export const CreateVehicleMovement: React.FC = () => {
   useEffect(() => {
     const fetchYards = async () => {
       try {
-        const response = await axios.get('/yards');
+        const response = await apiClient.get('/yards');
         setYards(response.data);
         // Set default yard if user has one
         if (user?.yard_id && response.data.length > 0) {
           setFormData(prev => ({ ...prev, yard_id: user.yard_id }));
         }
       } catch (error) {
-        console.error('Failed to fetch yards:', error);
         // Set default yards if API fails
         setYards([
           { id: 'default-yard-id', name: 'Default Yard' }
@@ -88,8 +87,8 @@ export const CreateVehicleMovement: React.FC = () => {
 
     try {
       setCreatingYard(true);
-      const response = await axios.post('/yards', customYard);
-      const newYard = response.data.yard;
+      const response = await apiClient.post('/yards', customYard);
+      const newYard = (response.data as any).yard || response.data;
       
       // Add the new yard to the list
       setYards(prev => [...prev, { id: newYard.id, name: newYard.name }]);
@@ -107,7 +106,6 @@ export const CreateVehicleMovement: React.FC = () => {
         variant: 'success',
       });
     } catch (error) {
-      console.error('Failed to create custom yard:', error);
       showToast({
         title: 'Error',
         description: 'Failed to create custom yard. Please try again.',
@@ -132,7 +130,7 @@ export const CreateVehicleMovement: React.FC = () => {
       return;
     }
 
-    console.log('User authenticated:', user);
+    // User authenticated
 
     // Validation
     if (!formData.yard_id) {
@@ -233,51 +231,6 @@ export const CreateVehicleMovement: React.FC = () => {
     try {
       setLoading(true);
 
-      // Ensure CSRF token is available
-      try {
-        const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 'http://localhost:8000';
-        await axios.get(`${API_ORIGIN}/sanctum/csrf-cookie`, {
-          withCredentials: true,
-          baseURL: '', // Override baseURL to use full URL
-        });
-        console.log('CSRF token obtained');
-      } catch (csrfError) {
-        console.error('CSRF token failed:', csrfError);
-        showToast({
-          title: 'Authentication Error',
-          description: 'Authentication issue. Please refresh the page and try again.',
-          variant: 'error',
-        });
-        return;
-      }
-
-      // Get CSRF token from cookie
-      const getCsrfToken = () => {
-        const name = 'XSRF-TOKEN=';
-        const decodedCookie = decodeURIComponent(document.cookie);
-        const cookieArray = decodedCookie.split(';');
-        for (let cookie of cookieArray) {
-          cookie = cookie.trim();
-          if (cookie.indexOf(name) === 0) {
-            return cookie.substring(name.length, cookie.length);
-          }
-        }
-        return null;
-      };
-
-      const csrfToken = getCsrfToken();
-      console.log('CSRF token from cookie:', csrfToken);
-      
-      if (!csrfToken) {
-        console.error('No CSRF token found in cookies');
-        showToast({
-          title: 'Authentication Error',
-          description: 'CSRF token not found. Please refresh the page and try again.',
-          variant: 'error',
-        });
-        return;
-      }
-
       // Create FormData for file uploads
       const submitData = new FormData();
       
@@ -338,46 +291,48 @@ export const CreateVehicleMovement: React.FC = () => {
         submitData.append('notes', formData.notes);
       }
 
-      // Prepare headers with CSRF token
-      const headers: any = {
-        'Content-Type': 'multipart/form-data',
-        'X-Requested-With': 'XMLHttpRequest'
-      };
-
-      if (csrfToken) {
-        headers['X-XSRF-TOKEN'] = csrfToken;
-      }
-
-      console.log('Request headers:', headers);
-      
-      // Debug: Log all form data being sent
-      console.log('Form data being sent:');
-      for (let [key, value] of submitData.entries()) {
-        console.log(`${key}:`, value);
-      }
-
       // Use the correct endpoint based on direction
       const endpoint = formData.direction === 'outbound' 
         ? '/vehicle-exit-passes' 
         : '/vehicle-entry-passes';
       
-      console.log('Using endpoint:', endpoint);
-
-      const response = await axios.post(endpoint, submitData, {
-        headers
-      });
+      // apiClient handles CSRF token automatically
+      const response = await apiClient.upload(endpoint, submitData);
 
       const passNumber = response.data.pass?.pass_number || response.data.pass_number || 'N/A';
-      showToast({
-        title: 'Success',
-        description: `Vehicle Movement Pass #${passNumber} created successfully!`,
-        variant: 'success',
-        duration: 5000,
-      });
+      
+      // Check if inspection was auto-created (only for inbound/entry passes)
+      if (formData.direction === 'inbound' && response.data.inspection_auto_created) {
+        showToast({
+          title: 'Success',
+          description: `Vehicle entry pass created successfully! Inspection auto-created for vehicle entry.`,
+          variant: 'success',
+          duration: 6000,
+        });
+        
+        // Show additional toast with inspection details
+        if (response.data.inspection) {
+          setTimeout(() => {
+            showToast({
+              title: 'Inspection Created',
+              description: `A draft inspection has been created. You can start it from the Inspections page.`,
+              variant: 'info',
+              duration: 5000,
+            });
+          }, 1000);
+        }
+      } else {
+        showToast({
+          title: 'Success',
+          description: `Vehicle Movement Pass #${passNumber} created successfully!`,
+          variant: 'success',
+          duration: 5000,
+        });
+      }
       navigate('/dashboard');
 
     } catch (error) {
-      console.error('Failed to create movement pass:', error);
+      // Failed to create movement pass
       
       // Handle specific error types
       if (axios.isAxiosError(error)) {
@@ -399,9 +354,7 @@ export const CreateVehicleMovement: React.FC = () => {
           return;
         } else if (error.response?.status === 422) {
           // Log validation errors for debugging
-          console.error('Validation errors:', error.response.data);
           const validationErrors = error.response.data?.errors || error.response.data?.message;
-          console.error('Laravel validation errors:', validationErrors);
           const errorMessage = typeof validationErrors === 'string' 
             ? validationErrors 
             : JSON.stringify(validationErrors);

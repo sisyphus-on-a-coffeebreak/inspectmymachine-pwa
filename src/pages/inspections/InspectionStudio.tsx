@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiClient } from '../../lib/apiClient';
+import { useInspectionTemplates } from '../../lib/queries';
+import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '../../providers/ToastProvider';
 import { useConfirm } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/button';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { colors, spacing, typography, borderRadius } from '../../lib/theme';
 import { Plus, Trash2, Edit2, Eye, Copy, Save, X, ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
 
@@ -225,8 +227,7 @@ export const InspectionStudio: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const confirm = useConfirm();
-  const [templates, setTemplates] = useState<InspectionTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<InspectionTemplate | null>(null);
   const [currentTemplate, setCurrentTemplate] = useState<InspectionTemplate>({
@@ -238,26 +239,19 @@ export const InspectionStudio: React.FC = () => {
   });
   const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
 
-  useEffect(() => {
-    fetchTemplates();
-  }, []);
-
-  const fetchTemplates = async () => {
-    try {
-      setLoading(true);
-      const response = await apiClient.get<InspectionTemplate[]>('/v1/inspection-templates');
-      setTemplates(response.data);
-    } catch (error) {
-      console.error('Failed to fetch templates:', error);
+  // Use React Query for templates
+  const { data: templates = [], isLoading: loading, error: queryError, refetch } = useInspectionTemplates();
+  
+  // Handle errors with useEffect to avoid calling showToast during render
+  React.useEffect(() => {
+    if (queryError) {
       showToast({
         title: 'Error',
         description: 'Failed to load inspection templates',
         variant: 'error',
       });
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [queryError, showToast]);
 
   const loadPresetBundle = (bundleKey: keyof typeof PRESET_BUNDLES) => {
     const bundle = PRESET_BUNDLES[bundleKey];
@@ -473,9 +467,10 @@ export const InspectionStudio: React.FC = () => {
         is_active: true,
         sections: [],
       });
-      fetchTemplates();
+      // Invalidate and refetch templates
+      queryClient.invalidateQueries({ queryKey: ['inspection-templates'] });
+      refetch();
     } catch (error) {
-      console.error('Failed to publish template:', error);
       showToast({
         title: 'Error',
         description: 'Failed to publish template. Please try again.',
@@ -498,12 +493,16 @@ export const InspectionStudio: React.FC = () => {
 
   return (
     <div style={{ padding: spacing.xl, maxWidth: '1400px', margin: '0 auto' }}>
-      <div style={{ marginBottom: spacing.xl }}>
-        <h1 style={{ ...typography.h1, marginBottom: spacing.sm }}>Inspection Studio</h1>
-        <p style={{ ...typography.body, color: colors.neutral[600] }}>
-          Author and manage inspection templates by asset class. Create preset bundles or build custom templates.
-        </p>
-      </div>
+      <PageHeader
+        title="Inspection Studio"
+        subtitle="Author and manage inspection templates by asset class. Create preset bundles or build custom templates."
+        icon="🎨"
+        breadcrumbs={[
+          { label: 'Dashboard', path: '/dashboard' },
+          { label: 'Inspections', path: '/app/inspections' },
+          { label: 'Studio' }
+        ]}
+      />
 
       {/* Preset Bundles */}
       <div style={{ marginBottom: spacing.xl }}>

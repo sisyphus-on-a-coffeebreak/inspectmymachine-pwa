@@ -104,7 +104,7 @@ export default function InspectionDetails() {
         );
         setPhotos(next);
       } catch (e: unknown) {
-        console.warn("[InspectionDetails] photos load failed:", e);
+        // Photos load failed
       }
     })();
   }, [id, questions, listFiles, ensureUrl]);

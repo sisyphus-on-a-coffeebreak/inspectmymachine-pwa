@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { colors, typography, spacing } from '../../lib/theme';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { DynamicFormRenderer } from '../../components/inspection/DynamicFormRenderer';
 import { LoadingError } from '../../components/ui/LoadingError';
 import type { InspectionTemplate } from '@/types/inspection';
@@ -643,7 +644,7 @@ export const InspectionCapture: React.FC = () => {
         setTemplateWarning(null);
       }
     } catch (err) {
-      console.error('Failed to fetch inspection template:', err);
+      // Failed to fetch inspection template, using fallback
       if (!templateId) {
         setTemplate(FALLBACK_TEMPLATE);
         setTemplateSource('mock');
@@ -706,7 +707,6 @@ export const InspectionCapture: React.FC = () => {
         setSubmissionBanner('Offline inspections synced successfully.');
       }
     } catch (err) {
-      console.error('Unable to flush queued inspections:', err);
       setSubmissionBanner('Unable to sync queued inspections right now. We will retry soon.');
     }
   }, []);
@@ -784,7 +784,7 @@ export const InspectionCapture: React.FC = () => {
         setSubmissionBanner('Inspection queued offline. It will sync once connectivity returns.');
       }
     } catch (err) {
-      console.error('Failed to submit inspection:', err);
+      // Failed to submit inspection - error is handled by inspection-submit.ts
       setSubmissionBanner('Submission failed. Please retry once connectivity stabilises.');
     } finally {
       setIsSubmitting(false);
@@ -848,23 +848,16 @@ export const InspectionCapture: React.FC = () => {
       backgroundColor: colors.neutral[50],
       minHeight: '100vh',
     }}>
-      <div style={{
-        marginBottom: spacing.xl,
-        padding: spacing.lg,
-        backgroundColor: 'white',
-        borderRadius: '16px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-        border: '1px solid rgba(0,0,0,0.05)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-          <h1 style={{
-            ...typography.header,
-            fontSize: '24px',
-            color: colors.neutral[900],
-            margin: 0,
-          }}>
-            🔍 {template.name}
-          </h1>
+      <PageHeader
+        title={template.name}
+        subtitle={template.description || 'Complete vehicle inspection'}
+        icon="🔍"
+        breadcrumbs={[
+          { label: 'Dashboard', path: '/dashboard' },
+          { label: 'Inspections', path: '/app/inspections' },
+          { label: 'Capture Inspection' }
+        ]}
+        actions={
           <button
             onClick={() => navigate('/app/inspections')}
             style={{
@@ -877,7 +870,8 @@ export const InspectionCapture: React.FC = () => {
           >
             ← Back
           </button>
-        </div>
+        }
+      />
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
           {template.description && (
@@ -935,7 +929,6 @@ export const InspectionCapture: React.FC = () => {
             </div>
           )}
         </div>
-      </div>
 
       <DynamicFormRenderer
         template={template}

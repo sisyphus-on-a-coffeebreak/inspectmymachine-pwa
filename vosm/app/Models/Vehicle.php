@@ -41,5 +41,20 @@ class Vehicle extends Model
     {
         return $this->hasMany(Inspection::class);
     }
+
+    public function batteries(): HasMany
+    {
+        return $this->hasMany(Battery::class, 'current_vehicle_id');
+    }
+
+    public function tyres(): HasMany
+    {
+        return $this->hasMany(Tyre::class, 'current_vehicle_id');
+    }
+
+    public function spareParts(): HasMany
+    {
+        return $this->hasMany(SparePart::class, 'current_vehicle_id');
+    }
 }
 

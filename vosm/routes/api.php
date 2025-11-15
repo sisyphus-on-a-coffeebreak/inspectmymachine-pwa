@@ -7,6 +7,8 @@ use App\Http\Controllers\InspectionController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\InspectionDashboardController;
 use App\Http\Controllers\InspectionReportController;
+use App\Http\Controllers\InspectionRtoDetailController;
+use App\Http\Controllers\InspectionReportLayoutController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\ExpenseTemplateController;
@@ -15,6 +17,8 @@ use App\Http\Controllers\Api\ExpenseApprovalController;
 use App\Http\Controllers\Api\VisitorGatePassController;
 use App\Http\Controllers\Api\VehicleEntryPassController;
 use App\Http\Controllers\Api\VehicleExitPassController;
+use App\Http\Controllers\AlertController;
+use App\Http\Controllers\OverdueFlagController;
 
 /*
 |--------------------------------------------------------------------------
@@ -74,13 +78,76 @@ Route::prefix('v1')->middleware(['web', 'auth:sanctum'])->group(function () {
     Route::put('users/{id}', [\App\Http\Controllers\UserController::class, 'update']);
     Route::delete('users/{id}', [\App\Http\Controllers\UserController::class, 'destroy']);
     
+    // User Activity
+    Route::get('users/activity', [\App\Http\Controllers\UserController::class, 'activityLogs']);
+    Route::get('users/activity/statistics', [\App\Http\Controllers\UserController::class, 'activityStatistics']);
+    Route::get('users/permission-changes', [\App\Http\Controllers\UserController::class, 'permissionChanges']);
+    
+    // Bulk User Operations
+    Route::post('users/bulk-assign-capabilities', [\App\Http\Controllers\UserController::class, 'bulkAssignCapabilities']);
+    Route::post('users/bulk-activate', [\App\Http\Controllers\UserController::class, 'bulkActivate']);
+    Route::post('users/bulk-deactivate', [\App\Http\Controllers\UserController::class, 'bulkDeactivate']);
+    Route::post('users/bulk-assign-role', [\App\Http\Controllers\UserController::class, 'bulkAssignRole']);
+    
     // Dashboard
     Route::get('inspection-dashboard', [InspectionDashboardController::class, 'index']);
+    Route::get('dashboard', [InspectionDashboardController::class, 'index']); // Alias for compatibility
+    
+    // Alerts
+    Route::get('alerts/statistics', [AlertController::class, 'statistics']);
+    Route::post('alerts/detect-anomalies', [AlertController::class, 'detectAnomalies']);
+    Route::apiResource('alerts', AlertController::class);
+    Route::patch('alerts/{id}/acknowledge', [AlertController::class, 'acknowledge']);
+    Route::patch('alerts/{id}/resolve', [AlertController::class, 'resolve']);
+    Route::patch('alerts/{id}/dismiss', [AlertController::class, 'dismiss']);
+    Route::post('alerts/bulk-acknowledge', [AlertController::class, 'bulkAcknowledge']);
+    Route::post('alerts/bulk-resolve', [AlertController::class, 'bulkResolve']);
+    Route::post('alerts/bulk-dismiss', [AlertController::class, 'bulkDismiss']);
+    
+    // Overdue Flags
+    Route::get('overdue-flags', [OverdueFlagController::class, 'index']);
+    Route::get('overdue-flags/{itemType}/{itemId}', [OverdueFlagController::class, 'getItemFlags']);
+    Route::patch('overdue-flags/{id}/resolve', [OverdueFlagController::class, 'resolve']);
+    
+    // Components (Batteries, Tyres, Spare Parts)
+    Route::get('components', [\App\Http\Controllers\ComponentController::class, 'index']);
+    Route::post('components', [\App\Http\Controllers\ComponentController::class, 'store']);
+    Route::get('components/{type}/{id}', [\App\Http\Controllers\ComponentController::class, 'show']);
+    Route::patch('components/{type}/{id}', [\App\Http\Controllers\ComponentController::class, 'update']);
+    Route::delete('components/{type}/{id}', [\App\Http\Controllers\ComponentController::class, 'destroy']);
+    Route::post('components/{type}/{id}/transfer', [\App\Http\Controllers\ComponentController::class, 'transfer']);
+    Route::post('components/{type}/{id}/remove', [\App\Http\Controllers\ComponentController::class, 'remove']);
+    Route::post('components/{type}/{id}/install', [\App\Http\Controllers\ComponentController::class, 'install']);
+    Route::get('components/transfers/pending', [\App\Http\Controllers\ComponentController::class, 'pendingTransfers']);
+    Route::post('components/transfers/{transferId}/approve', [\App\Http\Controllers\ComponentController::class, 'approveTransfer']);
+    Route::post('components/transfers/{transferId}/reject', [\App\Http\Controllers\ComponentController::class, 'rejectTransfer']);
+    Route::get('components/{type}/{id}/maintenance', [\App\Http\Controllers\ComponentController::class, 'getMaintenance']);
+    Route::post('components/{type}/{id}/maintenance', [\App\Http\Controllers\ComponentController::class, 'createMaintenance']);
+    Route::patch('components/maintenance/{maintenanceId}', [\App\Http\Controllers\ComponentController::class, 'updateMaintenance']);
+    Route::delete('components/maintenance/{maintenanceId}', [\App\Http\Controllers\ComponentController::class, 'deleteMaintenance']);
+    Route::get('components/cost-analysis', [\App\Http\Controllers\ComponentController::class, 'costAnalysis']);
+    Route::get('components/health-dashboard', [\App\Http\Controllers\ComponentController::class, 'healthDashboard']);
+    
+    // Notifications
+    Route::get('notifications/unread-count', [\App\Http\Controllers\NotificationController::class, 'unreadCount']);
+    Route::patch('notifications/mark-all-read', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead']);
+    Route::apiResource('notifications', \App\Http\Controllers\NotificationController::class)->only(['index', 'destroy']);
+    Route::patch('notifications/{id}/read', [\App\Http\Controllers\NotificationController::class, 'markAsRead']);
     
     // Reports
     Route::get('inspections/{id}/report', [InspectionReportController::class, 'generate']);
     Route::post('inspections/{id}/email', [InspectionReportController::class, 'email']);
     Route::post('inspections/{id}/share', [InspectionReportController::class, 'share']);
+    
+    // RTO Details
+    Route::get('inspections/{inspectionId}/rto-details', [InspectionRtoDetailController::class, 'show']);
+    Route::post('inspections/{inspectionId}/rto-details', [InspectionRtoDetailController::class, 'store']);
+    Route::post('inspections/{inspectionId}/rto-details/verify', [InspectionRtoDetailController::class, 'verify']);
+    
+    // Report Layouts
+    Route::get('inspections/{inspectionId}/report-layout', [InspectionReportLayoutController::class, 'show']);
+    Route::get('inspections/{inspectionId}/report-layout/{layoutId}', [InspectionReportLayoutController::class, 'show']);
+    Route::post('inspections/{inspectionId}/report-layout', [InspectionReportLayoutController::class, 'store']);
     
     
 });

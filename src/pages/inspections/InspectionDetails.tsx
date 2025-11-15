@@ -1,11 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
+import { PageHeader } from '../../components/ui/PageHeader';
 import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useToast } from '../../providers/ToastProvider';
+import { addRecentlyViewed } from '../../lib/recentlyViewed';
+import { RelatedItems } from '../../components/ui/RelatedItems';
+import { AnomalyAlert } from '../../components/ui/AnomalyAlert';
+import { PolicyLinks } from '../../components/ui/PolicyLinks';
+import { ConflictResolutionModal } from '../../components/inspection/ConflictResolutionModal';
+import { DraggableReportBuilder } from '../../components/inspection/DraggableReportBuilder';
+import { RtoDetailsManager } from '../../components/inspection/RtoDetailsManager';
+import { fetchInspectionTemplate } from '../../lib/inspection-templates';
+import { useInspections } from '../../lib/queries';
+import { useAuth } from '../../providers/useAuth';
 
 interface InspectionDetails {
   id: string;
@@ -72,16 +83,75 @@ interface InspectionDetails {
       is_critical: boolean;
     };
   }>;
+  rto_details?: {
+    id: string;
+    rc_number?: string;
+    rc_issue_date?: string;
+    rc_expiry_date?: string;
+    rc_owner_name?: string;
+    rc_owner_address?: string;
+    fitness_certificate_number?: string;
+    fitness_issue_date?: string;
+    fitness_expiry_date?: string;
+    fitness_status?: string;
+    permit_number?: string;
+    permit_issue_date?: string;
+    permit_expiry_date?: string;
+    permit_type?: string;
+    insurance_policy_number?: string;
+    insurance_company?: string;
+    insurance_issue_date?: string;
+    insurance_expiry_date?: string;
+    insurance_type?: string;
+    tax_certificate_number?: string;
+    tax_paid_date?: string;
+    tax_valid_until?: string;
+    puc_certificate_number?: string;
+    puc_issue_date?: string;
+    puc_expiry_date?: string;
+    puc_status?: string;
+    show_rc_details?: boolean;
+    show_fitness?: boolean;
+    show_permit?: boolean;
+    show_insurance?: boolean;
+    show_tax?: boolean;
+    show_puc?: boolean;
+    [key: string]: any;
+  };
 }
 
 export const InspectionDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Redirect legacy route /inspections/:id to /app/inspections/:id
+  useEffect(() => {
+    if (location.pathname.startsWith('/inspections/') && !location.pathname.startsWith('/app/inspections/')) {
+      navigate(`/app/inspections/${id}`, { replace: true });
+    }
+  }, [location.pathname, id, navigate]);
   const { showToast } = useToast();
+  const { user } = useAuth();
   const [inspection, setInspection] = useState<InspectionDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [currentTemplate, setCurrentTemplate] = useState<any>(null);
+  const [resolvingConflict, setResolvingConflict] = useState(false);
+  const [showReportBuilder, setShowReportBuilder] = useState(false);
+  const [showRtoManager, setShowRtoManager] = useState(false);
+
+  // Fetch related inspections for the same vehicle
+  const { data: relatedInspectionsData } = useInspections(
+    inspection?.vehicle_id ? { vehicle_id: inspection.vehicle_id, per_page: 5 } : undefined,
+    { enabled: !!inspection?.vehicle_id }
+  );
+  
+  const relatedInspections = relatedInspectionsData?.data?.filter(
+    (insp: any) => insp.id !== id
+  ) || [];
 
   const fetchInspectionDetails = useCallback(async () => {
     if (!id) return;
@@ -90,94 +160,49 @@ export const InspectionDetails: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const response = await axios.get(`/v1/inspections/${id}`);
-      setInspection(response.data);
-    } catch (apiError) {
-      console.warn('Backend not available, using mock data:', apiError);
+      const response = await apiClient.get(`/v1/inspections/${id}`);
+      // Ensure ID is always a string
+      const inspectionData = {
+        ...response.data,
+        id: String(response.data?.id || id),
+      };
+      setInspection(inspectionData);
       
-      // Fallback to mock data
-      const mockInspection: InspectionDetails = {
-        id: id,
-        template_id: 'mock-template-1',
-        inspector_id: 'inspector-1',
-        status: 'completed',
-        overall_rating: 8.5,
-        pass_fail: 'pass',
-        has_critical_issues: false,
-        duration_minutes: 45,
-        started_at: new Date(Date.now() - 3600000).toISOString(),
-        completed_at: new Date().toISOString(),
-        inspector_notes: 'Vehicle in good condition with minor wear and tear.',
-        created_at: new Date(Date.now() - 3600000).toISOString(),
-        updated_at: new Date().toISOString(),
-        template: {
-          id: 'mock-template-1',
-          name: 'Commercial Vehicle Inspection',
-          description: 'Comprehensive commercial vehicle inspection',
-          sections: [
-            {
-              id: 'section-1',
-              name: 'Vehicle Identification',
-              questions: [
-                {
-                  id: 'q1',
-                  question_text: 'Vehicle Brand',
-                  question_type: 'dropdown',
-                  is_required: true,
-                  is_critical: false
-                },
-                {
-                  id: 'q2',
-                  question_text: 'Vehicle Model',
-                  question_type: 'dropdown',
-                  is_required: true,
-                  is_critical: false
-                }
-              ]
-            }
-          ]
-        },
-        vehicle: {
-          id: 'vehicle-1',
-          registration_number: 'MH12AB1234',
-          make: 'Tata',
-          model: 'Ace',
-          year: 2020
-        },
-        inspector: {
-          id: 'inspector-1',
-          name: 'John Doe',
-          email: 'john.doe@company.com'
-        },
-        answers: [
-          {
-            id: 'answer-1',
-            question_id: 'q1',
-            answer_value: 'Tata',
-            is_critical_finding: false,
-            question: {
-              id: 'q1',
-              question_text: 'Vehicle Brand',
-              question_type: 'dropdown',
-              is_critical: false
-            }
-          },
-          {
-            id: 'answer-2',
-            question_id: 'q2',
-            answer_value: 'Ace',
-            is_critical_finding: false,
-            question: {
-              id: 'q2',
-              question_text: 'Vehicle Model',
-              question_type: 'dropdown',
-              is_critical: false
+      // Check for template version conflict
+      if (response.data?.template_id && response.data?.started_at) {
+        try {
+          const templateData = await fetchInspectionTemplate(response.data.template_id, { forceRefresh: true });
+          const templateUpdatedAt = templateData.template.updated_at 
+            ? new Date(templateData.template.updated_at) 
+            : null;
+          const startedAt = new Date(response.data.started_at);
+          
+          if (templateUpdatedAt && templateUpdatedAt > startedAt) {
+            setCurrentTemplate(templateData.template);
+            // Only show modal if inspection is still in progress
+            if (response.data.status === 'draft' || response.data.status === 'in_progress') {
+              setShowConflictModal(true);
             }
           }
-        ]
-      };
-
-      setInspection(mockInspection);
+        } catch (err) {
+          // Silently fail - template fetch is not critical
+          console.warn('Failed to fetch current template for conflict detection:', err);
+        }
+      }
+      
+      // Track in recently viewed
+      if (response.data && id) {
+        addRecentlyViewed({
+          id: String(id),
+          type: 'inspection',
+          title: `Inspection #${id.substring(0, 8)}`,
+          subtitle: response.data.template?.name || response.data.vehicle?.registration_number || 'Vehicle Inspection',
+          path: `/app/inspections/${id}`,
+        });
+      }
+    } catch (apiError) {
+      // Backend not available - show error instead of mock data
+      setError(apiError instanceof Error ? apiError : new Error('Failed to load inspection details'));
     } finally {
       setLoading(false);
     }
@@ -195,8 +220,19 @@ export const InspectionDetails: React.FC = () => {
       
       // Try to generate PDF from backend first
       try {
+        // Note: apiClient doesn't support blob responseType directly, use axios for PDF downloads
+        // For blob responses, we need to use axios directly with apiClient's CSRF handling
+        const axios = (await import('axios')).default;
+        const { apiClient: client } = await import('../../lib/apiClient');
+        await (client as any).ensureCsrfToken?.();
+        const csrfToken = (client as any).getCsrfToken?.();
+        
         const response = await axios.get(`/v1/inspections/${id}/report`, {
-          responseType: 'blob'
+          responseType: 'blob',
+          withCredentials: true,
+          headers: {
+            ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
+          },
         });
         
         // Create download link
@@ -209,16 +245,15 @@ export const InspectionDetails: React.FC = () => {
         link.remove();
         window.URL.revokeObjectURL(url);
         
-        console.log('PDF generated successfully from backend');
+        // PDF generated successfully from backend
         return;
       } catch (apiError) {
-        console.warn('Backend PDF generation not available, using client-side generation');
+        // Backend PDF generation not available, using client-side generation
       }
       
       // Fallback to client-side PDF generation
       await generateClientSidePDF();
     } catch (error) {
-      console.error('Failed to generate PDF:', error);
       showToast({
         title: 'Error',
         description: 'Failed to generate PDF. Please try again.',
@@ -236,13 +271,13 @@ export const InspectionDetails: React.FC = () => {
     try {
       await generateNativePDF();
     } catch (error) {
-      console.warn('Native PDF generation failed, trying print method:', error);
+      // Native PDF generation failed, trying print method
       
       // Method 2: Try using browser's print to PDF functionality
       try {
         await generatePDFViaPrint();
       } catch (printError) {
-        console.warn('Print method failed, using fallback HTML:', printError);
+        // Print method failed, using fallback HTML
         // Method 3: Fallback to downloadable HTML
         await generateDownloadableHTML();
       }
@@ -715,52 +750,133 @@ export const InspectionDetails: React.FC = () => {
       minHeight: '100vh'
     }}>
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: spacing.xl,
-        padding: spacing.lg,
-        backgroundColor: 'white',
-        borderRadius: '16px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-        border: '1px solid rgba(0,0,0,0.05)'
-      }}>
-        <div>
-          <h1 style={{ 
-            ...typography.header,
-            fontSize: '28px',
-            color: colors.neutral[900],
-            margin: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: spacing.sm
-          }}>
-            🔍 Inspection #{inspection.id}
-          </h1>
-          <p style={{ color: colors.neutral[600], marginTop: spacing.xs }}>
-            {inspection.template?.name || 'Vehicle Inspection Report'}
-          </p>
-        </div>
-        
-        <div style={{ display: 'flex', gap: spacing.sm }}>
-          <Button
-            variant="secondary"
-            onClick={() => navigate('/app/inspections')}
-            icon="⬅️"
-          >
-            Back
-          </Button>
-          <Button
-            variant="primary"
-            onClick={generatePDF}
-            disabled={generatingPDF}
-            icon="📄"
-          >
-            {generatingPDF ? 'Generating...' : 'Download PDF'}
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={`Inspection #${String(inspection.id || '').substring(0, 8)}`}
+        subtitle={inspection.template?.name || 'Vehicle Inspection Report'}
+        icon="🔍"
+        breadcrumbs={[
+          { label: 'Dashboard', path: '/dashboard' },
+          { label: 'Inspections', path: '/app/inspections' },
+          { label: 'Details' }
+        ]}
+        actions={
+          <div style={{ display: 'flex', gap: spacing.sm }}>
+            <Button
+              variant="secondary"
+              onClick={() => navigate('/app/inspections')}
+              icon="⬅️"
+            >
+              Back
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setShowReportBuilder(true)}
+              icon="🎨"
+            >
+              Customize Report
+            </Button>
+            <Button
+              variant="primary"
+              onClick={generatePDF}
+              disabled={generatingPDF}
+              icon="📄"
+            >
+              {generatingPDF ? 'Generating...' : 'Download PDF'}
+            </Button>
+            {(user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'supervisor') && (
+              <Button
+                variant="secondary"
+                onClick={() => setShowRtoManager(true)}
+                icon="📋"
+              >
+                Add RTO Details
+              </Button>
+            )}
+          </div>
+        }
+      />
+
+      {/* Policy Links */}
+      <PolicyLinks
+        title="Inspection Standards & Compliance"
+        links={[
+          {
+            label: 'Inspection Standards',
+            url: '/policies/inspection-standards',
+            external: false,
+            icon: '📐'
+          },
+          {
+            label: 'Critical Issue Definitions',
+            url: '/policies/critical-issues',
+            external: false,
+            icon: '⚠️'
+          },
+          {
+            label: 'Regulatory Compliance',
+            url: '/policies/regulatory-compliance',
+            external: false,
+            icon: '⚖️'
+          }
+        ]}
+        variant="compact"
+      />
+
+      {/* Anomaly Alerts */}
+      {inspection && (() => {
+        const now = new Date();
+        const anomalies = [];
+
+        // Check for inspection overdue > 30 days
+        if (inspection.started_at && !inspection.completed_at) {
+          const startedAt = new Date(inspection.started_at);
+          const daysSinceStart = (now.getTime() - startedAt.getTime()) / (1000 * 60 * 60 * 24);
+          if (daysSinceStart > 30) {
+            anomalies.push({
+              title: 'Inspection Overdue > 30 Days',
+              description: `This inspection was started ${Math.floor(daysSinceStart)} days ago and is still incomplete. Please complete or cancel it.`,
+              severity: 'error' as const,
+            });
+          }
+        }
+
+        // Check for critical issues found
+        if (inspection.has_critical_issues) {
+          const criticalCount = inspection.answers?.filter((a: any) => a.is_critical_finding).length || 0;
+          anomalies.push({
+            title: 'Critical Issues Found',
+            description: `This inspection has ${criticalCount} critical finding${criticalCount > 1 ? 's' : ''}. Immediate action may be required.`,
+            severity: 'critical' as const,
+          });
+        }
+
+        // Check for template updated mid-inspection
+        if (inspection.template && inspection.started_at && inspection.template.updated_at) {
+          const startedAt = new Date(inspection.started_at);
+          const templateUpdatedAt = new Date(inspection.template.updated_at);
+          if (templateUpdatedAt > startedAt) {
+            anomalies.push({
+              title: 'Template Updated During Inspection',
+              description: 'The inspection template was updated after this inspection was started. Some questions may have changed.',
+              severity: 'warning' as const,
+            });
+          }
+        }
+
+        return anomalies.length > 0 ? (
+          <div style={{ marginTop: spacing.lg }}>
+            {anomalies.map((anomaly, index) => (
+              <AnomalyAlert
+                key={`anomaly-${anomaly.title || anomaly.id || index}`}
+                title={anomaly.title}
+                description={anomaly.description}
+                severity={anomaly.severity}
+                dismissible={false}
+              />
+            ))}
+          </div>
+        ) : null;
+      })()}
 
       {/* Inspection Summary */}
       <div style={{
@@ -999,6 +1115,199 @@ export const InspectionDetails: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Linked Gate Pass */}
+      {inspection.linked_gate_pass && (
+        <div style={{ ...cardStyles.card, marginTop: spacing.lg }}>
+          <h3 style={{ ...typography.subheader, marginBottom: spacing.md }}>Auto-created Gate Pass</h3>
+          <div style={{ ...typography.body, color: colors.neutral[600], marginBottom: spacing.md }}>
+            A vehicle exit pass was automatically created for this inspection:
+          </div>
+          <div style={{
+            padding: spacing.md,
+            border: `1px solid ${colors.neutral[200]}`,
+            borderRadius: borderRadius.md,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+            <div>
+              <div style={{ ...typography.body, fontWeight: 600 }}>
+                Gate Pass #{inspection.linked_gate_pass.pass_number}
+              </div>
+              <div style={{ ...typography.caption, color: colors.neutral[600] }}>
+                Purpose: {inspection.linked_gate_pass.purpose} • Status: {inspection.linked_gate_pass.status}
+              </div>
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() => navigate(`/app/gate-pass/${inspection.linked_gate_pass.id}`)}
+              style={{ padding: `${spacing.xs}px ${spacing.sm}px` }}
+            >
+              View
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Linked Components */}
+      {inspection.linked_components && inspection.linked_components.length > 0 && (
+        <div style={{ ...cardStyles.card, marginTop: spacing.lg }}>
+          <h3 style={{ ...typography.subheader, marginBottom: spacing.md }}>Linked Components</h3>
+          <div style={{ ...typography.body, color: colors.neutral[600], marginBottom: spacing.md }}>
+            The following components were linked to this inspection based on inspection findings:
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+            {inspection.linked_components.map((component: any) => {
+              const typeLabels: Record<string, string> = {
+                battery: 'Battery',
+                tyre: 'Tyre',
+                spare_part: 'Spare Part',
+              };
+              
+              return (
+                <div
+                  key={`${component.component_type}-${component.component_id}`}
+                  style={{
+                    padding: spacing.md,
+                    border: `1px solid ${colors.neutral[200]}`,
+                    borderRadius: borderRadius.md,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div style={{ ...typography.body, fontWeight: 600 }}>{component.component_name}</div>
+                    <div style={{ ...typography.caption, color: colors.neutral[600] }}>
+                      {typeLabels[component.component_type] || 'Component'}
+                    </div>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate(`/app/stockyard/components/${component.component_type}/${component.component_id}`)}
+                    style={{ padding: `${spacing.xs}px ${spacing.sm}px` }}
+                  >
+                    View
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Related Items */}
+      {inspection.vehicle_id && (
+        <div style={{ marginTop: spacing.lg, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: spacing.lg }}>
+          {/* Related Inspections Panel */}
+          {relatedInspections.length > 0 && (
+            <RelatedItems
+              title="Related Inspections"
+              items={relatedInspections.slice(0, 5).map((insp: any) => ({
+                id: insp.id,
+                title: `Inspection #${String(insp.id || '').substring(0, 8)}`,
+                subtitle: `${insp.template?.name || 'Inspection'} - ${insp.status || 'Unknown'}`,
+                path: `/app/inspections/${insp.id}`,
+                icon: '🔍',
+                type: insp.has_critical_issues ? 'Has Critical Issues' : undefined,
+              }))}
+              variant="compact"
+              maxItems={5}
+            />
+          )}
+          
+          <RelatedItems
+            title="Vehicle History"
+            items={[
+              {
+                id: 'all-inspections',
+                title: 'All Inspections',
+                subtitle: `View all ${relatedInspectionsData?.total || 0} inspections for this vehicle`,
+                path: `/app/inspections?vehicle=${inspection.vehicle_id}`,
+                icon: '🔍',
+              },
+              {
+                id: 'gate-passes',
+                title: 'Gate Passes',
+                subtitle: 'View gate passes for this vehicle',
+                path: `/app/gate-pass?vehicle=${inspection.vehicle_id}`,
+                icon: '🚪',
+              },
+            ]}
+            variant="compact"
+          />
+        </div>
+      )}
+
+      {/* Template Conflict Resolution Modal */}
+      {inspection && currentTemplate && inspection.template && (
+        <ConflictResolutionModal
+          isOpen={showConflictModal}
+          onClose={() => setShowConflictModal(false)}
+          oldTemplate={inspection.template}
+          newTemplate={currentTemplate}
+          inspectionAnswers={inspection.answers.reduce((acc: Record<string, any>, answer: any) => {
+            acc[answer.question_id] = answer.answer_value;
+            return acc;
+          }, {})}
+          onResolve={async (strategy) => {
+            try {
+              setResolvingConflict(true);
+              
+              // Update inspection template reference
+              await apiClient.patch(`/v1/inspections/${id}`, {
+                template_id: currentTemplate.id,
+                template_version_resolution: strategy,
+              });
+              
+              // Refresh inspection data
+              await fetchInspectionDetails();
+              
+              setShowConflictModal(false);
+              showToast({
+                title: 'Conflict Resolved',
+                description: `Template conflict resolved using ${strategy === 'keep_answers' ? 'Keep Answers' : strategy === 'use_new_template' ? 'New Template' : 'Smart Merge'} strategy.`,
+                variant: 'success',
+              });
+            } catch (err) {
+              showToast({
+                title: 'Error',
+                description: err instanceof Error ? err.message : 'Failed to resolve template conflict',
+                variant: 'error',
+              });
+            } finally {
+              setResolvingConflict(false);
+            }
+          }}
+          resolving={resolvingConflict}
+        />
+      )}
+
+      {/* Report Builder Modal */}
+      {showReportBuilder && inspection && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10000, backgroundColor: 'white' }}>
+          <DraggableReportBuilder
+            inspection={inspection}
+            onClose={() => {
+              setShowReportBuilder(false);
+              fetchInspectionDetails(); // Refresh to get updated layout
+            }}
+          />
+        </div>
+      )}
+
+      {/* RTO Details Manager Modal */}
+      {showRtoManager && (
+        <RtoDetailsManager
+          inspectionId={id || ''}
+          isOpen={showRtoManager}
+          onClose={() => setShowRtoManager(false)}
+          onSave={() => {
+            fetchInspectionDetails(); // Refresh to get updated RTO details
+          }}
+        />
+      )}
     </div>
   );
 };

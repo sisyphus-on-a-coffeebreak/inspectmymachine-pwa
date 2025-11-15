@@ -1,20 +1,17 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
+import { StatCard } from '../../components/ui/StatCard';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useToast } from '../../providers/ToastProvider';
-import {
-  getStockyardRequests,
-  getStockyardStats,
-  type StockyardRequest,
-  type StockyardRequestStatus,
-  type StockyardRequestType,
-} from '../../lib/stockyard';
+import { useStockyardRequests, useStockyardStats } from '../../lib/queries';
+import type { StockyardRequest, StockyardRequestStatus, StockyardRequestType } from '../../lib/stockyard';
 import { Warehouse, Plus, CheckCircle2, XCircle, Clock, AlertCircle, Search, Filter } from 'lucide-react';
+import { Pagination } from '../../components/ui/Pagination';
 
 // 📦 Stockyard Dashboard
 // Main screen for managing stockyard requests and operations
@@ -22,8 +19,56 @@ import { Warehouse, Plus, CheckCircle2, XCircle, Clock, AlertCircle, Search, Fil
 export const StockyardDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [requests, setRequests] = useState<StockyardRequest[]>([]);
-  const [stats, setStats] = useState({
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'active'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'ENTRY' | 'EXIT'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(20);
+  
+  // Map filters to API parameters
+  const statusFilter = filter === 'all' ? undefined : filter === 'active' ? undefined : filter;
+  const typeFilterValue = typeFilter === 'all' ? undefined : typeFilter;
+  
+  // Use React Query for stockyard requests
+  const { data: requestsData, isLoading: loading, error: queryError, refetch } = useStockyardRequests(
+    {
+      status: statusFilter as StockyardRequestStatus | 'all',
+      type: typeFilterValue as StockyardRequestType | 'all',
+      per_page: perPage,
+      page: currentPage,
+    }
+  );
+  
+  // Use React Query for stats
+  const { data: statsData } = useStockyardStats();
+  
+  // Apply client-side filtering for "active" filter and search
+  const requests = useMemo(() => {
+    let filtered = requestsData?.data || [];
+    
+    // Filter active requests (approved and not yet scanned out)
+    if (filter === 'active') {
+      filtered = filtered.filter(
+        (req) => req.status === 'Approved' && !req.scan_out_at
+      );
+    }
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (req) =>
+          req.id.toLowerCase().includes(query) ||
+          req.vehicle?.registration_number?.toLowerCase().includes(query) ||
+          req.requester?.name?.toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
+  }, [requestsData?.data, filter, searchQuery]);
+  
+  const totalItems = requestsData?.total || requests.length;
+  const stats = statsData || {
     total_requests: 0,
     pending: 0,
     approved: 0,
@@ -32,70 +77,14 @@ export const StockyardDashboard: React.FC = () => {
     vehicles_inside: 0,
     vehicles_outside: 0,
     requests_today: 0,
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'active'>('all');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'ENTRY' | 'EXIT'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  };
+  
+  const error = queryError ? (queryError instanceof Error ? queryError : new Error('Failed to load stockyard requests')) : null;
 
-  const fetchRequests = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const statusFilter = filter === 'all' ? undefined : filter === 'active' ? undefined : filter;
-      const typeFilterValue = typeFilter === 'all' ? undefined : typeFilter;
-
-      const response = await getStockyardRequests({
-        status: statusFilter as StockyardRequestStatus | 'all',
-        type: typeFilterValue as StockyardRequestType | 'all',
-        per_page: 20,
-      });
-
-      let filteredRequests = response.data;
-
-      // Filter active requests (approved and not yet scanned out)
-      if (filter === 'active') {
-        filteredRequests = filteredRequests.filter(
-          (req) => req.status === 'Approved' && !req.scan_out_at
-        );
-      }
-
-      // Apply search filter
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        filteredRequests = filteredRequests.filter(
-          (req) =>
-            req.id.toLowerCase().includes(query) ||
-            req.vehicle?.registration_number?.toLowerCase().includes(query) ||
-            req.requester?.name?.toLowerCase().includes(query)
-        );
-      }
-
-      setRequests(filteredRequests);
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to fetch stockyard requests');
-      setError(error);
-      console.error('Failed to fetch stockyard requests:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [filter, typeFilter, searchQuery]);
-
-  const fetchStats = useCallback(async () => {
-    try {
-      const statsData = await getStockyardStats();
-      setStats(statsData);
-    } catch (err) {
-      console.error('Failed to fetch stockyard stats:', err);
-    }
-  }, []);
-
+  // Reset to page 1 when filters change
   useEffect(() => {
-    fetchRequests();
-    fetchStats();
-  }, [fetchRequests, fetchStats]);
+    setCurrentPage(1);
+  }, [filter, typeFilter, searchQuery]);
 
   const getStatusColor = (status: StockyardRequestStatus) => {
     switch (status) {
@@ -140,7 +129,7 @@ export const StockyardDashboard: React.FC = () => {
           subtitle="Manage vehicle entry and exit requests"
           icon={<Warehouse size={24} />}
         />
-        <NetworkError error={error} onRetry={fetchRequests} />
+        <NetworkError error={error} onRetry={() => refetch()} />
       </div>
     );
   }
@@ -155,30 +144,34 @@ export const StockyardDashboard: React.FC = () => {
 
       {/* Stats Cards */}
       <StatsGrid>
-        <div style={{ ...cardStyles.card, borderLeft: `4px solid ${colors.warning[500]}` }}>
-          <div style={{ ...typography.label, color: colors.neutral[600] }}>Pending Requests</div>
-          <div style={{ ...typography.header, color: colors.warning[500], margin: 0 }}>
-            {stats.pending}
-          </div>
-        </div>
-        <div style={{ ...cardStyles.card, borderLeft: `4px solid ${colors.success[500]}` }}>
-          <div style={{ ...typography.label, color: colors.neutral[600] }}>Approved</div>
-          <div style={{ ...typography.header, color: colors.success[500], margin: 0 }}>
-            {stats.approved}
-          </div>
-        </div>
-        <div style={{ ...cardStyles.card, borderLeft: `4px solid ${colors.primary}` }}>
-          <div style={{ ...typography.label, color: colors.neutral[600] }}>Vehicles Inside</div>
-          <div style={{ ...typography.header, color: colors.primary, margin: 0 }}>
-            {stats.vehicles_inside}
-          </div>
-        </div>
-        <div style={{ ...cardStyles.card, borderLeft: `4px solid ${colors.neutral[500]}` }}>
-          <div style={{ ...typography.label, color: colors.neutral[600] }}>Total Requests</div>
-          <div style={{ ...typography.header, color: colors.neutral[900], margin: 0 }}>
-            {stats.total_requests}
-          </div>
-        </div>
+        <StatCard
+          label="Pending Requests"
+          value={stats.pending}
+          color={colors.warning[500]}
+          href="/app/stockyard?filter=pending"
+          loading={loading}
+        />
+        <StatCard
+          label="Approved"
+          value={stats.approved}
+          color={colors.success[500]}
+          href="/app/stockyard?filter=approved"
+          loading={loading}
+        />
+        <StatCard
+          label="Vehicles Inside"
+          value={stats.vehicles_inside}
+          color={colors.primary}
+          href="/app/stockyard?filter=active"
+          loading={loading}
+        />
+        <StatCard
+          label="Total Requests"
+          value={stats.total_requests}
+          color={colors.neutral[500]}
+          href="/app/stockyard"
+          loading={loading}
+        />
       </StatsGrid>
 
       {/* Quick Actions */}
@@ -354,6 +347,24 @@ export const StockyardDashboard: React.FC = () => {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Pagination */}
+      {totalItems > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={Math.ceil(totalItems / perPage)}
+          totalItems={totalItems}
+          perPage={perPage}
+          onPageChange={(page) => {
+            setCurrentPage(page);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onPerPageChange={(newPerPage) => {
+            setPerPage(newPerPage);
+            setCurrentPage(1); // Reset to first page when changing per-page
+          }}
+        />
       )}
     </div>
   );

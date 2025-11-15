@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\QRCodeService;
+use App\Services\InspectionAutoCreateService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -14,10 +15,12 @@ use Illuminate\Support\Str;
 class VehicleEntryPassController extends Controller
 {
     protected $qrCodeService;
+    protected $inspectionAutoCreateService;
 
-    public function __construct(QRCodeService $qrCodeService)
+    public function __construct(QRCodeService $qrCodeService, InspectionAutoCreateService $inspectionAutoCreateService)
     {
         $this->qrCodeService = $qrCodeService;
+        $this->inspectionAutoCreateService = $inspectionAutoCreateService;
     }
 
     /**
@@ -80,9 +83,26 @@ class VehicleEntryPassController extends Controller
                 'created_by' => $user->id
             ]);
 
+            // Auto-create inspection if none exists for today
+            $inspection = null;
+            $inspectionCreated = false;
+            try {
+                $inspection = $this->inspectionAutoCreateService->createInspectionForVehicleEntry(
+                    $request->input('vehicle_id'),
+                    $user->id
+                );
+                $inspectionCreated = $inspection !== null;
+            } catch (\Exception $e) {
+                // Log error but don't fail the gate pass creation
+                Log::warning('Failed to auto-create inspection for vehicle entry', [
+                    'vehicle_id' => $request->input('vehicle_id'),
+                    'error' => $e->getMessage()
+                ]);
+            }
+
             DB::commit();
 
-            return response()->json([
+            $response = [
                 'success' => true,
                 'message' => 'Vehicle entry pass created successfully',
                 'pass' => [
@@ -92,7 +112,19 @@ class VehicleEntryPassController extends Controller
                     'access_code' => $accessCode,
                     'qr_payload' => $qrData['qr_payload']
                 ]
-            ], 201);
+            ];
+
+            if ($inspectionCreated && $inspection) {
+                $response['inspection_auto_created'] = true;
+                $response['inspection'] = [
+                    'id' => $inspection->id,
+                    'status' => $inspection->status,
+                    'template_id' => $inspection->template_id
+                ];
+                $response['message'] = 'Vehicle entry pass created successfully. Inspection auto-created for vehicle entry.';
+            }
+
+            return response()->json($response, 201);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error creating vehicle entry pass: ' . $e->getMessage());

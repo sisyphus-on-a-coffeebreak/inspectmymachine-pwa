@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '../../lib/apiClient';
 import { VehicleSelector } from './components/VehicleSelector';
 import type { VisitorPassFormData } from './gatePassTypes';
-import { postWithCsrf } from '../../lib/csrf';
 import { useAuth } from '../../providers/useAuth';
 import { useToast } from '../../providers/ToastProvider';
 import { useConfirm } from '../../components/ui/Modal';
@@ -110,9 +109,7 @@ export const CreateVisitorPass: React.FC = () => {
         notes: formData.notes || null
       };
 
-      console.log('Sending data:', requestData);
-
-      const response = await postWithCsrf('/visitor-gate-passes', requestData);
+      const response = await apiClient.post('/visitor-gate-passes', requestData);
 
       // Create a readable pass number from the UUID
       const passId = response.data.pass.id;
@@ -146,7 +143,7 @@ export const CreateVisitorPass: React.FC = () => {
       navigate('/dashboard');
 
     } catch (error: unknown) {
-      console.error('Failed to create pass:', error);
+      // Failed to create pass
       
       // Show specific validation errors if available
       if (error && typeof error === 'object' && 'response' in error) {
