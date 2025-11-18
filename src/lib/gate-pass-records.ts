@@ -129,7 +129,7 @@ export const syncGatePassRecord = async ({
     payload.access_code = preferredAccessCode;
   }
 
-  const response = await apiClient.post('/api/gate-pass-records/sync', payload);
+  const response = await apiClient.post('/gate-pass-records/sync', payload);
   const raw: RawGatePassRecord = (response.data as any)?.record || (response.data as any)?.data || response.data || {};
 
   const recordId = resolveRecordId(raw, String(passId));

@@ -37,12 +37,14 @@
 .app-layout-main-content {
   margin-left: 0;
   padding: 1rem;
+  min-height: calc(100vh - 64px);
 }
 
 @media (min-width: 768px) {
   .app-layout-main-content {
     margin-left: 280px;
     padding: 2rem;
+    min-height: 100vh;
   }
 }
 

@@ -78,6 +78,40 @@ export const queryKeys = {
       detail: (type: string, id: string) => [...queryKeys.stockyard.components.details(), type, id] as const,
       costAnalysis: (filters?: Record<string, unknown>) => [...queryKeys.stockyard.components.all(), 'cost-analysis', filters] as const,
       healthDashboard: () => [...queryKeys.stockyard.components.all(), 'health-dashboard'] as const,
+      custodyEvents: (filters?: Record<string, unknown>) => [...queryKeys.stockyard.components.all(), 'custody-events', filters] as const,
+      analytics: (type: string, id: string) => [...queryKeys.stockyard.components.all(), 'analytics', type, id] as const,
+    },
+    yards: {
+      all: () => [...queryKeys.stockyard.all, 'yards'] as const,
+      map: (yardId: string) => [...queryKeys.stockyard.yards.all(), 'map', yardId] as const,
+      slotSuggestions: (yardId: string, filters?: Record<string, unknown>) => [...queryKeys.stockyard.yards.all(), 'slot-suggestions', yardId, filters] as const,
+    },
+    checklists: {
+      all: () => [...queryKeys.stockyard.all, 'checklists'] as const,
+      detail: (requestId: string, type?: string) => [...queryKeys.stockyard.checklists.all(), 'detail', requestId, type] as const,
+    },
+    documents: {
+      all: () => [...queryKeys.stockyard.all, 'documents'] as const,
+      list: (requestId: string) => [...queryKeys.stockyard.documents.all(), 'list', requestId] as const,
+    },
+    compliance: {
+      all: () => [...queryKeys.stockyard.all, 'compliance'] as const,
+      tasks: (filters?: Record<string, unknown>) => [...queryKeys.stockyard.compliance.all(), 'tasks', filters] as const,
+    },
+    transporter: {
+      all: () => [...queryKeys.stockyard.all, 'transporter'] as const,
+      bids: (requestId: string) => [...queryKeys.stockyard.transporter.all(), 'bids', requestId] as const,
+    },
+    buyerReadiness: {
+      all: () => [...queryKeys.stockyard.all, 'buyer-readiness'] as const,
+      list: (filters?: Record<string, unknown>) => [...queryKeys.stockyard.buyerReadiness.all(), 'list', filters] as const,
+    },
+    analytics: {
+      all: () => [...queryKeys.stockyard.all, 'analytics'] as const,
+      timeline: (vehicleId: string, filters?: Record<string, unknown>) => [...queryKeys.stockyard.analytics.all(), 'timeline', vehicleId, filters] as const,
+      alerts: (filters?: Record<string, unknown>) => [...queryKeys.stockyard.analytics.all(), 'alerts', filters] as const,
+      profitability: (vehicleId: string) => [...queryKeys.stockyard.analytics.all(), 'profitability', vehicleId] as const,
+      daysSinceEntry: (vehicleId?: string) => [...queryKeys.stockyard.analytics.all(), 'days-since-entry', vehicleId] as const,
     },
   },
   
@@ -702,19 +736,36 @@ export function useComponents(
   return useQuery({
     queryKey: queryKeys.stockyard.components.list(filters),
     queryFn: async () => {
-      const response = await apiClient.get('/v1/components', { params: filters });
-      if (response.data.success && response.data.data) {
-        return {
-          data: response.data.data,
-          total: response.data.total || 0,
-          page: response.data.page || 1,
-          per_page: response.data.per_page || 20,
-          last_page: response.data.last_page || 1,
-        };
+      try {
+        const response = await apiClient.get('/v1/components', { params: filters });
+        if (response.data.success && response.data.data) {
+          return {
+            data: response.data.data,
+            total: response.data.total || 0,
+            page: response.data.page || 1,
+            per_page: response.data.per_page || 20,
+            last_page: response.data.last_page || 1,
+          };
+        }
+        return { data: [], total: 0, page: 1, per_page: 20, last_page: 1 };
+      } catch (error: any) {
+        // Handle 404 or other errors gracefully
+        if (error?.response?.status === 404) {
+          // Only log in development mode
+          if (import.meta.env.DEV) {
+            console.debug('Components endpoint not found, returning empty list');
+          }
+          return { data: [], total: 0, page: 1, per_page: 20, last_page: 1 };
+        }
+        // Only log unexpected errors
+        if (import.meta.env.DEV) {
+          console.error('Failed to fetch components:', error);
+        }
+        return { data: [], total: 0, page: 1, per_page: 20, last_page: 1 };
       }
-      return response.data;
     },
     ...defaultQueryOptions,
+    retry: false, // Don't retry on 404
     ...options,
   });
 }
@@ -730,14 +781,31 @@ export function useComponent(
   return useQuery({
     queryKey: queryKeys.stockyard.components.detail(type, id),
     queryFn: async () => {
-      const response = await apiClient.get(`/v1/components/${type}/${id}`);
-      if (response.data.success && response.data.data) {
-        return response.data.data;
+      try {
+        const response = await apiClient.get(`/v1/components/${type}/${id}`);
+        if (response.data.success && response.data.data) {
+          return response.data.data;
+        }
+        return null;
+      } catch (error: any) {
+        // Handle 404 or other errors gracefully
+        if (error?.response?.status === 404) {
+          // Only log in development mode
+          if (import.meta.env.DEV) {
+            console.debug(`Component ${type}/${id} not found`);
+          }
+          return null;
+        }
+        // Only log unexpected errors
+        if (import.meta.env.DEV) {
+          console.error('Failed to fetch component:', error);
+        }
+        return null;
       }
-      return response.data;
     },
     ...defaultQueryOptions,
     enabled: !!type && !!id,
+    retry: false, // Don't retry on 404
     ...options,
   });
 }
@@ -793,7 +861,10 @@ export function useDeleteComponent(
       const response = await apiClient.delete(`/v1/components/${type}/${id}`);
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      // Remove the specific component from cache to avoid refetching a deleted component
+      queryClient.removeQueries({ queryKey: queryKeys.stockyard.components.detail(variables.type, variables.id) });
+      // Invalidate the list query to refresh the component list
       queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.components.all() });
     },
     ...options,
@@ -810,19 +881,36 @@ export function useNotifications(
   return useQuery({
     queryKey: queryKeys.notifications.list(filters),
     queryFn: async () => {
-      const response = await apiClient.get('/v1/notifications', { params: filters });
-      if (response.data.success && response.data.data) {
-        return {
-          data: response.data.data,
-          total: response.data.total || 0,
-          page: response.data.page || 1,
-          per_page: response.data.per_page || 20,
-          last_page: response.data.last_page || 1,
-        };
+      try {
+        const response = await apiClient.get('/v1/notifications', { params: filters });
+        if (response.data.success && response.data.data) {
+          return {
+            data: response.data.data,
+            total: response.data.total || 0,
+            page: response.data.page || 1,
+            per_page: response.data.per_page || 20,
+            last_page: response.data.last_page || 1,
+          };
+        }
+        return { data: [], total: 0, page: 1, per_page: 20, last_page: 1 };
+      } catch (error: any) {
+        // Handle 404 or other errors gracefully
+        if (error?.response?.status === 404) {
+          // Only log in development mode
+          if (import.meta.env.DEV) {
+            console.debug('Notifications endpoint not found, returning empty list');
+          }
+          return { data: [], total: 0, page: 1, per_page: 20, last_page: 1 };
+        }
+        // Only log unexpected errors
+        if (import.meta.env.DEV) {
+          console.error('Failed to fetch notifications:', error);
+        }
+        return { data: [], total: 0, page: 1, per_page: 20, last_page: 1 };
       }
-      return response.data;
     },
     ...defaultQueryOptions,
+    retry: false, // Don't retry on 404
     ...options,
   });
 }
@@ -836,14 +924,32 @@ export function useUnreadNotificationCount(
   return useQuery({
     queryKey: queryKeys.notifications.unreadCount(),
     queryFn: async () => {
-      const response = await apiClient.get('/v1/notifications/unread-count');
-      if (response.data.success && response.data.data) {
-        return response.data.data.unread_count || 0;
+      try {
+        const response = await apiClient.get('/v1/notifications/unread-count', {
+          suppressErrorLog: true, // Suppress console errors for this frequently called endpoint
+        });
+        if (response.data.success && response.data.data) {
+          return response.data.data.unread_count || 0;
+        }
+        return 0;
+      } catch (error: any) {
+        // Handle 404 or other errors gracefully
+        // If endpoint doesn't exist, return 0 (no unread notifications)
+        if (error?.response?.status === 404) {
+          // Silently return 0 - endpoint might not be implemented yet
+          return 0;
+        }
+        // For other errors, also return 0 to prevent UI breakage
+        // Only log unexpected errors in development
+        if (import.meta.env.DEV && error?.response?.status !== 404) {
+          console.error('Failed to fetch unread notification count:', error);
+        }
+        return 0;
       }
-      return 0;
     },
     ...defaultQueryOptions,
     refetchInterval: 30000, // Refetch every 30 seconds
+    retry: false, // Don't retry on 404
     ...options,
   });
 }
@@ -920,12 +1026,521 @@ export function useComponentCostAnalysis(
   return useQuery({
     queryKey: queryKeys.stockyard.components.costAnalysis(filters),
     queryFn: async () => {
-      const response = await apiClient.get('/v1/components/cost-analysis', {
-        params: filters,
-      });
-      return response.data;
+      try {
+        const response = await apiClient.get('/v1/components/cost-analysis', {
+          params: filters,
+        });
+        return response.data;
+      } catch (error: any) {
+        // Handle 404 or other errors gracefully
+        if (error?.response?.status === 404) {
+          // Only log in development mode
+          if (import.meta.env.DEV) {
+            console.debug('Components cost-analysis endpoint not found');
+          }
+          return { success: false, data: null };
+        }
+        // Only log unexpected errors
+        if (import.meta.env.DEV) {
+          console.error('Failed to fetch component cost analysis:', error);
+        }
+        return { success: false, data: null };
+      }
     },
     ...defaultQueryOptions,
+    ...options,
+  });
+}
+
+// ==================== New Stockyard Feature Hooks ====================
+
+/**
+ * Hook for fetching yard map
+ */
+export function useYardMap(
+  yardId: string,
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.stockyard.yards.map(yardId),
+    queryFn: async () => {
+      const { getYardMap } = await import('./stockyard');
+      return await getYardMap(yardId);
+    },
+    ...defaultQueryOptions,
+    enabled: !!yardId,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching slot suggestions
+ */
+export function useSlotSuggestions(
+  yardId: string,
+  vehicleId: string,
+  stockyardRequestId?: string,
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.stockyard.yards.slotSuggestions(yardId, { vehicleId, stockyardRequestId }),
+    queryFn: async () => {
+      const { getSlotSuggestions } = await import('./stockyard');
+      return await getSlotSuggestions(yardId, vehicleId, stockyardRequestId);
+    },
+    ...defaultQueryOptions,
+    enabled: !!yardId && !!vehicleId,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching checklist
+ */
+export function useChecklist(
+  stockyardRequestId: string,
+  type?: 'inbound' | 'outbound',
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.stockyard.checklists.detail(stockyardRequestId, type),
+    queryFn: async () => {
+      const { getChecklist } = await import('./stockyard');
+      return await getChecklist(stockyardRequestId, type);
+    },
+    ...defaultQueryOptions,
+    enabled: !!stockyardRequestId,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching component custody events
+ */
+export function useComponentCustodyEvents(
+  filters?: {
+    component_type?: 'battery' | 'tyre' | 'spare_part';
+    component_id?: string;
+    vehicle_id?: string;
+    event_type?: string;
+    page?: number;
+    per_page?: number;
+  },
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.stockyard.components.custodyEvents(filters),
+    queryFn: async () => {
+      const { getComponentCustodyEvents } = await import('./stockyard');
+      return await getComponentCustodyEvents(filters);
+    },
+    ...defaultQueryOptions,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching component analytics
+ */
+export function useComponentAnalytics(
+  componentType: 'battery' | 'tyre' | 'spare_part',
+  componentId: string,
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.stockyard.components.analytics(componentType, componentId),
+    queryFn: async () => {
+      const { getComponentAnalytics } = await import('./stockyard');
+      return await getComponentAnalytics(componentType, componentId);
+    },
+    ...defaultQueryOptions,
+    enabled: !!componentType && !!componentId,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching stockyard documents
+ */
+export function useStockyardDocuments(
+  stockyardRequestId: string,
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.stockyard.documents.list(stockyardRequestId),
+    queryFn: async () => {
+      const { getStockyardDocuments } = await import('./stockyard');
+      return await getStockyardDocuments(stockyardRequestId);
+    },
+    ...defaultQueryOptions,
+    enabled: !!stockyardRequestId,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching compliance tasks
+ */
+export function useComplianceTasks(
+  filters?: {
+    stockyard_request_id?: string;
+    vehicle_id?: string;
+    status?: 'pending' | 'completed' | 'overdue';
+  },
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.stockyard.compliance.tasks(filters),
+    queryFn: async () => {
+      const { getComplianceTasks } = await import('./stockyard');
+      return await getComplianceTasks(filters);
+    },
+    ...defaultQueryOptions,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching transporter bids
+ */
+export function useTransporterBids(
+  stockyardRequestId: string,
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.stockyard.transporter.bids(stockyardRequestId),
+    queryFn: async () => {
+      const { getTransporterBids } = await import('./stockyard');
+      return await getTransporterBids(stockyardRequestId);
+    },
+    ...defaultQueryOptions,
+    enabled: !!stockyardRequestId,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching buyer readiness records
+ */
+export function useBuyerReadinessRecords(
+  filters?: {
+    stage?: string;
+    vehicle_id?: string;
+    page?: number;
+    per_page?: number;
+  },
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.stockyard.buyerReadiness.list(filters),
+    queryFn: async () => {
+      const { getBuyerReadinessRecords } = await import('./stockyard');
+      return await getBuyerReadinessRecords(filters);
+    },
+    ...defaultQueryOptions,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching vehicle timeline
+ */
+export function useVehicleTimeline(
+  vehicleId: string,
+  filters?: {
+    date_from?: string;
+    date_to?: string;
+    event_types?: string[];
+  },
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.stockyard.analytics.timeline(vehicleId, filters),
+    queryFn: async () => {
+      const { getVehicleTimeline } = await import('./stockyard');
+      return await getVehicleTimeline(vehicleId, filters);
+    },
+    ...defaultQueryOptions,
+    enabled: !!vehicleId,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching stockyard alerts
+ */
+export function useStockyardAlerts(
+  filters?: {
+    vehicle_id?: string;
+    component_id?: string;
+    type?: string;
+    severity?: 'info' | 'warning' | 'critical';
+    acknowledged?: boolean;
+  },
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.stockyard.analytics.alerts(filters),
+    queryFn: async () => {
+      const { getStockyardAlerts } = await import('./stockyard');
+      return await getStockyardAlerts(filters);
+    },
+    ...defaultQueryOptions,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching profitability forecast
+ */
+export function useProfitabilityForecast(
+  vehicleId: string,
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.stockyard.analytics.profitability(vehicleId),
+    queryFn: async () => {
+      const { getProfitabilityForecast } = await import('./stockyard');
+      return await getProfitabilityForecast(vehicleId);
+    },
+    ...defaultQueryOptions,
+    enabled: !!vehicleId,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching days since entry
+ */
+export function useDaysSinceEntry(
+  vehicleId?: string,
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.stockyard.analytics.daysSinceEntry(vehicleId),
+    queryFn: async () => {
+      const { getDaysSinceEntry } = await import('./stockyard');
+      return await getDaysSinceEntry(vehicleId);
+    },
+    ...defaultQueryOptions,
+    ...options,
+  });
+}
+
+// ==================== Stockyard Mutation Hooks ====================
+
+/**
+ * Hook for assigning vehicle to slot
+ */
+export function useAssignVehicleToSlot(
+  options?: UseMutationOptions<any, Error, { slotId: string; vehicleId: string; stockyardRequestId: string }>
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ slotId, vehicleId, stockyardRequestId }) => {
+      const { assignVehicleToSlot } = await import('./stockyard');
+      return await assignVehicleToSlot(slotId, vehicleId, stockyardRequestId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.yards.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.requests.all() });
+    },
+    ...options,
+  });
+}
+
+/**
+ * Hook for reassigning vehicle between slots
+ */
+export function useReassignVehicleSlot(
+  options?: UseMutationOptions<any, Error, { fromSlotId: string; toSlotId: string; vehicleId: string }>
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ fromSlotId, toSlotId, vehicleId }) => {
+      const { reassignVehicleSlot } = await import('./stockyard');
+      return await reassignVehicleSlot(fromSlotId, toSlotId, vehicleId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.yards.all() });
+    },
+    ...options,
+  });
+}
+
+/**
+ * Hook for creating checklist
+ */
+export function useCreateChecklist(
+  options?: UseMutationOptions<any, Error, any>
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data) => {
+      const { createChecklist } = await import('./stockyard');
+      return await createChecklist(data);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.checklists.detail(variables.stockyard_request_id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.requests.all() });
+    },
+    ...options,
+  });
+}
+
+/**
+ * Hook for updating checklist item
+ */
+export function useUpdateChecklistItem(
+  options?: UseMutationOptions<any, Error, { checklistId: string; itemId: string; data: any }>
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ checklistId, itemId, data }) => {
+      const { updateChecklistItem } = await import('./stockyard');
+      return await updateChecklistItem(checklistId, itemId, data);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.checklists.all() });
+    },
+    ...options,
+  });
+}
+
+/**
+ * Hook for completing checklist
+ */
+export function useCompleteChecklist(
+  options?: UseMutationOptions<any, Error, { checklistId: string; notes?: string }>
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ checklistId, notes }) => {
+      const { completeChecklist } = await import('./stockyard');
+      return await completeChecklist(checklistId, notes);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.checklists.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.requests.all() });
+    },
+    ...options,
+  });
+}
+
+/**
+ * Hook for uploading stockyard document
+ */
+export function useUploadStockyardDocument(
+  options?: UseMutationOptions<any, Error, { stockyardRequestId: string; formData: FormData }>
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ stockyardRequestId, formData }) => {
+      const { uploadStockyardDocument } = await import('./stockyard');
+      return await uploadStockyardDocument(stockyardRequestId, formData);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.documents.list(variables.stockyardRequestId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.compliance.all() });
+    },
+    ...options,
+  });
+}
+
+/**
+ * Hook for approving document
+ */
+export function useApproveDocument(
+  options?: UseMutationOptions<any, Error, string>
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (documentId) => {
+      const { approveDocument } = await import('./stockyard');
+      return await approveDocument(documentId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.documents.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.compliance.all() });
+    },
+    ...options,
+  });
+}
+
+/**
+ * Hook for creating transporter bid
+ */
+export function useCreateTransporterBid(
+  options?: UseMutationOptions<any, Error, any>
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data) => {
+      const { createTransporterBid } = await import('./stockyard');
+      return await createTransporterBid(data);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.transporter.bids(variables.stockyard_request_id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.requests.all() });
+    },
+    ...options,
+  });
+}
+
+/**
+ * Hook for accepting transporter bid
+ */
+export function useAcceptTransporterBid(
+  options?: UseMutationOptions<any, Error, string>
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (bidId) => {
+      const { acceptTransporterBid } = await import('./stockyard');
+      return await acceptTransporterBid(bidId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.transporter.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.requests.all() });
+    },
+    ...options,
+  });
+}
+
+/**
+ * Hook for updating buyer readiness stage
+ */
+export function useUpdateBuyerReadinessStage(
+  options?: UseMutationOptions<any, Error, { recordId: string; stage: string; metadata?: any }>
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ recordId, stage, metadata }) => {
+      const { updateBuyerReadinessStage } = await import('./stockyard');
+      return await updateBuyerReadinessStage(recordId, stage as any, metadata);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.buyerReadiness.all() });
+    },
+    ...options,
+  });
+}
+
+/**
+ * Hook for acknowledging stockyard alert
+ */
+export function useAcknowledgeStockyardAlert(
+  options?: UseMutationOptions<any, Error, string>
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (alertId) => {
+      const { acknowledgeAlert } = await import('./stockyard');
+      return await acknowledgeAlert(alertId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.analytics.alerts() });
+    },
     ...options,
   });
 }

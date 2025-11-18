@@ -47,7 +47,7 @@ export const VisitorManagement: React.FC = () => {
   const fetchVisitors = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/api/visitor-management/visitors', {
+      const response = await apiClient.get('/visitor-management/visitors', {
         params: {
           search: searchTerm,
           status: filterStatus,
@@ -104,7 +104,7 @@ export const VisitorManagement: React.FC = () => {
 
   const fetchStats = useCallback(async () => {
     try {
-      const response = await apiClient.get('/api/visitor-management/stats');
+      const response = await apiClient.get('/visitor-management/stats');
       setStats(response.data);
     } catch (error) {
       // Mock data for development
@@ -137,7 +137,7 @@ export const VisitorManagement: React.FC = () => {
 
   const updateVisitorStatus = async (visitorId: string, newStatus: string) => {
     try {
-      await apiClient.put(`/api/visitor-management/visitors/${visitorId}`, {
+      await apiClient.put(`/visitor-management/visitors/${visitorId}`, {
         status: newStatus
       });
       setVisitors(prev => prev.map(v => 
@@ -159,7 +159,7 @@ export const VisitorManagement: React.FC = () => {
 
   const addVisitorNote = async (visitorId: string, note: string) => {
     try {
-      await apiClient.put(`/api/visitor-management/visitors/${visitorId}`, {
+      await apiClient.put(`/visitor-management/visitors/${visitorId}`, {
         notes: note
       });
       setVisitors(prev => prev.map(v => 

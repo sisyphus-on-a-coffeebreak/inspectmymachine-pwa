@@ -6,6 +6,7 @@ import { AudioRecorder } from './AudioRecorder';
 import { SignaturePad } from './SignaturePad';
 import { GeolocationCapture } from './GeolocationCapture';
 import { DynamicTyreFields } from './DynamicTyreFields';
+import { SegmentedControl } from '../ui/SegmentedControl';
 
 interface Question {
   id: string;
@@ -443,13 +444,45 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         );
 
       case 'slider':
+        // If options are provided, use segmented control for categorical ratings
+        if (question.options && question.options.length > 0) {
+          const options = question.options.map((opt) => ({
+            value: opt.option_value,
+            label: opt.option_text,
+          }));
+          
+          // Determine default value from options or validation rules
+          const defaultValue = question.validation_rules?.default 
+            ? question.validation_rules.default 
+            : question.options[Math.floor(question.options.length / 2)]?.option_value;
+          
+          return (
+            <div>
+              <SegmentedControl
+                options={options}
+                value={value !== null && value !== undefined ? value : defaultValue}
+                onChange={(val) => handleAnswerChange(question.id, val)}
+                disabled={readOnly}
+                fullWidth
+                size="md"
+              />
+              {question.validation_rules?.description && (
+                <div style={{ marginTop: spacing.sm, ...typography.bodySmall, color: colors.neutral[600] }}>
+                  {question.validation_rules.description}
+                </div>
+              )}
+            </div>
+          );
+        }
+        
+        // Otherwise, use numeric range slider
         return (
           <div>
             <input
               type="range"
               min={question.validation_rules?.min || 1}
               max={question.validation_rules?.max || 10}
-              value={value || 5}
+              value={value !== null && value !== undefined ? value : (question.validation_rules?.default || 5)}
               onChange={(e) => handleAnswerChange(question.id, parseInt(e.target.value))}
               style={{ width: '100%' }}
               disabled={readOnly}
@@ -464,7 +497,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             </div>
             <div style={{ textAlign: 'center', marginTop: spacing.sm }}>
               <span style={{ ...typography.subheader, color: colors.primary }}>
-                {value || 5}
+                {value !== null && value !== undefined ? value : (question.validation_rules?.default || 5)}
               </span>
             </div>
           </div>

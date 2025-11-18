@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { apiClient } from '../../lib/apiClient';
 import { VehicleSelector } from './components/VehicleSelector';
 import type { VisitorPassFormData } from './gatePassTypes';
@@ -14,6 +14,7 @@ import { validateMobileNumber, formatMobileNumber, formatMobileDisplay } from '.
 
 export const CreateVisitorPass: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { showToast } = useToast();
   const { confirm, ConfirmComponent } = useConfirm();
@@ -31,6 +32,30 @@ export const CreateVisitorPass: React.FC = () => {
     expected_time: '11:00',
     notes: ''
   });
+  const [templateDuration, setTemplateDuration] = useState<number | null>(null); // Duration in minutes
+  const [customDuration, setCustomDuration] = useState<{ hours: number; minutes: number }>({ hours: 2, minutes: 0 }); // Custom duration override
+
+  // Load template data if passed via navigation state
+  useEffect(() => {
+    const template = (location.state as any)?.template;
+    if (template) {
+      // Pre-fill form with template data
+      if (template.purpose) {
+        setFormData(prev => ({ ...prev, purpose: template.purpose }));
+      }
+      if (template.notes) {
+        setFormData(prev => ({ ...prev, notes: template.notes }));
+      }
+      // Store duration from template (in minutes)
+      if (template.expected_duration_minutes) {
+        setTemplateDuration(template.expected_duration_minutes);
+        // Also set custom duration to match template for display
+        const hours = Math.floor(template.expected_duration_minutes / 60);
+        const mins = template.expected_duration_minutes % 60;
+        setCustomDuration({ hours, minutes: mins });
+      }
+    }
+  }, [location.state]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,14 +122,55 @@ export const CreateVisitorPass: React.FC = () => {
     try {
       setLoading(true);
 
+      // Calculate valid_to based on template duration, custom duration, or default to end of day
+      const validFromStr = `${formData.expected_date} ${formData.expected_time}:00`;
+      const validFromDate = new Date(`${formData.expected_date}T${formData.expected_time}:00`);
+      
+      // Priority: template duration > custom duration > end of day
+      let durationMinutes: number | null = null;
+      if (templateDuration && templateDuration > 0) {
+        durationMinutes = templateDuration;
+      } else if (customDuration.hours > 0 || customDuration.minutes > 0) {
+        durationMinutes = (customDuration.hours * 60) + customDuration.minutes;
+      }
+      
+      let validTo: string;
+      if (durationMinutes && durationMinutes > 0) {
+        // Add duration in minutes (ensure at least 1 minute to satisfy 'after:valid_from' validation)
+        const minDuration = Math.max(durationMinutes, 1);
+        const validToDate = new Date(validFromDate.getTime() + (minDuration * 60 * 1000));
+        // Format as YYYY-MM-DD HH:MM:SS for Laravel
+        const year = validToDate.getFullYear();
+        const month = String(validToDate.getMonth() + 1).padStart(2, '0');
+        const day = String(validToDate.getDate()).padStart(2, '0');
+        const hours = String(validToDate.getHours()).padStart(2, '0');
+        const minutes = String(validToDate.getMinutes()).padStart(2, '0');
+        const seconds = String(validToDate.getSeconds()).padStart(2, '0');
+        validTo = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      } else {
+        // Default to end of day if no duration specified (ensure it's after valid_from)
+        const endOfDay = new Date(`${formData.expected_date}T23:59:59`);
+        // If valid_from is already past end of day, add 1 day
+        if (validFromDate >= endOfDay) {
+          const nextDay = new Date(validFromDate);
+          nextDay.setDate(nextDay.getDate() + 1);
+          const year = nextDay.getFullYear();
+          const month = String(nextDay.getMonth() + 1).padStart(2, '0');
+          const day = String(nextDay.getDate()).padStart(2, '0');
+          validTo = `${year}-${month}-${day} 23:59:59`;
+        } else {
+          validTo = formData.expected_date + ' 23:59:59';
+        }
+      }
+
       const requestData = {
         visitor_name: formData.primary_visitor_name,
         visitor_phone: formData.contact_number,
         visitor_company: formData.referred_by,
         vehicles_to_view: formData.selected_vehicle_ids,
         purpose: formData.purpose,
-        valid_from: formData.expected_date + ' 00:00:00',
-        valid_to: formData.expected_date + ' 23:59:59', // End of day
+        valid_from: validFromStr,
+        valid_to: validTo,
         yard_id: user?.yard_id || '01764192-4382-47dd-9e16-97f64d9a299f',
         notes: formData.notes || null
       };
@@ -592,6 +658,91 @@ export const CreateVisitorPass: React.FC = () => {
                 boxSizing: 'border-box'
               }}
             />
+          </div>
+
+          {/* Time Limit / Duration */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{ 
+              display: 'block', 
+              fontSize: '0.875rem', 
+              fontWeight: 500,
+              marginBottom: '0.5rem',
+              color: '#374151'
+            }}>
+              Time Limit {templateDuration ? '(from template)' : ''}
+            </label>
+            {templateDuration ? (
+              <div style={{
+                padding: '0.75rem',
+                backgroundColor: '#EFF6FF',
+                border: '1px solid #3B82F6',
+                borderRadius: '8px',
+                fontSize: '0.875rem',
+                color: '#1E40AF'
+              }}>
+                {(() => {
+                  const hours = Math.floor(templateDuration / 60);
+                  const mins = templateDuration % 60;
+                  if (hours > 0 && mins > 0) {
+                    return `${hours}h ${mins}m`;
+                  } else if (hours > 0) {
+                    return `${hours} hour${hours > 1 ? 's' : ''}`;
+                  } else {
+                    return `${mins} minute${mins > 1 ? 's' : ''}`;
+                  }
+                })()} from entry time
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                <div style={{ flex: 1 }}>
+                  <input
+                    type="number"
+                    min="0"
+                    max="24"
+                    value={customDuration.hours}
+                    onChange={(e) => setCustomDuration(prev => ({ 
+                      ...prev, 
+                      hours: parseInt(e.target.value) || 0 
+                    }))}
+                    placeholder="Hours"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '1px solid #D1D5DB',
+                      borderRadius: '8px',
+                      fontSize: '1rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '0.25rem' }}>Hours</div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <input
+                    type="number"
+                    min="0"
+                    max="59"
+                    value={customDuration.minutes}
+                    onChange={(e) => setCustomDuration(prev => ({ 
+                      ...prev, 
+                      minutes: parseInt(e.target.value) || 0 
+                    }))}
+                    placeholder="Minutes"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      border: '1px solid #D1D5DB',
+                      borderRadius: '8px',
+                      fontSize: '1rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '0.25rem' }}>Minutes</div>
+                </div>
+              </div>
+            )}
+            <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '0.5rem' }}>
+              ⏱️ Pass will automatically expire after this duration from entry time
+            </div>
           </div>
 
           {/* Notes */}

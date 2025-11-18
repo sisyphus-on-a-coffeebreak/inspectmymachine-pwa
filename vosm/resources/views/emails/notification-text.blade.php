@@ -10,3 +10,4 @@ View Details: {{ url($notification->action_url) }}
 This is an automated notification from VOMS (Vehicle Operations Management System).
 If you have any questions, please contact your system administrator.
 
+

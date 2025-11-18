@@ -8,9 +8,9 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useToast } from '../../providers/ToastProvider';
-import { useStockyardRequests, useStockyardStats } from '../../lib/queries';
+import { useStockyardRequests, useStockyardStats, useStockyardAlerts, useDaysSinceEntry } from '../../lib/queries';
 import type { StockyardRequest, StockyardRequestStatus, StockyardRequestType } from '../../lib/stockyard';
-import { Warehouse, Plus, CheckCircle2, XCircle, Clock, AlertCircle, Search, Filter } from 'lucide-react';
+import { Warehouse, Plus, CheckCircle2, XCircle, Clock, AlertCircle, Search, Filter, Package, Map } from 'lucide-react';
 import { Pagination } from '../../components/ui/Pagination';
 
 // 📦 Stockyard Dashboard
@@ -41,6 +41,15 @@ export const StockyardDashboard: React.FC = () => {
   
   // Use React Query for stats
   const { data: statsData } = useStockyardStats();
+  
+  // Fetch alerts for dashboard
+  const { data: alertsData } = useStockyardAlerts(
+    { acknowledged: false, severity: 'critical' },
+    { enabled: true }
+  );
+  
+  // Fetch days since entry for vehicles in yard
+  const { data: daysSinceEntryData } = useDaysSinceEntry();
   
   // Apply client-side filtering for "active" filter and search
   const requests = useMemo(() => {
@@ -126,7 +135,7 @@ export const StockyardDashboard: React.FC = () => {
       <div style={{ padding: spacing.xl }}>
         <PageHeader
           title="Stockyard Management"
-          subtitle="Manage vehicle entry and exit requests"
+          subtitle="Manage components and stockyard operations"
           icon={<Warehouse size={24} />}
         />
         <NetworkError error={error} onRetry={() => refetch()} />
@@ -138,7 +147,7 @@ export const StockyardDashboard: React.FC = () => {
     <div style={{ padding: spacing.xl }}>
       <PageHeader
         title="Stockyard Management"
-        subtitle="Manage vehicle entry and exit requests"
+        subtitle="Manage components and stockyard operations"
         icon={<Warehouse size={24} />}
       />
 
@@ -166,12 +175,32 @@ export const StockyardDashboard: React.FC = () => {
           loading={loading}
         />
         <StatCard
-          label="Total Requests"
-          value={stats.total_requests}
-          color={colors.neutral[500]}
-          href="/app/stockyard"
+          label="Critical Alerts"
+          value={alertsData?.length || 0}
+          color={colors.error[500]}
+          href="/app/stockyard/alerts?severity=critical"
           loading={loading}
         />
+        {stats.slots_occupied !== undefined && (
+          <StatCard
+            label="Slots Occupied"
+            value={`${stats.slots_occupied}/${stats.slots_total || 0}`}
+            color={colors.primary}
+            href="/app/stockyard/yards"
+            loading={loading}
+          />
+        )}
+        {daysSinceEntryData && daysSinceEntryData.length > 0 && (
+          <StatCard
+            label="Avg Days in Yard"
+            value={Math.round(
+              daysSinceEntryData.reduce((sum, v) => sum + v.days_since_entry, 0) / daysSinceEntryData.length
+            )}
+            color={colors.warning[500]}
+            href="/app/stockyard?filter=active"
+            loading={loading}
+          />
+        )}
       </StatsGrid>
 
       {/* Quick Actions */}
@@ -182,7 +211,7 @@ export const StockyardDashboard: React.FC = () => {
           style={{ width: '100%' }}
         >
           <Plus size={20} style={{ marginRight: spacing.sm }} />
-          Create Request
+          Record Movement
         </Button>
         <Button
           variant="secondary"
@@ -194,11 +223,27 @@ export const StockyardDashboard: React.FC = () => {
         </Button>
         <Button
           variant="secondary"
-          onClick={() => navigate('/app/stockyard/reports')}
+          onClick={() => navigate('/app/stockyard/components')}
           style={{ width: '100%' }}
         >
-          <Filter size={20} style={{ marginRight: spacing.sm }} />
-          Reports
+          <Package size={20} style={{ marginRight: spacing.sm }} />
+          Components
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => navigate('/app/stockyard/buyer-readiness')}
+          style={{ width: '100%' }}
+        >
+          <CheckCircle2 size={20} style={{ marginRight: spacing.sm }} />
+          Buyer Readiness
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => navigate('/app/stockyard/alerts')}
+          style={{ width: '100%' }}
+        >
+          <AlertCircle size={20} style={{ marginRight: spacing.sm }} />
+          Alerts
         </Button>
       </ActionGrid>
 
@@ -267,7 +312,7 @@ export const StockyardDashboard: React.FC = () => {
           description="Create a new request to get started"
           action={
             <Button variant="primary" onClick={() => navigate('/app/stockyard/create')}>
-              Create Request
+              Record Movement
             </Button>
           }
         />

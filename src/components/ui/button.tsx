@@ -7,7 +7,7 @@ interface ButtonProps {
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
   loading?: boolean;
-  onClick?: () => void;
+  onClick?: (e?: React.MouseEvent) => void;
   type?: 'button' | 'submit' | 'reset';
   className?: string;
   fullWidth?: boolean;
@@ -65,9 +65,9 @@ export const Button: React.FC<ButtonProps> = ({
     overflow: 'hidden' as const
   };
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
     if (!disabled && !loading && onClick) {
-      onClick();
+      onClick(e);
     }
   };
 

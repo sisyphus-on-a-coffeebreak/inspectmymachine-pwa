@@ -19,6 +19,7 @@ import {
   syncQueuedInspections,
   type SubmissionProgress,
 } from '@/lib/inspection-submit';
+import { TemplatePicker } from '../../components/inspection/TemplatePicker';
 
 const FALLBACK_TEMPLATE: InspectionTemplate = {
           id: 'mock-template-1',
@@ -617,23 +618,22 @@ export const InspectionCapture: React.FC = () => {
   const [initialAnswers, setInitialAnswers] = useState<Record<string, any>>({});
   const [submissionBanner, setSubmissionBanner] = useState<string | null>(null);
   const [templateWarning, setTemplateWarning] = useState<string | null>(null);
-
-  const effectiveTemplateId = templateId ?? FALLBACK_TEMPLATE.id;
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(templateId || null);
 
   const loadTemplate = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
       setError(null);
 
-      if (!templateId) {
-        setTemplate(FALLBACK_TEMPLATE);
-        setTemplateSource('mock');
-        setTemplateCachedAt(Date.now());
-        setTemplateWarning('Using offline demo template. Connect to fetch live templates.');
+      const templateIdToLoad = selectedTemplateId || templateId;
+      
+      if (!templateIdToLoad) {
+        // No template selected - will show picker
+        setLoading(false);
         return;
       }
 
-      const result = await fetchInspectionTemplate(templateId, { forceRefresh });
+      const result = await fetchInspectionTemplate(templateIdToLoad, { forceRefresh });
       setTemplate(result.template);
       setTemplateSource(result.source);
       setTemplateCachedAt(result.cachedAt);
@@ -644,22 +644,15 @@ export const InspectionCapture: React.FC = () => {
         setTemplateWarning(null);
       }
     } catch (err) {
-      // Failed to fetch inspection template, using fallback
-      if (!templateId) {
-        setTemplate(FALLBACK_TEMPLATE);
-        setTemplateSource('mock');
-        setTemplateCachedAt(Date.now());
-        setTemplateWarning('Using offline demo template. Connect to fetch live templates.');
-      } else {
-        setTemplate(null);
-        setTemplateSource(null);
-        setTemplateCachedAt(null);
-        setError(err as Error);
-      }
+      // Failed to fetch inspection template
+      setTemplate(null);
+      setTemplateSource(null);
+      setTemplateCachedAt(null);
+      setError(err as Error);
     } finally {
       setLoading(false);
     }
-  }, [templateId]);
+  }, [selectedTemplateId, templateId]);
 
   useEffect(() => {
     loadTemplate();
@@ -669,7 +662,10 @@ export const InspectionCapture: React.FC = () => {
     let cancelled = false;
 
     (async () => {
-      const record = await loadInspectionDraft(effectiveTemplateId, vehicleId);
+      const templateIdForDraft = selectedTemplateId || templateId;
+      if (!templateIdForDraft) return;
+      
+      const record = await loadInspectionDraft(templateIdForDraft, vehicleId);
       if (cancelled) return;
 
       if (record) {
@@ -684,7 +680,7 @@ export const InspectionCapture: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [effectiveTemplateId, vehicleId, template?.id]);
+  }, [selectedTemplateId, templateId, vehicleId, template?.id]);
 
   useEffect(() => {
     const unsubscribe = subscribeQueuedInspectionCount(setQueuedCount);
@@ -730,26 +726,29 @@ export const InspectionCapture: React.FC = () => {
   }, [runQueueSync]);
 
   const handleSaveDraft = useCallback(async (answers: Record<string, any>) => {
+    const templateIdForDraft = selectedTemplateId || templateId;
+    if (!templateIdForDraft) return;
+    
     const serialized = serializeAnswers(answers);
-    await saveInspectionDraft(effectiveTemplateId, vehicleId, serialized);
+    await saveInspectionDraft(templateIdForDraft, vehicleId, serialized);
     setDraftSavedAt(Date.now());
 
     const online = typeof navigator === 'undefined' || navigator.onLine;
 
     if (!online) {
       await queueInspectionSubmission({
-        templateId: effectiveTemplateId,
+        templateId: templateIdForDraft,
         vehicleId,
         answers: serialized,
         metadata: { template_name: template?.name },
         mode: 'draft',
-        queueId: `draft:${effectiveTemplateId}:${vehicleId ?? 'default'}`,
+        queueId: `draft:${templateIdForDraft}:${vehicleId ?? 'default'}`,
       });
       setSubmissionBanner('Draft saved offline. We will sync it automatically when you reconnect.');
     } else {
       setSubmissionBanner('Draft saved.');
     }
-  }, [effectiveTemplateId, vehicleId, template?.name]);
+  }, [selectedTemplateId, templateId, vehicleId, template?.name]);
 
   const handleSubmit = useCallback(async (answers: Record<string, any>) => {
     const serialized = serializeAnswers(answers);
@@ -758,8 +757,11 @@ export const InspectionCapture: React.FC = () => {
     setSubmissionBanner(null);
 
     try {
+      const templateIdForSubmit = selectedTemplateId || templateId;
+      if (!templateIdForSubmit) return;
+      
       const result = await submitInspection({
-        templateId: effectiveTemplateId,
+        templateId: templateIdForSubmit,
         vehicleId,
         serializedAnswers: serialized,
         metadata: { template_name: template?.name },
@@ -768,7 +770,7 @@ export const InspectionCapture: React.FC = () => {
       });
 
       if (result.status === 'submitted') {
-        await clearInspectionDraft(effectiveTemplateId, vehicleId);
+        await clearInspectionDraft(templateIdForSubmit, vehicleId);
         setDraftSavedAt(null);
         setInitialAnswers({});
         setSubmissionBanner('Inspection submitted successfully.');
@@ -780,20 +782,70 @@ export const InspectionCapture: React.FC = () => {
           navigate('/app/inspections/completed');
         }
       } else {
-        await saveInspectionDraft(effectiveTemplateId, vehicleId, serialized);
+        await saveInspectionDraft(templateIdForSubmit, vehicleId, serialized);
         setSubmissionBanner('Inspection queued offline. It will sync once connectivity returns.');
       }
-    } catch (err) {
-      // Failed to submit inspection - error is handled by inspection-submit.ts
-      setSubmissionBanner('Submission failed. Please retry once connectivity stabilises.');
+    } catch (err: any) {
+      console.error('Inspection submission error:', err);
+      
+      // Extract detailed error message
+      let errorMessage = 'Submission failed. Please retry once connectivity stabilises.';
+      
+      if (err?.response?.data) {
+        const errorData = err.response.data;
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.errors) {
+          // Laravel validation errors
+          const errors = errorData.errors;
+          const errorMessages = Object.entries(errors)
+            .flatMap(([field, messages]: [string, any]) => 
+              Array.isArray(messages) 
+                ? messages.map((msg: string) => `${field}: ${msg}`)
+                : [`${field}: ${messages}`]
+            );
+          errorMessage = errorMessages.length > 0 
+            ? errorMessages.join('. ') 
+            : 'Validation failed. Please check your inspection data.';
+        }
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+      
+      setSubmissionBanner(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
-  }, [effectiveTemplateId, vehicleId, template?.name, navigate]);
+  }, [selectedTemplateId, templateId, vehicleId, template?.name, navigate]);
 
   const handleRetryFetch = useCallback(() => {
     loadTemplate(true);
   }, [loadTemplate]);
+
+  // Show template picker if no templateId is provided and no template is loaded
+  const [showTemplatePicker, setShowTemplatePicker] = useState(!templateId);
+  
+  const handleTemplateSelect = useCallback((selectedTemplateId: string) => {
+    setSelectedTemplateId(selectedTemplateId);
+    setShowTemplatePicker(false);
+    // Update URL to include templateId for deep linking
+    if (vehicleId) {
+      navigate(`/app/inspections/${selectedTemplateId}/${vehicleId}/capture`, { replace: true });
+    } else {
+      navigate(`/app/inspections/${selectedTemplateId}/capture`, { replace: true });
+    }
+  }, [navigate, vehicleId]);
+
+  // Show template picker if needed
+  if (showTemplatePicker && !templateId) {
+    return (
+      <TemplatePicker
+        vehicleId={vehicleId}
+        onSelectTemplate={handleTemplateSelect}
+        onCancel={() => navigate('/app/inspections')}
+      />
+    );
+  }
 
   if (loading) {
     return (
@@ -817,25 +869,13 @@ export const InspectionCapture: React.FC = () => {
   }
 
   if (!template) {
+    // Show template picker if template not found
     return (
-      <div style={{ padding: spacing.xl, textAlign: 'center' }}>
-        <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>❌</div>
-        <div style={{ color: colors.neutral[600] }}>Template not found</div>
-        <button
-          onClick={() => navigate('/app/inspections')}
-          style={{
-            marginTop: spacing.md,
-            padding: spacing.sm,
-            backgroundColor: colors.primary,
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-          }}
-        >
-          Back to Inspections
-        </button>
-      </div>
+      <TemplatePicker
+        vehicleId={vehicleId}
+        onSelectTemplate={handleTemplateSelect}
+        onCancel={() => navigate('/app/inspections')}
+      />
     );
   }
 

@@ -92,6 +92,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Mark this request as an auth check by using a custom header that the interceptor can check
       const response = await apiClient.get<{ user: User }>("/user", {
         skipRetry: true, // Don't retry on 401 - user is just not authenticated
+        suppressErrorLog: true, // Suppress console errors for expected auth check failures
         headers: {
           'X-Auth-Check': 'true', // Custom header to identify auth check requests
         },
@@ -101,6 +102,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (err) {
       // Silently handle authentication check failures
       // 401 means user is not logged in, which is fine
+      // This is expected behavior, not an error
       setUser(null);
     } finally {
       setLoading(false);
@@ -133,11 +135,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Handle validation errors (422)
       if (apiError.status === 422) {
         const errorData = apiError.data as { errors?: Record<string, string[]>; message?: string };
+        
+        // Log the full error for debugging (only in development)
+        if (import.meta.env.DEV) {
+          console.log('Validation error details:', errorData);
+        }
+        
         if (errorData && typeof errorData === 'object' && 'errors' in errorData) {
-          // Laravel validation errors
+          // Laravel validation errors - format all errors
           const errors = errorData.errors as Record<string, string[]>;
-          const firstError = Object.values(errors)[0]?.[0];
-          throw new Error(firstError || 'Validation failed. Please check your credentials.');
+          const errorMessages = Object.entries(errors)
+            .flatMap(([field, messages]) => messages.map(msg => `${field}: ${msg}`));
+          
+          // Show the first error, or all errors if there are multiple
+          const errorMessage = errorMessages.length > 0 
+            ? errorMessages[0] 
+            : 'Validation failed. Please check your credentials.';
+          
+          throw new Error(errorMessage);
         }
         throw new Error(errorData?.message || 'Invalid credentials. Please check your employee ID and password.');
       }

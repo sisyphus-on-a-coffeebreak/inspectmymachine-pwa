@@ -57,7 +57,7 @@ export const GatePassReports: React.FC = () => {
       setLoading(true);
 
       // Fetch comprehensive statistics
-      const statsResponse = await apiClient.get('/api/gate-pass-reports/summary', {
+      const statsResponse = await apiClient.get('/gate-pass-reports/summary', {
         params: { 
           date_range: dateRange,
           yard_id: selectedYard !== 'all' ? selectedYard : undefined
@@ -65,7 +65,7 @@ export const GatePassReports: React.FC = () => {
       });
 
       // Fetch trend data
-      const trendsResponse = await apiClient.get('/api/gate-pass-reports/analytics', {
+      const trendsResponse = await apiClient.get('/gate-pass-reports/analytics', {
         params: { 
           date_range: dateRange,
           yard_id: selectedYard !== 'all' ? selectedYard : undefined
@@ -73,7 +73,7 @@ export const GatePassReports: React.FC = () => {
       });
 
       // Fetch popular times
-      const timesResponse = await apiClient.get('/api/gate-pass-reports/dashboard', {
+      const timesResponse = await apiClient.get('/gate-pass-reports/dashboard', {
         params: { 
           date_range: dateRange,
           yard_id: selectedYard !== 'all' ? selectedYard : undefined
@@ -84,9 +84,21 @@ export const GatePassReports: React.FC = () => {
       const yardsResponse = await apiClient.get('/gate-pass-reports/yards');
 
       setStats(statsResponse.data);
-      setTrends(trendsResponse.data);
-      setPopularTimes(timesResponse.data);
-      setYardStats(yardsResponse.data);
+      // Transform daily_trends from backend format to frontend format
+      const dailyTrends = statsResponse.data?.daily_trends || [];
+      const transformedTrends: PassTrend[] = Array.isArray(dailyTrends) 
+        ? dailyTrends.map((item: any) => ({
+            date: item.date || item.created_at || '',
+            visitors: item.visitors || item.count || 0,
+            vehicles: item.vehicles || 0,
+            total: item.total || item.count || 0
+          }))
+        : [];
+      setTrends(transformedTrends);
+      // Popular times should come from dashboard or analytics
+      const popularTimesData = timesResponse.data?.popular_times || statsResponse.data?.peak_hours || [];
+      setPopularTimes(Array.isArray(popularTimesData) ? popularTimesData : []);
+      setYardStats(Array.isArray(yardsResponse.data) ? yardsResponse.data : []);
 
     } catch (error) {
       // Failed to fetch report data, using mock data for development
@@ -138,7 +150,7 @@ export const GatePassReports: React.FC = () => {
       await (client as any).ensureCsrfToken?.();
       const csrfToken = (client as any).getCsrfToken?.();
       
-      const response = await axios.get('/api/gate-pass-reports/export', {
+      const response = await axios.get(`${import.meta.env.VITE_API_ORIGIN || 'http://localhost:8000'}/api/gate-pass-reports/export`, {
         params: { 
           date_range: dateRange,
           yard_id: selectedYard !== 'all' ? selectedYard : undefined,
@@ -176,7 +188,7 @@ export const GatePassReports: React.FC = () => {
       await (client as any).ensureCsrfToken?.();
       const csrfToken = (client as any).getCsrfToken?.();
       
-      const response = await axios.get('/api/gate-pass-reports/export', {
+      const response = await axios.get(`${import.meta.env.VITE_API_ORIGIN || 'http://localhost:8000'}/api/gate-pass-reports/export`, {
         params: { 
           date_range: dateRange,
           yard_id: selectedYard !== 'all' ? selectedYard : undefined,
@@ -189,20 +201,57 @@ export const GatePassReports: React.FC = () => {
         },
       });
 
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `gate-pass-report-${dateRange}-${new Date().toISOString().split('T')[0]}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      showToast({
-        title: 'Error',
-        description: 'Failed to export PDF. Please try again.',
-        variant: 'error',
-      });
+      // Check if response is actually a PDF (content-type should be application/pdf)
+      if (response.headers['content-type']?.includes('application/pdf') || response.data instanceof Blob) {
+        const url = window.URL.createObjectURL(response.data);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `gate-pass-report-${dateRange}-${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        showToast({
+          title: 'Success',
+          description: 'PDF exported successfully',
+          variant: 'success',
+        });
+      } else {
+        // If not a PDF, might be an error response
+        const text = await response.data.text();
+        try {
+          const json = JSON.parse(text);
+          if (json.message) {
+            showToast({
+              title: 'Error',
+              description: json.message,
+              variant: 'error',
+            });
+          }
+        } catch {
+          showToast({
+            title: 'Error',
+            description: 'Failed to export PDF. Please try again.',
+            variant: 'error',
+          });
+        }
+      }
+    } catch (error: any) {
+      if (error.response?.status === 501) {
+        const errorMessage = error.response?.data?.message || 'PDF export is not yet implemented.';
+        showToast({
+          title: 'PDF Export Not Available',
+          description: errorMessage,
+          variant: 'warning',
+        });
+      } else {
+        showToast({
+          title: 'Error',
+          description: 'Failed to export PDF. Please try again.',
+          variant: 'error',
+        });
+      }
     }
   };
 
@@ -469,7 +518,7 @@ export const GatePassReports: React.FC = () => {
             📈 Pass Trends
           </h3>
           <div style={{ height: '300px', display: 'flex', alignItems: 'end', gap: '4px' }}>
-            {trends.map((trend, index) => (
+            {Array.isArray(trends) && trends.length > 0 ? trends.map((trend, index) => (
               <div key={index} style={{ 
                 display: 'flex', 
                 flexDirection: 'column', 
@@ -477,7 +526,9 @@ export const GatePassReports: React.FC = () => {
                 flex: 1
               }}>
                 <div style={{ 
-                  height: `${(trend.total / Math.max(...trends.map(t => t.total))) * 200}px`,
+                  height: `${trends.length > 0 && Math.max(...trends.map(t => t.total)) > 0 
+                    ? (trend.total / Math.max(...trends.map(t => t.total))) * 200 
+                    : 0}px`,
                   backgroundColor: colors.primary,
                   width: '100%',
                   borderRadius: '4px 4px 0 0',
@@ -490,7 +541,11 @@ export const GatePassReports: React.FC = () => {
                   {trend.total}
                 </div>
               </div>
-            ))}
+            )) : (
+              <div style={{ width: '100%', textAlign: 'center', color: colors.neutral[500], padding: spacing.lg }}>
+                No trend data available
+              </div>
+            )}
           </div>
         </div>
 

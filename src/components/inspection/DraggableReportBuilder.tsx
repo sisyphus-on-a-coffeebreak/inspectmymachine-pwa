@@ -58,7 +58,9 @@ export const DraggableReportBuilder: React.FC<DraggableReportBuilderProps> = ({
     if (!inspection?.id) return;
     
     try {
-      const response = await apiClient.get(`/v1/inspections/${inspection.id}/report-layout`);
+      const response = await apiClient.get(`/v1/inspections/${inspection.id}/report-layout`, {
+        suppressErrorLog: true, // Suppress 404 errors as they're expected when no layout exists
+      });
       if (response.data?.success && response.data.data) {
         const layout = response.data.data;
         setReportTitle(layout.report_title || 'Vehicle Inspection Report');
@@ -80,9 +82,12 @@ export const DraggableReportBuilder: React.FC<DraggableReportBuilderProps> = ({
           setSections(savedSections);
         }
       }
-    } catch (error) {
-      // Layout doesn't exist yet, use defaults
-      console.log('No saved layout found, using defaults');
+    } catch (error: any) {
+      // Layout doesn't exist yet, use defaults - this is expected
+      // Only log if it's not a 404 (which means no layout exists yet)
+      if (error?.response?.status !== 404) {
+        console.log('Error loading saved layout:', error);
+      }
     }
   };
 

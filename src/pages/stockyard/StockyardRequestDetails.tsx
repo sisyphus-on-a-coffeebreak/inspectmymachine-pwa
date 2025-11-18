@@ -12,10 +12,11 @@ import {
   cancelStockyardRequest,
   type StockyardRequest,
 } from '../../lib/stockyard';
-import { Warehouse, ArrowLeft, CheckCircle2, XCircle, Clock, AlertCircle, Calendar } from 'lucide-react';
+import { Warehouse, ArrowLeft, CheckCircle2, XCircle, Clock, AlertCircle, Calendar, FileText, ListChecks, MapPin, Truck, ShoppingBag, History, Package } from 'lucide-react';
 import { addRecentlyViewed } from '../../lib/recentlyViewed';
 import { RelatedItems } from '../../components/ui/RelatedItems';
-import { useStockyardRequests } from '../../lib/queries';
+import { useStockyardRequests, useDaysSinceEntry, useChecklist, useStockyardDocuments, useTransporterBids } from '../../lib/queries';
+import { DaysSinceEntryWidget } from '../../components/stockyard/DaysSinceEntryWidget';
 
 export const StockyardRequestDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -43,6 +44,20 @@ export const StockyardRequestDetails: React.FC = () => {
       })
       .slice(0, 5); // Limit to 5 most recent
   }, [request?.vehicle_id, relatedRequestsData, id]);
+
+  // Fetch days since entry
+  const { data: daysSinceEntryData } = useDaysSinceEntry(request?.vehicle_id || undefined);
+  const daysSinceEntry = daysSinceEntryData?.find((d) => d.vehicle_id === request?.vehicle_id)?.days_since_entry || 0;
+
+  // Fetch checklist
+  const { data: inboundChecklist } = useChecklist(id || '', 'inbound', { enabled: !!id && request?.scan_in_at });
+  const { data: outboundChecklist } = useChecklist(id || '', 'outbound', { enabled: !!id && request?.type === 'EXIT' });
+
+  // Fetch documents
+  const { data: documents } = useStockyardDocuments(id || '', { enabled: !!id });
+
+  // Fetch transporter bids
+  const { data: transporterBids } = useTransporterBids(id || '', { enabled: !!id && request?.type === 'EXIT' });
 
   useEffect(() => {
     if (id) {
@@ -284,6 +299,103 @@ export const StockyardRequestDetails: React.FC = () => {
         </div>
       </div>
 
+      {/* Days Since Entry Widget */}
+      {request.scan_in_at && !request.scan_out_at && daysSinceEntry > 0 && (
+        <div style={{ marginBottom: spacing.lg }}>
+          <DaysSinceEntryWidget
+            daysSinceEntry={daysSinceEntry}
+            vehicleRegistration={request.vehicle?.registration_number}
+            showAlert={true}
+            alertThreshold={30}
+          />
+        </div>
+      )}
+
+      {/* Quick Actions */}
+      <div style={{ ...cardStyles.card, marginBottom: spacing.lg }}>
+        <h3 style={{ ...typography.header, marginBottom: spacing.md }}>Quick Actions</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md }}>
+          {request.scan_in_at && (
+            <Button
+              variant="secondary"
+              onClick={() => navigate(`/app/stockyard/requests/${id}/checklist?type=inbound`)}
+              style={{ width: '100%' }}
+            >
+              <ListChecks size={16} style={{ marginRight: spacing.xs }} />
+              View Inbound Checklist
+            </Button>
+          )}
+          {request.type === 'EXIT' && (
+            <Button
+              variant="secondary"
+              onClick={() => navigate(`/app/stockyard/requests/${id}/checklist?type=outbound`)}
+              style={{ width: '100%' }}
+            >
+              <ListChecks size={16} style={{ marginRight: spacing.xs }} />
+              View Outbound Checklist
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            onClick={() => navigate(`/app/stockyard/requests/${id}/documents`)}
+            style={{ width: '100%' }}
+          >
+            <FileText size={16} style={{ marginRight: spacing.xs }} />
+            View Documents ({documents?.length || 0})
+          </Button>
+          {request.vehicle_id && (
+            <Button
+              variant="secondary"
+              onClick={() => navigate(`/app/stockyard/vehicles/${request.vehicle_id}/timeline`)}
+              style={{ width: '100%' }}
+            >
+              <History size={16} style={{ marginRight: spacing.xs }} />
+              View Timeline
+            </Button>
+          )}
+          {request.yard_id && (
+            <Button
+              variant="secondary"
+              onClick={() => navigate(`/app/stockyard/yards/${request.yard_id}/map`)}
+              style={{ width: '100%' }}
+            >
+              <MapPin size={16} style={{ marginRight: spacing.xs }} />
+              View Yard Map
+            </Button>
+          )}
+          {request.type === 'EXIT' && (
+            <Button
+              variant="secondary"
+              onClick={() => navigate(`/app/stockyard/requests/${id}/transporter-bids`)}
+              style={{ width: '100%' }}
+            >
+              <Truck size={16} style={{ marginRight: spacing.xs }} />
+              Transporter Bids ({transporterBids?.length || 0})
+            </Button>
+          )}
+          {request.vehicle_id && (
+            <Button
+              variant="secondary"
+              onClick={() => navigate(`/app/stockyard/vehicles/${request.vehicle_id}/profitability`)}
+              style={{ width: '100%' }}
+            >
+              <ShoppingBag size={16} style={{ marginRight: spacing.xs }} />
+              Profitability Analysis
+            </Button>
+          )}
+          {request.scan_in_at && request.vehicle_id && request.type === 'ENTRY' && (
+            <Button
+              variant="primary"
+              onClick={() => navigate(`/app/stockyard/components/create?vehicle_id=${request.vehicle_id}&source=vehicle_entry&stockyard_request_id=${request.id}`)}
+              style={{ width: '100%' }}
+            >
+              <Package size={16} style={{ marginRight: spacing.xs }} />
+              Record Components
+            </Button>
+          )}
+        </div>
+      </div>
+
       {/* Scan Information */}
       {(request.scan_in_at || request.scan_out_at) && (
         <div style={{ ...cardStyles.card, marginBottom: spacing.lg }}>
@@ -315,6 +427,65 @@ export const StockyardRequestDetails: React.FC = () => {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Transporter Bids (for EXIT requests) */}
+      {request.type === 'EXIT' && transporterBids && transporterBids.length > 0 && (
+        <div style={{ ...cardStyles.card, marginBottom: spacing.lg }}>
+          <h3 style={{ ...typography.header, marginBottom: spacing.md }}>Transporter Bids</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+            {transporterBids.map((bid: any) => (
+              <div
+                key={bid.id}
+                style={{
+                  padding: spacing.md,
+                  backgroundColor: colors.neutral[50],
+                  borderRadius: borderRadius.md,
+                  border: `1px solid ${bid.status === 'accepted' ? colors.success[300] : colors.neutral[200]}`,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ ...typography.body, fontWeight: 600, marginBottom: spacing.xs }}>
+                      {bid.transporter_name}
+                    </div>
+                    <div style={{ ...typography.caption, color: colors.neutral[600] }}>
+                      Contact: {bid.transporter_contact}
+                    </div>
+                    <div style={{ ...typography.caption, color: colors.neutral[600] }}>
+                      Bid: ₹{bid.bid_amount.toLocaleString('en-IN')}
+                    </div>
+                    <div style={{ ...typography.caption, color: colors.neutral[600] }}>
+                      Estimated Pickup: {formatDate(bid.estimated_pickup_time)}
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      padding: '4px 12px',
+                      backgroundColor:
+                        bid.status === 'accepted'
+                          ? colors.success[50]
+                          : bid.status === 'rejected'
+                          ? colors.error[50]
+                          : colors.warning[50],
+                      color:
+                        bid.status === 'accepted'
+                          ? colors.success[600]
+                          : bid.status === 'rejected'
+                          ? colors.error[600]
+                          : colors.warning[600],
+                      borderRadius: borderRadius.md,
+                      fontSize: '12px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {bid.status.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

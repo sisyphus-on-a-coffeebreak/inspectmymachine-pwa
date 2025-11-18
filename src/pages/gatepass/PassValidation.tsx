@@ -74,7 +74,7 @@ export const PassValidation: React.FC = () => {
 
   const refreshHistory = useCallback(async (passId: string) => {
     try {
-      const hist = await apiClient.get(`/api/gate-pass-validation/history/${passId}`);
+      const hist = await apiClient.get(`/gate-pass-validation/history/${passId}`);
       if ((hist.data as any).success) {
         setHistory((hist.data as any).history || []);
       } else {
@@ -91,7 +91,7 @@ export const PassValidation: React.FC = () => {
       setValidationResult(null);
       setHistory([]);
 
-      const response = await apiClient.post('/api/gate-pass-validation/validate', {
+      const response = await apiClient.post('/gate-pass-validation/validate', {
         access_code: passIdentifier
       });
 
@@ -139,7 +139,7 @@ export const PassValidation: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await apiClient.post('/api/gate-pass-validation/entry', {
+      const response = await apiClient.post('/gate-pass-validation/entry', {
         pass_id: currentPass.id,
         pass_type: currentPass.type === 'visitor' ? 'visitor' : 'vehicle_entry',
         notes: validationNotes || undefined,
@@ -193,7 +193,7 @@ export const PassValidation: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await apiClient.post('/api/gate-pass-validation/exit', {
+      const response = await apiClient.post('/gate-pass-validation/exit', {
         pass_id: currentPass.id,
         pass_type: currentPass.type === 'visitor' ? 'visitor' : 'vehicle_exit',
         notes: validationNotes || undefined,

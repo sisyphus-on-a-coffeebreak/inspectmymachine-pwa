@@ -104,6 +104,59 @@ export async function clearTemplateCache(templateId?: string) {
   );
 }
 
+/**
+ * Get all cached template IDs
+ */
+export async function getCachedTemplateIds(): Promise<string[]> {
+  try {
+    const allKeys = await keys();
+    const templateKeys = allKeys.filter(
+      (key): key is string => typeof key === 'string' && key.startsWith(CACHE_PREFIX)
+    );
+    
+    // Extract template IDs from cache keys
+    return templateKeys.map((key) => {
+      const parts = key.split(':');
+      return parts[parts.length - 1]; // Last part is the template ID
+    });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Cache template list metadata for offline browsing
+ */
+const TEMPLATE_LIST_CACHE_KEY = 'inspection-template-list:v1';
+
+export interface TemplateListMetadata {
+  templates: Array<{
+    id: string;
+    name: string;
+    description?: string;
+    category?: string;
+    question_count?: number;
+    updated_at?: string;
+  }>;
+  cachedAt: number;
+}
+
+export async function cacheTemplateList(metadata: TemplateListMetadata['templates']): Promise<void> {
+  const record: TemplateListMetadata = {
+    templates: metadata,
+    cachedAt: Date.now(),
+  };
+  await set(TEMPLATE_LIST_CACHE_KEY, record);
+}
+
+export async function getCachedTemplateList(): Promise<TemplateListMetadata | null> {
+  try {
+    return await get<TemplateListMetadata>(TEMPLATE_LIST_CACHE_KEY);
+  } catch {
+    return null;
+  }
+}
+
 function buildCacheKey(templateId: string): string {
   return `${CACHE_PREFIX}${CACHE_VERSION}:${templateId}`;
 }

@@ -8,6 +8,8 @@ import { Button } from '../../components/ui/button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { colors, spacing, typography, borderRadius } from '../../lib/theme';
 import { Plus, Trash2, Edit2, Eye, Copy, Save, X, ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
+import { apiClient } from '../../lib/apiClient';
+import { fetchInspectionTemplate } from '../../lib/inspection-templates';
 
 /**
  * Inspection Studio - Admin Interface
@@ -226,7 +228,7 @@ const QUESTION_TYPES = [
 export const InspectionStudio: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const confirm = useConfirm();
+  const { confirm, ConfirmComponent } = useConfirm();
   const queryClient = useQueryClient();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<InspectionTemplate | null>(null);
@@ -238,6 +240,7 @@ export const InspectionStudio: React.FC = () => {
     sections: [],
   });
   const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
+  const [publishing, setPublishing] = useState(false);
 
   // Use React Query for templates
   const { data: templates = [], isLoading: loading, error: queryError, refetch } = useInspectionTemplates();
@@ -275,10 +278,10 @@ export const InspectionStudio: React.FC = () => {
 
   const addSection = () => {
     const newSection: InspectionSection = {
-      name: `Section ${currentTemplate.sections.length + 1}`,
+      name: '',
       description: '',
       order_index: currentTemplate.sections.length,
-      is_required: true,
+      is_required: false,
       questions: [],
     };
     setCurrentTemplate({
@@ -316,7 +319,7 @@ export const InspectionStudio: React.FC = () => {
   const addQuestion = (sectionIndex: number) => {
     const section = currentTemplate.sections[sectionIndex];
     const newQuestion: InspectionQuestion = {
-      question_text: `Question ${section.questions.length + 1}`,
+      question_text: '',
       question_type: 'text',
       is_required: false,
       is_critical: false,
@@ -357,8 +360,8 @@ export const InspectionStudio: React.FC = () => {
       question.options = [];
     }
     const newOption = {
-      option_text: `Option ${question.options.length + 1}`,
-      option_value: `option_${question.options.length + 1}`,
+      option_text: '',
+      option_value: '',
       order_index: question.options.length,
       is_default: false,
     };
@@ -386,6 +389,168 @@ export const InspectionStudio: React.FC = () => {
     updateQuestion(sectionIndex, questionIndex, { options: updated });
   };
 
+  const duplicateTemplate = async (templateId: string) => {
+    try {
+      setPublishing(true);
+      
+      // Fetch the full template with all sections and questions
+      const result = await fetchInspectionTemplate(templateId, { forceRefresh: true });
+      const template = result.template;
+
+      // Debug: Log the template structure
+      console.log('Fetched template:', template);
+      console.log('Template sections:', template.sections);
+
+      // Ensure we have sections - if not, try to get them from the API response structure
+      let sections = template.sections || [];
+      
+      // If sections is empty or undefined, check if data is nested differently
+      if (!sections || sections.length === 0) {
+        // Try alternative paths
+        const data = (template as any).data || template;
+        sections = data.sections || [];
+      }
+
+      // Create a deep copy of the template with "Copy of" prefix
+      // Map sections to match our InspectionSection interface
+      const duplicatedTemplate: InspectionTemplate = {
+        name: `Copy of ${template.name}`,
+        description: template.description || '',
+        category: (template.category as InspectionTemplate['category']) || 'custom',
+        asset_class: template.asset_class,
+        is_active: true,
+        sections: sections.map((section: any, sectionIdx: number) => {
+          // Map section to our interface structure
+          const mappedSection: InspectionSection = {
+            name: section.name || '',
+            description: section.description || '',
+            order_index: section.order_index ?? sectionIdx,
+            is_required: section.is_required ?? false,
+            questions: (section.questions || []).map((question: any, questionIdx: number) => {
+              // Map question to our interface structure
+              const mappedQuestion: InspectionQuestion = {
+                question_text: question.question_text || '',
+                question_type: (question.question_type as InspectionQuestion['question_type']) || 'text',
+                is_required: question.is_required ?? false,
+                is_critical: question.is_critical ?? false,
+                order_index: question.order_index ?? questionIdx,
+                help_text: question.help_text,
+                validation_rules: question.validation_rules,
+                conditional_logic: question.conditional_logic,
+                options: (question.options || []).map((option: any, optionIdx: number) => ({
+                  option_text: option.option_text || option.text || '',
+                  option_value: option.option_value || option.value || '',
+                  order_index: option.order_index ?? optionIdx,
+                  is_default: option.is_default ?? false,
+                })),
+              };
+              return mappedQuestion;
+            }),
+          };
+          return mappedSection;
+        }),
+      };
+
+      console.log('Duplicated template:', duplicatedTemplate);
+      console.log('Duplicated sections:', duplicatedTemplate.sections);
+
+      // Set the duplicated template as the current template and open the form
+      setCurrentTemplate(duplicatedTemplate);
+      setEditingTemplate(null); // This is a new template, not editing
+      setShowCreateForm(true);
+      
+      // Expand all sections for better UX
+      setExpandedSections(new Set(duplicatedTemplate.sections.map((_, idx) => idx)));
+
+      showToast({
+        title: 'Template Duplicated',
+        description: 'Template copied successfully. You can now edit and save it.',
+        variant: 'success',
+      });
+
+      // Scroll to the form
+      setTimeout(() => {
+        const formElement = document.querySelector('[data-template-form]');
+        if (formElement) {
+          formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    } catch (error: any) {
+      console.error('Failed to duplicate template:', error);
+      
+      let errorMessage = 'Failed to duplicate template. Please try again.';
+      
+      if (error?.response?.data) {
+        const errorData = error.response.data;
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      showToast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'error',
+      });
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const deleteTemplate = async (templateId: string) => {
+    const confirmed = await confirm({
+      title: 'Delete Template',
+      message: 'Are you sure you want to delete this template? This action cannot be undone.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      variant: 'critical',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      setPublishing(true);
+      await apiClient.delete(`/v1/inspection-templates/${templateId}`);
+      
+      showToast({
+        title: 'Success',
+        description: 'Template deleted successfully',
+        variant: 'success',
+      });
+
+      // Invalidate and refetch templates
+      queryClient.invalidateQueries({ queryKey: ['inspection-templates'] });
+      refetch();
+    } catch (error: any) {
+      console.error('Failed to delete template:', error);
+      
+      let errorMessage = 'Failed to delete template. Please try again.';
+      
+      if (error?.response?.data) {
+        const errorData = error.response.data;
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      showToast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'error',
+      });
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   const publishTemplate = async () => {
     if (!currentTemplate.name.trim()) {
       showToast({
@@ -405,39 +570,81 @@ export const InspectionStudio: React.FC = () => {
       return;
     }
 
-    for (const section of currentTemplate.sections) {
-      if (section.questions.length === 0) {
+    for (let i = 0; i < currentTemplate.sections.length; i++) {
+      const section = currentTemplate.sections[i];
+      
+      // Debug: Log section data
+      console.log(`Section ${i + 1}:`, {
+        name: section.name,
+        nameType: typeof section.name,
+        nameLength: section.name?.length,
+        hasQuestions: !!section.questions?.length,
+        questionCount: section.questions?.length || 0
+      });
+      
+      // Check if section has a name - be more lenient with whitespace-only names
+      const sectionName = (section.name || '').toString().trim();
+      if (sectionName === '') {
         showToast({
           title: 'Validation Error',
-          description: `Section "${section.name}" must have at least one question`,
+          description: `Section ${i + 1} is missing a name. Please enter a section name.`,
           variant: 'error',
         });
         return;
       }
+      
+      // Check if section has questions
+      if (!section.questions || section.questions.length === 0) {
+        showToast({
+          title: 'Validation Error',
+          description: `Section "${sectionName}" must have at least one question`,
+          variant: 'error',
+        });
+        return;
+      }
+      
+      // Validate each question has required fields
+      for (let j = 0; j < section.questions.length; j++) {
+        const question = section.questions[j];
+        const questionText = question.question_text?.trim() || '';
+        if (questionText === '') {
+          showToast({
+            title: 'Validation Error',
+            description: `Section "${sectionName}" has a question without text. Please fill in all question fields.`,
+            variant: 'error',
+          });
+          return;
+        }
+      }
     }
 
     try {
-      setLoading(true);
+      setPublishing(true);
       const payload = {
         name: currentTemplate.name,
         description: currentTemplate.description,
         category: currentTemplate.category,
         asset_class: currentTemplate.asset_class,
-        sections: currentTemplate.sections.map((section) => ({
-          name: section.name,
-          description: section.description,
-          order_index: section.order_index,
-          is_required: section.is_required,
-          questions: section.questions.map((question) => ({
-            question_text: question.question_text,
-            question_type: question.question_type,
-            is_required: question.is_required,
-            is_critical: question.is_critical,
-            order_index: question.order_index,
-            help_text: question.help_text,
-            validation_rules: question.validation_rules,
-            conditional_logic: question.conditional_logic,
-            options: question.options,
+        sections: currentTemplate.sections.map((section, sectionIdx) => ({
+          name: (section.name || '').trim(),
+          description: (section.description || '').trim() || null,
+          order_index: section.order_index ?? sectionIdx,
+          is_required: section.is_required ?? false,
+          questions: section.questions.map((question, questionIdx) => ({
+            question_text: question.question_text || '',
+            question_type: question.question_type || 'text',
+            is_required: question.is_required ?? false,
+            is_critical: question.is_critical ?? false,
+            order_index: question.order_index ?? questionIdx,
+            help_text: question.help_text || undefined,
+            validation_rules: question.validation_rules || undefined,
+            conditional_logic: question.conditional_logic || undefined,
+            options: (question.options || []).map((option, optionIdx) => ({
+              option_text: option.option_text || '',
+              option_value: option.option_value || '',
+              order_index: option.order_index ?? optionIdx,
+              is_default: option.is_default ?? false,
+            })),
           })),
         })),
       };
@@ -470,14 +677,44 @@ export const InspectionStudio: React.FC = () => {
       // Invalidate and refetch templates
       queryClient.invalidateQueries({ queryKey: ['inspection-templates'] });
       refetch();
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Failed to publish template:', error);
+      
+      // Extract error message from API response
+      let errorMessage = 'Failed to publish template. Please try again.';
+      
+      if (error?.response?.data) {
+        const errorData = error.response.data;
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        } else if (errorData.errors) {
+          // Laravel validation errors
+          const errors = errorData.errors;
+          const errorMessages = Object.entries(errors)
+            .flatMap(([field, messages]: [string, any]) => 
+              Array.isArray(messages) 
+                ? messages.map((msg: string) => `${field}: ${msg}`)
+                : [`${field}: ${messages}`]
+            );
+          errorMessage = errorMessages.length > 0 
+            ? errorMessages[0] 
+            : 'Validation failed. Please check your template data.';
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       showToast({
         title: 'Error',
-        description: 'Failed to publish template. Please try again.',
+        description: errorMessage,
         variant: 'error',
       });
     } finally {
-      setLoading(false);
+      setPublishing(false);
     }
   };
 
@@ -492,7 +729,9 @@ export const InspectionStudio: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: spacing.xl, maxWidth: '1400px', margin: '0 auto' }}>
+    <>
+      {ConfirmComponent}
+      <div style={{ padding: spacing.xl, maxWidth: '1400px', margin: '0 auto' }}>
       <PageHeader
         title="Inspection Studio"
         subtitle="Author and manage inspection templates by asset class. Create preset bundles or build custom templates."
@@ -619,13 +858,109 @@ export const InspectionStudio: React.FC = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        setEditingTemplate(template);
-                        setCurrentTemplate(template);
-                        setShowCreateForm(true);
+                      onClick={() => duplicateTemplate(template.id!)}
+                      disabled={publishing}
+                      title="Duplicate Template"
+                      style={{
+                        color: colors.primary,
+                        borderColor: colors.primary,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = colors.primary + '10';
+                        e.currentTarget.style.borderColor = colors.primary;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.borderColor = colors.primary;
                       }}
                     >
+                      <Copy size={16} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          // Fetch the full template with all sections and questions
+                          const result = await fetchInspectionTemplate(template.id!, { forceRefresh: true });
+                          const fullTemplate = result.template;
+                          
+                          // Map the template to our interface structure
+                          let sections = fullTemplate.sections || [];
+                          if (!sections || sections.length === 0) {
+                            const data = (fullTemplate as any).data || fullTemplate;
+                            sections = data.sections || [];
+                          }
+
+                          const mappedTemplate: InspectionTemplate = {
+                            id: fullTemplate.id,
+                            name: fullTemplate.name || '',
+                            description: fullTemplate.description || '',
+                            category: (fullTemplate.category as InspectionTemplate['category']) || 'custom',
+                            asset_class: fullTemplate.asset_class,
+                            is_active: fullTemplate.is_active ?? true,
+                            sections: sections.map((section: any, sectionIdx: number) => ({
+                              name: section.name || '',
+                              description: section.description || '',
+                              order_index: section.order_index ?? sectionIdx,
+                              is_required: section.is_required ?? false,
+                              questions: (section.questions || []).map((question: any, questionIdx: number) => ({
+                                question_text: question.question_text || '',
+                                question_type: (question.question_type as InspectionQuestion['question_type']) || 'text',
+                                is_required: question.is_required ?? false,
+                                is_critical: question.is_critical ?? false,
+                                order_index: question.order_index ?? questionIdx,
+                                help_text: question.help_text,
+                                validation_rules: question.validation_rules,
+                                conditional_logic: question.conditional_logic,
+                                options: (question.options || []).map((option: any, optionIdx: number) => ({
+                                  option_text: option.option_text || option.text || '',
+                                  option_value: option.option_value || option.value || '',
+                                  order_index: option.order_index ?? optionIdx,
+                                  is_default: option.is_default ?? false,
+                                })),
+                              })),
+                            })),
+                          };
+
+                          setEditingTemplate(mappedTemplate);
+                          setCurrentTemplate(mappedTemplate);
+                          setShowCreateForm(true);
+                          // Expand all sections when editing
+                          setExpandedSections(new Set(mappedTemplate.sections.map((_, idx) => idx)));
+                        } catch (error) {
+                          console.error('Failed to load template for editing:', error);
+                          showToast({
+                            title: 'Error',
+                            description: 'Failed to load template for editing. Please try again.',
+                            variant: 'error',
+                          });
+                        }
+                      }}
+                      title="Edit Template"
+                    >
                       <Edit2 size={16} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => deleteTemplate(template.id!)}
+                      disabled={publishing}
+                      title="Delete Template"
+                      style={{
+                        color: colors.error[600],
+                        borderColor: colors.error[300],
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = colors.error[50];
+                        e.currentTarget.style.borderColor = colors.error[400];
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.borderColor = colors.error[300];
+                      }}
+                    >
+                      <Trash2 size={16} />
                     </Button>
                   </div>
                 </div>
@@ -637,7 +972,7 @@ export const InspectionStudio: React.FC = () => {
 
       {/* Create/Edit Template Form */}
       {showCreateForm && (
-        <div style={{ backgroundColor: 'white', borderRadius: borderRadius.lg, padding: spacing.xl, border: `1px solid ${colors.neutral[200]}` }}>
+        <div data-template-form style={{ backgroundColor: 'white', borderRadius: borderRadius.lg, padding: spacing.xl, border: `1px solid ${colors.neutral[200]}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
             <h2 style={{ ...typography.h2 }}>
               {editingTemplate ? 'Edit Template' : 'Create Template'}
@@ -793,7 +1128,9 @@ export const InspectionStudio: React.FC = () => {
                           variant="ghost"
                           size="sm"
                           onClick={(e) => {
-                            e.stopPropagation();
+                            if (e) {
+                              e.stopPropagation();
+                            }
                             deleteSection(sectionIndex);
                           }}
                         >
@@ -812,8 +1149,9 @@ export const InspectionStudio: React.FC = () => {
                             </label>
                             <input
                               type="text"
-                              value={section.name}
+                              value={section.name || ''}
                               onChange={(e) => updateSection(sectionIndex, { name: e.target.value })}
+                              placeholder="Enter section name"
                               style={{
                                 width: '100%',
                                 padding: spacing.xs,
@@ -831,6 +1169,7 @@ export const InspectionStudio: React.FC = () => {
                               type="text"
                               value={section.description || ''}
                               onChange={(e) => updateSection(sectionIndex, { description: e.target.value })}
+                              placeholder="Enter section description (optional)"
                               style={{
                                 width: '100%',
                                 padding: spacing.xs,
@@ -841,11 +1180,19 @@ export const InspectionStudio: React.FC = () => {
                             />
                           </div>
                           <div>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, fontSize: '12px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, fontSize: '12px', cursor: 'pointer', userSelect: 'none' }}>
                               <input
                                 type="checkbox"
                                 checked={section.is_required}
                                 onChange={(e) => updateSection(sectionIndex, { is_required: e.target.checked })}
+                                style={{
+                                  width: '16px',
+                                  height: '16px',
+                                  cursor: 'pointer',
+                                  accentColor: colors.primary,
+                                  margin: 0,
+                                  flexShrink: 0,
+                                }}
                               />
                               Required Section
                             </label>
@@ -881,9 +1228,9 @@ export const InspectionStudio: React.FC = () => {
                                   <div style={{ display: 'grid', gap: spacing.xs, marginBottom: spacing.xs }}>
                                     <input
                                       type="text"
-                                      value={question.question_text}
+                                      value={question.question_text || ''}
                                       onChange={(e) => updateQuestion(sectionIndex, questionIndex, { question_text: e.target.value })}
-                                      placeholder="Question text"
+                                      placeholder="Enter question text"
                                       style={{
                                         width: '100%',
                                         padding: spacing.xs,
@@ -909,20 +1256,36 @@ export const InspectionStudio: React.FC = () => {
                                           </option>
                                         ))}
                                       </select>
-                                      <div style={{ display: 'flex', gap: spacing.xs, alignItems: 'center' }}>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, fontSize: '11px' }}>
+                                      <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, fontSize: '11px', cursor: 'pointer', userSelect: 'none' }}>
                                           <input
                                             type="checkbox"
                                             checked={question.is_required}
                                             onChange={(e) => updateQuestion(sectionIndex, questionIndex, { is_required: e.target.checked })}
+                                            style={{
+                                              width: '14px',
+                                              height: '14px',
+                                              cursor: 'pointer',
+                                              accentColor: colors.primary,
+                                              margin: 0,
+                                              flexShrink: 0,
+                                            }}
                                           />
                                           Required
                                         </label>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, fontSize: '11px' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, fontSize: '11px', cursor: 'pointer', userSelect: 'none' }}>
                                           <input
                                             type="checkbox"
                                             checked={question.is_critical}
                                             onChange={(e) => updateQuestion(sectionIndex, questionIndex, { is_critical: e.target.checked })}
+                                            style={{
+                                              width: '14px',
+                                              height: '14px',
+                                              cursor: 'pointer',
+                                              accentColor: colors.error[500],
+                                              margin: 0,
+                                              flexShrink: 0,
+                                            }}
                                           />
                                           Critical
                                         </label>
@@ -962,13 +1325,13 @@ export const InspectionStudio: React.FC = () => {
                                         >
                                           <input
                                             type="text"
-                                            value={option.option_text}
+                                            value={option.option_text || ''}
                                             onChange={(e) =>
                                               updateQuestionOption(sectionIndex, questionIndex, optionIndex, {
                                                 option_text: e.target.value,
                                               })
                                             }
-                                            placeholder="Option text"
+                                            placeholder="Enter option text"
                                             style={{
                                               padding: spacing.xs,
                                               border: `1px solid ${colors.neutral[300]}`,
@@ -978,13 +1341,13 @@ export const InspectionStudio: React.FC = () => {
                                           />
                                           <input
                                             type="text"
-                                            value={option.option_value}
+                                            value={option.option_value || ''}
                                             onChange={(e) =>
                                               updateQuestionOption(sectionIndex, questionIndex, optionIndex, {
                                                 option_value: e.target.value,
                                               })
                                             }
-                                            placeholder="Option value"
+                                            placeholder="Enter option value"
                                             style={{
                                               padding: spacing.xs,
                                               border: `1px solid ${colors.neutral[300]}`,
@@ -1024,7 +1387,7 @@ export const InspectionStudio: React.FC = () => {
             }}>
               Cancel
             </Button>
-            <Button onClick={publishTemplate} disabled={loading}>
+            <Button onClick={publishTemplate} disabled={publishing || loading}>
               <Save size={16} style={{ marginRight: spacing.xs }} />
               {editingTemplate ? 'Update Template' : 'Publish Template'}
             </Button>
@@ -1032,6 +1395,7 @@ export const InspectionStudio: React.FC = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 

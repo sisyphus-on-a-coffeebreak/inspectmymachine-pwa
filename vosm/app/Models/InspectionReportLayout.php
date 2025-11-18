@@ -45,3 +45,4 @@ class InspectionReportLayout extends Model
     }
 }
 
+

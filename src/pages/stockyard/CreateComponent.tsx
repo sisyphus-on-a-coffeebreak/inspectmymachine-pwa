@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { colors, spacing, typography, cardStyles, borderRadius } from '@/lib/theme';
-import { Battery, Package, Wrench, ArrowLeft } from 'lucide-react';
+import { Battery, Package, Wrench, ArrowLeft, ShoppingCart, Truck } from 'lucide-react';
 import { useToast } from '@/providers/ToastProvider';
 import { useCreateComponent } from '@/lib/queries';
 import { apiClient } from '@/lib/apiClient';
@@ -35,12 +35,21 @@ const TYRE_POSITIONS = [
   { value: 'spare', label: 'Spare' },
 ];
 
+type ComponentSource = 'purchased' | 'vehicle_entry';
+
 export const CreateComponent: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { showToast } = useToast();
   const createMutation = useCreateComponent();
   
+  // Get pre-filled values from URL params (for vehicle entry context)
+  const vehicleIdFromUrl = searchParams.get('vehicle_id');
+  const sourceFromUrl = searchParams.get('source') as ComponentSource | null;
+  const stockyardRequestId = searchParams.get('stockyard_request_id');
+  
   const [componentType, setComponentType] = useState<'battery' | 'tyre' | 'spare_part'>('battery');
+  const [componentSource, setComponentSource] = useState<ComponentSource>(sourceFromUrl || 'purchased');
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -52,9 +61,9 @@ export const CreateComponent: React.FC = () => {
     purchase_date: new Date().toISOString().split('T')[0],
     warranty_expires_at: '',
     purchase_cost: '',
-    current_vehicle_id: '',
+    current_vehicle_id: vehicleIdFromUrl || '',
     status: 'active',
-    notes: '',
+    notes: stockyardRequestId ? `Component recorded during vehicle entry. Stockyard Request: ${stockyardRequestId}` : '',
     // Battery-specific
     serial_number: '',
     capacity: '',
@@ -84,6 +93,13 @@ export const CreateComponent: React.FC = () => {
     fetchVehicles();
   }, []);
 
+  // Update component source when URL param changes
+  useEffect(() => {
+    if (sourceFromUrl) {
+      setComponentSource(sourceFromUrl);
+    }
+  }, [sourceFromUrl]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -92,9 +108,26 @@ export const CreateComponent: React.FC = () => {
     // Common validation
     if (!formData.brand.trim()) errors.brand = 'Brand is required';
     if (!formData.model.trim()) errors.model = 'Model is required';
-    if (!formData.purchase_date) errors.purchase_date = 'Purchase date is required';
-    if (!formData.purchase_cost || Number(formData.purchase_cost) <= 0) {
-      errors.purchase_cost = 'Valid purchase cost is required';
+    
+    // Purchase date and cost are only required for purchased components
+    if (componentSource === 'purchased') {
+      if (!formData.purchase_date) errors.purchase_date = 'Purchase date is required';
+      if (!formData.purchase_cost || Number(formData.purchase_cost) < 0) {
+        errors.purchase_cost = 'Valid purchase cost is required';
+      }
+    } else {
+      // For vehicle entry, vehicle is required
+      if (!formData.current_vehicle_id) {
+        errors.current_vehicle_id = 'Vehicle selection is required for components that came with vehicle entry';
+      }
+      // For vehicle entry, use entry date as purchase_date if not provided
+      if (!formData.purchase_date) {
+        formData.purchase_date = new Date().toISOString().split('T')[0];
+      }
+      // Set cost to 0 if not provided for vehicle entry components
+      if (!formData.purchase_cost || formData.purchase_cost === '') {
+        formData.purchase_cost = '0';
+      }
     }
 
     // Type-specific validation
@@ -124,14 +157,40 @@ export const CreateComponent: React.FC = () => {
     setLoading(true);
 
     try {
+      // Ensure purchase_cost is always a valid number
+      let purchaseCost = 0;
+      if (componentSource === 'purchased') {
+        purchaseCost = Number(formData.purchase_cost) || 0;
+        if (purchaseCost <= 0) {
+          setValidationErrors({ ...validationErrors, purchase_cost: 'Valid purchase cost is required' });
+          showToast({
+            title: 'Validation Error',
+            description: 'Please enter a valid purchase cost',
+            variant: 'error',
+          });
+          setLoading(false);
+          return;
+        }
+      } else {
+        // For vehicle entry, default to 0 if not provided
+        purchaseCost = formData.purchase_cost && formData.purchase_cost !== '' 
+          ? Number(formData.purchase_cost) || 0 
+          : 0;
+      }
+
+      // Ensure current_vehicle_id is null if empty or "0", not the string "0"
+      const vehicleId = formData.current_vehicle_id && formData.current_vehicle_id !== '' && formData.current_vehicle_id !== '0'
+        ? formData.current_vehicle_id
+        : null;
+
       const submitData: any = {
         type: componentType,
-        brand: formData.brand,
-        model: formData.model,
+        brand: formData.brand.trim(),
+        model: formData.model.trim(),
         purchase_date: formData.purchase_date,
         warranty_expires_at: formData.warranty_expires_at || null,
-        purchase_cost: Number(formData.purchase_cost),
-        current_vehicle_id: formData.current_vehicle_id || null,
+        purchase_cost: purchaseCost,
+        current_vehicle_id: vehicleId,
         status: componentType === 'spare_part' ? 'in_stock' : formData.status,
         notes: formData.notes || null,
       };
@@ -151,6 +210,7 @@ export const CreateComponent: React.FC = () => {
         submitData.category = formData.category;
       }
 
+      console.log('Submitting component data:', submitData);
       await createMutation.mutateAsync(submitData);
       
       showToast({
@@ -161,7 +221,33 @@ export const CreateComponent: React.FC = () => {
       
       navigate('/app/stockyard/components');
     } catch (error: any) {
-      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to create component';
+      console.error('Component creation error:', error);
+      let errorMessage = 'Failed to create component';
+      
+      if (error?.response) {
+        // HTTP error response
+        const status = error.response.status;
+        const data = error.response.data;
+        
+        if (status === 405) {
+          errorMessage = 'Method not allowed. Please check if the API endpoint is correctly configured.';
+        } else if (status === 422 && data?.errors) {
+          // Validation errors
+          const validationErrors = Object.entries(data.errors)
+            .map(([field, messages]: [string, any]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+            .join('; ');
+          errorMessage = `Validation failed: ${validationErrors}`;
+        } else if (data?.message) {
+          errorMessage = data.message;
+        } else if (data?.error) {
+          errorMessage = data.error;
+        } else {
+          errorMessage = `Server error (${status}): ${error.response.statusText || 'Unknown error'}`;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       showToast({
         title: 'Error',
         description: errorMessage,
@@ -195,8 +281,104 @@ export const CreateComponent: React.FC = () => {
         }
       />
 
+      {/* Component Source Selector */}
+      <div style={{ ...cardStyles.card, marginTop: spacing.lg, marginBottom: spacing.md }}>
+        <Label style={{ marginBottom: spacing.md }}>Component Source *</Label>
+        <div style={{ display: 'flex', gap: spacing.md, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setComponentSource('purchased')}
+            style={{
+              flex: 1,
+              minWidth: '200px',
+              padding: spacing.lg,
+              border: `2px solid ${componentSource === 'purchased' ? colors.primary : colors.neutral[300]}`,
+              borderRadius: borderRadius.lg,
+              background: componentSource === 'purchased' ? colors.primary + '10' : 'white',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: spacing.sm,
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (componentSource !== 'purchased') {
+                e.currentTarget.style.borderColor = colors.primary;
+                e.currentTarget.style.background = colors.neutral[50];
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (componentSource !== 'purchased') {
+                e.currentTarget.style.borderColor = colors.neutral[300];
+                e.currentTarget.style.background = 'white';
+              }
+            }}
+          >
+            <ShoppingCart size={32} color={componentSource === 'purchased' ? colors.primary : colors.neutral[600]} />
+            <span style={{ ...typography.body, fontWeight: componentSource === 'purchased' ? 600 : 500 }}>
+              Purchased
+            </span>
+            <span style={{ ...typography.caption, color: colors.neutral[600], fontSize: '12px' }}>
+              Brand new component purchase
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setComponentSource('vehicle_entry')}
+            style={{
+              flex: 1,
+              minWidth: '200px',
+              padding: spacing.lg,
+              border: `2px solid ${componentSource === 'vehicle_entry' ? colors.success[500] : colors.neutral[300]}`,
+              borderRadius: borderRadius.lg,
+              background: componentSource === 'vehicle_entry' ? colors.success[500] + '10' : 'white',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: spacing.sm,
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (componentSource !== 'vehicle_entry') {
+                e.currentTarget.style.borderColor = colors.success[500];
+                e.currentTarget.style.background = colors.neutral[50];
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (componentSource !== 'vehicle_entry') {
+                e.currentTarget.style.borderColor = colors.neutral[300];
+                e.currentTarget.style.background = 'white';
+              }
+            }}
+          >
+            <Truck size={32} color={componentSource === 'vehicle_entry' ? colors.success[500] : colors.neutral[600]} />
+            <span style={{ ...typography.body, fontWeight: componentSource === 'vehicle_entry' ? 600 : 500 }}>
+              Vehicle Entry
+            </span>
+            <span style={{ ...typography.caption, color: colors.neutral[600], fontSize: '12px' }}>
+              Component came with vehicle
+            </span>
+          </button>
+        </div>
+        {componentSource === 'vehicle_entry' && (
+          <div style={{
+            marginTop: spacing.md,
+            padding: spacing.md,
+            backgroundColor: colors.success[50],
+            border: `1px solid ${colors.success[200]}`,
+            borderRadius: borderRadius.md,
+            ...typography.caption,
+            color: colors.success[700]
+          }}>
+            💡 Components that came with the vehicle at yard entry. Purchase cost will be set to ₹0 unless specified.
+          </div>
+        )}
+      </div>
+
       {/* Component Type Selector */}
-      <div style={{ ...cardStyles.card, marginTop: spacing.lg, marginBottom: spacing.lg }}>
+      <div style={{ ...cardStyles.card, marginBottom: spacing.lg }}>
         <Label style={{ marginBottom: spacing.md }}>Component Type</Label>
         <div style={{ display: 'flex', gap: spacing.md, flexWrap: 'wrap' }}>
           {COMPONENT_TYPES.map((type) => {
@@ -463,7 +645,9 @@ export const CreateComponent: React.FC = () => {
           {/* Purchase & Warranty */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.md }}>
             <div>
-              <Label>Purchase Date *</Label>
+              <Label>
+                {componentSource === 'purchased' ? 'Purchase Date *' : 'Entry Date / Purchase Date'}
+              </Label>
               <Input
                 type="date"
                 value={formData.purchase_date}
@@ -480,6 +664,11 @@ export const CreateComponent: React.FC = () => {
                   {validationErrors.purchase_date}
                 </div>
               )}
+              {componentSource === 'vehicle_entry' && (
+                <div style={{ ...typography.caption, color: colors.neutral[600], marginTop: spacing.xs }}>
+                  Date when vehicle entered the yard
+                </div>
+              )}
             </div>
             <div>
               <Label>Warranty Expires</Label>
@@ -490,7 +679,9 @@ export const CreateComponent: React.FC = () => {
               />
             </div>
             <div>
-              <Label>Purchase Cost (₹) *</Label>
+              <Label>
+                {componentSource === 'purchased' ? 'Purchase Cost (₹) *' : 'Purchase Cost (₹) (Optional)'}
+              </Label>
               <Input
                 type="number"
                 step="0.01"
@@ -499,7 +690,7 @@ export const CreateComponent: React.FC = () => {
                   setFormData({ ...formData, purchase_cost: e.target.value });
                   setValidationErrors({ ...validationErrors, purchase_cost: '' });
                 }}
-                placeholder="0.00"
+                placeholder={componentSource === 'vehicle_entry' ? '0.00 (default)' : '0.00'}
                 style={{
                   borderColor: validationErrors.purchase_cost ? colors.error[500] : undefined
                 }}
@@ -509,15 +700,23 @@ export const CreateComponent: React.FC = () => {
                   {validationErrors.purchase_cost}
                 </div>
               )}
+              {componentSource === 'vehicle_entry' && (
+                <div style={{ ...typography.caption, color: colors.neutral[600], marginTop: spacing.xs }}>
+                  Defaults to ₹0 for components that came with vehicle
+                </div>
+              )}
             </div>
           </div>
 
           {/* Vehicle Assignment */}
           <div>
-            <Label>Current Vehicle (Optional)</Label>
+            <Label>
+              {componentSource === 'vehicle_entry' ? 'Vehicle *' : 'Current Vehicle (Optional)'}
+            </Label>
             <select
               value={formData.current_vehicle_id}
               onChange={(e) => setFormData({ ...formData, current_vehicle_id: e.target.value })}
+              required={componentSource === 'vehicle_entry'}
               style={{
                 width: '100%',
                 padding: `${spacing.sm}px ${spacing.md}px`,
@@ -527,13 +726,18 @@ export const CreateComponent: React.FC = () => {
                 fontFamily: typography.body.fontFamily,
               }}
             >
-              <option value="">No vehicle assigned</option>
-              {vehicles.map((vehicle) => (
-                <option key={vehicle.id} value={vehicle.id}>
+              <option value="">{componentSource === 'vehicle_entry' ? 'Select vehicle' : 'No vehicle assigned'}</option>
+              {vehicles.map((vehicle, index) => (
+                <option key={`vehicle-${vehicle.id}-${index}`} value={vehicle.id}>
                   {vehicle.registration_number} {vehicle.make && vehicle.model ? `(${vehicle.make} ${vehicle.model})` : ''}
                 </option>
               ))}
             </select>
+            {componentSource === 'vehicle_entry' && !formData.current_vehicle_id && (
+              <div style={{ ...typography.caption, color: colors.warning[600], marginTop: spacing.xs }}>
+                ⚠️ Vehicle selection is required for components that came with vehicle entry
+              </div>
+            )}
           </div>
 
           {/* Status */}

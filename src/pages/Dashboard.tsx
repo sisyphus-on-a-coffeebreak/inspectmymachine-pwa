@@ -216,203 +216,11 @@ export default function Dashboard() {
 
   return (
     <div style={{ 
-      minHeight: '100vh',
-      background: `linear-gradient(135deg, ${colors.neutral[50]} 0%, ${colors.neutral[100]} 100%)`,
+      maxWidth: '1400px',
+      margin: '0 auto',
       fontFamily: 'system-ui, -apple-system, sans-serif'
     }}>
-      {/* Modern Header */}
-      <header style={{
-        background: 'rgba(255, 255, 255, 0.95)',
-        backdropFilter: 'blur(10px)',
-        borderBottom: `1px solid ${colors.neutral[200]}`,
-        position: 'sticky',
-        top: 0,
-        zIndex: 50
-      }}>
-        <div style={{ 
-          maxWidth: '1400px', 
-          margin: '0 auto', 
-          padding: `${spacing.lg} ${spacing.xl}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }}>
-          {/* Logo & Title */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
-            }}>
-              <Sparkles style={{ width: '24px', height: '24px', color: 'white' }} />
-            </div>
-            <div>
-              <h1 style={{ 
-                ...typography.header,
-                fontSize: '24px',
-                color: colors.neutral[900],
-                margin: 0,
-                fontWeight: 700
-              }}>
-                VOMS
-              </h1>
-              <p style={{ 
-                ...typography.bodySmall,
-                color: colors.neutral[600],
-                margin: 0
-              }}>
-                Vehicle Operations Management System
-              </p>
-            </div>
-          </div>
-          
-          {/* User Info & Actions */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
-            {/* Notifications */}
-            <button 
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                border: 'none',
-                background: colors.neutral[100],
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                position: 'relative'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = colors.neutral[200];
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = colors.neutral[100];
-              }}
-              aria-label="View notifications"
-            >
-              <Bell style={{ width: '18px', height: '18px', color: colors.neutral[600] }} />
-              <div style={{
-                position: 'absolute',
-                top: '8px',
-                right: '8px',
-                width: '8px',
-                height: '8px',
-                background: colors.status.critical,
-                borderRadius: '50%'
-              }} />
-            </button>
-
-            {/* Settings */}
-            <button 
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                border: 'none',
-                background: colors.neutral[100],
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = colors.neutral[200];
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = colors.neutral[100];
-              }}
-              aria-label="Open settings"
-            >
-              <Settings style={{ width: '18px', height: '18px', color: colors.neutral[600] }} />
-            </button>
-
-            {/* User Profile */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: spacing.sm,
-              padding: `${spacing.sm} ${spacing.md}`,
-              background: colors.neutral[50],
-              borderRadius: '12px',
-              border: `1px solid ${colors.neutral[200]}`
-            }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
-                borderRadius: '10px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <User style={{ width: '18px', height: '18px', color: 'white' }} />
-              </div>
-              <div>
-                <p style={{ 
-                  ...typography.label,
-                  color: colors.neutral[900],
-                  margin: 0,
-                  fontWeight: 600
-                }}>
-                  {user?.name}
-                </p>
-                <p style={{ 
-                  ...typography.bodySmall,
-                  color: colors.neutral[600],
-                  margin: 0,
-                  fontSize: '11px'
-                }}>
-                  {user?.employee_id} • {getRoleDisplayName(user?.role || '')}
-                </p>
-              </div>
-            </div>
-
-            {/* Logout Button */}
-            <button
-              onClick={handleLogout}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: spacing.sm,
-                padding: `${spacing.sm} ${spacing.md}`,
-                background: 'transparent',
-                border: `1px solid ${colors.status.critical}`,
-                borderRadius: '10px',
-                color: colors.status.critical,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                fontWeight: 500
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = colors.status.critical;
-                e.currentTarget.style.color = 'white';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.color = colors.status.critical;
-              }}
-              aria-label="Logout from account"
-            >
-              <LogOut style={{ width: '16px', height: '16px' }} />
-              <span style={{ fontSize: '14px' }}>Logout</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main style={{ 
-        maxWidth: '1400px', 
-        margin: '0 auto', 
-        padding: `${spacing.xl} ${spacing.xl}`
-      }}>
+      {/* Main Content - Header removed, using AppLayout */}
         {/* Welcome Section */}
         <div style={{ marginBottom: spacing.xl }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
@@ -853,7 +661,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Module Cards Grid */}
+        {/* Cross-Module Reports */}
         <div style={{ marginBottom: spacing.xl }}>
           <div style={{ 
             display: 'flex', 
@@ -868,252 +676,276 @@ export default function Dashboard() {
               margin: 0,
               fontWeight: 600
             }}>
-              🚀 Available Modules
+              📊 Cross-Module Reports & Analytics
             </h3>
-            <div style={{ display: 'flex', gap: spacing.sm }}>
-              <button 
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: spacing.sm,
-                  padding: `${spacing.sm} ${spacing.md}`,
-                  background: colors.neutral[100],
-                  border: 'none',
-                  borderRadius: '10px',
-                  color: colors.neutral[700],
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 500
-                }}
-                aria-label="View Analytics"
-              >
-                <BarChart3 style={{ width: '16px', height: '16px' }} />
-                Analytics
-              </button>
-              <button 
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: spacing.sm,
-                  padding: `${spacing.sm} ${spacing.md}`,
-                  background: colors.neutral[100],
-                  border: 'none',
-                  borderRadius: '10px',
-                  color: colors.neutral[700],
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 500
-                }}
-                aria-label="View Calendar"
-              >
-                <Calendar style={{ width: '16px', height: '16px' }} />
-                Calendar
-              </button>
-            </div>
           </div>
 
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
             gap: spacing.lg
           }}>
-            {loading ? (
-              // Show skeleton loaders while loading
-              Array.from({ length: accessibleModules.length || 4 }).map((_, index) => (
-                <SkeletonCard key={`skeleton-${index}`} />
-              ))
-            ) : (
-              accessibleModules.map((module) => {
-              const Icon = module.icon;
-              return (
-                <div
-                  key={module.id}
-                  onClick={() => navigate(module.path)}
-                  style={{
-                    background: 'white',
-                    padding: spacing.xl,
-                    borderRadius: '20px',
-                    boxShadow: '0 8px 25px rgba(0,0,0,0.08)',
-                    border: `1px solid ${colors.neutral[200]}`,
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    position: 'relative',
-                    overflow: 'hidden'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 12px 35px rgba(0,0,0,0.15)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.08)';
-                  }}
-                >
-                  {/* Badges */}
-                  <div style={{ 
-                    position: 'absolute', 
-                    top: spacing.md, 
-                    right: spacing.md,
-                    display: 'flex',
-                    gap: spacing.sm
-                  }}>
-                    {module.isNew && (
-                      <div style={{
-                        padding: '4px 8px',
-                        background: `linear-gradient(135deg, ${colors.status.normal} 0%, ${colors.status.normal}80 100%)`,
-                        borderRadius: '12px',
-                        color: 'white',
-                        fontSize: '10px',
-                        fontWeight: 600
-                      }}>
-                        NEW
-                      </div>
-                    )}
-                    {module.isPopular && (
-                      <div style={{
-                        padding: '4px 8px',
-                        background: `linear-gradient(135deg, ${colors.status.warning} 0%, ${colors.status.warning}80 100%)`,
-                        borderRadius: '12px',
-                        color: 'white',
-                        fontSize: '10px',
-                        fontWeight: 600
-                      }}>
-                        POPULAR
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Icon */}
+            {/* Gate Pass Reports */}
+            {(user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'guard' || user?.role === 'clerk') && (
+              <div
+                onClick={() => navigate('/app/gate-pass/reports')}
+                style={{
+                  background: 'white',
+                  padding: spacing.xl,
+                  borderRadius: '16px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                  border: `1px solid ${colors.neutral[200]}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
+                  e.currentTarget.style.borderColor = colors.primary;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                  e.currentTarget.style.borderColor = colors.neutral[200];
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
                   <div style={{
-                    width: '64px',
-                    height: '64px',
-                    background: `linear-gradient(135deg, ${module.gradient})`,
-                    borderRadius: '16px',
+                    width: '48px',
+                    height: '48px',
+                    background: `linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)`,
+                    borderRadius: '12px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: spacing.lg,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                    justifyContent: 'center'
                   }}>
-                    <Icon className="w-8 h-8 text-white" />
+                    <ClipboardList style={{ width: '24px', height: '24px', color: 'white' }} />
                   </div>
-
-                  {/* Content */}
-                  <div>
-                    <h4 style={{ 
-                      ...typography.subheader,
-                      fontSize: '18px',
-                      color: colors.neutral[900],
-                      marginBottom: spacing.sm,
-                      fontWeight: 600
-                    }}>
-                      {module.name}
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ ...typography.subheader, fontSize: '18px', margin: 0, fontWeight: 600 }}>
+                      Gate Pass Reports
                     </h4>
-                    <p style={{ 
-                      ...typography.body,
-                      color: colors.neutral[600],
-                      marginBottom: spacing.lg,
-                      lineHeight: 1.5
-                    }}>
-                      {module.description}
+                    <p style={{ ...typography.bodySmall, color: colors.neutral[600], margin: 0 }}>
+                      Visitor & vehicle pass analytics
                     </p>
-
-                    {/* Stats */}
-                    {module.stats && (
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: `${spacing.sm} ${spacing.md}`,
-                        background: colors.neutral[50],
-                        borderRadius: '12px',
-                        marginBottom: spacing.lg
-                      }}>
-                        <div>
-                          <p style={{ 
-                            ...typography.label,
-                            color: colors.neutral[600],
-                            margin: 0,
-                            fontSize: '12px'
-                          }}>
-                            {module.stats.label}
-                          </p>
-                          <p style={{ 
-                            ...typography.header,
-                            fontSize: '20px',
-                            color: colors.neutral[900],
-                            margin: 0,
-                            fontWeight: 700
-                          }}>
-                            {module.stats.value}
-                          </p>
-                        </div>
-                        {module.stats.trend && (
-                          <p style={{ 
-                            ...typography.bodySmall,
-                            color: colors.status.normal,
-                            margin: 0,
-                            fontSize: '12px',
-                            fontWeight: 600
-                          }}>
-                            {module.stats.trend}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Action Button */}
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: spacing.sm,
-                      color: colors.primary,
-                      fontWeight: 600,
-                      fontSize: '14px'
-                    }}>
-                      <span>Open Module</span>
-                      <ArrowRight style={{ width: '16px', height: '16px' }} />
-                    </div>
                   </div>
                 </div>
-              );
-              })
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, color: colors.primary, fontWeight: 500 }}>
+                  <span>View Reports</span>
+                  <ArrowRight size={16} />
+                </div>
+              </div>
+            )}
+
+            {/* Inspection Reports */}
+            {(user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'inspector') && (
+              <div
+                onClick={() => navigate('/app/inspections/reports')}
+                style={{
+                  background: 'white',
+                  padding: spacing.xl,
+                  borderRadius: '16px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                  border: `1px solid ${colors.neutral[200]}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
+                  e.currentTarget.style.borderColor = colors.primary;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                  e.currentTarget.style.borderColor = colors.neutral[200];
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    background: `linear-gradient(135deg, #10b981 0%, #059669 100%)`,
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <FileText style={{ width: '24px', height: '24px', color: 'white' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ ...typography.subheader, fontSize: '18px', margin: 0, fontWeight: 600 }}>
+                      Inspection Reports
+                    </h4>
+                    <p style={{ ...typography.bodySmall, color: colors.neutral[600], margin: 0 }}>
+                      Vehicle inspection analytics & VIR
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, color: colors.primary, fontWeight: 500 }}>
+                  <span>View Reports</span>
+                  <ArrowRight size={16} />
+                </div>
+              </div>
+            )}
+
+            {/* Expense Reports */}
+            {(user?.role === 'super_admin' || user?.role === 'admin') && (
+              <div
+                onClick={() => navigate('/app/expenses/reports')}
+                style={{
+                  background: 'white',
+                  padding: spacing.xl,
+                  borderRadius: '16px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                  border: `1px solid ${colors.neutral[200]}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
+                  e.currentTarget.style.borderColor = colors.primary;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                  e.currentTarget.style.borderColor = colors.neutral[200];
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    background: `linear-gradient(135deg, #f59e0b 0%, #d97706 100%)`,
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <DollarSign style={{ width: '24px', height: '24px', color: 'white' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ ...typography.subheader, fontSize: '18px', margin: 0, fontWeight: 600 }}>
+                      Expense Reports
+                    </h4>
+                    <p style={{ ...typography.bodySmall, color: colors.neutral[600], margin: 0 }}>
+                      Financial analytics & cashflow
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, color: colors.primary, fontWeight: 500 }}>
+                  <span>View Reports</span>
+                  <ArrowRight size={16} />
+                </div>
+              </div>
+            )}
+
+            {/* Stockyard Analytics */}
+            {(user?.role === 'super_admin' || user?.role === 'admin') && (
+              <div
+                onClick={() => navigate('/app/stockyard')}
+                style={{
+                  background: 'white',
+                  padding: spacing.xl,
+                  borderRadius: '16px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                  border: `1px solid ${colors.neutral[200]}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
+                  e.currentTarget.style.borderColor = colors.primary;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                  e.currentTarget.style.borderColor = colors.neutral[200];
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    background: `linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)`,
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Warehouse style={{ width: '24px', height: '24px', color: 'white' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ ...typography.subheader, fontSize: '18px', margin: 0, fontWeight: 600 }}>
+                      Stockyard Analytics
+                    </h4>
+                    <p style={{ ...typography.bodySmall, color: colors.neutral[600], margin: 0 }}>
+                      Inventory & yard operations
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, color: colors.primary, fontWeight: 500 }}>
+                  <span>View Dashboard</span>
+                  <ArrowRight size={16} />
+                </div>
+              </div>
+            )}
+
+            {/* User Activity Reports */}
+            {(user?.role === 'super_admin' || user?.role === 'admin') && (
+              <div
+                onClick={() => navigate('/app/admin/users/activity')}
+                style={{
+                  background: 'white',
+                  padding: spacing.xl,
+                  borderRadius: '16px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                  border: `1px solid ${colors.neutral[200]}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
+                  e.currentTarget.style.borderColor = colors.primary;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                  e.currentTarget.style.borderColor = colors.neutral[200];
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    background: `linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)`,
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Users style={{ width: '24px', height: '24px', color: 'white' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ ...typography.subheader, fontSize: '18px', margin: 0, fontWeight: 600 }}>
+                      User Activity Reports
+                    </h4>
+                    <p style={{ ...typography.bodySmall, color: colors.neutral[600], margin: 0 }}>
+                      System usage & activity logs
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, color: colors.primary, fontWeight: 500 }}>
+                  <span>View Reports</span>
+                  <ArrowRight size={16} />
+                </div>
+              </div>
             )}
           </div>
         </div>
-
-        {/* No Access Message */}
-        {accessibleModules.length === 0 && (
-          <div style={{
-            background: `linear-gradient(135deg, ${colors.status.warning}20 0%, ${colors.status.warning}10 100%)`,
-            border: `1px solid ${colors.status.warning}`,
-            borderRadius: '16px',
-            padding: spacing.xl,
-            textAlign: 'center'
-          }}>
-            <AlertCircle style={{ 
-              width: '48px', 
-              height: '48px', 
-              color: colors.status.warning,
-              margin: '0 auto',
-              marginBottom: spacing.md
-            }} />
-            <h3 style={{ 
-              ...typography.subheader,
-              color: colors.status.warning,
-              marginBottom: spacing.sm
-            }}>
-              No Module Access
-            </h3>
-            <p style={{ 
-              ...typography.body,
-              color: colors.neutral[700],
-              margin: 0
-            }}>
-              You don't have access to any modules. Please contact your administrator to get the necessary permissions.
-            </p>
-          </div>
-        )}
 
         {/* Recent Activity */}
         <div style={{
@@ -1214,7 +1046,6 @@ export default function Dashboard() {
             )}
           </div>
         </div>
-      </main>
     </div>
   );
 }

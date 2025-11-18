@@ -14,6 +14,7 @@ import { PolicyLinks } from '../../components/ui/PolicyLinks';
 import { ConflictResolutionModal } from '../../components/inspection/ConflictResolutionModal';
 import { DraggableReportBuilder } from '../../components/inspection/DraggableReportBuilder';
 import { RtoDetailsManager } from '../../components/inspection/RtoDetailsManager';
+import { ImageDownloadManager } from '../../components/inspection/ImageDownloadManager';
 import { fetchInspectionTemplate } from '../../lib/inspection-templates';
 import { useInspections } from '../../lib/queries';
 import { useAuth } from '../../providers/useAuth';
@@ -142,6 +143,7 @@ export const InspectionDetails: React.FC = () => {
   const [resolvingConflict, setResolvingConflict] = useState(false);
   const [showReportBuilder, setShowReportBuilder] = useState(false);
   const [showRtoManager, setShowRtoManager] = useState(false);
+  const [showImageDownload, setShowImageDownload] = useState(false);
 
   // Fetch related inspections for the same vehicle
   const { data: relatedInspectionsData } = useInspections(
@@ -154,33 +156,81 @@ export const InspectionDetails: React.FC = () => {
   ) || [];
 
   const fetchInspectionDetails = useCallback(async () => {
-    if (!id) return;
+    // Validate ID - must be present, not "0", not empty, and not the route placeholder
+    // Inspection IDs are UUIDs, so they should be at least 36 characters (standard UUID format)
+    // Basic UUID format check: contains hyphens and is 36 characters long
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
+    // Check if ID is a simple number (like "0", "1", "2", etc.) - these are invalid
+    const isNumericId = id && /^\d+$/.test(id) && id.length < 10;
+    
+    const isValidId = id && 
+                     id !== '0' && 
+                     id !== '' && 
+                     id !== ':id' &&
+                     !isNumericId && // Reject simple numeric IDs
+                     (uuidPattern.test(id) || id.length > 20); // Allow UUIDs or IDs longer than 20 chars
+    
+    if (!isValidId) {
+      let errorMessage: string;
+      if (isNumericId) {
+        errorMessage = `Invalid inspection ID: "${id}" appears to be a numeric ID. Inspection IDs must be UUIDs (e.g., "019a8f07-3aa1-705f-9589-e9044b54269b"). Please select an inspection from the dashboard.`;
+      } else if (id === '0') {
+        errorMessage = 'Invalid inspection ID: "0" is not a valid inspection identifier. Please select an inspection from the dashboard.';
+      } else {
+        errorMessage = `Invalid inspection ID: "${id}" is not a valid inspection identifier. Inspection IDs must be UUIDs.`;
+      }
+      
+      setError(new Error(errorMessage));
+      setLoading(false);
+      // Redirect to inspections dashboard after a short delay for all invalid IDs
+      setTimeout(() => {
+        navigate('/app/inspections', { replace: true });
+      }, 3000);
+      return;
+    }
     
     try {
       setLoading(true);
       setError(null);
 
-      const response = await apiClient.get(`/v1/inspections/${id}`);
+      const response = await apiClient.get(`/v1/inspections/${id}`, {
+        suppressErrorLog: false, // Log errors for valid-looking IDs
+      });
       // Ensure ID is always a string
-      const inspectionData = {
+      let inspectionData = {
         ...response.data,
         id: String(response.data?.id || id),
       };
+      
+      // If template is not fully loaded, fetch it
+      if (inspectionData.template_id && (!inspectionData.template || !inspectionData.template.sections)) {
+        try {
+          const templateData = await fetchInspectionTemplate(inspectionData.template_id, { forceRefresh: false });
+          inspectionData = {
+            ...inspectionData,
+            template: templateData.template,
+          };
+        } catch (err) {
+          console.warn('Failed to fetch template for inspection:', err);
+        }
+      }
+      
       setInspection(inspectionData);
       
       // Check for template version conflict
-      if (response.data?.template_id && response.data?.started_at) {
+      if (inspectionData.template_id && inspectionData.started_at) {
         try {
-          const templateData = await fetchInspectionTemplate(response.data.template_id, { forceRefresh: true });
+          const templateData = await fetchInspectionTemplate(inspectionData.template_id, { forceRefresh: true });
           const templateUpdatedAt = templateData.template.updated_at 
             ? new Date(templateData.template.updated_at) 
             : null;
-          const startedAt = new Date(response.data.started_at);
+          const startedAt = new Date(inspectionData.started_at);
           
           if (templateUpdatedAt && templateUpdatedAt > startedAt) {
             setCurrentTemplate(templateData.template);
             // Only show modal if inspection is still in progress
-            if (response.data.status === 'draft' || response.data.status === 'in_progress') {
+            if (inspectionData.status === 'draft' || inspectionData.status === 'in_progress') {
               setShowConflictModal(true);
             }
           }
@@ -776,6 +826,13 @@ export const InspectionDetails: React.FC = () => {
               Customize Report
             </Button>
             <Button
+              variant="secondary"
+              onClick={() => setShowImageDownload(true)}
+              icon="📷🎥"
+            >
+              Download Media
+            </Button>
+            <Button
               variant="primary"
               onClick={generatePDF}
               disabled={generatingPDF}
@@ -999,95 +1056,147 @@ export const InspectionDetails: React.FC = () => {
           📋 Inspection Details
         </h3>
         
-        {inspection.template?.sections.map(section => (
-          <div key={section.id} style={{ marginBottom: spacing.xl }}>
-            <h4 style={{ 
-              ...typography.subheader,
-              fontSize: '18px',
-              color: colors.neutral[900],
-              marginBottom: spacing.md,
-              paddingBottom: spacing.sm,
-              borderBottom: `2px solid ${colors.primary}`
-            }}>
-              {section.name}
-            </h4>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-              {section.questions.map(question => {
-                const answer = inspection.answers.find(a => a.question_id === question.id);
-                return (
-                  <div key={question.id} style={{
-                    padding: spacing.lg,
-                    border: `1px solid ${question.is_critical ? colors.status.critical : colors.neutral[200]}`,
-                    borderRadius: '12px',
-                    backgroundColor: question.is_critical ? colors.status.critical + '10' : colors.neutral[50]
-                  }}>
-                    <div style={{ 
-                      ...typography.subheader,
-                      fontSize: '16px',
-                      color: colors.neutral[900],
-                      marginBottom: spacing.sm,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: spacing.sm
-                    }}>
-                      {question.question_text}
-                      {question.is_critical && (
-                        <span style={{
-                          padding: '2px 8px',
-                          backgroundColor: colors.status.critical,
-                          color: 'white',
-                          borderRadius: '12px',
-                          fontSize: '10px',
-                          fontWeight: 600
+        {inspection.template?.sections && inspection.template.sections.length > 0 ? (
+          inspection.template.sections.map(section => (
+            <div key={section.id} style={{ marginBottom: spacing.xl }}>
+              <h4 style={{ 
+                ...typography.subheader,
+                fontSize: '18px',
+                color: colors.neutral[900],
+                marginBottom: spacing.md,
+                paddingBottom: spacing.sm,
+                borderBottom: `2px solid ${colors.primary}`
+              }}>
+                {section.name}
+              </h4>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+                {section.questions && section.questions.length > 0 ? (
+                  section.questions.map(question => {
+                    const answer = inspection.answers?.find((a: any) => a.question_id === question.id);
+                    return (
+                      <div key={question.id} style={{
+                        padding: spacing.lg,
+                        border: `1px solid ${question.is_critical ? colors.status.critical : colors.neutral[200]}`,
+                        borderRadius: '12px',
+                        backgroundColor: question.is_critical ? colors.status.critical + '10' : colors.neutral[50]
+                      }}>
+                        <div style={{ 
+                          ...typography.subheader,
+                          fontSize: '16px',
+                          color: colors.neutral[900],
+                          marginBottom: spacing.sm,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: spacing.sm
                         }}>
-                          CRITICAL
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div style={{ 
-                      ...typography.body,
-                      color: colors.neutral[700],
-                      padding: spacing.sm,
-                      backgroundColor: 'white',
-                      borderRadius: '8px',
-                      border: '1px solid #E5E7EB'
-                    }}>
-                      {answer ? (
-                        <div>
-                          <div style={{ marginBottom: spacing.xs }}>
-                            {typeof answer.answer_value === 'object' ? 
-                              JSON.stringify(answer.answer_value) : 
-                              String(answer.answer_value)
-                            }
-                          </div>
-                          {answer.is_critical_finding && (
-                            <div style={{
-                              color: colors.status.critical,
-                              fontWeight: 600,
-                              fontSize: '14px'
+                          {question.question_text}
+                          {question.is_critical && (
+                            <span style={{
+                              padding: '2px 8px',
+                              backgroundColor: colors.status.critical,
+                              color: 'white',
+                              borderRadius: '12px',
+                              fontSize: '10px',
+                              fontWeight: 600
                             }}>
-                              ⚠️ Critical Finding
+                              CRITICAL
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div style={{ 
+                          ...typography.body,
+                          color: colors.neutral[700],
+                          padding: spacing.sm,
+                          backgroundColor: 'white',
+                          borderRadius: '8px',
+                          border: '1px solid #E5E7EB'
+                        }}>
+                          {answer ? (
+                            <div>
+                              <div style={{ marginBottom: spacing.xs }}>
+                                {typeof answer.answer_value === 'object' ? 
+                                  JSON.stringify(answer.answer_value) : 
+                                  String(answer.answer_value)
+                                }
+                              </div>
+                              {answer.is_critical_finding && (
+                                <div style={{
+                                  color: colors.status.critical,
+                                  fontWeight: 600,
+                                  fontSize: '14px'
+                                }}>
+                                  ⚠️ Critical Finding
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div style={{ color: colors.neutral[500], fontStyle: 'italic' }}>
+                              No answer provided
                             </div>
                           )}
                         </div>
-                      ) : (
-                        <div style={{ color: colors.neutral[500], fontStyle: 'italic' }}>
-                          No answer provided
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div style={{ ...typography.bodySmall, color: colors.neutral[500], fontStyle: 'italic' }}>
+                    No questions in this section
                   </div>
-                );
-              })}
+                )}
+              </div>
             </div>
+          ))
+        ) : inspection.answers && inspection.answers.length > 0 ? (
+          // Fallback: Show answers even if template sections are missing
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+            {inspection.answers.map((answer: any) => (
+              <div key={answer.id || answer.question_id} style={{
+                padding: spacing.lg,
+                border: `1px solid ${answer.is_critical_finding ? colors.status.critical : colors.neutral[200]}`,
+                borderRadius: '12px',
+                backgroundColor: answer.is_critical_finding ? colors.status.critical + '10' : colors.neutral[50]
+              }}>
+                <div style={{ 
+                  ...typography.subheader,
+                  fontSize: '16px',
+                  color: colors.neutral[900],
+                  marginBottom: spacing.sm
+                }}>
+                  {answer.question?.question_text || `Question ${answer.question_id}`}
+                </div>
+                <div style={{ 
+                  ...typography.body,
+                  color: colors.neutral[700],
+                  padding: spacing.sm,
+                  backgroundColor: 'white',
+                  borderRadius: '8px',
+                  border: '1px solid #E5E7EB'
+                }}>
+                  {typeof answer.answer_value === 'object' ? 
+                    JSON.stringify(answer.answer_value) : 
+                    String(answer.answer_value || 'No answer')
+                  }
+                  {answer.is_critical_finding && (
+                    <div style={{
+                      color: colors.status.critical,
+                      fontWeight: 600,
+                      fontSize: '14px',
+                      marginTop: spacing.xs
+                    }}>
+                      ⚠️ Critical Finding
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-        )) || (
+        ) : (
           <div style={{ textAlign: 'center', padding: spacing.xl }}>
             <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>📋</div>
             <div style={{ ...typography.body, color: colors.neutral[600] }}>
-              No inspection details available
+              No inspection details available. Template or answers not loaded.
             </div>
           </div>
         )}
@@ -1306,6 +1415,14 @@ export const InspectionDetails: React.FC = () => {
           onSave={() => {
             fetchInspectionDetails(); // Refresh to get updated RTO details
           }}
+        />
+      )}
+
+      {/* Image Download Manager Modal */}
+      {showImageDownload && inspection && (
+        <ImageDownloadManager
+          inspection={inspection}
+          onClose={() => setShowImageDownload(false)}
         />
       )}
     </div>

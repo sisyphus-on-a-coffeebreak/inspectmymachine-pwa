@@ -69,7 +69,7 @@ export const PassApproval: React.FC = () => {
   const fetchApprovalRequests = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/api/gate-pass-approval/pending', {
+      const response = await apiClient.get('/gate-pass-approval/pending', {
         params: { status: filter }
       });
       setApprovalRequests(response.data);
@@ -112,7 +112,7 @@ export const PassApproval: React.FC = () => {
 
   const fetchPassDetails = async (passId: string) => {
     try {
-      const response = await apiClient.get(`/api/gate-pass-approval/pass-details/${passId}`);
+      const response = await apiClient.get(`/gate-pass-approval/pass-details/${passId}`);
       setPassDetails(response.data);
     } catch (error) {
       // Mock data for development (fallback)
@@ -133,7 +133,7 @@ export const PassApproval: React.FC = () => {
 
   const fetchApprovalLevels = async () => {
     try {
-      const response = await apiClient.get(`/api/gate-pass-approval/history`);
+      const response = await apiClient.get(`/gate-pass-approval/history`);
       setApprovalLevels(response.data);
     } catch (error) {
       // Mock data for development
@@ -171,7 +171,7 @@ export const PassApproval: React.FC = () => {
 
     try {
       setLoading(true);
-      await apiClient.post(`/api/gate-pass-approval/approve/${selectedRequest.id}`, {
+      await apiClient.post(`/gate-pass-approval/approve/${selectedRequest.id}`, {
         notes: approvalNotes
       });
 
@@ -206,7 +206,7 @@ export const PassApproval: React.FC = () => {
 
     try {
       setLoading(true);
-      await apiClient.post(`/api/gate-pass-approval/reject/${selectedRequest.id}`, {
+      await apiClient.post(`/gate-pass-approval/reject/${selectedRequest.id}`, {
         reason: rejectionReason
       });
 
@@ -234,7 +234,7 @@ export const PassApproval: React.FC = () => {
 
     try {
       setLoading(true);
-      await apiClient.post(`/api/gate-pass-approval/escalate/${selectedRequest.id}`, {
+      await apiClient.post(`/gate-pass-approval/escalate/${selectedRequest.id}`, {
         reason: approvalNotes
       });
 

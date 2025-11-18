@@ -46,6 +46,7 @@ const navItems: NavItem[] = [
     path: "/app/gate-pass",
     roles: ["super_admin", "admin", "guard", "clerk"],
     children: [
+      { id: "dashboard", label: "Dashboard", icon: ClipboardList, path: "/app/gate-pass", roles: ["super_admin", "admin", "guard", "clerk"] },
       { id: "create-visitor", label: "Create Visitor Pass", icon: ClipboardList, path: "/app/gate-pass/create-visitor", roles: ["super_admin", "admin", "clerk"] },
       { id: "create-vehicle", label: "Create Vehicle Pass", icon: ClipboardList, path: "/app/gate-pass/create-vehicle", roles: ["super_admin", "admin", "clerk"] },
       { id: "guard-register", label: "Guard Register", icon: ClipboardList, path: "/app/gate-pass/guard-register", roles: ["super_admin", "admin", "guard"] },
@@ -62,8 +63,10 @@ const navItems: NavItem[] = [
     path: "/app/inspections",
     roles: ["super_admin", "admin", "inspector"],
     children: [
+      { id: "dashboard", label: "Dashboard", icon: FileText, path: "/app/inspections", roles: ["super_admin", "admin", "inspector"] },
       { id: "new", label: "New Inspection", icon: FileText, path: "/app/inspections/new", roles: ["super_admin", "admin", "inspector"] },
-      { id: "completed", label: "Completed", icon: FileText, path: "/app/inspections/completed", roles: ["super_admin", "admin", "inspector"] }
+      { id: "completed", label: "Completed", icon: FileText, path: "/app/inspections/completed", roles: ["super_admin", "admin", "inspector"] },
+      { id: "reports", label: "Reports", icon: FileText, path: "/app/inspections/reports", roles: ["super_admin", "admin", "inspector"] }
     ]
   },
   {
@@ -73,10 +76,12 @@ const navItems: NavItem[] = [
     path: "/app/expenses",
     roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"],
     children: [
+      { id: "dashboard", label: "Dashboard", icon: DollarSign, path: "/app/expenses", roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"] },
       { id: "create", label: "Create Expense", icon: DollarSign, path: "/app/expenses/create", roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"] },
       { id: "history", label: "History", icon: DollarSign, path: "/app/expenses/history", roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"] },
       { id: "approval", label: "Approvals", icon: DollarSign, path: "/app/expenses/approval", roles: ["super_admin", "admin", "supervisor"] },
-      { id: "reports", label: "Reports", icon: DollarSign, path: "/app/expenses/reports", roles: ["super_admin", "admin"] }
+      { id: "reports", label: "Reports", icon: DollarSign, path: "/app/expenses/reports", roles: ["super_admin", "admin"] },
+      { id: "accounts", label: "Accounts Dashboard", icon: DollarSign, path: "/app/expenses/accounts", roles: ["super_admin", "admin"] }
     ]
   },
   {
@@ -87,10 +92,12 @@ const navItems: NavItem[] = [
     roles: ["super_admin", "admin"],
     children: [
       { id: "dashboard", label: "Dashboard", icon: Warehouse, path: "/app/stockyard", roles: ["super_admin", "admin"] },
-      { id: "create", label: "Create Request", icon: Warehouse, path: "/app/stockyard/create", roles: ["super_admin", "admin"] },
+      { id: "create", label: "Record Movement", icon: Warehouse, path: "/app/stockyard/create", roles: ["super_admin", "admin"] },
       { id: "scan", label: "Scan Vehicle", icon: Warehouse, path: "/app/stockyard/scan", roles: ["super_admin", "admin", "guard"] },
       { id: "components", label: "Component Ledger", icon: Warehouse, path: "/app/stockyard/components", roles: ["super_admin", "admin"] },
       { id: "transfer-approvals", label: "Transfer Approvals", icon: Warehouse, path: "/app/stockyard/components/transfers/approvals", roles: ["super_admin", "admin", "supervisor"] },
+      { id: "yard-map", label: "Yard Map", icon: Warehouse, path: "/app/stockyard/yards/:yardId/map", roles: ["super_admin", "admin"] },
+      { id: "buyer-readiness", label: "Buyer Readiness", icon: Warehouse, path: "/app/stockyard/buyer-readiness", roles: ["super_admin", "admin"] },
     ]
   },
   {
@@ -107,6 +114,7 @@ const navItems: NavItem[] = [
     path: "/app/admin/users",
     roles: ["super_admin", "admin"],
     children: [
+      { id: "dashboard", label: "Dashboard", icon: UserCog, path: "/app/admin/users", roles: ["super_admin", "admin"] },
       { id: "user-activity", label: "Activity Dashboard", icon: UserCog, path: "/app/admin/users/activity", roles: ["super_admin", "admin"] },
       { id: "capability-matrix", label: "Capability Matrix", icon: UserCog, path: "/app/admin/users/capability-matrix", roles: ["super_admin", "admin"] },
       { id: "bulk-operations", label: "Bulk Operations", icon: UserCog, path: "/app/admin/users/bulk-operations", roles: ["super_admin", "admin"] }
@@ -298,7 +306,7 @@ export default function AppLayout({
       )}
 
       <div style={{ display: "flex", minHeight: "calc(100vh - 64px)" }}>
-        {/* Sidebar */}
+        {/* Sidebar - Always visible when showSidebar is true */}
         {showSidebar && (
           <>
             {/* Desktop Sidebar */}
@@ -524,7 +532,10 @@ export default function AppLayout({
         <main className="app-layout-main-content" style={{
           flex: 1,
           maxWidth: "1400px",
-          width: "100%"
+          width: "100%",
+          marginLeft: showSidebar ? "280px" : "0",
+          padding: spacing.xl,
+          transition: "margin-left 0.3s ease"
         }}>
           {/* Breadcrumbs */}
           {breadcrumbs && breadcrumbs.length > 0 && (

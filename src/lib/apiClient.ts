@@ -9,10 +9,10 @@
  */
 
 import axios, { AxiosError } from 'axios';
-import type { AxiosRequestConfig, AxiosResponse } from 'axios';
+import type { AxiosRequestConfig } from 'axios';
 import { withBackoff } from './retry';
 import { offlineQueue } from './offlineQueue';
-import { isNetworkError, isRetryableError } from './errorHandling';
+import { isNetworkError } from './errorHandling';
 
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 
   (import.meta.env.PROD ? "https://inspectmymachine.in" : "http://localhost:8000");
@@ -23,6 +23,23 @@ axios.defaults.withCredentials = true;
 axios.defaults.baseURL = BASE_URL;
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 axios.defaults.headers.common['Accept'] = 'application/json';
+
+// Add response interceptor to handle expected failures silently
+// Note: Browser network errors in the console cannot be suppressed as they come
+// from the browser's XHR/fetch API. However, we mark errors for our own logging suppression.
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Mark errors that should be suppressed for our own logging
+    const config = error.config as ApiRequestConfig | undefined;
+    if (config?.suppressErrorLog && axios.isAxiosError(error)) {
+      // Store a flag on the error to indicate it should be suppressed
+      // Using a type assertion since we're adding a custom property
+      (error as AxiosError & { __suppressLog?: boolean }).__suppressLog = true;
+    }
+    return Promise.reject(error);
+  }
+);
 
 export interface ApiError {
   message: string;
@@ -100,7 +117,7 @@ class ApiClient {
       // Small delay to ensure cookie is set
       await new Promise(resolve => setTimeout(resolve, 100));
       this.csrfInitialized = true;
-    } catch (error) {
+    } catch {
       // CSRF token initialization failed - will retry on next request
     }
   }
@@ -132,9 +149,21 @@ class ApiClient {
         statusText: response.statusText,
       };
     } catch (error) {
-      // Queue request if it's a network error and queueing is enabled
-      if (isNetworkError(error) && !config?.skipRetry) {
-        await offlineQueue.enqueue('GET', path, undefined, config, error);
+      // Suppress console errors for expected failures (e.g., auth checks)
+      const headers = config?.headers || {};
+      const isAuthCheck = headers['X-Auth-Check'] === 'true' || 
+                         (typeof headers === 'object' && 'common' in headers && 
+                          typeof (headers as Record<string, unknown>).common === 'object' &&
+                          (headers as Record<string, Record<string, unknown>>).common?.['X-Auth-Check'] === 'true');
+      const isExpectedFailure = config?.suppressErrorLog || 
+                               (isAuthCheck && axios.isAxiosError(error) && error.response?.status === 401) ||
+                               (config?.suppressErrorLog && axios.isAxiosError(error) && error.response?.status === 404);
+      
+      if (!isExpectedFailure) {
+        // Queue request if it's a network error and queueing is enabled
+        if (isNetworkError(error) && !config?.skipRetry) {
+          await offlineQueue.enqueue('GET', path, undefined, config, error);
+        }
       }
       throw error;
     }

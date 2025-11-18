@@ -41,7 +41,8 @@ export const PassTemplates: React.FC = () => {
     description: '',
     type: 'visitor' as 'visitor' | 'vehicle',
     purpose: '',
-    expected_duration: '',
+    expected_duration_hours: 2,
+    expected_duration_minutes: 0,
     notes: '',
     auto_assign_escort: false
   });
@@ -49,7 +50,7 @@ export const PassTemplates: React.FC = () => {
   const fetchTemplates = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/api/gate-pass-templates');
+      const response = await apiClient.get('/v1/gate-pass-templates');
       setTemplates(response.data);
     } catch (error) {
       // Mock data for development
@@ -112,13 +113,16 @@ export const PassTemplates: React.FC = () => {
   const createTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await apiClient.post('/api/gate-pass-templates', {
+      // Calculate total duration in minutes
+      const totalMinutes = (newTemplate.expected_duration_hours * 60) + newTemplate.expected_duration_minutes;
+      
+      const response = await apiClient.post('/v1/gate-pass-templates', {
         name: newTemplate.name,
         description: newTemplate.description,
         type: newTemplate.type,
         template_data: {
           purpose: newTemplate.purpose,
-          expected_duration: newTemplate.expected_duration,
+          expected_duration_minutes: totalMinutes, // Store as minutes for easy calculation
           notes: newTemplate.notes,
           auto_assign_escort: newTemplate.auto_assign_escort
         }
@@ -131,7 +135,8 @@ export const PassTemplates: React.FC = () => {
         description: '',
         type: 'visitor',
         purpose: '',
-        expected_duration: '',
+        expected_duration_hours: 2,
+        expected_duration_minutes: 0,
         notes: '',
         auto_assign_escort: false
       });
@@ -173,7 +178,7 @@ export const PassTemplates: React.FC = () => {
     if (!confirmed) return;
     
     try {
-      await apiClient.delete(`/api/gate-pass-templates/${templateId}`);
+      await apiClient.delete(`/v1/gate-pass-templates/${templateId}`);
       setTemplates(prev => prev.filter(t => t.id !== templateId));
       showToast({
         title: 'Success',
@@ -363,24 +368,62 @@ export const PassTemplates: React.FC = () => {
                 </select>
               </div>
               
-              <div>
-                <label style={{ ...typography.label, marginBottom: spacing.xs, display: 'block' }}>
-                  Expected Duration
-                </label>
-                <input
-                  type="text"
-                  value={newTemplate.expected_duration}
-                  onChange={(e) => setNewTemplate(prev => ({ ...prev, expected_duration: e.target.value }))}
-                  style={{
-                    width: '100%',
-                    padding: spacing.sm,
-                    border: '1px solid #D1D5DB',
-                    borderRadius: '8px',
-                    fontSize: '14px'
-                  }}
-                  placeholder="e.g., 2 hours, 1 day"
-                />
+            <div>
+              <label style={{ ...typography.label, marginBottom: spacing.xs, display: 'block' }}>
+                Expected Duration
+              </label>
+              <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
+                <div style={{ flex: 1 }}>
+                  <input
+                    type="number"
+                    min="0"
+                    max="24"
+                    value={newTemplate.expected_duration_hours}
+                    onChange={(e) => setNewTemplate(prev => ({ 
+                      ...prev, 
+                      expected_duration_hours: parseInt(e.target.value) || 0 
+                    }))}
+                    style={{
+                      width: '100%',
+                      padding: spacing.sm,
+                      border: '1px solid #D1D5DB',
+                      borderRadius: '8px',
+                      fontSize: '14px'
+                    }}
+                    placeholder="Hours"
+                  />
+                  <span style={{ ...typography.bodySmall, color: colors.neutral[600], marginTop: spacing.xs, display: 'block' }}>
+                    Hours
+                  </span>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <input
+                    type="number"
+                    min="0"
+                    max="59"
+                    value={newTemplate.expected_duration_minutes}
+                    onChange={(e) => setNewTemplate(prev => ({ 
+                      ...prev, 
+                      expected_duration_minutes: parseInt(e.target.value) || 0 
+                    }))}
+                    style={{
+                      width: '100%',
+                      padding: spacing.sm,
+                      border: '1px solid #D1D5DB',
+                      borderRadius: '8px',
+                      fontSize: '14px'
+                    }}
+                    placeholder="Minutes"
+                  />
+                  <span style={{ ...typography.bodySmall, color: colors.neutral[600], marginTop: spacing.xs, display: 'block' }}>
+                    Minutes
+                  </span>
+                </div>
               </div>
+              <p style={{ ...typography.bodySmall, color: colors.neutral[500], marginTop: spacing.xs }}>
+                Pass will automatically expire after this duration from entry time
+              </p>
+            </div>
             </div>
             
             <div>
@@ -485,13 +528,25 @@ export const PassTemplates: React.FC = () => {
                   {template.template_data.purpose || 'Not specified'}
                 </span>
               </div>
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.xs }}>
-                <span style={{ color: colors.neutral[600], fontSize: '14px' }}>Duration:</span>
-                <span style={{ fontWeight: 600 }}>
-                  {template.template_data.expected_duration || 'Not specified'}
-                </span>
-              </div>
+              {template.template_data.expected_duration_minutes && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+                  <span style={{ color: colors.neutral[600], fontSize: '14px' }}>Duration:</span>
+                  <span style={{ fontWeight: 600 }}>
+                    {(() => {
+                      const minutes = template.template_data.expected_duration_minutes;
+                      const hours = Math.floor(minutes / 60);
+                      const mins = minutes % 60;
+                      if (hours > 0 && mins > 0) {
+                        return `${hours}h ${mins}m`;
+                      } else if (hours > 0) {
+                        return `${hours} hour${hours > 1 ? 's' : ''}`;
+                      } else {
+                        return `${mins} minute${mins > 1 ? 's' : ''}`;
+                      }
+                    })()}
+                  </span>
+                </div>
+              )}
               
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.xs }}>
                 <span style={{ color: colors.neutral[600], fontSize: '14px' }}>Usage Count:</span>

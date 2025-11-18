@@ -37,3 +37,4 @@ class NotificationMail extends Mailable
     }
 }
 
+

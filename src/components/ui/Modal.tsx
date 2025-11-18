@@ -53,13 +53,13 @@ export function Modal({
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 50,
+        zIndex: 9999,
         overflowY: 'auto',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: spacing.lg,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
         backdropFilter: 'blur(4px)',
       }}
       onClick={(e) => {
@@ -74,7 +74,7 @@ export function Modal({
       <div
         className={className}
         style={{
-          backgroundColor: colors.neutral[0],
+          backgroundColor: '#ffffff',
           borderRadius: borderRadius.lg,
           boxShadow: shadows.lg,
           width: '100%',
@@ -83,6 +83,7 @@ export function Modal({
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
+          border: `1px solid ${colors.neutral[200]}`,
         }}
         onClick={(e) => e.stopPropagation()}
       >

@@ -68,44 +68,62 @@ export async function submitInspection({
 
   const { formData, totalBytes } = buildFormDataFromSerialized(prepared, formDataOptions);
 
-  const upload = async () => {
-    onProgress?.({ phase: 'preparing', mode, message: 'Preparing inspection payload…' });
+    const upload = async () => {
+      onProgress?.({ phase: 'preparing', mode, message: 'Preparing inspection payload…' });
 
-    // Note: apiClient.upload doesn't support onUploadProgress yet
-    // For progress tracking, we use axios directly with CSRF handling
-    const axios = (await import('axios')).default;
-    const { apiClient: client } = await import('./apiClient');
-    
-    // Ensure CSRF token is initialized
-    await (client as any).ensureCsrfToken?.();
-    const csrfToken = (client as any).getCsrfToken?.();
-    
-    const response = await axios.post('/v1/inspections', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
-      },
-      withCredentials: true,
-      signal,
-      onUploadProgress: (event) => {
-        const { loaded, total } = event;
-        const size = typeof total === 'number' && total > 0 ? total : totalBytes || undefined;
-        const percent = size ? Math.min(100, Math.round((loaded / size) * 100)) : undefined;
-        onProgress?.({
-          phase: 'uploading',
-          mode,
-          loaded,
-          total: size,
-          percent,
-          message: 'Uploading inspection…',
+      // Debug: Log formData contents
+      console.log('FormData contents:', {
+        hasPayload: formData.has('payload'),
+        payloadValue: formData.get('payload'),
+        allKeys: Array.from(formData.keys()),
+      });
+
+      // Note: apiClient.upload doesn't support onUploadProgress yet
+      // For progress tracking, we use axios directly with CSRF handling
+      const axios = (await import('axios')).default;
+      const { apiClient: client } = await import('./apiClient');
+      
+      // Ensure CSRF token is initialized
+      await (client as any).ensureCsrfToken?.();
+      const csrfToken = (client as any).getCsrfToken?.();
+      
+      try {
+        const response = await axios.post('/v1/inspections', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
+          },
+          withCredentials: true,
+          signal,
+          onUploadProgress: (event) => {
+            const { loaded, total } = event;
+            const size = typeof total === 'number' && total > 0 ? total : totalBytes || undefined;
+            const percent = size ? Math.min(100, Math.round((loaded / size) * 100)) : undefined;
+            onProgress?.({
+              phase: 'uploading',
+              mode,
+              loaded,
+              total: size,
+              percent,
+              message: 'Uploading inspection…',
+            });
+          },
         });
-      },
-    });
 
-    onProgress?.({ phase: 'completed', mode, message: 'Inspection submitted successfully.' });
+        onProgress?.({ phase: 'completed', mode, message: 'Inspection submitted successfully.' });
 
-    return response.data;
-  };
+        return response.data;
+      } catch (error: any) {
+        // Log detailed error information
+        console.error('Upload error details:', {
+          status: error?.response?.status,
+          statusText: error?.response?.statusText,
+          data: error?.response?.data,
+          message: error?.message,
+        });
+        throw error;
+      }
+    };
 
   if (!isNavigatorOnline()) {
     const queueId = await queueInspectionSubmission({

@@ -4,11 +4,11 @@ import { Button } from '../ui/button';
 
 interface InspectionData {
   id: string;
-  template: {
+  template?: {
     name: string;
     description: string;
   };
-  vehicle: {
+  vehicle?: {
     registration_number: string;
     make: string;
     model: string;
@@ -16,7 +16,7 @@ interface InspectionData {
     chassis_number: string;
     engine_number: string;
   };
-  inspector: {
+  inspector?: {
     name: string;
     employee_id: string;
   };
@@ -100,12 +100,12 @@ export const InspectionReport: React.FC<InspectionReportProps> = ({
     }
   };
 
-  const criticalFindings = inspection.answers.filter(answer => 
-    answer.is_critical_finding || answer.question.is_critical
+  const criticalFindings = (inspection.answers || []).filter(answer => 
+    answer.is_critical_finding || answer.question?.is_critical
   );
 
-  const photoAnswers = inspection.answers.filter(answer => 
-    answer.question.question_type === 'camera' && answer.answer_files?.length > 0
+  const photoAnswers = (inspection.answers || []).filter(answer => 
+    answer.question?.question_type === 'camera' && answer.answer_files?.length > 0
   );
 
   return (
@@ -137,7 +137,7 @@ export const InspectionReport: React.FC<InspectionReportProps> = ({
           ...typography.body,
           color: colors.neutral[600]
         }}>
-          {inspection.template.name} - {inspection.template.description}
+          {inspection.template?.name || 'Inspection'} {inspection.template?.description ? `- ${inspection.template.description}` : ''}
         </p>
         <div style={{
           display: 'flex',
@@ -150,7 +150,7 @@ export const InspectionReport: React.FC<InspectionReportProps> = ({
             ...typography.subheader,
             color: colors.neutral[700]
           }}>
-            Report ID: VIR-{inspection.id.slice(-8).toUpperCase()}
+            Report ID: VIR-{(inspection.id || '').slice(-8).toUpperCase()}
           </span>
           <span style={{
             ...typography.subheader,
@@ -183,31 +183,31 @@ export const InspectionReport: React.FC<InspectionReportProps> = ({
           <div>
             <label style={{ ...typography.label, color: colors.neutral[600] }}>Registration</label>
             <p style={{ ...typography.body, color: colors.neutral[900] }}>
-              {inspection.vehicle.registration_number}
+              {inspection.vehicle?.registration_number || 'N/A'}
             </p>
           </div>
           <div>
             <label style={{ ...typography.label, color: colors.neutral[600] }}>Make & Model</label>
             <p style={{ ...typography.body, color: colors.neutral[900] }}>
-              {inspection.vehicle.make} {inspection.vehicle.model}
+              {inspection.vehicle ? `${inspection.vehicle.make || ''} ${inspection.vehicle.model || ''}`.trim() || 'N/A' : 'N/A'}
             </p>
           </div>
           <div>
             <label style={{ ...typography.label, color: colors.neutral[600] }}>Year</label>
             <p style={{ ...typography.body, color: colors.neutral[900] }}>
-              {inspection.vehicle.year}
+              {inspection.vehicle?.year || 'N/A'}
             </p>
           </div>
           <div>
             <label style={{ ...typography.label, color: colors.neutral[600] }}>Chassis No</label>
             <p style={{ ...typography.body, color: colors.neutral[900] }}>
-              {inspection.vehicle.chassis_number}
+              {inspection.vehicle?.chassis_number || 'N/A'}
             </p>
           </div>
           <div>
             <label style={{ ...typography.label, color: colors.neutral[600] }}>Engine No</label>
             <p style={{ ...typography.body, color: colors.neutral[900] }}>
-              {inspection.vehicle.engine_number}
+              {inspection.vehicle?.engine_number || 'N/A'}
             </p>
           </div>
         </div>
@@ -252,7 +252,7 @@ export const InspectionReport: React.FC<InspectionReportProps> = ({
               color: getPassFailColor(inspection.pass_fail),
               marginBottom: spacing.xs
             }}>
-              {inspection.pass_fail.toUpperCase()}
+              {(inspection.pass_fail || '').toUpperCase() || 'N/A'}
             </div>
             <div style={{ ...typography.label, color: colors.neutral[600] }}>
               Result
@@ -322,7 +322,7 @@ export const InspectionReport: React.FC<InspectionReportProps> = ({
                   color: colors.neutral[900],
                   marginBottom: spacing.xs
                 }}>
-                  <strong>{finding.question.question_text}</strong>
+                  <strong>{finding.question?.question_text || 'Unknown Question'}</strong>
                 </div>
                 <div style={{
                   ...typography.bodySmall,
@@ -358,7 +358,7 @@ export const InspectionReport: React.FC<InspectionReportProps> = ({
           <div>
             <label style={{ ...typography.label, color: colors.neutral[600] }}>Inspector</label>
             <p style={{ ...typography.body, color: colors.neutral[900] }}>
-              {inspection.inspector.name} ({inspection.inspector.employee_id})
+              {inspection.inspector?.name || 'Unknown'} {inspection.inspector?.employee_id ? `(${inspection.inspector.employee_id})` : ''}
             </p>
           </div>
           <div>

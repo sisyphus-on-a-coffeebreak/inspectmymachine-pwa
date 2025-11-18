@@ -23,9 +23,15 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   const { showToast } = useToast();
   const [isCapturing, setIsCapturing] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [captureMode, setCaptureMode] = useState<'photo' | 'video'>('photo');
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const retryCountRef = useRef(0);
   const readyCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -60,7 +66,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             facingMode: 'environment',
             width: { ideal: 1280 },
             height: { ideal: 720 }
-          } 
+          },
+          audio: captureMode === 'video' // Request audio for video recording
         });
       } catch (envError) {
         // Environment camera not available, trying user camera
@@ -73,7 +80,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               facingMode: 'user',
               width: { ideal: 1280 },
               height: { ideal: 720 }
-            }
+            },
+            audio: captureMode === 'video' // Request audio for video recording
           });
           error = null;
         } catch (userError) {
@@ -85,7 +93,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
               video: { 
                 width: { ideal: 1280 },
                 height: { ideal: 720 }
-              }
+              },
+              audio: captureMode === 'video' // Request audio for video recording
             });
             error = null;
           } catch (anyError) {
@@ -404,7 +413,102 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     stopCamera();
   };
 
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      setRecordingTime(0);
+    }
+  };
+
+  const startVideoRecording = () => {
+    if (!videoRef.current || !isVideoReady) {
+      handleError('Camera not ready. Please wait for the camera to initialize.');
+      return;
+    }
+
+    const stream = videoRef.current.srcObject as MediaStream;
+    if (!stream) {
+      handleError('No video stream available.');
+      return;
+    }
+
+    try {
+      recordedChunksRef.current = [];
+      
+      // Get supported MIME type for video
+      const options: MediaRecorderOptions = { mimeType: 'video/webm' };
+      if (!MediaRecorder.isTypeSupported('video/webm')) {
+        if (MediaRecorder.isTypeSupported('video/mp4')) {
+          options.mimeType = 'video/mp4';
+        } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+          options.mimeType = 'video/webm;codecs=vp9';
+        } else {
+          // Fallback to default
+          delete options.mimeType;
+        }
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, { 
+          type: mediaRecorder.mimeType || 'video/webm' 
+        });
+        const file = new File([blob], `video-${Date.now()}.${blob.type.includes('mp4') ? 'mp4' : 'webm'}`, { 
+          type: blob.type 
+        });
+        const newFiles = [...value, file];
+        onChange(newFiles);
+        
+        showToast({
+          title: 'Success',
+          description: 'Video recorded successfully',
+          variant: 'success',
+        });
+
+        recordedChunksRef.current = [];
+        stopCamera();
+      };
+
+      mediaRecorder.onerror = (event: any) => {
+        handleError('Error recording video: ' + (event.error?.message || 'Unknown error'));
+        setIsRecording(false);
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+        setRecordingTime(0);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      // Start recording timer
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (error: any) {
+      handleError('Failed to start video recording: ' + (error.message || 'Unknown error'));
+    }
+  };
+
   const stopCamera = () => {
+    // Stop recording if active
+    stopRecording();
+    
     // Clear ready check interval
     if (readyCheckIntervalRef.current) {
       clearInterval(readyCheckIntervalRef.current);
@@ -428,6 +532,8 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     }
     setIsCapturing(false);
     setIsVideoReady(false);
+    setIsRecording(false);
+    setRecordingTime(0);
     retryCountRef.current = 0;
   };
 
@@ -449,6 +555,16 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     const files = Array.from(event.target.files || []);
     const newFiles = [...value, ...files];
     onChange(newFiles);
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const removeFile = (index: number) => {
@@ -506,22 +622,95 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           
           <div style={{ 
             display: 'flex', 
+            flexDirection: 'column',
             gap: spacing.md, 
             marginTop: spacing.lg,
             backgroundColor: 'rgba(0,0,0,0.7)',
             padding: spacing.md,
-            borderRadius: '8px'
+            borderRadius: '8px',
+            alignItems: 'center'
           }}>
-            <Button variant="secondary" onClick={stopCamera}>
-              ❌ Cancel
-            </Button>
-            <Button 
-              variant="primary" 
-              onClick={capturePhoto}
-              disabled={!isVideoReady}
-            >
-              📸 {isVideoReady ? 'Capture Photo' : 'Loading Camera...'}
-            </Button>
+            {/* Mode Toggle */}
+            <div style={{ display: 'flex', gap: spacing.sm, marginBottom: spacing.xs }}>
+              <Button
+                variant={captureMode === 'photo' ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() => {
+                  if (isRecording) stopRecording();
+                  setCaptureMode('photo');
+                }}
+                disabled={isRecording}
+              >
+                📸 Photo
+              </Button>
+              <Button
+                variant={captureMode === 'video' ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() => {
+                  if (isRecording) stopRecording();
+                  setCaptureMode('video');
+                }}
+                disabled={isRecording}
+              >
+                🎥 Video
+              </Button>
+            </div>
+
+            {/* Recording Timer */}
+            {isRecording && (
+              <div style={{ 
+                color: colors.error[500], 
+                fontSize: '18px', 
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.xs
+              }}>
+                <div style={{
+                  width: '12px',
+                  height: '12px',
+                  borderRadius: '50%',
+                  backgroundColor: colors.error[500],
+                  animation: 'pulse 1s infinite'
+                }} />
+                Recording: {formatTime(recordingTime)}
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: spacing.md }}>
+              <Button variant="secondary" onClick={stopCamera} disabled={isRecording}>
+                ❌ Cancel
+              </Button>
+              {captureMode === 'photo' ? (
+                <Button 
+                  variant="primary" 
+                  onClick={capturePhoto}
+                  disabled={!isVideoReady || isRecording}
+                >
+                  📸 {isVideoReady ? 'Capture Photo' : 'Loading Camera...'}
+                </Button>
+              ) : (
+                <>
+                  {!isRecording ? (
+                    <Button 
+                      variant="primary" 
+                      onClick={startVideoRecording}
+                      disabled={!isVideoReady}
+                    >
+                      🎥 {isVideoReady ? 'Start Recording' : 'Loading Camera...'}
+                    </Button>
+                  ) : (
+                    <Button 
+                      variant="critical" 
+                      onClick={stopRecording}
+                    >
+                      ⏹️ Stop Recording
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -533,7 +722,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
           onClick={handleCameraCapture}
           disabled={disabled}
         >
-          📷 Take Photo
+          📷 Use Camera
         </Button>
         
         <Button
@@ -547,7 +736,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,video/*"
           multiple
           onChange={handleFileUpload}
           style={{ display: 'none' }}
@@ -557,43 +746,83 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       {/* File List */}
       {value.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: spacing.sm }}>
-          {value.map((file, index) => (
-            <div key={index} style={{
-              position: 'relative',
-              backgroundColor: colors.neutral[100],
-              borderRadius: '8px',
-              overflow: 'hidden'
-            }}>
-              <img
-                src={file instanceof File ? URL.createObjectURL(file) : file.url}
-                alt={`Photo ${index + 1}`}
-                style={{ width: '100%', height: '120px', objectFit: 'cover' }}
-              />
-              <button
-                onClick={() => removeFile(index)}
-                style={{
+          {value.map((file, index) => {
+            const fileObj = file instanceof File ? file : (file as any);
+            const isVideo = fileObj.type?.startsWith('video/') || fileObj.name?.match(/\.(mp4|webm|mov|avi)$/i);
+            const url = file instanceof File ? URL.createObjectURL(file) : (file as any).url;
+            
+            return (
+              <div key={index} style={{
+                position: 'relative',
+                backgroundColor: colors.neutral[100],
+                borderRadius: '8px',
+                overflow: 'hidden'
+              }}>
+                {isVideo ? (
+                  <video
+                    src={url}
+                    style={{ width: '100%', height: '120px', objectFit: 'cover' }}
+                    controls={false}
+                    muted
+                  />
+                ) : (
+                  <img
+                    src={url}
+                    alt={`Media ${index + 1}`}
+                    style={{ width: '100%', height: '120px', objectFit: 'cover' }}
+                  />
+                )}
+                <div style={{
                   position: 'absolute',
                   top: '4px',
-                  right: '4px',
-                  backgroundColor: colors.status.critical,
+                  left: '4px',
+                  backgroundColor: 'rgba(0,0,0,0.6)',
                   color: 'white',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '24px',
-                  height: '24px',
-                  cursor: 'pointer'
-                }}
-              >
-                ×
-              </button>
-            </div>
-          ))}
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  fontSize: '10px',
+                  fontWeight: 'bold'
+                }}>
+                  {isVideo ? '🎥' : '📸'}
+                </div>
+                <button
+                  onClick={() => removeFile(index)}
+                  style={{
+                    position: 'absolute',
+                    top: '4px',
+                    right: '4px',
+                    backgroundColor: colors.status.critical,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '24px',
+                    height: '24px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '16px',
+                    lineHeight: '1'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
       <p style={{ fontSize: '12px', color: colors.neutral[500], marginTop: spacing.sm }}>
-        Max {maxFiles} files, {maxSize} each
+        Max {maxFiles} files, {maxSize} each. Supports photos and videos.
       </p>
+      
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `}</style>
     </div>
   );
 };

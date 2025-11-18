@@ -36,3 +36,4 @@ class DetectAnomalies extends Command
     }
 }
 
+
