@@ -1,4 +1,5 @@
-import { onCLS, onFCP, onFID, onINP, onLCP, onTTFB, Metric } from "web-vitals"
+import { onCLS, onFCP, onINP, onLCP, onTTFB } from "web-vitals"
+import type { Metric } from "web-vitals"
 
 type VitalsReport = {
   name: string
@@ -39,8 +40,7 @@ function sendToAnalytics(metric: Metric) {
 export function initWebVitals() {
   onCLS(sendToAnalytics)
   onFCP(sendToAnalytics)
-  onFID(sendToAnalytics)
-  onINP(sendToAnalytics)
+  onINP(sendToAnalytics) // Replaces deprecated onFID
   onLCP(sendToAnalytics)
   onTTFB(sendToAnalytics)
 }
