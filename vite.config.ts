@@ -73,40 +73,37 @@ export default defineConfig({
           { src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
           { src: "pwa-512x512-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
+        screenshots: [
+          {
+            src: "screenshot-dashboard.png",
+            sizes: "1280x720",
+            type: "image/png",
+            form_factor: "wide",
+          },
+          {
+            src: "screenshot-mobile.png",
+            sizes: "750x1334",
+            type: "image/png",
+            form_factor: "narrow",
+          },
+        ],
         shortcuts: [
           {
             name: "New Gate Pass",
-            url: "/app/gate-pass/visitor/create",
-            icons: [{ src: "pwa-192x192.png", sizes: "192x192", type: "image/png" }],
+            url: "/app/gate-pass/create-visitor",
+            icons: [{ src: "pwa-96x96.png", sizes: "96x96", type: "image/png" }],
           },
           {
             name: "New Inspection",
             url: "/app/inspections/new",
-            icons: [{ src: "pwa-192x192.png", sizes: "192x192", type: "image/png" }],
+            icons: [{ src: "pwa-96x96.png", sizes: "96x96", type: "image/png" }],
           },
           {
             name: "Log Expense",
             url: "/app/expenses/create",
-            icons: [{ src: "pwa-192x192.png", sizes: "192x192", type: "image/png" }],
+            icons: [{ src: "pwa-96x96.png", sizes: "96x96", type: "image/png" }],
           },
         ],
-        screenshots: [
-          {
-            src: "pwa-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-            form_factor: "wide",
-            label: "VOMS Dashboard - Desktop View"
-          },
-          {
-            src: "pwa-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-            label: "VOMS Dashboard - Mobile View"
-          },
-        ],
-      },
-      includeAssets: ["favicon.svg", "apple-touch-icon.png", "offline.html"],
     }),
   ],
 
