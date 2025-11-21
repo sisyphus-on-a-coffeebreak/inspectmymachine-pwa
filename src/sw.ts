@@ -12,21 +12,55 @@ declare const self: ServiceWorkerGlobalScope
 
 const CACHE_VERSION = "v1.0.0"
 
-// Skip waiting and claim clients immediately
-self.addEventListener("install", () => self.skipWaiting())
-self.addEventListener("activate", () => self.clients.claim())
+// Offline fallback page to cache during install
+const OFFLINE_PAGE = "/offline.html"
+
+// Skip waiting and cache offline page during install
+self.addEventListener("install", async (event) => {
+  event.waitUntil(
+    caches.open("offline-fallback").then((cache) => cache.add(OFFLINE_PAGE))
+  )
+  self.skipWaiting()
+})
+
+// Claim clients immediately on activation
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim())
+})
 
 // Precache app shell (Vite injects manifest)
 precacheAndRoute(self.__WB_MANIFEST || [])
 cleanupOutdatedCaches()
 
-// Navigation fallback to index.html (SPA support)
+// Navigation fallback to index.html (SPA support) with offline fallback
 const navigationHandler = createHandlerBoundToURL("/index.html")
+const navigationRoute = new NavigationRoute(navigationHandler, {
+  denylist: [/^\/api\//, /^\/v1\//],
+})
+
+// Wrap navigation route to provide offline fallback
 registerRoute(
-  new NavigationRoute(navigationHandler, {
-    denylist: [/^\/api\//, /^\/v1\//],
-  })
+  ({ request }) => request.mode === "navigate",
+  async ({ event }) => {
+    try {
+      // Try the navigation handler first (serves index.html)
+      const response = await navigationHandler.handle(event as FetchEvent)
+      return response
+    } catch (error) {
+      // If navigation fails (offline, network error), serve offline page
+      const cache = await caches.open("offline-fallback")
+      const offlineResponse = await cache.match(OFFLINE_PAGE)
+      if (offlineResponse) {
+        return offlineResponse
+      }
+      // Last resort: try to fetch offline.html directly
+      return fetch(OFFLINE_PAGE)
+    }
+  }
 )
+
+// Also register the standard navigation route for API denylist
+registerRoute(navigationRoute)
 
 // API calls - Network only (never cache API responses)
 registerRoute(

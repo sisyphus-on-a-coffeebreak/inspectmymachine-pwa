@@ -91,7 +91,7 @@ export default defineConfig({
           },
         ],
       },
-      includeAssets: ["favicon.svg", "apple-touch-icon.png"],
+      includeAssets: ["favicon.svg", "apple-touch-icon.png", "offline.html"],
     }),
   ],
 
