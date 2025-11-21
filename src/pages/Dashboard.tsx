@@ -661,15 +661,200 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Cross-Module Reports */}
+        {/* Quick Access Modules */}
         <div style={{ marginBottom: spacing.xl }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'space-between',
             marginBottom: spacing.lg
           }}>
-            <h3 style={{ 
+            <h3 style={{
+              ...typography.subheader,
+              fontSize: '20px',
+              color: colors.neutral[900],
+              margin: 0,
+              fontWeight: 600
+            }}>
+              🚀 Quick Access
+            </h3>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: spacing.lg
+          }}>
+            {loading ? (
+              <>
+                <SkeletonCard />
+                <SkeletonCard />
+                <SkeletonCard />
+              </>
+            ) : accessibleModules.length > 0 ? (
+              accessibleModules.map((module) => (
+                <div
+                  key={module.id}
+                  onClick={() => navigate(module.path)}
+                  style={{
+                    background: 'white',
+                    padding: spacing.xl,
+                    borderRadius: '16px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                    border: `1px solid ${colors.neutral[200]}`,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.15)';
+                    e.currentTarget.style.borderColor = colors.primary;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                    e.currentTarget.style.borderColor = colors.neutral[200];
+                  }}
+                >
+                  {/* Badges */}
+                  {(module.isNew || module.isPopular) && (
+                    <div style={{ position: 'absolute', top: spacing.md, right: spacing.md }}>
+                      {module.isNew && (
+                        <span style={{
+                          padding: '4px 8px',
+                          background: colors.success[500],
+                          color: 'white',
+                          borderRadius: '6px',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          marginRight: module.isPopular ? spacing.xs : 0
+                        }}>
+                          New
+                        </span>
+                      )}
+                      {module.isPopular && (
+                        <span style={{
+                          padding: '4px 8px',
+                          background: colors.warning[500],
+                          color: 'white',
+                          borderRadius: '6px',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase'
+                        }}>
+                          Popular
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: spacing.md, marginBottom: spacing.md }}>
+                    <div style={{
+                      width: '56px',
+                      height: '56px',
+                      background: `linear-gradient(135deg, ${module.gradient.includes('blue') ? '#3b82f6' : module.gradient.includes('green') ? '#10b981' : module.gradient.includes('yellow') ? '#f59e0b' : module.gradient.includes('purple') ? '#8b5cf6' : '#6366f1'} 0%, ${module.gradient.includes('blue') ? '#2563eb' : module.gradient.includes('green') ? '#059669' : module.gradient.includes('yellow') ? '#d97706' : module.gradient.includes('purple') ? '#7c3aed' : '#4f46e5'} 100%)`,
+                      borderRadius: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <module.icon style={{ width: '28px', height: '28px', color: 'white' }} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <h4 style={{
+                        ...typography.subheader,
+                        fontSize: '18px',
+                        margin: 0,
+                        marginBottom: spacing.xs,
+                        fontWeight: 600,
+                        color: colors.neutral[900]
+                      }}>
+                        {module.name}
+                      </h4>
+                      <p style={{
+                        ...typography.bodySmall,
+                        color: colors.neutral[600],
+                        margin: 0,
+                        lineHeight: 1.4
+                      }}>
+                        {module.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  {module.stats && (
+                    <div style={{
+                      padding: spacing.md,
+                      background: colors.neutral[50],
+                      borderRadius: '10px',
+                      marginBottom: spacing.md
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{
+                          ...typography.bodySmall,
+                          color: colors.neutral[600],
+                          fontSize: '12px'
+                        }}>
+                          {module.stats.label}
+                        </span>
+                        <span style={{
+                          ...typography.subheader,
+                          color: colors.neutral[900],
+                          fontSize: '20px',
+                          fontWeight: 700
+                        }}>
+                          {module.stats.value}
+                        </span>
+                      </div>
+                      {module.stats.trend && (
+                        <p style={{
+                          ...typography.bodySmall,
+                          color: colors.neutral[500],
+                          fontSize: '11px',
+                          margin: 0,
+                          marginTop: spacing.xs
+                        }}>
+                          {module.stats.trend}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, color: colors.primary, fontWeight: 500 }}>
+                    <span>Open Module</span>
+                    <ArrowRight size={16} />
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div style={{
+                gridColumn: '1 / -1',
+                textAlign: 'center',
+                padding: spacing.xl,
+                color: colors.neutral[600],
+                background: colors.neutral[50],
+                borderRadius: '16px'
+              }}>
+                No modules available for your role. Contact your administrator.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Cross-Module Reports */}
+        <div style={{ marginBottom: spacing.xl }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: spacing.lg
+          }}>
+            <h3 style={{
               ...typography.subheader,
               fontSize: '20px',
               color: colors.neutral[900],
