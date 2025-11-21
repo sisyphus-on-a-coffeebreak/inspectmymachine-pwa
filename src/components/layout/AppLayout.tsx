@@ -26,6 +26,7 @@ import { OfflineIndicator } from "../ui/OfflineIndicator";
 import { CommandPalette } from "../ui/CommandPalette";
 import { BottomNav } from "../ui/BottomNav";
 import { Tooltip } from "../ui/Tooltip";
+import { InstallBanner } from "../ui/InstallBanner";
 
 interface NavItem {
   id: string;
@@ -752,6 +753,9 @@ export default function AppLayout({
       
       {/* Bottom Navigation - Mobile Only */}
       <BottomNav />
+      
+      {/* PWA Install Banner */}
+      <InstallBanner />
     </div>
   );
 }

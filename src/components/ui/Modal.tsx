@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { colors, spacing, borderRadius, shadows, typography } from '@/lib/theme';
 import { Button } from './button';
 import { X } from 'lucide-react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 export interface ModalProps {
   title?: string;
@@ -34,6 +35,8 @@ export function Modal({
   className = '',
 }: ModalProps) {
   const showCloseButton = true;
+  const modalRef = useFocusTrap<HTMLDivElement>(true);
+  
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -72,6 +75,7 @@ export function Modal({
       aria-labelledby={title ? 'modal-title' : undefined}
     >
       <div
+        ref={modalRef}
         className={className}
         style={{
           backgroundColor: '#ffffff',

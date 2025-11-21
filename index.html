@@ -2,15 +2,100 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
+    
+    <!-- Primary Meta Tags -->
     <title>VOMS - Vehicle Operations Management System</title>
+    <meta name="title" content="VOMS - Vehicle Operations Management System" />
+    <meta name="description" content="Professional vehicle inspection, gate pass management, expense tracking, and stockyard operations. PWA for mobile-first operations management." />
+    <meta name="keywords" content="vehicle inspection, gate pass, fleet management, PWA, vehicle operations" />
+    <meta name="author" content="InspectMyMachine" />
+    
+    <!-- Canonical -->
+    <link rel="canonical" href="https://inspectmymachine.in/" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://inspectmymachine.in/" />
+    <meta property="og:title" content="VOMS - Vehicle Operations Management" />
+    <meta property="og:description" content="Professional vehicle inspection and operations management PWA" />
+    <meta property="og:image" content="https://inspectmymachine.in/pwa-512x512.png" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://inspectmymachine.in/" />
+    <meta property="twitter:title" content="VOMS - Vehicle Operations Management" />
+    <meta property="twitter:description" content="Professional vehicle inspection and operations management PWA" />
+    <meta property="twitter:image" content="https://inspectmymachine.in/pwa-512x512.png" />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="VOMS" />
+    
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#2563eb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1e293b" media="(prefers-color-scheme: dark)" />
+    
+    <!-- MS Tile -->
+    <meta name="msapplication-TileColor" content="#2563eb" />
+    <meta name="msapplication-TileImage" content="/pwa-192x192.png" />
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/apple-touch-icon.png" />
+    
+    <!-- Preconnect to API -->
+    <link rel="preconnect" href="https://api.inspectmymachine.in" crossorigin />
+    <link rel="dns-prefetch" href="https://api.inspectmymachine.in" />
+    
+    <!-- Critical CSS inline -->
+    <style>
+      /* Critical above-the-fold styles */
+      *,*::before,*::after{box-sizing:border-box}
+      body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f9fafb}
+      .dark body{background:#09090b}
+      .app-loading{min-height:100vh;display:flex;align-items:center;justify-content:center}
+      .app-loading-spinner{width:40px;height:40px;border:3px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;animation:spin 1s linear infinite}
+      @keyframes spin{to{transform:rotate(360deg)}}
+    </style>
+    
+    <!-- Main CSS with low priority -->
+    <link rel="stylesheet" href="/src/index.css" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="/src/index.css" /></noscript>
+    
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "VOMS",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "Vehicle Operations Management System for inspections, gate passes, and expense tracking"
+    }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Loading state while JS loads -->
+      <div class="app-loading">
+        <div class="app-loading-spinner"></div>
+      </div>
+    </div>
+    
+    <!-- Defer non-critical scripts -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

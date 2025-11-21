@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/providers/ThemeProvider";
 import { ToastProvider } from "@/providers/ToastProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { ExpenseReferencesProvider } from "@/providers/ExpenseReferencesProvider";
+import { initWebVitals } from "@/lib/webVitals";
 import "./index.css";
 import App from "./App";
 
@@ -20,6 +21,9 @@ if (import.meta.env.PROD) {
       });
     });
   }
+  
+  // Initialize web vitals in production
+  initWebVitals();
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /app/
+Disallow: /*.json$
+
+Sitemap: https://inspectmymachine.in/sitemap.xml
+

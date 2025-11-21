@@ -1,20 +1,17 @@
 // src/App.tsx
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import RequireAuth, { RequireRole } from "@/components/RequireAuth";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import ErrorBoundary from "@/components/ErrorBoundary";
 // import FloatDashboard from "@/pages/FloatDashboard";
-import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
-import { InspectionCapture } from "@/pages/inspections/InspectionCapture";
-import { InspectionDetails } from './pages/inspections/InspectionDetails';
 import InspectionsCompleted from "@/pages/InspectionsCompleted";
 import { InspectionDashboard } from './pages/inspections/InspectionDashboard';
 import { InspectionStudio } from './pages/inspections/InspectionStudio';
 import { InspectionSyncCenter } from './pages/inspections/InspectionSyncCenter';
 import { InspectionReports } from './pages/inspections/InspectionReports';
 import AdminStockyard from "@/pages/AdminStockyard";
-import { StockyardDashboard } from './pages/stockyard/StockyardDashboard';
 import { CreateComponentMovement } from './pages/stockyard/CreateComponentMovement';
 import { StockyardRequestDetails } from './pages/stockyard/StockyardRequestDetails';
 import { StockyardScan } from './pages/stockyard/StockyardScan';
@@ -33,7 +30,6 @@ import { ComplianceDocuments } from './pages/stockyard/ComplianceDocuments';
 import { TransporterBids } from './pages/stockyard/TransporterBids';
 import { ProfitabilityDashboard } from './pages/stockyard/ProfitabilityDashboard';
 import { StockyardAlertsDashboard } from './pages/stockyard/StockyardAlertsDashboard';
-import { GatePassDashboard } from './pages/gatepass/GatePassDashboard';
 import { GatePassDetails } from './pages/gatepass/GatePassDetails';
 import { CreateVisitorPass } from './pages/gatepass/CreateVisitorPass';
 import { CreateVehicleMovement } from './pages/gatepass/CreateVehicleMovement';
@@ -47,7 +43,6 @@ import { PassApproval } from './pages/gatepass/PassApproval';
 import { BulkOperations } from './pages/gatepass/BulkOperations';
 import { AlertDashboard } from './pages/alerts/AlertDashboard';
 import { NotificationsPage } from './pages/notifications/NotificationsPage';
-import { EmployeeExpenseDashboard } from './pages/expenses/EmployeeExpenseDashboard';
 import { ExpenseDetails } from './pages/expenses/ExpenseDetails';
 import { CreateExpense } from './pages/expenses/CreateExpense';
 import { ExpenseHistory } from './pages/expenses/ExpenseHistory';
@@ -58,12 +53,31 @@ import { ExpenseApproval } from './pages/expenses/ExpenseApproval';
 import { ExpenseReports } from './pages/expenses/ExpenseReports';
 import { ReceiptsGallery } from './pages/expenses/ReceiptsGallery';
 import { AccountsDashboard } from './pages/expenses/AccountsDashboard';
-import UserManagement from './pages/admin/UserManagement';
 import { UserDetails } from './pages/admin/UserDetails';
 import { UserActivityDashboard } from './pages/admin/UserActivityDashboard';
 import { CapabilityMatrix } from './pages/admin/CapabilityMatrix';
 import { BulkUserOperations } from './pages/admin/BulkUserOperations';
 import NotFound from './pages/NotFound';
+import OfflinePage from './pages/Offline';
+import { SkeletonLoader } from './components/ui/SkeletonLoader';
+
+// Lazy load heavy modules
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const InspectionCapture = lazy(() => import('./pages/inspections/InspectionCapture'));
+const InspectionDetails = lazy(() => import('./pages/inspections/InspectionDetails'));
+const GatePassDashboard = lazy(() => import('./pages/gatepass/GatePassDashboard'));
+const EmployeeExpenseDashboard = lazy(() => import('./pages/expenses/EmployeeExpenseDashboard'));
+const StockyardDashboard = lazy(() => import('./pages/stockyard/StockyardDashboard'));
+const UserManagement = lazy(() => import('./pages/admin/UserManagement'));
+
+// Suspense wrapper component
+function LazyPage({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<SkeletonLoader variant="page" />}>
+      {children}
+    </Suspense>
+  );
+}
 
 export default function App() {
   return (
@@ -74,11 +88,12 @@ export default function App() {
       
       {/* Public routes */}
       <Route path="/login" element={<Login />} />
+      <Route path="/offline" element={<OfflinePage />} />
 
       {/* Main Dashboard */}
       <Route
         path="/dashboard"
-        element={<AuthenticatedLayout><Dashboard /></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><LazyPage><Dashboard /></LazyPage></AuthenticatedLayout>}
       />
 
       {/* 🚪 Gate Pass Module - UPDATED */}

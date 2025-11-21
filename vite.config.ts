@@ -3,10 +3,17 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 import { fileURLToPath, URL } from "node:url";
+import { visualizer } from "rollup-plugin-visualizer";
 
 export default defineConfig({
   plugins: [
     react(),
+    visualizer({
+      filename: "dist/stats.html",
+      open: false,
+      gzipSize: true,
+      brotliSize: true,
+    }),
     VitePWA({
       registerType: "autoUpdate",
       devOptions: { enabled: false }, // no SW in dev
@@ -48,21 +55,40 @@ export default defineConfig({
       },
 
       manifest: {
+        id: "/",
         name: "VOMS - Vehicle Operations Management System",
         short_name: "VOMS",
-        description: "Professional vehicle inspection and operations management system",
+        description: "Professional vehicle inspection and operations management",
         start_url: "/",
         display: "standalone",
         background_color: "#ffffff",
         theme_color: "#2563eb",
         scope: "/",
         orientation: "portrait-primary",
-        categories: ["productivity", "business", "utilities"],
+        categories: ["productivity", "business"],
         lang: "en",
         icons: [
           { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: "pwa-256x256.png", sizes: "256x256", type: "image/png" },
           { src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
           { src: "pwa-512x512-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        ],
+        shortcuts: [
+          {
+            name: "New Gate Pass",
+            url: "/app/gate-pass/visitor/create",
+            icons: [{ src: "pwa-192x192.png", sizes: "96x96" }],
+          },
+          {
+            name: "New Inspection",
+            url: "/app/inspections/new",
+            icons: [{ src: "pwa-192x192.png", sizes: "96x96" }],
+          },
+          {
+            name: "Log Expense",
+            url: "/app/expenses/create",
+            icons: [{ src: "pwa-192x192.png", sizes: "96x96" }],
+          },
         ],
       },
       includeAssets: ["favicon.svg", "apple-touch-icon.png"],
@@ -115,10 +141,51 @@ export default defineConfig({
     } : undefined,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          router: ['react-router-dom'],
-          ui: ['lucide-react'],
+        manualChunks: (id) => {
+          // Core React
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+            return 'vendor-react';
+          }
+          // Router
+          if (id.includes('node_modules/react-router-dom')) {
+            return 'vendor-router';
+          }
+          // UI libraries
+          if (id.includes('node_modules/lucide-react') || 
+              id.includes('node_modules/clsx') || 
+              id.includes('node_modules/class-variance-authority') ||
+              id.includes('node_modules/tailwind-merge')) {
+            return 'vendor-ui';
+          }
+          // Data fetching
+          if (id.includes('node_modules/@tanstack/react-query') || 
+              id.includes('node_modules/axios')) {
+            return 'vendor-query';
+          }
+          // Heavy utilities (lazy load)
+          if (id.includes('node_modules/jspdf') || id.includes('node_modules/html2canvas')) {
+            return 'vendor-pdf';
+          }
+          if (id.includes('node_modules/qrcode') || id.includes('node_modules/jsqr')) {
+            return 'vendor-qr';
+          }
+          if (id.includes('node_modules/jszip')) {
+            return 'vendor-zip';
+          }
+          // Date utilities
+          if (id.includes('node_modules/date-fns')) {
+            return 'vendor-date';
+          }
+          // i18n
+          if (id.includes('node_modules/i18next') || 
+              id.includes('node_modules/react-i18next') ||
+              id.includes('node_modules/i18next-browser-languagedetector')) {
+            return 'vendor-i18n';
+          }
+          // Other node_modules
+          if (id.includes('node_modules')) {
+            return 'vendor-misc';
+          }
         },
       },
     },

@@ -9,7 +9,7 @@ import React from 'react';
 import { colors, spacing, borderRadius, cardStyles } from '../../lib/theme';
 
 export interface SkeletonLoaderProps {
-  variant?: 'card' | 'table' | 'text' | 'custom';
+  variant?: 'card' | 'table' | 'text' | 'page' | 'custom';
   rows?: number;
   columns?: number;
   className?: string;
@@ -122,6 +122,33 @@ export const SkeletonText: React.FC<{ lines?: number; width?: string }> = ({ lin
 );
 
 /**
+ * Skeleton Page - For full page loading
+ */
+export const SkeletonPage: React.FC<{ className?: string }> = ({ className = '' }) => (
+  <div className={className} style={{ padding: spacing.xl }}>
+    <div style={{
+      height: '32px',
+      width: '200px',
+      backgroundColor: colors.neutral[200],
+      borderRadius: borderRadius.sm,
+      marginBottom: spacing.xl,
+      animation: 'pulse 1.5s ease-in-out infinite',
+    }} />
+    <div style={{ display: 'grid', gap: spacing.lg }}>
+      {Array.from({ length: 3 }).map((_, i) => (
+        <SkeletonCard key={i} />
+      ))}
+    </div>
+    <style>{`
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+    `}</style>
+  </div>
+);
+
+/**
  * Generic Skeleton Loader
  */
 export const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({
@@ -137,6 +164,8 @@ export const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({
       return <SkeletonTable rows={rows} columns={columns} />;
     case 'text':
       return <SkeletonText lines={rows} />;
+    case 'page':
+      return <SkeletonPage className={className} />;
     default:
       return <SkeletonCard className={className} />;
   }
