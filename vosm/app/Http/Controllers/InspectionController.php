@@ -480,6 +480,78 @@ class InspectionController extends Controller
     }
 
     /**
+     * Reorder photos in an inspection answer
+     * 
+     * @param Request $request
+     * @param string $inspectionId
+     * @param string $answerId
+     * @return JsonResponse
+     */
+    public function reorderPhotos(Request $request, string $inspectionId, string $answerId): JsonResponse
+    {
+        $request->validate([
+            'photo_keys' => 'required|array',
+            'photo_keys.*' => 'required|string'
+        ]);
+
+        $inspection = Inspection::findOrFail($inspectionId);
+        
+        // Find the answer and ensure it belongs to this inspection
+        $answer = $inspection->answers()->findOrFail($answerId);
+        
+        $currentFiles = $answer->answer_files ?? [];
+        
+        if (empty($currentFiles)) {
+            return response()->json([
+                'error' => 'No photos found in this answer'
+            ], 422);
+        }
+
+        $photoKeys = $request->input('photo_keys', []);
+        
+        // Validate that all provided keys exist in the current files
+        $currentKeys = collect($currentFiles)->pluck('key')->filter()->toArray();
+        $missingKeys = array_diff($photoKeys, $currentKeys);
+        
+        if (!empty($missingKeys)) {
+            return response()->json([
+                'error' => 'Some photo keys do not exist in this answer',
+                'missing_keys' => array_values($missingKeys)
+            ], 422);
+        }
+
+        // Validate that all current keys are included in the new order
+        $extraKeys = array_diff($currentKeys, $photoKeys);
+        if (!empty($extraKeys)) {
+            return response()->json([
+                'error' => 'All existing photos must be included in the new order',
+                'missing_keys' => array_values($extraKeys)
+            ], 422);
+        }
+
+        // Create a map of files by key for quick lookup
+        $filesMap = collect($currentFiles)->keyBy(function($file) {
+            return $file['key'] ?? null;
+        })->filter();
+
+        // Reorder files based on the new order
+        $reorderedFiles = [];
+        foreach ($photoKeys as $key) {
+            if (isset($filesMap[$key])) {
+                $reorderedFiles[] = $filesMap[$key];
+            }
+        }
+
+        // Update the answer with reordered files
+        $answer->update(['answer_files' => $reorderedFiles]);
+
+        return response()->json([
+            'message' => 'Photos reordered successfully',
+            'answer' => $answer->fresh(['question'])
+        ]);
+    }
+
+    /**
      * Create gate pass from inspection if vehicle needs to leave
      */
     protected function createGatePassFromInspection(Inspection $inspection, $user): ?string

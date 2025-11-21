@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../providers/useAuth";
 import { colors, typography, spacing } from "../../lib/theme";
@@ -14,13 +14,18 @@ import {
   X,
   LogOut,
   ChevronRight,
+  ChevronLeft,
   Settings,
   Bell,
-  AlertTriangle
+  AlertTriangle,
+  Search
 } from "lucide-react";
 import { RecentlyViewed } from "../ui/RecentlyViewed";
 import { NotificationBell } from "../ui/NotificationBell";
 import { OfflineIndicator } from "../ui/OfflineIndicator";
+import { CommandPalette } from "../ui/CommandPalette";
+import { BottomNav } from "../ui/BottomNav";
+import { Tooltip } from "../ui/Tooltip";
 
 interface NavItem {
   id: string;
@@ -140,6 +145,20 @@ export default function AppLayout({
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  
+  // Collapsible sidebar state with localStorage persistence
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    const saved = localStorage.getItem('voms_sidebar_collapsed');
+    return saved === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('voms_sidebar_collapsed', String(isCollapsed));
+  }, [isCollapsed]);
+
+  const toggleCollapse = () => {
+    setIsCollapsed(!isCollapsed);
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -189,56 +208,75 @@ export default function AppLayout({
       child.roles.includes(user?.role || "")
     ) || [];
 
+    const navItemContent = (
+      <div
+        onClick={() => {
+          if (hasChildren && !isCollapsed) {
+            toggleExpanded(item.id);
+          } else if (!hasChildren) {
+            navigate(item.path);
+            setSidebarOpen(false);
+          }
+        }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: spacing.sm,
+          padding: `${spacing.sm} ${spacing.md}`,
+          paddingLeft: isCollapsed ? spacing.md : `${parseInt(spacing.md) + level * parseInt(spacing.md)}px`,
+          justifyContent: isCollapsed ? "center" : "flex-start",
+          background: active ? colors.primary + "15" : "transparent",
+          color: active ? colors.primary : colors.neutral[700],
+          borderRadius: "8px",
+          cursor: "pointer",
+          transition: "all 0.2s ease",
+          marginBottom: spacing.xs,
+          fontWeight: active ? 600 : 500,
+          position: "relative"
+        }}
+        onMouseEnter={(e) => {
+          if (!active) {
+            e.currentTarget.style.background = colors.neutral[100];
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!active) {
+            e.currentTarget.style.background = "transparent";
+          }
+        }}
+      >
+        <Icon style={{ width: "18px", height: "18px", flexShrink: 0 }} />
+        {!isCollapsed && (
+          <>
+            <span style={{ flex: 1, fontSize: "14px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {item.label}
+            </span>
+            {hasChildren && (
+              <ChevronRight
+                style={{
+                  width: "16px",
+                  height: "16px",
+                  transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                  transition: "transform 0.2s ease",
+                  flexShrink: 0
+                }}
+              />
+            )}
+          </>
+        )}
+      </div>
+    );
+
     return (
       <div key={item.id}>
-        <div
-          onClick={() => {
-            if (hasChildren) {
-              toggleExpanded(item.id);
-            } else {
-              navigate(item.path);
-              setSidebarOpen(false);
-            }
-          }}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: spacing.sm,
-            padding: `${spacing.sm} ${spacing.md}`,
-            paddingLeft: `${parseInt(spacing.md) + level * parseInt(spacing.md)}px`,
-            background: active ? colors.primary + "15" : "transparent",
-            color: active ? colors.primary : colors.neutral[700],
-            borderRadius: "8px",
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-            marginBottom: spacing.xs,
-            fontWeight: active ? 600 : 500
-          }}
-          onMouseEnter={(e) => {
-            if (!active) {
-              e.currentTarget.style.background = colors.neutral[100];
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!active) {
-              e.currentTarget.style.background = "transparent";
-            }
-          }}
-        >
-          <Icon style={{ width: "18px", height: "18px" }} />
-          <span style={{ flex: 1, fontSize: "14px" }}>{item.label}</span>
-          {hasChildren && (
-            <ChevronRight
-              style={{
-                width: "16px",
-                height: "16px",
-                transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
-                transition: "transform 0.2s ease"
-              }}
-            />
-          )}
-        </div>
-        {hasChildren && isExpanded && (
+        {isCollapsed ? (
+          <Tooltip content={item.label} position="right" delay={200}>
+            {navItemContent}
+          </Tooltip>
+        ) : (
+          navItemContent
+        )}
+        {hasChildren && isExpanded && !isCollapsed && (
           <div style={{ marginLeft: spacing.md }}>
             {accessibleChildren.map(child => renderNavItem(child, level + 1))}
           </div>
@@ -301,7 +339,28 @@ export default function AppLayout({
             VOMS
           </span>
         </div>
-        <NotificationBell />
+        <div style={{ display: "flex", alignItems: "center", gap: spacing.sm }}>
+          <button
+            onClick={() => {
+              // Trigger command palette - we'll use a custom event
+              window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+            }}
+            style={{
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              padding: spacing.sm,
+              borderRadius: "8px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
+            aria-label="Search"
+          >
+            <Search style={{ width: "20px", height: "20px", color: colors.neutral[700] }} />
+          </button>
+          <NotificationBell />
+        </div>
       </header>
       )}
 
@@ -311,7 +370,7 @@ export default function AppLayout({
           <>
             {/* Desktop Sidebar */}
             <aside className="app-layout-desktop-sidebar" style={{
-              width: "280px",
+              width: isCollapsed ? "64px" : "280px",
               background: "white",
               borderRight: `1px solid ${colors.neutral[200]}`,
               padding: spacing.lg,
@@ -320,31 +379,49 @@ export default function AppLayout({
               top: 0,
               height: "100vh",
               overflowY: "auto",
-              zIndex: 50
+              overflowX: "hidden",
+              zIndex: 50,
+              transition: "width 0.3s ease"
             }}>
               {/* Logo */}
               <div style={{ marginBottom: spacing.xl }}>
-                <div style={{ display: "flex", alignItems: "center", gap: spacing.md, marginBottom: spacing.md }}>
-                  <div style={{
-                    width: "40px",
-                    height: "40px",
-                    background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
-                    borderRadius: "12px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center"
-                  }}>
-                    <Home style={{ width: "20px", height: "20px", color: "white" }} />
+                {!isCollapsed ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: spacing.md, marginBottom: spacing.md }}>
+                    <div style={{
+                      width: "40px",
+                      height: "40px",
+                      background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
+                      borderRadius: "12px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}>
+                      <Home style={{ width: "20px", height: "20px", color: "white" }} />
+                    </div>
+                    <div>
+                      <h1 style={{ ...typography.header, fontSize: "18px", margin: 0, fontWeight: 700 }}>
+                        VOMS
+                      </h1>
+                      <p style={{ ...typography.bodySmall, fontSize: "11px", color: colors.neutral[600], margin: 0 }}>
+                        Vehicle Operations
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h1 style={{ ...typography.header, fontSize: "18px", margin: 0, fontWeight: 700 }}>
-                      VOMS
-                    </h1>
-                    <p style={{ ...typography.bodySmall, fontSize: "11px", color: colors.neutral[600], margin: 0 }}>
-                      Vehicle Operations
-                    </p>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: spacing.md }}>
+                    <div style={{
+                      width: "40px",
+                      height: "40px",
+                      background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
+                      borderRadius: "12px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}>
+                      <Home style={{ width: "20px", height: "20px", color: "white" }} />
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Navigation */}
@@ -352,10 +429,12 @@ export default function AppLayout({
                 {accessibleNavItems.map(item => renderNavItem(item))}
               </nav>
 
-              {/* Recently Viewed */}
-              <div style={{ marginBottom: spacing.xl }}>
-                <RecentlyViewed />
-              </div>
+              {/* Recently Viewed - Hide when collapsed */}
+              {!isCollapsed && (
+                <div style={{ marginBottom: spacing.xl }}>
+                  <RecentlyViewed />
+                </div>
+              )}
 
               {/* User Section */}
               <div style={{
@@ -367,63 +446,130 @@ export default function AppLayout({
                 background: "white",
                 borderTop: `1px solid ${colors.neutral[200]}`
               }}>
-                <div style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: spacing.sm,
-                  marginBottom: spacing.md,
-                  padding: spacing.sm,
-                  background: colors.neutral[50],
-                  borderRadius: "8px"
-                }}>
-                  <div style={{
-                    width: "32px",
-                    height: "32px",
-                    background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
-                    borderRadius: "8px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center"
-                  }}>
-                    <UserCog style={{ width: "16px", height: "16px", color: "white" }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ ...typography.label, fontSize: "12px", margin: 0, fontWeight: 600 }}>
-                      {user?.name}
-                    </p>
-                    <p style={{ ...typography.bodySmall, fontSize: "10px", color: colors.neutral[600], margin: 0 }}>
-                      {getRoleDisplayName(user?.role || "")}
-                    </p>
-                  </div>
-                </div>
+                {!isCollapsed ? (
+                  <>
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: spacing.sm,
+                      marginBottom: spacing.md,
+                      padding: spacing.sm,
+                      background: colors.neutral[50],
+                      borderRadius: "8px"
+                    }}>
+                      <div style={{
+                        width: "32px",
+                        height: "32px",
+                        background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
+                        borderRadius: "8px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
+                      }}>
+                        <UserCog style={{ width: "16px", height: "16px", color: "white" }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ ...typography.label, fontSize: "12px", margin: 0, fontWeight: 600 }}>
+                          {user?.name}
+                        </p>
+                        <p style={{ ...typography.bodySmall, fontSize: "10px", color: colors.neutral[600], margin: 0 }}>
+                          {getRoleDisplayName(user?.role || "")}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      style={{
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: spacing.sm,
+                        padding: spacing.sm,
+                        background: "transparent",
+                        border: `1px solid ${colors.status.critical}`,
+                        borderRadius: "8px",
+                        color: colors.status.critical,
+                        cursor: "pointer",
+                        fontSize: "12px",
+                        fontWeight: 500,
+                        transition: "all 0.2s ease"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = colors.status.critical;
+                        e.currentTarget.style.color = "white";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.color = colors.status.critical;
+                      }}
+                    >
+                      <LogOut style={{ width: "14px", height: "14px" }} />
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <Tooltip content={user?.name || "User"} position="right">
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginBottom: spacing.md,
+                      padding: spacing.sm,
+                      background: colors.neutral[50],
+                      borderRadius: "8px"
+                    }}>
+                      <div style={{
+                        width: "32px",
+                        height: "32px",
+                        background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
+                        borderRadius: "8px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
+                      }}>
+                        <UserCog style={{ width: "16px", height: "16px", color: "white" }} />
+                      </div>
+                    </div>
+                  </Tooltip>
+                )}
+                
+                {/* Collapse Toggle Button */}
                 <button
-                  onClick={handleLogout}
+                  onClick={toggleCollapse}
                   style={{
                     width: "100%",
                     display: "flex",
                     alignItems: "center",
+                    justifyContent: isCollapsed ? "center" : "flex-start",
                     gap: spacing.sm,
                     padding: spacing.sm,
                     background: "transparent",
-                    border: `1px solid ${colors.status.critical}`,
+                    border: `1px solid ${colors.neutral[300]}`,
                     borderRadius: "8px",
-                    color: colors.status.critical,
+                    color: colors.neutral[700],
                     cursor: "pointer",
                     fontSize: "12px",
                     fontWeight: 500,
                     transition: "all 0.2s ease"
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = colors.status.critical;
-                    e.currentTarget.style.color = "white";
+                    e.currentTarget.style.background = colors.neutral[100];
+                    e.currentTarget.style.borderColor = colors.neutral[400];
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = colors.status.critical;
+                    e.currentTarget.style.borderColor = colors.neutral[300];
                   }}
+                  aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                 >
-                  <LogOut style={{ width: "14px", height: "14px" }} />
-                  Logout
+                  {isCollapsed ? (
+                    <ChevronRight style={{ width: "16px", height: "16px" }} />
+                  ) : (
+                    <>
+                      <ChevronLeft style={{ width: "16px", height: "16px" }} />
+                      <span>Collapse</span>
+                    </>
+                  )}
                 </button>
               </div>
             </aside>
@@ -533,8 +679,9 @@ export default function AppLayout({
           flex: 1,
           maxWidth: "1400px",
           width: "100%",
-          marginLeft: showSidebar ? "280px" : "0",
+          marginLeft: showSidebar ? (isCollapsed ? "64px" : "280px") : "0",
           padding: spacing.xl,
+          paddingBottom: "calc(1rem + 64px)", // Account for bottom nav on mobile
           transition: "margin-left 0.3s ease"
         }}>
           {/* Breadcrumbs */}
@@ -599,6 +746,12 @@ export default function AppLayout({
       
       {/* Offline Indicator */}
       <OfflineIndicator position="bottom" showDetails={true} />
+      
+      {/* Command Palette */}
+      <CommandPalette />
+      
+      {/* Bottom Navigation - Mobile Only */}
+      <BottomNav />
     </div>
   );
 }

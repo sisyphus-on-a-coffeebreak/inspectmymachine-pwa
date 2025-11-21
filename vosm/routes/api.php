@@ -47,6 +47,7 @@ Route::prefix('v1')->middleware(['web', 'auth:sanctum'])->group(function () {
     Route::post('inspections/{id}/submit', [InspectionController::class, 'submit']);
     Route::post('inspections/{id}/approve', [InspectionController::class, 'approve']);
     Route::post('inspections/{id}/reject', [InspectionController::class, 'reject']);
+    Route::patch('inspections/{inspectionId}/answers/{answerId}/reorder-photos', [InspectionController::class, 'reorderPhotos']);
     
     // Vehicles
     Route::apiResource('vehicles', VehicleController::class);

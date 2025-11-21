@@ -6,6 +6,8 @@ import { colors, spacing, typography } from '../../lib/theme';
 import { syncGatePassRecord } from '../../lib/gate-pass-records';
 import type { GatePassRecord } from '../../lib/gate-pass-records';
 import { useToast } from '../../providers/ToastProvider';
+import { useNativeShare } from '../../hooks/useNativeShare';
+import { Share2 } from 'lucide-react';
 
 interface PassDisplayProps {
   passData: {
@@ -33,6 +35,7 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
   showActions = true
 }) => {
   const { showToast } = useToast();
+  const { share: nativeShare, canShare } = useNativeShare();
   const [passRecord, setPassRecord] = useState<GatePassRecord | null>(null);
   const [loadingRecord, setLoadingRecord] = useState<boolean>(true);
   const [recordError, setRecordError] = useState<string | null>(null);
@@ -203,7 +206,53 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
 
       const qrCode = await ensureQrCode();
       const formattedPassNumber = passRecord.passNumber || formatPassNumber(passData.passType, passData.id);
-
+      
+      // Try native share first
+      const passUrl = `${window.location.origin}/app/gate-pass/${passData.id}`;
+      const shareText = `${passData.passType === 'visitor' ? 'Visitor' : 'Vehicle'} Gate Pass: ${formattedPassNumber}\nAccess Code: ${passRecord.accessCode}`;
+      
+      // Try native share
+      if (canShare) {
+        try {
+          // Generate PDF for sharing
+          const pdfBlob = await generatePDFPass({
+            passNumber: formattedPassNumber,
+            passType: passData.passType,
+            visitorName: passData.visitorName,
+            vehicleDetails: passData.vehicleDetails,
+            purpose: passData.purpose,
+            entryTime: passData.entryTime,
+            expectedReturn: passData.expectedReturn,
+            accessCode: passRecord.accessCode,
+            qrCode,
+            companyName: passData.companyName,
+            companyLogo: passData.companyLogo
+          });
+          
+          const pdfFile = new File([pdfBlob], `gate-pass-${formattedPassNumber}.pdf`, { type: 'application/pdf' });
+          
+          const shared = await nativeShare({
+            title: `Gate Pass: ${formattedPassNumber}`,
+            text: shareText,
+            url: passUrl,
+            files: [pdfFile],
+          });
+          
+          if (shared) {
+            showToast({
+              title: 'Success',
+              description: 'Pass shared successfully!',
+              variant: 'success',
+            });
+            return;
+          }
+        } catch (nativeError) {
+          // Fall through to legacy share
+          console.log('Native share failed, falling back to legacy share:', nativeError);
+        }
+      }
+      
+      // Fallback to legacy share function
       await sharePass({
         passNumber: formattedPassNumber,
         passType: passData.passType,
@@ -403,7 +452,7 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
               variant="success"
               onClick={handleShare}
               disabled={loadingRecord || !passRecord}
-              icon="📤"
+              icon={<Share2 style={{ width: '18px', height: '18px' }} />}
               fullWidth
             >
               Share Pass
