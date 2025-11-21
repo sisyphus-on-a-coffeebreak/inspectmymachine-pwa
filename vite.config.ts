@@ -77,17 +77,32 @@ export default defineConfig({
           {
             name: "New Gate Pass",
             url: "/app/gate-pass/visitor/create",
-            icons: [{ src: "pwa-192x192.png", sizes: "96x96" }],
+            icons: [{ src: "pwa-192x192.png", sizes: "192x192", type: "image/png" }],
           },
           {
             name: "New Inspection",
             url: "/app/inspections/new",
-            icons: [{ src: "pwa-192x192.png", sizes: "96x96" }],
+            icons: [{ src: "pwa-192x192.png", sizes: "192x192", type: "image/png" }],
           },
           {
             name: "Log Expense",
             url: "/app/expenses/create",
-            icons: [{ src: "pwa-192x192.png", sizes: "96x96" }],
+            icons: [{ src: "pwa-192x192.png", sizes: "192x192", type: "image/png" }],
+          },
+        ],
+        screenshots: [
+          {
+            src: "pwa-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            form_factor: "wide",
+            label: "VOMS Dashboard - Desktop View"
+          },
+          {
+            src: "pwa-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            label: "VOMS Dashboard - Mobile View"
           },
         ],
       },
