@@ -79,10 +79,11 @@ export default defineConfig({
     proxy: {
       "/api": {
         target: process.env.NODE_ENV === 'production' 
-          ? "https://api.inspectmymachine.in" 
+          ? "https://api.inspectmymachine.in/api" 
           : "http://127.0.0.1:8000",
         changeOrigin: true,
         secure: process.env.NODE_ENV === 'production',
+        rewrite: (path) => process.env.NODE_ENV === 'production' ? path.replace(/^\/api/, '') : path,
         configure: (proxy) => {
           // Only log proxy requests in development
           if (process.env.NODE_ENV !== 'production') {

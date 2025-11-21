@@ -40,7 +40,7 @@ print_status "Setting up production environment..."
 # Set production environment
 export NODE_ENV=production
 export VITE_NODE_ENV=production
-export VITE_API_ORIGIN=https://api.inspectmymachine.in
+export VITE_API_ORIGIN=https://api.inspectmymachine.in/api
 export VITE_API_BASE=https://api.inspectmymachine.in/api
 export VITE_APP_URL=https://inspectmymachine.in
 
@@ -80,7 +80,7 @@ if [ -d "dist" ]; then
     print_success "✅ Frontend ready for deployment!"
     print_status "📁 Upload the contents of the 'dist/' folder to your hosting service"
     print_status "🌐 Domain: https://inspectmymachine.in"
-    print_status "🔗 API: https://api.inspectmymachine.in"
+    print_status "🔗 API: https://api.inspectmymachine.in/api"
 else
     print_error "Build output directory 'dist' not found!"
     exit 1

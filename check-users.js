@@ -9,7 +9,7 @@ import https from 'https';
 import http from 'http';
 
 const API_BASE = process.env.VITE_API_BASE || 'https://api.inspectmymachine.in/api';
-const API_ORIGIN = process.env.VITE_API_ORIGIN || 'https://api.inspectmymachine.in';
+const API_ORIGIN = process.env.VITE_API_ORIGIN || 'https://api.inspectmymachine.in/api';
 
 console.log('🔍 Checking for users in the backend...\n');
 console.log(`API Base: ${API_BASE}`);
@@ -83,7 +83,7 @@ function checkUsers() {
 
 // Also try to check the /api/user endpoint (current user)
 function checkCurrentUser() {
-  const url = new URL(`${API_ORIGIN}/api/user`);
+  const url = new URL(API_ORIGIN.endsWith('/api') ? `${API_ORIGIN}/user` : `${API_ORIGIN}/api/user`);
   
   const options = {
     method: 'GET',

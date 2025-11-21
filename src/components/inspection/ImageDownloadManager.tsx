@@ -73,8 +73,10 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
           let imageUrl = file.url || file.path;
           if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
             // Get API origin for constructing full URLs
-            const apiOrigin = import.meta.env.VITE_API_ORIGIN || 
-              (import.meta.env.PROD ? "https://inspectmymachine.in" : "http://localhost:8000");
+            const apiOriginRaw = import.meta.env.VITE_API_ORIGIN || 
+              (import.meta.env.PROD ? "https://api.inspectmymachine.in/api" : "http://localhost:8000");
+            // For storage URLs, we need the origin without /api
+            const apiOrigin = apiOriginRaw.endsWith('/api') ? apiOriginRaw.replace(/\/api$/, '') : apiOriginRaw;
             
             // If it's a relative path, prepend storage URL
             // Laravel stores files in storage/app/public/inspections/media/
@@ -191,8 +193,10 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
       let fullUrl = image.url;
       if (!fullUrl.startsWith('http') && !fullUrl.startsWith('data:')) {
         // Fallback: construct full URL if somehow still relative
-        const apiOrigin = import.meta.env.VITE_API_ORIGIN || 
-          (import.meta.env.PROD ? "https://inspectmymachine.in" : "http://localhost:8000");
+        const apiOriginRaw = import.meta.env.VITE_API_ORIGIN || 
+          (import.meta.env.PROD ? "https://api.inspectmymachine.in/api" : "http://localhost:8000");
+        // For storage URLs, we need the origin without /api
+        const apiOrigin = apiOriginRaw.endsWith('/api') ? apiOriginRaw.replace(/\/api$/, '') : apiOriginRaw;
         fullUrl = fullUrl.startsWith('/') ? `${apiOrigin}${fullUrl}` : `${apiOrigin}/${fullUrl}`;
       }
       

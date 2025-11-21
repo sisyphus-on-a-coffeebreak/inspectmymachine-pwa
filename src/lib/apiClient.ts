@@ -15,8 +15,8 @@ import { offlineQueue } from './offlineQueue';
 import { isNetworkError } from './errorHandling';
 
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 
-  (import.meta.env.PROD ? "https://inspectmymachine.in" : "http://localhost:8000");
-const BASE_URL = (import.meta.env.VITE_API_BASE || `${API_ORIGIN}/api`).replace(/\/$/, "");
+  (import.meta.env.PROD ? "https://api.inspectmymachine.in/api" : "http://localhost:8000");
+const BASE_URL = (import.meta.env.VITE_API_BASE || API_ORIGIN).replace(/\/$/, "");
 
 // Configure axios defaults
 axios.defaults.withCredentials = true;
@@ -109,7 +109,9 @@ class ApiClient {
   private async ensureCsrfToken(): Promise<void> {
     if (this.csrfInitialized && this.getCsrfToken()) return;
     try {
-      const csrfUrl = `${API_ORIGIN}/sanctum/csrf-cookie`;
+      const csrfUrl = API_ORIGIN.endsWith('/api') 
+        ? `${API_ORIGIN.replace(/\/api$/, '')}/sanctum/csrf-cookie`
+        : `${API_ORIGIN}/sanctum/csrf-cookie`;
       await axios.get(csrfUrl, {
         withCredentials: true,
         baseURL: '',

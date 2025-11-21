@@ -1,6 +1,6 @@
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 
-  (import.meta.env.PROD ? "https://inspectmymachine.in" : "http://localhost:8000");
-const BASE_URL = (import.meta.env.VITE_API_BASE || `${API_ORIGIN}/api`).replace(/\/$/, "");
+  (import.meta.env.PROD ? "https://api.inspectmymachine.in/api" : "http://localhost:8000");
+const BASE_URL = (import.meta.env.VITE_API_BASE || API_ORIGIN).replace(/\/$/, "");
 
 export async function apiFetch(path: string, options: RequestInit = {}, token?: string | null) {
   const headers = new Headers(options.headers || {})

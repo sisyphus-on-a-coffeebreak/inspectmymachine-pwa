@@ -7,10 +7,8 @@ import { AuthContext } from "./AuthContext";
 import type { User, AuthContextType, ApiErrorResponse } from "./authTypes";
 
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 
-  (import.meta.env.PROD ? "https://inspectmymachine.in" : "http://localhost:8000");
-const API_BASE = (import.meta.env.VITE_API_BASE || 
-  (import.meta.env.PROD ? "https://api.inspectmymachine.in/api" : `${API_ORIGIN}/api`)
-).replace(/\/$/, "");
+  (import.meta.env.PROD ? "https://api.inspectmymachine.in/api" : "http://localhost:8000");
+const API_BASE = (import.meta.env.VITE_API_BASE || API_ORIGIN).replace(/\/$/, "");
 
 // Configure axios defaults
 axios.defaults.withCredentials = true;
@@ -55,7 +53,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if ((status === 419 || status === 401) && !retrying && !isAuthCheck && !isAuthCheckHeader && !skipRetry) {
           try {
             retrying = true;
-            const csrfUrl = `${API_ORIGIN}/sanctum/csrf-cookie`;
+            const csrfUrl = API_ORIGIN.endsWith('/api') 
+              ? `${API_ORIGIN.replace(/\/api$/, '')}/sanctum/csrf-cookie`
+              : `${API_ORIGIN}/sanctum/csrf-cookie`;
             await axios.get(csrfUrl, {
               withCredentials: true,
               baseURL: '', // Override baseURL to use full URL

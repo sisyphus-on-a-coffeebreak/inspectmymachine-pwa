@@ -150,7 +150,9 @@ export const GatePassReports: React.FC = () => {
       await (client as any).ensureCsrfToken?.();
       const csrfToken = (client as any).getCsrfToken?.();
       
-      const response = await axios.get(`${import.meta.env.VITE_API_ORIGIN || 'http://localhost:8000'}/api/gate-pass-reports/export`, {
+      const apiOrigin = import.meta.env.VITE_API_ORIGIN || 'http://localhost:8000';
+      const apiBase = apiOrigin.endsWith('/api') ? apiOrigin : `${apiOrigin}/api`;
+      const response = await axios.get(`${apiBase}/gate-pass-reports/export`, {
         params: { 
           date_range: dateRange,
           yard_id: selectedYard !== 'all' ? selectedYard : undefined,
@@ -188,7 +190,9 @@ export const GatePassReports: React.FC = () => {
       await (client as any).ensureCsrfToken?.();
       const csrfToken = (client as any).getCsrfToken?.();
       
-      const response = await axios.get(`${import.meta.env.VITE_API_ORIGIN || 'http://localhost:8000'}/api/gate-pass-reports/export`, {
+      const apiOrigin = import.meta.env.VITE_API_ORIGIN || 'http://localhost:8000';
+      const apiBase = apiOrigin.endsWith('/api') ? apiOrigin : `${apiOrigin}/api`;
+      const response = await axios.get(`${apiBase}/gate-pass-reports/export`, {
         params: { 
           date_range: dateRange,
           yard_id: selectedYard !== 'all' ? selectedYard : undefined,
