@@ -104,6 +104,14 @@ export default defineConfig({
             icons: [{ src: "pwa-96x96.png", sizes: "96x96", type: "image/png" }],
           },
         ],
+      },
+      includeAssets: [
+        "favicon.svg",
+        "apple-touch-icon.png",
+        "pwa-96x96.png",
+        "screenshot-dashboard.png",
+        "screenshot-mobile.png",
+      ],
     }),
   ],
 
