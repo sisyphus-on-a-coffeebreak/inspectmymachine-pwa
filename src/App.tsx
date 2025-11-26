@@ -53,6 +53,7 @@ import { ExpenseApproval } from './pages/expenses/ExpenseApproval';
 import { ExpenseReports } from './pages/expenses/ExpenseReports';
 import { ReceiptsGallery } from './pages/expenses/ReceiptsGallery';
 import { AccountsDashboard } from './pages/expenses/AccountsDashboard';
+import { LedgerPage } from './pages/ledger/LedgerPage';
 import { UserDetails } from './pages/admin/UserDetails';
 import { UserActivityDashboard } from './pages/admin/UserActivityDashboard';
 import { CapabilityMatrix } from './pages/admin/CapabilityMatrix';
@@ -246,7 +247,11 @@ export default function App() {
         element={<AuthenticatedLayout><ReceiptsGallery /></AuthenticatedLayout>}
       />
 
-      {/* Float module removed (legacy) */}
+      {/* 📒 Employee Ledger Module */}
+      <Route
+        path="/app/ledger"
+        element={<AuthenticatedLayout><LedgerPage /></AuthenticatedLayout>}
+      />
 
       {/* 🚨 Alerts Module */}
       <Route

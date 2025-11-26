@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useExpenses, useFloatBalance } from '../../lib/queries';
+import { useExpenses, useBalanceSummary } from '../../lib/queries';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
@@ -53,14 +53,14 @@ export const EmployeeExpenseDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [selectedPeriod, setSelectedPeriod] = useState<'day' | 'week' | 'month' | 'quarter'>('month');
   
-  // Use React Query for expenses and float balance
+  // Use React Query for expenses and ledger balance
   const { data: expensesData, isLoading: expensesLoading, error: expensesError, refetch: refetchExpenses } = useExpenses(
     { mine: true }
   );
-  const { data: floatData, isLoading: floatLoading, error: floatError } = useFloatBalance();
-  
-  const loading = expensesLoading || floatLoading;
-  const error = expensesError || floatError;
+  const { data: balanceData, isLoading: balanceLoading, error: balanceError } = useBalanceSummary();
+
+  const loading = expensesLoading || balanceLoading;
+  const error = expensesError || balanceError;
   
   // Process expenses data
   type ApiExpense = { id?: string|number; amount?: number; category?: string; notes?: string; ts?: string|Date; status?: string };
@@ -115,7 +115,9 @@ export const EmployeeExpenseDashboard: React.FC = () => {
     });
 
     // Float balance → show as Advance Balance (remaining_budget field)
-    const advanceBalance = Number(floatData?.balance ?? 0);
+    // Extract balance from ledger summary (handles both direct data and nested data.data)
+    const balanceSummary = balanceData?.data || balanceData;
+    const advanceBalance = Number(balanceSummary?.current_balance ?? 0);
 
     const summary: ExpenseSummary = {
       total_spent,
@@ -138,7 +140,7 @@ export const EmployeeExpenseDashboard: React.FC = () => {
     if (advanceBalance < 1000) alerts.push({ type: 'warning', message: 'Advance balance is running low', percentage: 0 });
     
     return { summary, recentExpenses, budgetAlerts: alerts };
-  }, [expenses, selectedPeriod, floatData]);
+  }, [expenses, selectedPeriod, balanceData]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

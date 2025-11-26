@@ -147,6 +147,28 @@ export const queryKeys = {
     list: (filters?: Record<string, unknown>) => [...queryKeys.notifications.lists(), filters] as const,
     unreadCount: () => [...queryKeys.notifications.all, 'unread-count'] as const,
   },
+
+  // Ledger
+  ledger: {
+    all: ['ledger'] as const,
+    lists: () => [...queryKeys.ledger.all, 'list'] as const,
+    list: (filters?: Record<string, unknown>) => [...queryKeys.ledger.lists(), filters] as const,
+    balance: (employeeId: string) => [...queryKeys.ledger.all, 'balance', employeeId] as const,
+    summary: (employeeId: string) => [...queryKeys.ledger.all, 'summary', employeeId] as const,
+    preview: (data: Record<string, unknown>) => [...queryKeys.ledger.all, 'preview', data] as const,
+    reconciliation: (employeeId: string, period?: string) => [...queryKeys.ledger.all, 'reconciliation', employeeId, period] as const,
+    statistics: () => [...queryKeys.ledger.all, 'statistics'] as const,
+  },
+
+  // Advances
+  advances: {
+    all: ['advances'] as const,
+    lists: () => [...queryKeys.advances.all, 'list'] as const,
+    list: (filters?: Record<string, unknown>) => [...queryKeys.advances.lists(), filters] as const,
+    details: () => [...queryKeys.advances.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.advances.details(), id] as const,
+    employee: (employeeId: string) => [...queryKeys.advances.all, 'employee', employeeId] as const,
+  },
 } as const;
 
 // Default query options
@@ -1540,6 +1562,373 @@ export function useAcknowledgeStockyardAlert(
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.stockyard.analytics.alerts() });
+    },
+    ...options,
+  });
+}
+
+// ============================================================================
+// EMPLOYEE LEDGER HOOKS
+// ============================================================================
+
+/**
+ * Hook for fetching employee ledger entries
+ * @param filters - Filter options (employee_id, transaction_types, date_from, date_to, etc.)
+ */
+export function useLedger(
+  filters?: {
+    employee_id?: string;
+    transaction_types?: string[];
+    date_from?: string;
+    date_to?: string;
+    is_credit?: boolean;
+    is_debit?: boolean;
+    page?: number;
+    per_page?: number;
+  },
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.ledger.list(filters),
+    queryFn: async () => {
+      const response = await apiClient.get('/v1/ledger', { params: filters });
+      const data = Array.isArray(response.data)
+        ? response.data
+        : (response.data as any)?.data || [];
+      return {
+        data,
+        total: (response.data as any)?.total || data.length,
+        page: (response.data as any)?.page || filters?.page || 1,
+        per_page: (response.data as any)?.per_page || filters?.per_page || 50,
+        last_page: (response.data as any)?.last_page || 1,
+      };
+    },
+    ...defaultQueryOptions,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching employee balance
+ * @param employeeId - Employee ID (defaults to current user if not provided)
+ */
+export function useEmployeeBalance(
+  employeeId?: string,
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  const id = employeeId || 'me';
+  return useQuery({
+    queryKey: queryKeys.ledger.balance(id),
+    queryFn: async () => {
+      const response = await apiClient.get(`/v1/ledger/balance/${id}`);
+      return response.data;
+    },
+    ...defaultQueryOptions,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching employee balance summary (detailed breakdown)
+ * @param employeeId - Employee ID (defaults to current user if not provided)
+ */
+export function useBalanceSummary(
+  employeeId?: string,
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  const id = employeeId || 'me';
+  return useQuery({
+    queryKey: queryKeys.ledger.summary(id),
+    queryFn: async () => {
+      const response = await apiClient.get(`/v1/ledger/summary/${id}`);
+      return response.data;
+    },
+    ...defaultQueryOptions,
+    ...options,
+  });
+}
+
+/**
+ * Hook for previewing ledger impact before transaction
+ * @param transactionData - Transaction details to preview
+ */
+export function useLedgerPreview(
+  transactionData: {
+    employee_id?: string;
+    transaction_type: string;
+    amount: number;
+  },
+  enabled: boolean = false,
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.ledger.preview(transactionData),
+    queryFn: async () => {
+      const response = await apiClient.post('/v1/ledger/preview', transactionData);
+      return response.data;
+    },
+    enabled,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching reconciliation summary
+ * @param employeeId - Employee ID
+ * @param period - Period for reconciliation (e.g., "2025-11", "2025-Q4")
+ */
+export function useReconciliation(
+  employeeId: string,
+  period?: string,
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.ledger.reconciliation(employeeId, period),
+    queryFn: async () => {
+      const response = await apiClient.get(`/v1/ledger/reconciliation/${employeeId}`, {
+        params: { period },
+      });
+      return response.data;
+    },
+    ...defaultQueryOptions,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching ledger statistics (for admin dashboard)
+ */
+export function useLedgerStatistics(
+  filters?: { period?: string },
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.ledger.statistics(),
+    queryFn: async () => {
+      const response = await apiClient.get('/v1/ledger/statistics', { params: filters });
+      return response.data;
+    },
+    ...defaultQueryOptions,
+    ...options,
+  });
+}
+
+// ============================================================================
+// ADVANCE HOOKS
+// ============================================================================
+
+/**
+ * Hook for fetching advances
+ * @param filters - Filter options (employee_id, status, purpose, etc.)
+ */
+export function useAdvances(
+  filters?: {
+    employee_id?: string;
+    status?: string;
+    purpose?: string;
+    date_from?: string;
+    date_to?: string;
+    page?: number;
+    per_page?: number;
+  },
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.advances.list(filters),
+    queryFn: async () => {
+      const response = await apiClient.get('/v1/advances', { params: filters });
+      const data = Array.isArray(response.data)
+        ? response.data
+        : (response.data as any)?.data || [];
+      return {
+        data,
+        total: (response.data as any)?.total || data.length,
+        summary: (response.data as any)?.summary,
+        page: (response.data as any)?.page || filters?.page || 1,
+        per_page: (response.data as any)?.per_page || filters?.per_page || 20,
+        last_page: (response.data as any)?.last_page || 1,
+      };
+    },
+    ...defaultQueryOptions,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching single advance detail
+ * @param advanceId - Advance ID
+ */
+export function useAdvance(
+  advanceId: string,
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.advances.detail(advanceId),
+    queryFn: async () => {
+      const response = await apiClient.get(`/v1/advances/${advanceId}`);
+      return response.data;
+    },
+    ...defaultQueryOptions,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching advances for specific employee
+ * @param employeeId - Employee ID (defaults to current user)
+ */
+export function useEmployeeAdvances(
+  employeeId?: string,
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  const id = employeeId || 'me';
+  return useQuery({
+    queryKey: queryKeys.advances.employee(id),
+    queryFn: async () => {
+      const response = await apiClient.get(`/v1/advances/employee/${id}`);
+      const data = Array.isArray(response.data)
+        ? response.data
+        : (response.data as any)?.data || [];
+      return {
+        data,
+        total: (response.data as any)?.total || data.length,
+        summary: (response.data as any)?.summary,
+      };
+    },
+    ...defaultQueryOptions,
+    ...options,
+  });
+}
+
+/**
+ * Hook for issuing an advance (admin only)
+ */
+export function useIssueAdvance(
+  options?: Omit<
+    UseMutationOptions<any, Error, {
+      employee_id: string;
+      amount: number;
+      purpose: string;
+      purpose_description?: string;
+      validity_days?: number;
+      notes?: string;
+    }>,
+    'mutationFn'
+  >
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data) => {
+      const response = await apiClient.post('/v1/advances/issue', data);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.advances.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ledger.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ledger.balance(variables.employee_id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ledger.summary(variables.employee_id) });
+    },
+    ...options,
+  });
+}
+
+/**
+ * Hook for posting a cash return (debit)
+ */
+export function useCashReturn(
+  options?: Omit<
+    UseMutationOptions<any, Error, {
+      employee_id?: string;
+      amount: number;
+      description: string;
+      return_date?: string;
+      receipt_keys?: string[];
+      notes?: string;
+    }>,
+    'mutationFn'
+  >
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data) => {
+      const response = await apiClient.post('/v1/ledger/cash-return', data);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      const employeeId = variables.employee_id || 'me';
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.ledger.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ledger.balance(employeeId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ledger.summary(employeeId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.advances.all });
+    },
+    ...options,
+  });
+}
+
+/**
+ * Hook for posting a reimbursement (credit)
+ */
+export function useReimbursement(
+  options?: Omit<
+    UseMutationOptions<any, Error, {
+      employee_id: string;
+      amount?: number;
+      expense_ids: string[];
+      description: string;
+      payment_method?: string;
+      notes?: string;
+    }>,
+    'mutationFn'
+  >
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data) => {
+      const response = await apiClient.post('/v1/ledger/reimbursement', data);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.ledger.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ledger.balance(variables.employee_id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ledger.summary(variables.employee_id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all });
+    },
+    ...options,
+  });
+}
+
+/**
+ * Hook for setting/updating opening balance (admin only)
+ */
+export function useSetOpeningBalance(
+  options?: Omit<
+    UseMutationOptions<any, Error, {
+      employee_id: string;
+      opening_balance: number;
+      effective_date?: string;
+      notes?: string;
+    }>,
+    'mutationFn'
+  >
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data) => {
+      const response = await apiClient.post('/v1/ledger/opening-balance', data);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.ledger.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ledger.balance(variables.employee_id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ledger.summary(variables.employee_id) });
     },
     ...options,
   });
