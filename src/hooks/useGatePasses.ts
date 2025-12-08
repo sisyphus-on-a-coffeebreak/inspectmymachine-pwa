@@ -6,7 +6,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';
-import { gatePassService } from '../lib/services/gatePassService';
+import { gatePassService } from '../lib/services/GatePassService';
 import { useToast } from '../providers/ToastProvider';
 import type {
   GatePass,
