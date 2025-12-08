@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../providers/ToastProvider';
 import { useConfirm } from '../../components/ui/Modal';
 import { GuardDetailsModal, type GuardActionData } from '../../components/gatepass/GuardDetailsModal';
-import { gatePassService } from '../../lib/services/gatePassService';
+import { gatePassService } from '../../lib/services/GatePassService';
 import { useGatePasses } from '@/hooks/useGatePasses';
 import type { GatePass } from './gatePassTypes';
 import { isVisitorPass } from './gatePassTypes';
