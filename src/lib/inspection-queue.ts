@@ -46,6 +46,11 @@ export async function queueInspectionSubmission(options: {
 }): Promise<string> {
   const { templateId, vehicleId, answers, metadata = {}, mode, queueId } = options;
 
+  // Reject mock template IDs
+  if (templateId && templateId.toLowerCase().includes('mock')) {
+    throw new Error('Cannot queue inspection with mock template ID. Please use a real template.');
+  }
+
   const id = queueId ?? crypto.randomUUID();
   const key = buildQueueKey(id);
   const existing = queueId ? await get<QueuedInspectionSubmission>(key) : null;
@@ -76,7 +81,11 @@ export async function listQueuedInspections(): Promise<QueuedInspectionSubmissio
     .sort();
 
   const records = await Promise.all(relevant.map((key) => get<QueuedInspectionSubmission>(key)));
-  return (records.filter(Boolean) as QueuedInspectionSubmission[]).sort((a, b) => a.createdAt - b.createdAt);
+  // Filter out any submissions with mock template IDs
+  const validRecords = (records.filter(Boolean) as QueuedInspectionSubmission[])
+    .filter(record => record.templateId && !record.templateId.toLowerCase().includes('mock'));
+  
+  return validRecords.sort((a, b) => a.createdAt - b.createdAt);
 }
 
 export async function removeQueuedInspection(queueId: string) {
@@ -134,6 +143,11 @@ export function subscribeQueuedInspectionCount(callback: (count: number) => void
 }
 
 export async function saveInspectionDraft(templateId: string, vehicleId: string | undefined, answers: SerializedInspectionAnswers) {
+  // Reject mock template IDs
+  if (templateId && templateId.toLowerCase().includes('mock')) {
+    throw new Error('Cannot save draft with mock template ID. Please use a real template.');
+  }
+
   const key = buildDraftKey(templateId, vehicleId);
   const record: InspectionDraftRecord = {
     templateId,
@@ -153,6 +167,61 @@ export async function loadInspectionDraft(templateId: string, vehicleId?: string
 export async function clearInspectionDraft(templateId: string, vehicleId?: string) {
   const key = buildDraftKey(templateId, vehicleId);
   await del(key);
+}
+
+/**
+ * Clean up drafts with mock or invalid template IDs
+ * This removes any drafts that reference templates that don't exist or are mock templates
+ */
+export async function cleanupInvalidDrafts(): Promise<number> {
+  const allKeys = await keys();
+  const draftKeys = allKeys
+    .filter((key): key is string => typeof key === 'string' && key.startsWith(DRAFT_PREFIX))
+    .sort();
+
+  let cleanedCount = 0;
+  
+  for (const key of draftKeys) {
+    try {
+      const draft = await get<InspectionDraftRecord>(key);
+      if (!draft) {
+        // Draft is corrupted, remove it
+        await del(key);
+        cleanedCount++;
+        continue;
+      }
+      
+      // Remove drafts with mock template IDs
+      if (draft.templateId && draft.templateId.toLowerCase().includes('mock')) {
+        await del(key);
+        cleanedCount++;
+        continue;
+      }
+    } catch {
+      // Error reading draft, remove it
+      await del(key);
+      cleanedCount++;
+    }
+  }
+  
+  return cleanedCount;
+}
+
+/**
+ * List all drafts, filtering out mock templates
+ */
+export async function listAllDrafts(): Promise<InspectionDraftRecord[]> {
+  const allKeys = await keys();
+  const draftKeys = allKeys
+    .filter((key): key is string => typeof key === 'string' && key.startsWith(DRAFT_PREFIX))
+    .sort();
+
+  const records = await Promise.all(draftKeys.map((key) => get<InspectionDraftRecord>(key)));
+  // Filter out drafts with mock template IDs
+  const validDrafts = (records.filter(Boolean) as InspectionDraftRecord[])
+    .filter(draft => draft.templateId && !draft.templateId.toLowerCase().includes('mock'));
+  
+  return validDrafts;
 }
 
 export function notifyQueueChange() {

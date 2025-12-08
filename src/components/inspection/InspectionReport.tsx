@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../ui/button';
+import { ShareButton } from '../ui/ShareButton';
 
 interface InspectionData {
   id: string;
@@ -449,13 +450,14 @@ export const InspectionReport: React.FC<InspectionReportProps> = ({
           Email Report
         </Button>
         
-        <Button
+        <ShareButton
+          title={`Inspection Report: ${inspection.vehicle?.registration_number || inspection.id}`}
+          text={`Inspection report for ${inspection.vehicle?.registration_number || 'vehicle'}`}
+          url={`${window.location.origin}/app/inspections/${inspection.id}`}
           variant="secondary"
-          onClick={onShareReport}
-          icon="🔗"
         >
           Share Report
-        </Button>
+        </ShareButton>
       </div>
     </div>
   );

@@ -20,6 +20,7 @@ import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { FilterBar } from '../../components/ui/FilterBar';
 import { Pagination } from '../../components/ui/Pagination';
+import { PullToRefreshWrapper } from '../../components/ui/PullToRefreshWrapper';
 import { AnomalyAlert } from '../../components/ui/AnomalyAlert';
 import { colors, typography, spacing, cardStyles, borderRadius } from '../../lib/theme';
 import {
@@ -246,6 +247,11 @@ export const AlertDashboard: React.FC = () => {
         ? prev.filter((id) => id !== alertId)
         : [...prev, alertId]
     );
+  };
+
+  const handleRefresh = async () => {
+    await refetch();
+    await refetchStats();
   };
 
   const toggleSelectAll = () => {
@@ -597,9 +603,11 @@ export const AlertDashboard: React.FC = () => {
         </div>
       )}
     </div>
+    </PullToRefreshWrapper>
   );
 };
 
 export default AlertDashboard;
+
 
 

@@ -9,6 +9,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { colors, typography, spacing, borderRadius, cardStyles } from '../lib/theme';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { Button } from './ui/button';
+import { logger } from '../lib/logger';
 
 interface Props {
   children: ReactNode;
@@ -51,9 +52,24 @@ export class ErrorBoundary extends Component<Props, State> {
       errorInfo,
     });
 
-    // Log to console in development
-    if (import.meta.env.DEV) {
-      console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Log error using logger (handles dev/prod automatically)
+    // Pass error directly to avoid object serialization issues with React DevTools
+    try {
+      logger.error('ErrorBoundary caught an error', error, 'ErrorBoundary');
+      // Log errorInfo separately if needed
+      if (errorInfo?.componentStack) {
+        logger.error('ErrorBoundary component stack', new Error(errorInfo.componentStack), 'ErrorBoundary');
+      }
+    } catch (logError) {
+      // Fallback if logger itself fails - use native console with safe serialization
+      try {
+        console.error('ErrorBoundary caught an error:', error?.message || String(error));
+        if (errorInfo?.componentStack) {
+          console.error('Component stack:', errorInfo.componentStack);
+        }
+      } catch {
+        // Last resort - silent fail to prevent infinite error loops
+      }
     }
   }
 
@@ -135,12 +151,26 @@ export class ErrorBoundary extends Component<Props, State> {
                   Error Details (Development Only)
                 </summary>
                 <div style={{ marginTop: spacing.sm }}>
-                  <strong>Error:</strong> {this.state.error.toString()}
+                  <strong>Error:</strong>{' '}
+                  {(() => {
+                    try {
+                      if (this.state.error instanceof Error) {
+                        return this.state.error.message || this.state.error.name || 'Unknown error';
+                      }
+                      if (typeof this.state.error === 'string') {
+                        return this.state.error;
+                      }
+                      // Safely convert to string
+                      return String(this.state.error);
+                    } catch {
+                      return 'Error details unavailable';
+                    }
+                  })()}
                   {this.state.errorInfo && (
                     <div style={{ marginTop: spacing.sm }}>
                       <strong>Component Stack:</strong>
                       <pre style={{ whiteSpace: 'pre-wrap', marginTop: spacing.xs }}>
-                        {this.state.errorInfo.componentStack}
+                        {this.state.errorInfo.componentStack || 'No stack trace available'}
                       </pre>
                     </div>
                   )}

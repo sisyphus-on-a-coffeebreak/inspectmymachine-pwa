@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { NetworkError } from '@/components/ui/NetworkError';
 import { SkeletonTable } from '@/components/ui/SkeletonLoader';
+import { Modal } from '@/components/ui/Modal';
 import { colors, spacing, typography, cardStyles, borderRadius } from '@/lib/theme';
 import { Battery, Wrench, Package, Search, Filter, Plus, Car, AlertTriangle } from 'lucide-react';
 import { useComponents } from '@/lib/queries';
 import { useToast } from '@/providers/ToastProvider';
+import { CreateComponent } from './CreateComponent';
 
 interface Component {
   id: string;
@@ -55,6 +57,7 @@ const statusConfig: Record<string, { color: string; label: string }> = {
 
 export const ComponentLedger: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { showToast } = useToast();
   
   const [typeFilter, setTypeFilter] = useState<'all' | 'battery' | 'tyre' | 'spare_part'>('all');
@@ -62,6 +65,18 @@ export const ComponentLedger: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage] = useState(20);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Check URL for create action
+  useEffect(() => {
+    if (searchParams.get('action') === 'create') {
+      setShowCreateModal(true);
+      // Clean up URL
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('action');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const { data: componentsData, isLoading, isError, error, refetch } = useComponents({
     type: typeFilter === 'all' ? undefined : typeFilter,
@@ -136,7 +151,7 @@ export const ComponentLedger: React.FC = () => {
         ]}
         actions={
           <Button
-            onClick={() => navigate('/app/stockyard/components/create')}
+            onClick={() => setShowCreateModal(true)}
             variant="primary"
             icon={<Plus size={18} />}
           >
@@ -232,7 +247,7 @@ export const ComponentLedger: React.FC = () => {
           description="Get started by adding your first component to the ledger."
           action={
             <Button
-              onClick={() => navigate('/app/stockyard/components/create')}
+              onClick={() => setShowCreateModal(true)}
               variant="primary"
               icon={<Plus size={18} />}
             >
@@ -440,6 +455,24 @@ export const ComponentLedger: React.FC = () => {
             </div>
           )}
         </>
+      )}
+
+      {/* Create Component Modal */}
+      {showCreateModal && (
+        <Modal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          title="Add Component"
+          size="large"
+        >
+          <CreateComponent
+            onSuccess={() => {
+              setShowCreateModal(false);
+              refetch();
+            }}
+            onCancel={() => setShowCreateModal(false)}
+          />
+        </Modal>
       )}
     </div>
   );

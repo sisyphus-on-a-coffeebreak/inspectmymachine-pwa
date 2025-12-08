@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import RequireAuth from "./RequireAuth";
 import AppLayout from "./layout/AppLayout";
+import { PageTransition } from "./ui/PageTransition";
 
 interface AuthenticatedLayoutProps {
   children: ReactNode;
@@ -22,7 +23,9 @@ export default function AuthenticatedLayout({
   return (
     <RequireAuth>
       <AppLayout showSidebar={showSidebar} title={title} breadcrumbs={breadcrumbs}>
-        {children}
+        <PageTransition variant="fade-slide" duration={250}>
+          {children}
+        </PageTransition>
       </AppLayout>
     </RequireAuth>
   );

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { colors, typography, spacing } from '../../lib/theme';
+import { colors, typography, spacing, shadows } from '../../lib/theme';
 import { Button } from './button';
 import { Breadcrumb } from './Breadcrumb';
 import type { BreadcrumbItem } from './Breadcrumb';
@@ -46,8 +46,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         backgroundColor: 'white',
         borderRadius: '16px',
         padding: spacing.xl,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-        border: '1px solid rgba(0,0,0,0.05)'
+        boxShadow: shadows.md,
+        border: `1px solid ${colors.neutral[200]}`
       }}
     >
       {/* Breadcrumbs */}
@@ -79,7 +79,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           <div>
             <h1 style={{
               ...typography.header,
-              fontSize: '28px',
+              fontSize: 'clamp(20px, 5vw, 28px)',
               color: colors.neutral[900],
               margin: 0,
               display: 'flex',

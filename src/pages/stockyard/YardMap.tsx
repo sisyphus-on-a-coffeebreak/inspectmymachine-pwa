@@ -18,6 +18,7 @@ import { getSlotUtilization, isSlotAvailable } from '../../lib/stockyard-utils';
 import { Map, Car, Package, AlertCircle, CheckCircle2, Clock, XCircle, ArrowRight, Filter, Building2 } from 'lucide-react';
 import type { YardSlot, YardSlotStatus } from '../../lib/stockyard';
 import { apiClient } from '../../lib/apiClient';
+import { logger } from '../../lib/logger';
 
 interface Yard {
   id: string;
@@ -91,7 +92,7 @@ export const YardMap: React.FC = () => {
           navigate(`/app/stockyard/yards/${firstActiveYard.id}/map`, { replace: true });
         }
       } catch (err) {
-        console.error('Failed to fetch yards:', err);
+        logger.error('Failed to fetch yards', err, 'YardMap');
       } finally {
         setYardsLoading(false);
       }

@@ -155,10 +155,13 @@ export const AccountsDashboard: React.FC = () => {
 
   const fetchVehicleKPIs = async () => {
     try {
-      const response = await apiClient.get('/v1/expenses/vehicle-kpis');
+      const response = await apiClient.get('/v1/expenses/vehicle-kpis', {
+        suppressErrorLog: true, // Suppress 404 errors for missing endpoint
+      } as any);
       setVehicleKPIs(response.data.data || response.data || []);
     } catch (error) {
-      // Silently fail - KPIs may not be available
+      // Silently fail - KPIs endpoint may not be available
+      setVehicleKPIs([]);
     }
   };
 

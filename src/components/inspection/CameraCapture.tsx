@@ -1,7 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { colors, spacing } from '../../lib/theme';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { colors, spacing, shadows } from '../../lib/theme';
 import { Button } from '../ui/button';
 import { useToast } from '../../providers/ToastProvider';
+import { SortablePhotoGrid } from '../ui/SortablePhotoGrid';
+import type { Photo } from '../ui/SortablePhotoGrid';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { logger } from '../../lib/logger';
+import { reorderInspectionPhotos } from '../../lib/inspectionPhotoReorder';
 
 interface CameraCaptureProps {
   value?: any[];
@@ -10,6 +15,10 @@ interface CameraCaptureProps {
   maxSize?: string;
   disabled?: boolean;
   onError?: (message: string) => void;
+  enableReorder?: boolean;
+  enableDelete?: boolean;
+  inspectionId?: string;
+  answerId?: string;
 }
 
 export const CameraCapture: React.FC<CameraCaptureProps> = ({
@@ -18,7 +27,11 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
   maxFiles = 5,
   maxSize = '5MB',
   disabled = false,
-  onError
+  onError,
+  enableReorder = true,
+  enableDelete = true,
+  inspectionId,
+  answerId,
 }) => {
   const { showToast } = useToast();
   const [isCapturing, setIsCapturing] = useState(false);
@@ -158,7 +171,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         // Try to play video immediately
         const tryPlay = async () => {
           if (!videoRef.current) {
-            console.warn('Video element not available for play');
+            // Video element not available - handled gracefully
             return;
           }
           
@@ -572,6 +585,77 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     onChange(newFiles);
   };
 
+  // Check if we have saved photos with keys (for backend reordering)
+  const hasSavedPhotos = useMemo(() => {
+    return inspectionId && answerId && value.some((file: any) => file.key || file.id);
+  }, [inspectionId, answerId, value]);
+
+  // Convert files to Photo format for SortablePhotoGrid
+  const photos: Photo[] = useMemo(() => {
+    return value.map((file: any, index: number) => {
+      const fileObj = file instanceof File ? file : file;
+      const url = file instanceof File ? URL.createObjectURL(file) : (fileObj.url || fileObj.object_url);
+      const id = fileObj.key || fileObj.id || `temp-${index}`;
+      return {
+        id,
+        url,
+        name: fileObj.name || `Photo ${index + 1}`,
+      };
+    });
+  }, [value]);
+
+  // Handle reorder with backend sync
+  const handleReorder = useCallback(async (newOrder: string[]) => {
+    if (!inspectionId || !answerId) {
+      // No backend sync, just reorder locally
+      const reorderedFiles = newOrder.map(id => {
+        return value.find((file: any) => {
+          const fileKey = (file as any).key || (file as any).id || `temp-${value.indexOf(file)}`;
+          return fileKey === id;
+        });
+      }).filter(Boolean);
+      onChange(reorderedFiles);
+      return;
+    }
+
+    try {
+      await reorderInspectionPhotos(inspectionId, answerId, newOrder);
+      showToast({
+        title: 'Success',
+        description: 'Photos reordered successfully',
+        variant: 'success',
+      });
+      
+      // Reorder locally as well
+      const reorderedFiles = newOrder.map(id => {
+        return value.find((file: any) => {
+          const fileKey = (file as any).key || (file as any).id || `temp-${value.indexOf(file)}`;
+          return fileKey === id;
+        });
+      }).filter(Boolean);
+      onChange(reorderedFiles);
+    } catch (error) {
+      logger.error('Failed to reorder photos', error, 'CameraCapture');
+      showToast({
+        title: 'Error',
+        description: 'Failed to reorder photos. Please try again.',
+        variant: 'error',
+      });
+    }
+  }, [inspectionId, answerId, value, onChange, showToast]);
+
+  // Handle delete with confirmation
+  const handleDelete = useCallback((photoId: string) => {
+    const index = value.findIndex((file: any) => {
+      const fileKey = (file as any).key || (file as any).id || `temp-${value.indexOf(file)}`;
+      return fileKey === photoId;
+    });
+    
+    if (index !== -1) {
+      removeFile(index);
+    }
+  }, [value]);
+
   return (
     <div>
       {/* Camera Interface */}
@@ -743,74 +827,97 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
         />
       </div>
 
-      {/* File List */}
+      {/* File List - Use SortablePhotoGrid if reordering is enabled and we have saved photos */}
       {value.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: spacing.sm }}>
-          {value.map((file, index) => {
-            const fileObj = file instanceof File ? file : (file as any);
-            const isVideo = fileObj.type?.startsWith('video/') || fileObj.name?.match(/\.(mp4|webm|mov|avi)$/i);
-            const url = file instanceof File ? URL.createObjectURL(file) : (file as any).url;
-            
-            return (
-              <div key={index} style={{
-                position: 'relative',
-                backgroundColor: colors.neutral[100],
-                borderRadius: '8px',
-                overflow: 'hidden'
-              }}>
-                {isVideo ? (
-                  <video
-                    src={url}
-                    style={{ width: '100%', height: '120px', objectFit: 'cover' }}
-                    controls={false}
-                    muted
-                  />
-                ) : (
-                  <img
-                    src={url}
-                    alt={`Media ${index + 1}`}
-                    style={{ width: '100%', height: '120px', objectFit: 'cover' }}
-                  />
-                )}
-                <div style={{
-                  position: 'absolute',
-                  top: '4px',
-                  left: '4px',
-                  backgroundColor: 'rgba(0,0,0,0.6)',
-                  color: 'white',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  fontSize: '10px',
-                  fontWeight: 'bold'
+        enableReorder && hasSavedPhotos ? (
+          <SortablePhotoGrid
+            photos={photos}
+            onReorder={handleReorder}
+            onDelete={enableDelete ? handleDelete : undefined}
+            maxPhotos={maxFiles}
+            disabled={disabled}
+          />
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: spacing.sm }}>
+            {value.map((file, index) => {
+              const fileObj = file instanceof File ? file : (file as any);
+              const isVideo = fileObj.type?.startsWith('video/') || fileObj.name?.match(/\.(mp4|webm|mov|avi)$/i);
+              const url = file instanceof File ? URL.createObjectURL(file) : (fileObj.url || fileObj.object_url);
+              
+              return (
+                <div key={index} style={{
+                  position: 'relative',
+                  backgroundColor: colors.neutral[100],
+                  borderRadius: '8px',
+                  overflow: 'hidden'
                 }}>
-                  {isVideo ? '🎥' : '📸'}
-                </div>
-                <button
-                  onClick={() => removeFile(index)}
-                  style={{
+                  {isVideo ? (
+                    <video
+                      src={url}
+                      style={{ width: '100%', height: '120px', objectFit: 'cover' }}
+                      controls={false}
+                      muted
+                    />
+                  ) : (
+                    <img
+                      src={url}
+                      alt={`Media ${index + 1}`}
+                      style={{ width: '100%', height: '120px', objectFit: 'cover' }}
+                    />
+                  )}
+                  <div style={{
                     position: 'absolute',
                     top: '4px',
-                    right: '4px',
-                    backgroundColor: colors.status.critical,
+                    left: '4px',
+                    backgroundColor: 'rgba(0,0,0,0.6)',
                     color: 'white',
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: '24px',
-                    height: '24px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '16px',
-                    lineHeight: '1'
-                  }}
-                >
-                  ×
-                </button>
-              </div>
-            );
-          })}
-        </div>
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    fontSize: '10px',
+                    fontWeight: 'bold'
+                  }}>
+                    {isVideo ? '🎥' : '📸'}
+                  </div>
+                  {enableDelete && (
+                    <button
+                      onClick={() => removeFile(index)}
+                      aria-label={`Remove file ${index + 1}`}
+                      style={{
+                        position: 'absolute',
+                        top: spacing.xs,
+                        right: spacing.xs,
+                        backgroundColor: colors.status.critical,
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '32px',
+                        height: '32px',
+                        minWidth: '32px',
+                        minHeight: '32px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '16px',
+                        lineHeight: '1',
+                        boxShadow: shadows.sm,
+                        transition: 'transform 0.2s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.1)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)';
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )
       )}
 
       <p style={{ fontSize: '12px', color: colors.neutral[500], marginTop: spacing.sm }}>

@@ -17,7 +17,7 @@
  * ```
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { X, GripVertical, Trash2 } from 'lucide-react';
 import { colors, spacing, borderRadius, shadows } from '../../lib/theme';
 import { cn } from '../../lib/utils';
@@ -36,7 +36,7 @@ export interface SortablePhotoGridProps {
   disabled?: boolean;
 }
 
-export function SortablePhotoGrid({
+function SortablePhotoGridComponent({
   photos,
   onReorder,
   onDelete,
@@ -381,4 +381,10 @@ export function SortablePhotoGrid({
     </div>
   );
 }
+
+// Memoize SortablePhotoGrid to prevent unnecessary re-renders
+export const SortablePhotoGrid = React.memo(SortablePhotoGridComponent);
+
+// Re-export Photo interface for convenience
+export type { Photo };
 

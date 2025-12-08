@@ -14,6 +14,7 @@ import {
   type InspectionSubmissionMode,
   notifyQueueChange,
 } from './inspection-queue';
+import { logger } from './logger';
 
 export type SubmissionPhase = 'preparing' | 'uploading' | 'queued' | 'completed' | 'error';
 
@@ -72,11 +73,11 @@ export async function submitInspection({
       onProgress?.({ phase: 'preparing', mode, message: 'Preparing inspection payload…' });
 
       // Debug: Log formData contents
-      console.log('FormData contents:', {
+      logger.debug('FormData contents', {
         hasPayload: formData.has('payload'),
         payloadValue: formData.get('payload'),
         allKeys: Array.from(formData.keys()),
-      });
+      }, 'inspection-submit');
 
       // Note: apiClient.upload doesn't support onUploadProgress yet
       // For progress tracking, we use axios directly with CSRF handling
@@ -115,7 +116,7 @@ export async function submitInspection({
         return response.data;
       } catch (error: any) {
         // Log detailed error information
-        console.error('Upload error details:', {
+        logger.error('Upload error details', {
           status: error?.response?.status,
           statusText: error?.response?.statusText,
           data: error?.response?.data,

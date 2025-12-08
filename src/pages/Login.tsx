@@ -225,6 +225,7 @@ export default function Login() {
                   value={employeeId}
                   onChange={(e) => setEmployeeId(e.target.value.toUpperCase())}
                   placeholder="Enter your employee ID"
+                  autoComplete="username"
                   required
                   disabled={loading}
                   style={{
@@ -287,6 +288,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
+                  autoComplete="current-password"
                   required
                   disabled={loading}
                   style={{

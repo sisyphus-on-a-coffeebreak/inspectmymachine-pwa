@@ -2,7 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../ui/button';
 import { Modal } from '../ui/Modal';
-import JSZip from 'jszip';
+import { ImageViewer } from '../ui/ImageViewer';
+import { logger } from '../../lib/logger';
+import { apiClient } from '../../lib/apiClient';
 
 interface MediaFile {
   id: string;
@@ -11,6 +13,7 @@ interface MediaFile {
   questionText: string;
   answerId: string;
   type: 'image' | 'video';
+  s3Key?: string; // S3 key for fetching signed URLs
 }
 
 interface ImageDownloadManagerProps {
@@ -21,12 +24,13 @@ interface ImageDownloadManagerProps {
     answers: Array<{
       id: string;
       question_id: string;
-      answer_files?: Array<{
-        path?: string;
-        name?: string;
-        url?: string;
-        type?: string;
-      }>;
+        answer_files?: Array<{
+          key?: string; // S3 key for fetching signed URLs
+          path?: string;
+          name?: string;
+          url?: string;
+          type?: string;
+        }>;
       question?: {
         question_text: string;
         question_type: string;
@@ -44,6 +48,7 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
   const [downloading, setDownloading] = useState(false);
   const [previewMedia, setPreviewMedia] = useState<MediaFile | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number>(0);
+  const [signedUrlCache, setSignedUrlCache] = useState<Map<string, string>>(new Map());
 
   // Collect all images and videos from inspection answers
   const allImages = useMemo(() => {
@@ -67,38 +72,38 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
           
           const mediaType: 'image' | 'video' = isVideo ? 'video' : 'image';
           
-          // Construct URL - files stored in public storage
-          // Laravel stores files with path like "inspections/media/filename.jpg"
-          // Files are accessible via the API server's /storage/ path
-          let imageUrl = file.url || file.path;
-          if (imageUrl && !imageUrl.startsWith('http') && !imageUrl.startsWith('data:')) {
-            // Get API origin for constructing full URLs
-            const apiOriginRaw = import.meta.env.VITE_API_ORIGIN || 
-              (import.meta.env.PROD ? "https://api.inspectmymachine.in/api" : "http://localhost:8000");
-            // For storage URLs, we need the origin without /api
-            const apiOrigin = apiOriginRaw.endsWith('/api') ? apiOriginRaw.replace(/\/api$/, '') : apiOriginRaw;
-            
-            // If it's a relative path, prepend storage URL
-            // Laravel stores files in storage/app/public/inspections/media/
-            // They're accessible via API server's /storage/inspections/media/filename
-            let storagePath = '';
-            if (imageUrl.startsWith('inspections/')) {
-              storagePath = `/storage/${imageUrl}`;
-            } else if (imageUrl.includes('/')) {
-              // Already has path structure
-              storagePath = imageUrl.startsWith('/') ? imageUrl : `/storage/${imageUrl}`;
-            } else {
-              // Just filename, assume it's in inspections/media
-              storagePath = `/storage/inspections/media/${imageUrl}`;
-            }
-            
-            // Construct full URL using API origin
-            imageUrl = `${apiOrigin}${storagePath}`;
+          // Files can be stored in two ways:
+          // 1. Local storage (public disk): has 'path' field like "inspections/media/filename.jpg"
+          // 2. S3 storage: has 'key' field for S3 key
+          
+          const directUrl = file.url; // May already be a signed URL or full URL
+          const s3Key = file.key; // S3 key if file is on S3
+          const localPath = file.path; // Local path if file is on local storage
+          
+          let imageUrl = '';
+          let storageKey: string | undefined; // Key to use for fetching signed/public URL
+          
+          // If we have a direct URL (already signed or public), use it
+          if (directUrl && (directUrl.startsWith('http') || directUrl.startsWith('data:'))) {
+            imageUrl = directUrl;
+          } else if (s3Key) {
+            // File is on S3 - use S3 key to fetch signed URL
+            storageKey = s3Key.trim().replace(/^\/+|\/+$/g, '');
+            imageUrl = ''; // Will be replaced with signed URL
+          } else if (localPath) {
+            // File is on local storage - use path as key to fetch public URL from signed endpoint
+            // The signed endpoint now returns public URLs for local files
+            storageKey = localPath.trim().replace(/^\/+|\/+$/g, '');
+            imageUrl = ''; // Will be replaced with public URL from signed endpoint
+          } else if (file.name) {
+            // Fallback: try to build storage key from name
+            storageKey = `inspections/media/${file.name}`.trim().replace(/^\/+|\/+$/g, '');
+            imageUrl = ''; // Will be replaced with URL from signed endpoint
           }
           
-          // If still no URL, skip this file
-          if (!imageUrl) {
-            return; // Skip files without URL
+          // If still no URL/key/path, skip this file
+          if (!imageUrl && !storageKey) {
+            return; // Skip files without URL or storage key
           }
           
           // Preserve original file extension from path or name
@@ -149,11 +154,13 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
           
           images.push({
             id: `${answer.id}-${index}`,
-            url: imageUrl || '',
+            url: imageUrl || '', // Will be replaced with signed/public URL if needed
             name: fileName,
             questionText: answer.question?.question_text || 'Unknown Question',
             answerId: answer.id,
             type: mediaType,
+            // Use storageKey for both S3 and local files (signed endpoint handles both)
+            s3Key: storageKey,
           });
         });
       }
@@ -180,57 +187,295 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
     setSelectedImages(new Set());
   };
 
+  // Fetch signed/public URLs for all files (both S3 and local)
+  // The signed endpoint now returns public URLs for local files and signed URLs for S3 files
+  useEffect(() => {
+    const fetchSignedUrls = async () => {
+      const imagesNeedingUrls = allImages.filter(img => 
+        img.s3Key && // Has a storage key (S3 or local)
+        !signedUrlCache.has(img.s3Key) // Not already cached
+      );
+      
+      if (imagesNeedingUrls.length === 0) return;
+
+      const newCache = new Map(signedUrlCache);
+      
+      await Promise.all(
+        imagesNeedingUrls.map(async (image) => {
+          if (!image.s3Key) return;
+          
+          try {
+            const response = await apiClient.get<{ key: string; url: string; expires_at?: string | null }>(
+              `/v1/files/signed?key=${encodeURIComponent(image.s3Key)}`
+            );
+            // The endpoint returns public URLs for local files and signed URLs for S3 files
+            let urlToCache = response.data.url;
+            
+            // In development, convert absolute URLs to relative paths to use Vite proxy
+            if (import.meta.env.DEV && urlToCache.startsWith('http')) {
+              try {
+                const urlObj = new URL(urlToCache);
+                urlToCache = urlObj.pathname; // Extract path (e.g., /storage/inspections/media/...)
+              } catch (e) {
+                // If URL parsing fails, use as-is
+              }
+            }
+            
+            newCache.set(image.s3Key, urlToCache);
+          } catch (error) {
+            logger.error(`Failed to get URL for ${image.s3Key}`, error, 'ImageDownloadManager');
+            // Don't cache failed requests - will retry on next render
+          }
+        })
+      );
+      
+      if (newCache.size > signedUrlCache.size) {
+        setSignedUrlCache(newCache);
+      }
+    };
+
+    fetchSignedUrls();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allImages]);
+
+  // Get the actual URL for an image (signed/public URL if available, otherwise original)
+  const getImageUrl = (image: MediaFile): string => {
+    // If we have a direct URL (already signed or public), use it
+    if (image.url && (image.url.startsWith('http') || image.url.startsWith('data:'))) {
+      return image.url;
+    }
+    
+    // If we have a storage key (S3 or local), try to get URL from cache
+    // The signed endpoint now returns public URLs for local files and signed URLs for S3 files
+    if (image.s3Key && signedUrlCache.has(image.s3Key)) {
+      let cachedUrl = signedUrlCache.get(image.s3Key)!;
+      
+      // In development, convert absolute URLs to relative paths to use Vite proxy
+      if (import.meta.env.DEV && cachedUrl.startsWith('http')) {
+        // Extract the path from the URL (e.g., /storage/inspections/media/...)
+        try {
+          const urlObj = new URL(cachedUrl);
+          const path = urlObj.pathname;
+          // Use relative path - Vite proxy will handle it
+          return path;
+        } catch (e) {
+          // If URL parsing fails, return as-is
+          return cachedUrl;
+        }
+      }
+      
+      return cachedUrl;
+    }
+    
+    // If we have a storage key but no URL yet, return placeholder
+    if (image.s3Key) {
+      return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="150"%3E%3Crect fill="%23f3f4f6" width="200" height="150"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="14" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ELoading...%3C/text%3E%3C/svg%3E';
+    }
+    
+    // Fallback: try to construct URL from image.url (shouldn't happen if storageKey is set)
+    const url = image.url || '';
+    if (url && !url.startsWith('http') && !url.startsWith('data:')) {
+      // Already a relative path, return as-is (Vite proxy handles it in dev)
+      return url;
+    }
+    
+    return url || '';
+  };
+
   const downloadImage = async (image: MediaFile): Promise<Blob> => {
     try {
+      // Get the actual URL (signed/public URL if available)
+      let imageUrl = getImageUrl(image);
+      
+      // If it's a placeholder, wait a bit for the signed URL to be fetched
+      if (imageUrl.startsWith('data:image/svg+xml')) {
+        // Wait for signed URL to be fetched (max 3 seconds)
+        let attempts = 0;
+        while (attempts < 30 && imageUrl.startsWith('data:image/svg+xml')) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          imageUrl = getImageUrl(image);
+          attempts++;
+        }
+        
+        // If still placeholder, try to fetch URL directly
+        if (imageUrl.startsWith('data:image/svg+xml') && image.s3Key) {
+          try {
+            const response = await apiClient.get<{ key: string; url: string; expires_at?: string | null }>(
+              `/v1/files/signed?key=${encodeURIComponent(image.s3Key)}`
+            );
+            imageUrl = response.data.url;
+            
+            // In development, convert absolute URLs to relative paths to use Vite proxy
+            if (import.meta.env.DEV && imageUrl.startsWith('http')) {
+              try {
+                const urlObj = new URL(imageUrl);
+                imageUrl = urlObj.pathname; // Extract path (e.g., /storage/inspections/media/...)
+              } catch (e) {
+                // If URL parsing fails, use as-is
+              }
+            }
+            
+            // Cache it for future use
+            setSignedUrlCache(prev => new Map(prev).set(image.s3Key!, imageUrl));
+          } catch (error) {
+            logger.error(`Failed to fetch URL for ${image.s3Key}`, error, 'ImageDownloadManager');
+            throw new Error(`Failed to get download URL for ${image.name}`);
+          }
+        }
+      }
+      
       // If it's a data URL, convert to blob
-      if (image.url.startsWith('data:')) {
-        const response = await fetch(image.url);
+      if (imageUrl.startsWith('data:')) {
+        const response = await fetch(imageUrl);
         return await response.blob();
       }
       
-      // Image URL should already be a full URL (constructed with API origin)
-      // But handle case where it might still be relative
-      let fullUrl = image.url;
+      // In development, use relative paths (Vite proxy handles it)
+      // In production, use full URLs
+      let fullUrl = imageUrl;
       if (!fullUrl.startsWith('http') && !fullUrl.startsWith('data:')) {
-        // Fallback: construct full URL if somehow still relative
-        const apiOriginRaw = import.meta.env.VITE_API_ORIGIN || 
-          (import.meta.env.PROD ? "https://api.inspectmymachine.in/api" : "http://localhost:8000");
-        // For storage URLs, we need the origin without /api
-        const apiOrigin = apiOriginRaw.endsWith('/api') ? apiOriginRaw.replace(/\/api$/, '') : apiOriginRaw;
-        fullUrl = fullUrl.startsWith('/') ? `${apiOrigin}${fullUrl}` : `${apiOrigin}/${fullUrl}`;
+        // Relative path - in development, Vite proxy handles it
+        // In production, construct full URL
+        if (import.meta.env.DEV) {
+          // Already relative, use as-is
+          fullUrl = fullUrl.startsWith('/') ? fullUrl : `/${fullUrl}`;
+        } else {
+          // Production: construct full URL
+          const apiOriginRaw = import.meta.env.VITE_API_ORIGIN || "https://api.inspectmymachine.in/api";
+          const apiOrigin = apiOriginRaw.endsWith('/api') ? apiOriginRaw.replace(/\/api$/, '') : apiOriginRaw;
+          fullUrl = `${apiOrigin}${fullUrl.startsWith('/') ? fullUrl : `/${fullUrl}`}`;
+        }
       }
       
-      // Fetch from URL with proper headers
-      const response = await fetch(fullUrl, {
-        credentials: 'include',
-        mode: 'cors',
-        headers: {
-          'Accept': image.type === 'image' ? 'image/*' : 'video/*',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-      }
-      
-      const blob = await response.blob();
-      
-      // Verify it's actually a media blob (image or video)
-      const expectedType = image.type === 'image' ? 'image/' : 'video/';
-      if (!blob.type || (!blob.type.startsWith('image/') && !blob.type.startsWith('video/'))) {
-        console.warn(`Downloaded file ${image.name} is not a media file (type: ${blob.type || 'unknown'})`);
-        // If blob type is wrong but we know it should be media, try to preserve original type
-        const extension = image.name.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
-        if (extension) {
+      // For images, try fetch first (works for same-origin and CORS-enabled resources)
+      // Fall back to img element + canvas if fetch fails (for cross-origin without CORS)
+      if (image.type === 'image') {
+        try {
+          // Try fetch first - works for same-origin and CORS-enabled resources
+          // In development, relative paths go through Vite proxy (no CORS issues)
+          const response = await fetch(fullUrl, {
+            credentials: 'include',
+            mode: import.meta.env.DEV ? 'same-origin' : 'cors',
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+          }
+          
+          const blob = await response.blob();
+          
+          // Verify it's an image blob
+          if (blob.type && blob.type.startsWith('image/')) {
+            return blob;
+          }
+          
+          // If MIME type is wrong, try to fix it based on extension
+          const extension = image.name.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
           const mimeTypes: Record<string, string> = {
-            // Images
             'png': 'image/png',
             'jpg': 'image/jpeg',
             'jpeg': 'image/jpeg',
             'gif': 'image/gif',
             'webp': 'image/webp',
             'bmp': 'image/bmp',
-            // Videos
+          };
+          
+          if (extension && mimeTypes[extension]) {
+            return new Blob([blob], { type: mimeTypes[extension] });
+          }
+          
+          return blob;
+        } catch (fetchError) {
+          // Fallback to img element + canvas for cross-origin without CORS
+          logger.warn('Fetch failed, trying img element fallback', fetchError, 'ImageDownloadManager');
+          
+          return new Promise((resolve, reject) => {
+            const img = new Image();
+            // In development, relative paths are same-origin (no crossOrigin needed)
+            // In production, only use crossOrigin for external URLs
+            if (import.meta.env.DEV) {
+              img.crossOrigin = undefined; // Same-origin in dev (Vite proxy)
+            } else {
+              const isExternal = !fullUrl.startsWith(window.location.origin);
+              img.crossOrigin = isExternal ? 'anonymous' : undefined;
+            }
+            
+            img.onload = () => {
+              try {
+                // Create a canvas to convert image to blob
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                
+                if (!ctx) {
+                  reject(new Error('Failed to get canvas context'));
+                  return;
+                }
+                
+                ctx.drawImage(img, 0, 0);
+                
+                // Convert canvas to blob with correct MIME type
+                const extension = image.name.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
+                const mimeTypes: Record<string, string> = {
+                  'png': 'image/png',
+                  'jpg': 'image/jpeg',
+                  'jpeg': 'image/jpeg',
+                  'gif': 'image/gif',
+                  'webp': 'image/webp',
+                  'bmp': 'image/bmp',
+                };
+                
+                const mimeType = extension && mimeTypes[extension] 
+                  ? mimeTypes[extension] 
+                  : 'image/png'; // Default to PNG
+                
+                canvas.toBlob((blob) => {
+                  if (blob) {
+                    // Create blob with correct MIME type
+                    const typedBlob = new Blob([blob], { type: mimeType });
+                    resolve(typedBlob);
+                  } else {
+                    reject(new Error('Failed to convert image to blob'));
+                  }
+                }, mimeType);
+              } catch (error) {
+                reject(error);
+              }
+            };
+            
+            img.onerror = (error) => {
+              reject(new Error(`Failed to load image: ${fullUrl}`));
+            };
+            
+            img.src = fullUrl;
+          });
+        }
+      }
+      
+      // For videos, use fetch (videos are less affected by CORB)
+      // In development, relative paths go through Vite proxy (no CORS issues)
+      const response = await fetch(fullUrl, {
+        credentials: 'include',
+        mode: import.meta.env.DEV ? 'same-origin' : 'cors',
+        headers: {
+          'Accept': 'video/*',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch video: ${response.status} ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
+      
+      // Verify it's actually a video blob
+      if (!blob.type || !blob.type.startsWith('video/')) {
+        logger.warn(`Downloaded file ${image.name} is not a video file`, { type: blob.type || 'unknown' }, 'ImageDownloadManager');
+        // Try to preserve original type from extension
+        const extension = image.name.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
+        if (extension) {
+          const mimeTypes: Record<string, string> = {
             'mp4': 'video/mp4',
             'webm': 'video/webm',
             'ogg': 'video/ogg',
@@ -239,7 +484,6 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
             'mkv': 'video/x-matroska',
           };
           if (mimeTypes[extension]) {
-            // Create a new blob with correct MIME type
             return new Blob([blob], { type: mimeTypes[extension] });
           }
         }
@@ -247,7 +491,7 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
       
       return blob;
     } catch (error) {
-      console.error(`Error downloading image ${image.name} from ${image.url}:`, error);
+      logger.error(`Error downloading image ${image.name} from ${image.url}`, error, 'ImageDownloadManager');
       throw error;
     }
   };
@@ -273,6 +517,9 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
         URL.revokeObjectURL(url);
       } else {
         // Multiple images - create zip
+        // Dynamic import for JSZip to handle ES module compatibility
+        const JSZipModule = await import('jszip');
+        const JSZip = (JSZipModule as any).default || JSZipModule;
         const zip = new JSZip();
         
         for (const image of imagesToDownload) {
@@ -280,7 +527,7 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
             const blob = await downloadImage(image);
             zip.file(image.name, blob);
           } catch (error) {
-            console.error(`Failed to add ${image.name} to zip:`, error);
+            logger.error(`Failed to add ${image.name} to zip`, error, 'ImageDownloadManager');
           }
         }
         
@@ -298,7 +545,7 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
         URL.revokeObjectURL(url);
       }
     } catch (error) {
-      console.error('Error downloading images:', error);
+      logger.error('Error downloading images', error, 'ImageDownloadManager');
       alert('Failed to download images. Please try again.');
     } finally {
       setDownloading(false);
@@ -333,10 +580,17 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [previewMedia, previewIndex, allImages]);
 
+  // Reset preview when modal closes
+  const handleModalClose = () => {
+    setPreviewMedia(null);
+    setPreviewIndex(0);
+    onClose();
+  };
+
   return (
     <Modal
       isOpen={true}
-      onClose={onClose}
+      onClose={handleModalClose}
       title="Download Inspection Media"
       size="large"
     >
@@ -410,16 +664,23 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
                   transition: 'all 0.2s',
                   opacity: selectedImages.has(image.id) ? 1 : 0.8,
                 }}
-                onClick={(e) => {
-                  // If clicking on the selection area (not the media itself), toggle selection
+                onDoubleClick={(e) => {
+                  // Double-click to open preview (prevents accidental opening)
                   const target = e.target as HTMLElement;
-                  if (target.closest('[data-select-area]')) {
-                    toggleImage(image.id);
-                  } else {
-                    // Otherwise, open preview
+                  if (!target.closest('[data-select-area]')) {
+                    e.stopPropagation();
                     setPreviewMedia(image);
                     setPreviewIndex(idx);
                   }
+                }}
+                onClick={(e) => {
+                  // Single click only toggles selection if clicking on selection area
+                  const target = e.target as HTMLElement;
+                  if (target.closest('[data-select-area]')) {
+                    e.stopPropagation();
+                    toggleImage(image.id);
+                  }
+                  // Otherwise, clicking on the container does nothing
                 }}
               >
                 <div
@@ -452,19 +713,46 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
                   position: 'absolute',
                   top: spacing.xs,
                   left: spacing.xs,
-                  backgroundColor: image.type === 'video' ? colors.primary : 'transparent',
-                  color: 'white',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  fontSize: '10px',
-                  fontWeight: 600,
+                  display: 'flex',
+                  gap: spacing.xs,
                   zIndex: 5,
                 }}>
-                  {image.type === 'video' ? '🎥' : '📷'}
+                  <div style={{
+                    backgroundColor: image.type === 'video' ? colors.primary : 'transparent',
+                    color: 'white',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                  }}>
+                    {image.type === 'video' ? '🎥' : '📷'}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPreviewMedia(image);
+                      setPreviewIndex(idx);
+                    }}
+                    style={{
+                      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '2px 6px',
+                      fontSize: '10px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '2px',
+                    }}
+                    title="Preview (or double-click)"
+                  >
+                    👁️
+                  </button>
                 </div>
                 {image.type === 'video' ? (
                   <video
-                    src={image.url}
+                    src={getImageUrl(image)}
                     style={{
                       width: '100%',
                       height: '150px',
@@ -482,19 +770,36 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
                     }}
                   />
                 ) : (
-                  <img
-                    src={image.url}
-                    alt={image.name}
-                    style={{
-                      width: '100%',
-                      height: '150px',
-                      objectFit: 'cover',
-                      display: 'block',
-                    }}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="150"%3E%3Crect fill="%23ddd" width="200" height="150"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="14" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EImage not found%3C/text%3E%3C/svg%3E';
-                    }}
-                  />
+                  <a
+                    href={getImageUrl(image)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: 'block', width: '100%', height: '150px', textDecoration: 'none' }}
+                  >
+                    <img
+                      src={getImageUrl(image)}
+                      alt={image.name}
+                      // Only use crossOrigin in production (when not using proxy)
+                      crossOrigin={import.meta.env.PROD ? "anonymous" : undefined}
+                      style={{
+                        width: '100%',
+                        height: '150px',
+                        objectFit: 'cover',
+                        display: 'block',
+                      }}
+                      onError={(e) => {
+                        const img = e.target as HTMLImageElement;
+                        // In dev, proxy should handle auth, so no need for crossOrigin
+                        // In prod, try without crossOrigin if it fails
+                        if (import.meta.env.PROD && img.crossOrigin === 'anonymous') {
+                          img.crossOrigin = null;
+                          img.src = getImageUrl(image);
+                        } else {
+                          img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="150"%3E%3Crect fill="%23ddd" width="200" height="150"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="14" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EImage not found%3C/text%3E%3C/svg%3E';
+                        }
+                      }}
+                    />
+                  </a>
                 )}
                 <div style={{
                   padding: spacing.xs,
@@ -512,8 +817,33 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
         )}
       </div>
 
-      {/* Preview Modal */}
-      {previewMedia && (
+      {/* Image Viewer with Pinch-to-Zoom - Only for images, not videos */}
+      {previewMedia && previewMedia.type === 'image' && (
+        <ImageViewer
+          images={allImages
+            .filter(img => img.type === 'image')
+            .map((img) => ({
+              id: img.id,
+              url: getImageUrl(img),
+              alt: img.name || img.questionText,
+            }))}
+          initialIndex={allImages
+            .filter(img => img.type === 'image')
+            .findIndex(img => img.id === previewMedia.id)}
+          isOpen={!!previewMedia}
+          onClose={() => setPreviewMedia(null)}
+          onImageChange={(index) => {
+            const imageOnlyImages = allImages.filter(img => img.type === 'image');
+            if (imageOnlyImages[index]) {
+              setPreviewIndex(allImages.findIndex(img => img.id === imageOnlyImages[index].id));
+              setPreviewMedia(imageOnlyImages[index]);
+            }
+          }}
+        />
+      )}
+
+      {/* Legacy Preview Modal (fallback for videos) */}
+      {previewMedia && previewMedia.type === 'video' && (
         <div
           style={{
             position: 'fixed',
@@ -644,7 +974,7 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
           >
             {previewMedia.type === 'video' ? (
               <video
-                src={previewMedia.url}
+                src={getImageUrl(previewMedia)}
                 controls
                 autoPlay
                 style={{
@@ -655,7 +985,7 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
               />
             ) : (
               <img
-                src={previewMedia.url}
+                src={getImageUrl(previewMedia)}
                 alt={previewMedia.name}
                 style={{
                   maxWidth: '100%',

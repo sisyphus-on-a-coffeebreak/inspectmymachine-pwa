@@ -1,31 +1,33 @@
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
 import { useAuth } from "../providers/useAuth";
 import { colors, typography, spacing } from "../lib/theme";
-import { StatCard } from "../components/ui/StatCard";
 import { AnomalyAlert } from "../components/ui/AnomalyAlert";
-import { SkeletonCard } from "../components/ui/SkeletonLoader";
 import { useDashboardStats } from "../lib/queries";
+import { useRealtimeDashboard } from "../hooks/useRealtimeDashboard";
 import { 
   ClipboardList, 
   FileText, 
   DollarSign, 
   Warehouse,
-  LogOut,
-  User,
-  Bell,
-  Settings,
-  TrendingUp,
-  Clock,
   CheckCircle,
+  Clock,
   AlertCircle,
   ArrowRight,
-  Sparkles,
-  BarChart3,
-  Calendar,
   Users,
   UserCog
 } from "lucide-react";
+// import { BarChart } from "../components/ui/charts"; // Not used in Dashboard
+import { DashboardWidgetsContainer } from "../components/dashboard/DashboardWidgetsContainer";
+// import { RealtimeIndicator } from "../components/dashboard/RealtimeIndicator";
+import { 
+  getDefaultLayout, 
+  loadWidgetLayout, 
+  saveWidgetLayout 
+} from "../lib/widgetRegistry";
+import type { WidgetConfig } from "../types/widgets";
+// Import widgets to register them
+import "../components/dashboard/widgets";
 
 interface Module {
   id: string;
@@ -177,20 +179,24 @@ interface DashboardStats {
 }
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   // Use React Query for dashboard stats
-  const { data: stats, isLoading: loading, error: queryError } = useDashboardStats();
-
-  const handleLogout = async () => {
-    await logout();
-    navigate("/login");
-  };
-
-  const modules = getModules(stats);
-  const accessibleModules = modules.filter((module) =>
-    module.roles.includes(user?.role || "")
-  );
+  const { data: stats, isLoading: loading } = useDashboardStats();
+  
+  // Real-time updates
+  const realtime = useRealtimeDashboard({
+    enabled: true,
+    useWebSocket: true,
+    pollingInterval: 30000, // Fallback to 30s polling if WebSocket unavailable
+  });
+  
+  // Widget system state
+  const [widgets, setWidgets] = useState<WidgetConfig[]>(() => {
+    // Try to load saved layout, otherwise use default
+    const saved = loadWidgetLayout(user?.id?.toString());
+    return saved || getDefaultLayout(user?.role);
+  });
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -199,20 +205,50 @@ export default function Dashboard() {
     return "Good evening";
   };
 
-  const getRoleDisplayName = (role: string) => {
-    const roleMap: Record<string, string> = {
-      super_admin: "Super Admin",
-      admin: "Administrator",
-      supervisor: "Supervisor",
-      inspector: "Inspector",
-      guard: "Security Guard",
-      clerk: "Clerk"
-    };
-    return roleMap[role] || role;
+  const getRoleBasedSubtitle = (role?: string): string => {
+    if (!role) return 'Operations Dashboard';
+    switch (role) {
+      case 'guard':
+        return 'Gate Duty Dashboard';
+      case 'inspector':
+        return 'Inspection Dashboard';
+      case 'supervisor':
+        return 'Supervisor Dashboard';
+      case 'admin':
+      case 'super_admin':
+        return 'Administration Dashboard';
+      default:
+        return 'Operations Dashboard';
+    }
   };
 
-  // Error handling - convert React Query error to Error type if needed
-  const error = queryError ? (queryError instanceof Error ? queryError : new Error('Failed to load dashboard stats')) : null;
+  // Memoize widget data to prevent recreation on every render (fixes infinite loop in charts)
+  const widgetData = useMemo(() => ({
+    stats,
+    contextData: {
+      pendingApprovals: stats?.expense?.pending_approval,
+      urgentItems: stats?.overall?.urgent_items,
+      activePasses: stats?.gate_pass?.active_passes,
+    },
+    chartData: stats ? [
+      {
+        name: 'Gate Passes',
+        active: stats.gate_pass?.active_passes || 0,
+        completed: stats.gate_pass?.completed_today || 0,
+      },
+      {
+        name: 'Inspections',
+        active: stats.inspection?.pending || 0,
+        completed: stats.inspection?.completed_today || 0,
+      },
+      {
+        name: 'Expenses',
+        active: stats.expense?.pending_approval || 0,
+        completed: 0,
+      },
+    ] : [],
+    kanban: stats?.kanban,
+  }), [stats]);
 
   return (
     <div style={{ 
@@ -250,9 +286,27 @@ export default function Dashboard() {
             fontSize: '16px',
             margin: 0
           }}>
-            Here's what's happening in your workspace today
+            {getRoleBasedSubtitle(user?.role)}
           </p>
         </div>
+
+        {/* Real-time Indicator - Temporarily simplified */}
+        {realtime && (
+          <div style={{ 
+            marginBottom: spacing.md,
+            padding: spacing.sm,
+            backgroundColor: realtime.isConnected ? colors.success[50] : colors.neutral[50],
+            borderRadius: '8px',
+            border: `1px solid ${realtime.isConnected ? colors.success[200] : colors.neutral[200]}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: spacing.sm
+          }}>
+            <span style={{ ...typography.bodySmall, color: realtime.isConnected ? colors.success[700] : colors.neutral[700] }}>
+              {realtime.isConnecting ? 'Connecting...' : realtime.isConnected ? 'Live Updates Active' : 'Using polling mode'}
+            </span>
+          </div>
+        )}
 
         {/* Anomaly Alerts */}
         {stats && stats.overall && stats.overall.urgent_items > 0 && (
@@ -278,54 +332,26 @@ export default function Dashboard() {
             actions={[
               {
                 label: 'Review Expenses',
-                onClick: () => navigate('/app/expenses/approval'),
+                onClick: () => navigate('/app/approvals?tab=expense'),
                 variant: 'primary',
               },
             ]}
           />
         )}
 
-        {/* Quick Stats */}
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-          gap: spacing.lg,
-          marginBottom: spacing.xl
-        }}>
-          <StatCard
-            label="Completed Today"
-            value={loading ? '...' : (stats?.overall?.completed_today ?? 0)}
-            icon={<CheckCircle size={20} />}
-            color={colors.success[500]}
-            loading={loading}
-            href="/dashboard?filter=completed"
-          />
-          <StatCard
-            label="Pending Tasks"
-            value={loading ? '...' : (stats?.overall?.pending_tasks ?? 0)}
-            icon={<Clock size={20} />}
-            color={colors.warning[500]}
-            loading={loading}
-            href="/dashboard?filter=pending"
-          />
-          <StatCard
-            label="Urgent Items"
-            value={loading ? '...' : (stats?.overall?.urgent_items ?? 0)}
-            icon={<AlertCircle size={20} />}
-            color={colors.error[500]}
-            loading={loading}
-            href="/dashboard?filter=urgent"
-          />
-          <StatCard
-            label="Efficiency"
-            value={loading ? '...' : `${stats?.overall?.efficiency?.toFixed(0) ?? 0}%`}
-            icon={<TrendingUp size={20} />}
-            color={colors.primary}
-            loading={loading}
-          />
-        </div>
+        {/* Role-specific widgets are now handled by the widget system */}
 
-        {/* Kanban Board */}
+        {/* Customizable Widgets */}
+        <DashboardWidgetsContainer
+          widgets={widgets}
+          data={widgetData}
+          onWidgetsChange={setWidgets}
+          onSave={(savedWidgets) => {
+            saveWidgetLayout(savedWidgets, user?.id?.toString());
+          }}
+        />
+
+        {/* Kanban Board (Legacy - can be removed once fully migrated to widgets) */}
         {stats?.kanban && (
           <div style={{ marginBottom: spacing.xl }}>
             <h3 style={{ 

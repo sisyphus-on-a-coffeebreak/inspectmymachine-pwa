@@ -35,7 +35,9 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
   showActions = true
 }) => {
   const { showToast } = useToast();
-  const { share: nativeShare, canShare } = useNativeShare();
+  const { share: nativeShare, canShare } = useNativeShare({
+    showToast,
+  });
   const [passRecord, setPassRecord] = useState<GatePassRecord | null>(null);
   const [loadingRecord, setLoadingRecord] = useState<boolean>(true);
   const [recordError, setRecordError] = useState<string | null>(null);
@@ -248,7 +250,7 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
           }
         } catch (nativeError) {
           // Fall through to legacy share
-          console.log('Native share failed, falling back to legacy share:', nativeError);
+          // Native share failed, falling back to legacy share - handled gracefully
         }
       }
       
@@ -409,7 +411,7 @@ export const PassDisplay: React.FC<PassDisplayProps> = ({
         {passRecord?.id && (
           <div style={{
             ...typography.bodySmall,
-            color: colors.neutral[500],
+            color: colors.neutral[600], // Improved contrast for accessibility
             marginBottom: spacing.sm,
             textAlign: 'center' as const,
           }}>

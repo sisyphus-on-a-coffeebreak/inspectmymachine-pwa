@@ -1,113 +1,434 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { apiClient } from '../../lib/apiClient';
-import { colors, typography, spacing, cardStyles, borderRadius } from '../../lib/theme';
-import { Button } from '../../components/ui/button';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { NetworkError } from '../../components/ui/NetworkError';
-import { EmptyState } from '../../components/ui/EmptyState';
-import { useToast } from '../../providers/ToastProvider';
-import { ArrowLeft, Package, Battery, Wrench } from 'lucide-react';
-import { addRecentlyViewed } from '../../lib/recentlyViewed';
-import { RelatedItems } from '../../components/ui/RelatedItems';
-import { AnomalyAlert } from '../../components/ui/AnomalyAlert';
-import { PolicyLinks } from '../../components/ui/PolicyLinks';
-import { useGatePasses } from '../../lib/queries';
-
 /**
  * Gate Pass Details Page
- * Deep linking support for individual gate passes
+ * 
+ * Comprehensive pass information with QR code, timeline, and actions
+ * Works with unified gate_passes model
  */
+
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, X, Maximize2, CheckCircle, XCircle, Clock, Download } from 'lucide-react';
+import { useGatePass, useRecordEntry, useRecordExit, useCancelGatePass } from '@/hooks/useGatePasses';
+import { generateQRCode, generatePDFPass } from '@/lib/pdf-generator-simple';
+import { useToast } from '@/providers/ToastProvider';
+import { addRecentlyViewed } from '@/lib/recentlyViewed';
+import { colors, typography, spacing, cardStyles, borderRadius } from '@/lib/theme';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { NetworkError } from '@/components/ui/NetworkError';
+import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
+import { useConfirm } from '@/components/ui/Modal';
+import { ShareButton } from '@/components/ui/ShareButton';
+import {
+  isVisitorPass,
+  isOutboundVehicle,
+  getPassDisplayName,
+  getStatusLabel,
+  getStatusColor,
+  isExpired,
+} from './gatePassTypes';
+
 export const GatePassDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { confirm, ConfirmComponent } = useConfirm();
   const { showToast } = useToast();
-  const [pass, setPass] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  // Fetch related gate passes for the same vehicle
-  const { data: relatedPassesData } = useGatePasses(
-    undefined, // No status filter - we'll filter client-side
-    { enabled: !!pass?.vehicle_id }
-  );
   
-  // Filter related passes for the same vehicle, excluding current pass
-  const relatedPasses = useMemo(() => {
-    if (!pass?.vehicle_id || !relatedPassesData) return [];
-    
-    // Add type field to passes
-    const visitorPasses = (relatedPassesData.visitorPasses || []).map((p: any) => ({ ...p, type: 'visitor' }));
-    const vehiclePasses = (relatedPassesData.vehicleMovements || []).map((p: any) => ({ ...p, type: 'vehicle' }));
-    
-    const allPasses = [...visitorPasses, ...vehiclePasses];
-    
-    return allPasses
-      .filter((p: any) => {
-        // Match by vehicle_id or vehicle_registration
-        const matchesVehicle = p.vehicle_id === pass.vehicle_id || 
-                               p.vehicle?.id === pass.vehicle_id ||
-                               p.vehicle_registration === pass.vehicle_registration;
-        // Exclude current pass
-        const isNotCurrent = p.id !== id;
-        return matchesVehicle && isNotCurrent;
-      })
-      .slice(0, 5); // Limit to 5 most recent
-  }, [pass?.vehicle_id, pass?.vehicle_registration, relatedPassesData, id]);
+  // Fetch pass using unified hook
+  const { data: pass, isLoading, error, refetch } = useGatePass(id);
+  const recordEntry = useRecordEntry();
+  const recordExit = useRecordExit();
+  const cancelPass = useCancelGatePass();
+  
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
+  // Track in recently viewed
   useEffect(() => {
-    if (!id) return;
-    fetchPassDetails();
-  }, [id]);
+    if (pass && id) {
+      addRecentlyViewed({
+        id: String(id),
+        type: 'gate-pass',
+        title: `Pass #${pass.pass_number}`,
+        subtitle: getPassDisplayName(pass),
+        path: `/app/gate-pass/${id}`,
+      });
+    }
+  }, [pass, id]);
 
-  const fetchPassDetails = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      let passData: any = null;
-      // Try visitor pass first, then vehicle pass
+  // Generate QR code
+  useEffect(() => {
+    if (!pass) return;
+
+    const generateQR = async () => {
       try {
-        const response = await apiClient.get(`/visitor-gate-passes/${id}`);
-        passData = { ...response.data, type: 'visitor' };
-        setPass(passData);
-      } catch {
-        // Try vehicle exit pass
-        const response = await apiClient.get(`/vehicle-exit-passes/${id}`);
-        passData = { ...response.data, type: 'vehicle' };
-        setPass(passData);
-      }
-      
-      // Track in recently viewed
-      if (passData && id) {
-        addRecentlyViewed({
-          id: String(id),
-          type: 'gate-pass',
-          title: passData.type === 'visitor' 
-            ? `Visitor Pass #${id.substring(0, 8)}`
-            : `Vehicle Pass #${id.substring(0, 8)}`,
-          subtitle: passData.type === 'visitor' 
-            ? passData.visitor_name || 'Visitor Gate Pass'
-            : passData.vehicle?.registration_number || 'Vehicle Movement Pass',
-          path: `/app/gate-pass/${id}`,
+        setQrLoading(true);
+        
+        // Get QR payload from pass
+        let qrPayload: string | null = null;
+        
+        console.log('[GatePassDetails] Pass qr_payload:', {
+          type: typeof pass.qr_payload,
+          value: pass.qr_payload,
+          isArray: Array.isArray(pass.qr_payload),
         });
+        
+        if (typeof pass.qr_payload === 'string' && pass.qr_payload.trim() !== '') {
+          qrPayload = pass.qr_payload;
+        } else if (pass.qr_payload && typeof pass.qr_payload === 'object') {
+          qrPayload = JSON.stringify(pass.qr_payload);
+        } else if (pass.access_code) {
+          // Fallback to access code if no QR payload
+          console.warn('[GatePassDetails] Using access_code as fallback for QR payload');
+          qrPayload = pass.access_code;
+        }
+
+        console.log('[GatePassDetails] Final qrPayload:', qrPayload);
+
+        if (qrPayload && qrPayload.trim() !== '') {
+          try {
+            const qrDataUrl = await generateQRCode(qrPayload);
+            console.log('[GatePassDetails] QR code generated successfully');
+            setQrCodeDataUrl(qrDataUrl);
+          } catch (qrError) {
+            console.error('[GatePassDetails] generateQRCode failed:', qrError);
+            throw qrError; // Re-throw to be caught by outer catch
+          }
+        } else {
+          console.warn('[GatePassDetails] No QR payload available for pass:', pass.id);
+        }
+    } catch (error) {
+      // Log the error for debugging
+      console.error('[GatePassDetails] QR code generation failed:', error);
+      console.error('[GatePassDetails] Pass data:', { 
+        id: pass.id, 
+        qr_payload: pass.qr_payload, 
+        access_code: pass.access_code 
+      });
+      // Don't show error to user, just don't display QR
+      } finally {
+        setQrLoading(false);
       }
-    } catch (err) {
-      setError(err as Error);
+    };
+
+    generateQR();
+  }, [pass]);
+
+  // Format date/time
+  const formatDateTime = (dateString?: string): string => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  // Handle PDF Download
+  const handleDownloadPDF = async () => {
+    if (!pass) return;
+
+    setIsDownloading(true);
+    try {
+      // Get QR code
+      let qrCode: string;
+      if (qrCodeDataUrl) {
+        qrCode = qrCodeDataUrl;
+      } else {
+        // Generate QR code from payload
+        let qrPayload: string;
+        if (typeof pass.qr_payload === 'string' && pass.qr_payload.trim() !== '') {
+          qrPayload = pass.qr_payload;
+        } else if (pass.qr_payload && typeof pass.qr_payload === 'object') {
+          qrPayload = JSON.stringify(pass.qr_payload);
+        } else {
+          qrPayload = pass.access_code;
+        }
+        qrCode = await generateQRCode(qrPayload);
+      }
+
+      // Determine pass type for PDF
+      const passType: 'visitor' | 'vehicle' = isVisitorPass(pass) ? 'visitor' : 'vehicle';
+      
+      // Build pass data
+      const passData = {
+        passNumber: pass.pass_number,
+        passType,
+        visitorName: pass.visitor_name || undefined,
+        vehicleDetails: pass.vehicle ? {
+          registration: pass.vehicle.registration_number || '',
+          make: pass.vehicle.make || '',
+          model: pass.vehicle.model || '',
+        } : undefined,
+        purpose: pass.purpose.replace('_', ' '),
+        entryTime: pass.entry_time || pass.valid_from || new Date().toISOString(),
+        expectedReturn: pass.expected_return_date ? 
+          `${pass.expected_return_date}${pass.expected_return_time ? ' ' + pass.expected_return_time : ''}` : 
+          pass.valid_to || undefined,
+        accessCode: pass.access_code,
+        qrCode,
+      };
+
+      // Generate PDF
+      const pdfBlob = await generatePDFPass(passData);
+      
+      // Download PDF
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `gate-pass-${pass.pass_number}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast({
+        title: 'Success',
+        description: 'Gate pass PDF downloaded successfully',
+        variant: 'success',
+      });
+    } catch (error) {
+      console.error('[GatePassDetails] PDF download failed:', error);
       showToast({
         title: 'Error',
-        description: 'Failed to load gate pass details',
+        description: error instanceof Error ? error.message : 'Failed to download PDF. Please try again.',
         variant: 'error',
       });
     } finally {
-      setLoading(false);
+      setIsDownloading(false);
     }
   };
 
-  if (loading) {
+  // Handle PNG Download (screenshot of QR code)
+  const handleDownloadPNG = async () => {
+    if (!pass || !qrCodeDataUrl) {
+      showToast({
+        title: 'Error',
+        description: 'QR code not available. Please wait for it to load.',
+        variant: 'error',
+      });
+      return;
+    }
+
+    try {
+      // Create a canvas with the QR code and pass details
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Could not create canvas context');
+      }
+
+      // Set canvas size (A4 ratio for printable format)
+      canvas.width = 1200;
+      canvas.height = 1600;
+
+      // Background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Title
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 48px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Gate Pass', canvas.width / 2, 80);
+
+      // Pass Number
+      ctx.font = 'bold 36px Arial';
+      ctx.fillText(pass.pass_number, canvas.width / 2, 140);
+
+      // Load QR code image
+      const qrImage = new Image();
+      qrImage.src = qrCodeDataUrl;
+      
+      await new Promise((resolve, reject) => {
+        qrImage.onload = resolve;
+        qrImage.onerror = reject;
+      });
+
+      // Draw QR code (centered, 600x600)
+      const qrSize = 600;
+      const qrX = (canvas.width - qrSize) / 2;
+      const qrY = 200;
+      ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
+
+      // Pass details
+      let yPos = qrY + qrSize + 60;
+      ctx.font = '24px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#475569';
+
+      if (isVisitorPass(pass) && pass.visitor_name) {
+        ctx.fillText(`Visitor: ${pass.visitor_name}`, 100, yPos);
+        yPos += 40;
+      }
+
+      if (pass.vehicle) {
+        ctx.fillText(`Vehicle: ${pass.vehicle.registration_number}`, 100, yPos);
+        yPos += 40;
+      }
+
+      ctx.fillText(`Purpose: ${pass.purpose.replace('_', ' ')}`, 100, yPos);
+      yPos += 40;
+      ctx.fillText(`Valid From: ${formatDateTime(pass.valid_from)}`, 100, yPos);
+      yPos += 40;
+      ctx.fillText(`Valid To: ${formatDateTime(pass.valid_to)}`, 100, yPos);
+      yPos += 40;
+
+      // Access Code
+      ctx.font = 'bold 32px monospace';
+      ctx.fillStyle = '#1e293b';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Access Code: ${pass.access_code}`, canvas.width / 2, yPos + 40);
+
+      // Convert to blob and download
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          throw new Error('Failed to create PNG blob');
+        }
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `gate-pass-${pass.pass_number}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        showToast({
+          title: 'Success',
+          description: 'Gate pass PNG downloaded successfully',
+          variant: 'success',
+        });
+      }, 'image/png');
+    } catch (error) {
+      console.error('[GatePassDetails] PNG download failed:', error);
+      showToast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to download PNG. Please try again.',
+        variant: 'error',
+      });
+    }
+  };
+
+  // Calculate time inside
+  const getTimeInside = (): string | null => {
+    if (!pass || pass.status !== 'inside' || !pass.entry_time) {
+      return null;
+    }
+    
+    const entryTime = new Date(pass.entry_time);
+    const now = new Date();
+    const diffMs = now.getTime() - entryTime.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (diffHours > 0) {
+      return `${diffHours}h ${diffMinutes}m`;
+    }
+    return `${diffMinutes}m`;
+  };
+
+  // Handle record entry
+  const handleRecordEntry = async () => {
+    if (!pass || !id) return;
+
+    const confirmed = await confirm({
+      title: 'Record Entry',
+      message: `Record entry for ${getPassDisplayName(pass)}?`,
+      confirmLabel: 'Record Entry',
+      cancelLabel: 'Cancel',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await recordEntry.mutateAsync({ id, notes: undefined });
+      refetch();
+    } catch {
+      // Error handled by hook
+    }
+  };
+
+  // Handle record exit
+  const handleRecordExit = async () => {
+    if (!pass || !id) return;
+
+    const confirmed = await confirm({
+      title: 'Record Exit',
+      message: `Record exit for ${getPassDisplayName(pass)}?`,
+      confirmLabel: 'Record Exit',
+      cancelLabel: 'Cancel',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await recordExit.mutateAsync({ id, notes: undefined });
+      refetch();
+    } catch {
+      // Error handled by hook
+    }
+  };
+
+  // Handle cancel pass
+  const handleCancel = async () => {
+    if (!pass || !id) return;
+
+    const confirmed = await confirm({
+      title: 'Cancel Pass',
+      message: `Are you sure you want to cancel this pass? This action cannot be undone.`,
+      confirmLabel: 'Cancel Pass',
+      cancelLabel: 'Keep Pass',
+      variant: 'critical',
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await cancelPass.mutateAsync(id);
+      refetch();
+    } catch {
+      // Error handled by hook
+    }
+  };
+
+  // Get status theme color
+  const getStatusTheme = (): string => {
+    if (!pass) return colors.neutral[500];
+    
+    if (pass.status === 'active' || pass.status === 'pending') {
+      return colors.primary;
+    }
+    if (pass.status === 'inside') {
+      return colors.success[500] as string;
+    }
+    if (pass.status === 'completed') {
+      return colors.neutral[500] as string;
+    }
+    if (pass.status === 'expired' || pass.status === 'cancelled' || pass.status === 'rejected') {
+      return colors.error[500] as string;
+    }
+    return colors.neutral[500];
+  };
+
+  if (isLoading) {
     return (
-      <div style={{ padding: spacing.xl, textAlign: 'center' }}>
-        <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>🚪</div>
-        <div style={{ color: colors.neutral[600] }}>Loading gate pass details...</div>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: spacing.xl }}>
+        <PageHeader
+          title="Gate Pass Details"
+          subtitle="Loading..."
+          icon="🚪"
+        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
+          <SkeletonLoader variant="card" />
+          <SkeletonLoader variant="card" />
+          <SkeletonLoader variant="card" />
+        </div>
       </div>
     );
   }
@@ -115,303 +436,619 @@ export const GatePassDetails: React.FC = () => {
   if (error || !pass) {
     return (
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: spacing.xl }}>
+        <PageHeader
+          title="Gate Pass Details"
+          subtitle="Error loading pass"
+          icon="🚪"
+        />
         <NetworkError
           error={error || new Error('Gate pass not found')}
-          onRetry={fetchPassDetails}
+          onRetry={() => refetch()}
           onGoBack={() => navigate('/app/gate-pass')}
         />
       </div>
     );
   }
 
+  const statusTheme = getStatusTheme();
+  const timeInside = getTimeInside();
+
   return (
-    <div style={{ padding: spacing.xl, maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: spacing.xl }}>
+      {ConfirmComponent}
+      
       <PageHeader
-        title={`Gate Pass #${id?.substring(0, 8)}`}
-        subtitle={pass.type === 'visitor' ? 'Visitor Gate Pass' : 'Vehicle Movement Pass'}
+        title={`Pass #${pass.pass_number}`}
+        subtitle={getPassDisplayName(pass)}
         icon="🚪"
         breadcrumbs={[
-          { label: 'Dashboard', path: '/dashboard' },
-          { label: 'Gate Passes', path: '/app/gate-pass' },
-          { label: 'Details' }
+          { label: 'Dashboard', path: '/dashboard', icon: '🏠' },
+          { label: 'Gate Passes', path: '/app/gate-pass', icon: '🚪' },
+          { label: 'Details' },
         ]}
         actions={
-          <Button
-            variant="secondary"
-            onClick={() => navigate('/app/gate-pass')}
-            icon={<ArrowLeft size={16} />}
-          >
-            Back
-          </Button>
-        }
-      />
-
-      {/* Policy Links */}
-      <PolicyLinks
-        title="Gate Pass Policy & Guidelines"
-        links={[
-          {
-            label: 'Gate Pass Policy',
-            url: '/policies/gate-pass-policy',
-            external: false,
-            icon: '📋'
-          },
-          {
-            label: 'Visitor Management',
-            url: '/policies/visitor-management',
-            external: false,
-            icon: '👥'
-          },
-          {
-            label: 'Vehicle Movement Rules',
-            url: '/policies/vehicle-movement',
-            external: false,
-            icon: '🚗'
-          }
-        ]}
-        variant="compact"
-      />
-
-      {/* Anomaly Alerts */}
-      {pass && (() => {
-        const now = new Date();
-        const anomalies = [];
-
-        // Check for visitor inside > 8 hours
-        if (pass.type === 'visitor' && pass.entry_time) {
-          const entryTime = new Date(pass.entry_time);
-          const hoursInside = (now.getTime() - entryTime.getTime()) / (1000 * 60 * 60);
-          if (hoursInside > 8 && pass.status === 'active') {
-            anomalies.push({
-              title: 'Visitor Inside > 8 Hours',
-              description: `This visitor has been inside for ${Math.floor(hoursInside)} hours. Please verify their status.`,
-              severity: 'warning' as const,
-            });
-          }
-        }
-
-        // Check for vehicle exit without return scan
-        if (pass.type === 'vehicle' && pass.direction === 'outbound' && pass.exit_time && !pass.return_time) {
-          const exitTime = new Date(pass.exit_time);
-          const hoursOut = (now.getTime() - exitTime.getTime()) / (1000 * 60 * 60);
-          if (hoursOut > 24) {
-            anomalies.push({
-              title: 'Vehicle Out > 24 Hours',
-              description: `This vehicle has been out for ${Math.floor(hoursOut)} hours without a return scan.`,
-              severity: 'warning' as const,
-            });
-          }
-        }
-
-        // Check for expired pass still active
-        if (pass.valid_until) {
-          const validUntil = new Date(pass.valid_until);
-          if (validUntil < now && pass.status === 'active') {
-            anomalies.push({
-              title: 'Pass Expired But Still Active',
-              description: `This pass expired on ${validUntil.toLocaleDateString()}. Please review and update its status.`,
-              severity: 'error' as const,
-            });
-          }
-        }
-
-        return anomalies.length > 0 ? (
-          <div style={{ marginTop: spacing.lg }}>
-            {anomalies.map((anomaly, index) => (
-              <AnomalyAlert
-                key={`anomaly-${anomaly.title || anomaly.id || index}`}
-                title={anomaly.title}
-                description={anomaly.description}
-                severity={anomaly.severity}
-                dismissible={false}
-              />
-            ))}
+          <div style={{ display: 'flex', gap: spacing.sm }}>
+            <Button
+              variant="secondary"
+              onClick={() => navigate('/app/gate-pass')}
+              icon={<ArrowLeft size={16} />}
+            >
+              Back
+            </Button>
+            <ShareButton
+              title={`Gate Pass: ${getPassDisplayName(pass)}`}
+              text={`Gate Pass #${pass.pass_number} - ${getPassDisplayName(pass)}`}
+              url={`${window.location.origin}/app/gate-pass/${id}`}
+              variant="secondary"
+            />
           </div>
-        ) : null;
-      })()}
+        }
+      />
 
-      <div style={{ ...cardStyles.card, marginTop: spacing.lg }}>
-        <h3 style={{ ...typography.subheader, marginBottom: spacing.md }}>Pass Information</h3>
-        <div style={{ display: 'grid', gap: spacing.md }}>
+      {/* QR Code Section */}
+      <div style={{
+        ...cardStyles.base,
+        padding: spacing.xl,
+        marginTop: spacing.lg,
+        textAlign: 'center',
+        borderTop: `4px solid ${statusTheme}`,
+      }}>
+        <h2 style={{ ...typography.subheader, marginBottom: spacing.lg }}>
+          QR Code
+        </h2>
+        
+        {qrLoading ? (
+          <div style={{ padding: spacing.xl }}>
+            <div style={{ fontSize: '2rem', marginBottom: spacing.md }}>⏳</div>
+            <div style={{ color: colors.neutral[600] }}>Generating QR code...</div>
+          </div>
+        ) : qrCodeDataUrl ? (
           <div>
-            <div style={{ ...typography.label, color: colors.neutral[600] }}>Type</div>
-            <div style={{ ...typography.body }}>{pass.type === 'visitor' ? 'Visitor' : 'Vehicle'}</div>
+            <div
+              onClick={() => setShowQrModal(true)}
+              style={{
+                display: 'inline-block',
+                cursor: 'pointer',
+                padding: spacing.md,
+                backgroundColor: 'white',
+                borderRadius: borderRadius.md,
+                border: `2px solid ${colors.neutral[200]}`,
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.borderColor = statusTheme;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.borderColor = colors.neutral[200];
+              }}
+            >
+              <img
+                src={qrCodeDataUrl}
+                alt="QR Code"
+                style={{
+                  width: '200px',
+                  height: '200px',
+                  display: 'block',
+                }}
+              />
+              <div style={{
+                marginTop: spacing.sm,
+                fontSize: '0.75rem',
+                color: colors.neutral[600],
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: spacing.xs,
+              }}>
+                <Maximize2 size={12} />
+                Tap to enlarge
+              </div>
+            </div>
+            
+            <div style={{
+              marginTop: spacing.md,
+              padding: spacing.md,
+              backgroundColor: colors.neutral[50],
+              borderRadius: borderRadius.md,
+              display: 'inline-block',
+            }}>
+              <div style={{ ...typography.bodySmall, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                Access Code
+              </div>
+              <div style={{ ...typography.subheader, fontFamily: 'monospace', letterSpacing: '2px' }}>
+                {pass.access_code}
+              </div>
+            </div>
           </div>
-          {pass.visitor_name && (
+        ) : (
+          <div style={{ padding: spacing.xl, color: colors.neutral[600] }}>
+            QR code not available
+          </div>
+        )}
+      </div>
+
+      {/* Status Badge */}
+      <div style={{ marginTop: spacing.lg, display: 'flex', justifyContent: 'center' }}>
+        <Badge
+          variant={(() => {
+            const color = getStatusColor(pass.status);
+            if (color === 'green') return 'success';
+            if (color === 'red') return 'error';
+            if (color === 'yellow') return 'warning';
+            if (color === 'blue') return 'info';
+            return 'neutral';
+          })()}
+          size="lg"
+        >
+          {getStatusLabel(pass.status)}
+        </Badge>
+      </div>
+
+      {/* Pass Details Section */}
+      <div style={{
+        ...cardStyles.base,
+        padding: spacing.xl,
+        marginTop: spacing.lg,
+        borderTop: `4px solid ${statusTheme}`,
+      }}>
+        <h2 style={{ ...typography.subheader, marginBottom: spacing.lg }}>
+          Pass Details
+        </h2>
+
+        <div style={{ display: 'grid', gap: spacing.lg }}>
+          {/* Visitor Details */}
+          {isVisitorPass(pass) && (
+            <>
+              <div>
+                <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                  Visitor Name
+                </div>
+                <div style={{ ...typography.body, fontWeight: 600 }}>
+                  {pass.visitor_name || 'N/A'}
+                </div>
+              </div>
+              
+              {pass.visitor_phone && (
+                <div>
+                  <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                    Phone
+                  </div>
+                  <div style={{ ...typography.body }}>
+                    {pass.visitor_phone}
+                  </div>
+                </div>
+              )}
+              
+              {pass.visitor_company && (
+                <div>
+                  <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                    Company
+                  </div>
+                  <div style={{ ...typography.body }}>
+                    {pass.visitor_company}
+                  </div>
+                </div>
+              )}
+              
+              {pass.referred_by && (
+                <div>
+                  <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                    Referred By
+                  </div>
+                  <div style={{ ...typography.body }}>
+                    {pass.referred_by}
+                  </div>
+                </div>
+              )}
+              
+              {pass.additional_visitors && (
+                <div>
+                  <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                    Additional Visitors
+                  </div>
+                  <div style={{ ...typography.body }}>
+                    {pass.additional_visitors}
+                    {pass.additional_head_count && pass.additional_head_count > 0 && (
+                      <span style={{ color: colors.neutral[600], marginLeft: spacing.xs }}>
+                        ({pass.additional_head_count} {pass.additional_head_count === 1 ? 'person' : 'people'})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {pass.vehicles_to_view && pass.vehicles_to_view.length > 0 && (
+                <div>
+                  <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                    Vehicles to View
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.xs }}>
+                    {pass.vehicles_to_view.map((vehicleId, idx) => (
+                      <Badge key={idx} variant="neutral" size="sm">
+                        {vehicleId}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Vehicle Details */}
+          {!isVisitorPass(pass) && (
+            <>
+              {pass.vehicle && (
+                <div>
+                  <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                    Vehicle
+                  </div>
+                  <div style={{ ...typography.body, fontWeight: 600 }}>
+                    {pass.vehicle.registration_number}
+                  </div>
+                  <div style={{ ...typography.bodySmall, color: colors.neutral[600], marginTop: spacing.xs }}>
+                    {pass.vehicle.make} {pass.vehicle.model} {pass.vehicle.year && `(${pass.vehicle.year})`}
+                  </div>
+                </div>
+              )}
+              
+              {isOutboundVehicle(pass) && (
+                <>
+                  {pass.driver_name && (
+                    <div>
+                      <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                        Driver Name
+                      </div>
+                      <div style={{ ...typography.body }}>
+                        {pass.driver_name}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {pass.driver_contact && (
+                    <div>
+                      <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                        Driver Contact
+                      </div>
+                      <div style={{ ...typography.body }}>
+                        {pass.driver_contact}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {pass.destination && (
+                    <div>
+                      <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                        Destination
+                      </div>
+                      <div style={{ ...typography.body }}>
+                        {pass.destination}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {pass.expected_return_date && (
+                    <div>
+                      <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                        Expected Return
+                      </div>
+                      <div style={{ ...typography.body }}>
+                        {formatDateTime(pass.expected_return_date)}
+                        {pass.expected_return_time && ` at ${pass.expected_return_time}`}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          )}
+
+          {/* Common Details */}
+          <div>
+            <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+              Purpose
+            </div>
+            <div style={{ ...typography.body, textTransform: 'capitalize' }}>
+              {pass.purpose.replace('_', ' ')}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+              Valid From
+            </div>
+            <div style={{ ...typography.body }}>
+              {formatDateTime(pass.valid_from)}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+              Valid To
+            </div>
+            <div style={{ ...typography.body }}>
+              {formatDateTime(pass.valid_to)}
+            </div>
+          </div>
+
+          {pass.entry_time && (
             <div>
-              <div style={{ ...typography.label, color: colors.neutral[600] }}>Visitor Name</div>
-              <div style={{ ...typography.body }}>{pass.visitor_name}</div>
+              <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                Entry Time
+              </div>
+              <div style={{ ...typography.body, color: colors.success[500] }}>
+                {formatDateTime(pass.entry_time)}
+                {timeInside && (
+                  <span style={{ marginLeft: spacing.sm, color: colors.neutral[600] }}>
+                    ({timeInside} ago)
+                  </span>
+                )}
+              </div>
             </div>
           )}
-          {pass.vehicle_registration && (
+
+          {pass.exit_time && (
             <div>
-              <div style={{ ...typography.label, color: colors.neutral[600] }}>Vehicle</div>
-              <div style={{ ...typography.body }}>{pass.vehicle_registration}</div>
+              <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                Exit Time
+              </div>
+              <div style={{ ...typography.body, color: colors.neutral[700] }}>
+                {formatDateTime(pass.exit_time)}
+              </div>
             </div>
           )}
-          {pass.purpose && (
+
+          {pass.creator && (
             <div>
-              <div style={{ ...typography.label, color: colors.neutral[600] }}>Purpose</div>
-              <div style={{ ...typography.body }}>{pass.purpose}</div>
+              <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                Created By
+              </div>
+              <div style={{ ...typography.body }}>
+                {pass.creator.name}
+              </div>
             </div>
           )}
-          {pass.status && (
+
+          {pass.yard && (
             <div>
-              <div style={{ ...typography.label, color: colors.neutral[600] }}>Status</div>
-              <div style={{ ...typography.body }}>{pass.status}</div>
+              <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                Yard
+              </div>
+              <div style={{ ...typography.body }}>
+                {pass.yard.name}
+              </div>
+            </div>
+          )}
+
+          {pass.notes && (
+            <div>
+              <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                Notes
+              </div>
+              <div style={{ ...typography.body, whiteSpace: 'pre-wrap' }}>
+                {pass.notes}
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Linked Expenses */}
-      {pass.linked_expenses && pass.linked_expenses.length > 0 && (
-        <div style={{ ...cardStyles.card, marginTop: spacing.lg }}>
-          <h3 style={{ ...typography.subheader, marginBottom: spacing.md }}>Linked Expenses</h3>
-          <div style={{ ...typography.body, color: colors.neutral[600], marginBottom: spacing.md }}>
-            The following expenses are linked to this gate pass:
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-            {pass.linked_expenses.map((expense: any) => {
-              const reasonLabels: Record<string, string> = {
-                'same_vehicle': 'Same Vehicle',
-                'same_date': 'Same Date',
-                'keyword_match': 'Keyword Match',
-                'same_project': 'Same Project',
-              };
-              
-              return (
-                <div
-                  key={expense.id}
-                  style={{
-                    padding: spacing.md,
-                    border: `1px solid ${colors.neutral[200]}`,
-                    borderRadius: borderRadius.md,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ ...typography.body, fontWeight: 600 }}>
-                      ₹{expense.amount.toLocaleString('en-IN')} - {expense.category}
-                    </div>
-                    <div style={{ ...typography.caption, color: colors.neutral[600] }}>
-                      {expense.description || 'No description'} • {reasonLabels[expense.link_reason] || expense.link_reason} ({(expense.confidence_score * 100).toFixed(0)}% match)
-                    </div>
-                    <div style={{ ...typography.caption, color: colors.neutral[500], marginTop: spacing.xs }}>
-                      {new Date(expense.date).toLocaleDateString('en-IN')} • Status: {expense.status}
-                    </div>
-                  </div>
-                  <Button
-                    variant="secondary"
-                    onClick={() => navigate(`/app/expenses/${expense.id}`)}
-                    style={{ padding: `${spacing.xs}px ${spacing.sm}px` }}
-                  >
-                    View
-                  </Button>
+      {/* Timeline Section */}
+      {pass.validations && pass.validations.length > 0 && (
+        <div style={{
+          ...cardStyles.base,
+          padding: spacing.xl,
+          marginTop: spacing.lg,
+        }}>
+          <h2 style={{ ...typography.subheader, marginBottom: spacing.lg }}>
+            Timeline & History
+          </h2>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+            {pass.validations.map((validation) => (
+              <div
+                key={validation.id}
+                style={{
+                  display: 'flex',
+                  gap: spacing.md,
+                  padding: spacing.md,
+                  borderLeft: `3px solid ${
+                    validation.action === 'entry' ? colors.success[500] :
+                    validation.action === 'exit' ? colors.brand :
+                    colors.neutral[300]
+                  }`,
+                  backgroundColor: colors.neutral[50],
+                  borderRadius: borderRadius.md,
+                }}
+              >
+                <div style={{ flexShrink: 0 }}>
+                  {validation.action === 'entry' ? (
+                    <CheckCircle size={20} color={colors.success[500]} />
+                  ) : validation.action === 'exit' ? (
+                    <XCircle size={20} color={colors.brand} />
+                  ) : (
+                    <Clock size={20} color={colors.neutral[500]} />
+                  )}
                 </div>
-              );
-            })}
+                <div style={{ flex: 1 }}>
+                  <div style={{ ...typography.body, fontWeight: 600, marginBottom: spacing.xs }}>
+                    {validation.action === 'entry' ? 'Entry Recorded' :
+                     validation.action === 'exit' ? 'Exit Recorded' :
+                     'Validation'}
+                  </div>
+                  <div style={{ ...typography.bodySmall, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                    {formatDateTime(validation.created_at)}
+                  </div>
+                  {validation.validator && (
+                    <div style={{ ...typography.bodySmall, color: colors.neutral[600] }}>
+                      By: {validation.validator.name}
+                    </div>
+                  )}
+                  {validation.notes && (
+                    <div style={{
+                      marginTop: spacing.xs,
+                      padding: spacing.xs,
+                      backgroundColor: 'white',
+                      borderRadius: borderRadius.sm,
+                      ...typography.bodySmall,
+                    }}>
+                      {validation.notes}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Component Transfers */}
-      {pass.components_removed && pass.components_removed.length > 0 && (
-        <div style={{ ...cardStyles.card, marginTop: spacing.lg }}>
-          <h3 style={{ ...typography.subheader, marginBottom: spacing.md }}>Components Removed</h3>
-          <div style={{ ...typography.body, color: colors.neutral[600], marginBottom: spacing.md }}>
-            The following components were automatically removed from this vehicle when the exit pass was created:
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-            {pass.components_removed.map((component: any) => {
-              const typeConfig: Record<string, { icon: any; label: string; color: string }> = {
-                battery: { icon: Battery, label: 'Battery', color: colors.primary },
-                tyre: { icon: Package, label: 'Tyre', color: colors.warning[500] },
-                spare_part: { icon: Wrench, label: 'Spare Part', color: colors.success[500] },
-              };
-              const config = typeConfig[component.component_type] || { icon: Package, label: 'Component', color: colors.neutral[500] };
-              const Icon = config.icon;
-              
-              return (
-                <div
-                  key={`${component.component_type}-${component.component_id}`}
-                  style={{
-                    padding: spacing.md,
-                    border: `1px solid ${colors.neutral[200]}`,
-                    borderRadius: borderRadius.md,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: spacing.md,
-                  }}
-                >
-                  <Icon size={20} color={config.color} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ ...typography.body, fontWeight: 600 }}>{component.component_name}</div>
-                    <div style={{ ...typography.caption, color: colors.neutral[600] }}>
-                      {config.label} • Removed on {new Date(component.transferred_at).toLocaleDateString('en-IN')}
-                    </div>
-                  </div>
-                  <Button
-                    variant="secondary"
-                    onClick={() => navigate(`/app/stockyard/components/${component.component_type}/${component.component_id}`)}
-                    style={{ padding: `${spacing.xs}px ${spacing.sm}px` }}
-                  >
-                    View
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Actions Section */}
+      <div style={{
+        ...cardStyles.base,
+        padding: spacing.xl,
+        marginTop: spacing.lg,
+      }}>
+        <h2 style={{ ...typography.subheader, marginBottom: spacing.lg }}>
+          Actions
+        </h2>
 
-      {/* Related Items */}
-      {pass.vehicle_id && (
-        <div style={{ marginTop: spacing.lg, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: spacing.lg }}>
-          {/* Related Gate Passes Panel */}
-          {relatedPasses.length > 0 && (
-            <RelatedItems
-              title="Related Gate Passes"
-              items={relatedPasses.map((p: any) => ({
-                id: p.id,
-                title: p.type === 'visitor' 
-                  ? `Visitor Pass #${p.id.substring(0, 8)}`
-                  : `Vehicle Pass #${p.id.substring(0, 8)}`,
-                subtitle: p.type === 'visitor'
-                  ? `${p.visitor_name || 'Visitor'} - ${p.status || 'Unknown'}`
-                  : `${p.vehicle?.registration_number || p.vehicle_registration || 'Vehicle'} - ${p.status || 'Unknown'}`,
-                path: `/app/gate-pass/${p.id}`,
-                icon: '🚪',
-              }))}
-              variant="compact"
-            />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+          {/* Download Options */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: spacing.md,
+            marginBottom: spacing.md,
+            paddingBottom: spacing.md,
+            borderBottom: `1px solid ${colors.neutral[200]}`,
+          }}>
+            <Button
+              variant="primary"
+              onClick={handleDownloadPDF}
+              disabled={isDownloading || !pass}
+              icon={<Download size={20} />}
+              size="lg"
+            >
+              {isDownloading ? 'Generating...' : 'Download PDF'}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleDownloadPNG}
+              disabled={!qrCodeDataUrl || !pass}
+              icon={<Download size={20} />}
+              size="lg"
+            >
+              Download PNG
+            </Button>
+          </div>
+
+          {/* Record Entry */}
+          {(pass.status === 'active' || pass.status === 'pending') && !isExpired(pass) && (
+            <Button
+              variant="primary"
+              onClick={handleRecordEntry}
+              disabled={recordEntry.isPending}
+              icon={<CheckCircle size={20} />}
+              size="lg"
+            >
+              {recordEntry.isPending ? 'Recording...' : 'Record Entry'}
+            </Button>
           )}
-          
-          <RelatedItems
-            title="Vehicle History"
-            items={[
-              {
-                id: 'all-passes',
-                title: 'All Gate Passes',
-                subtitle: `View all gate passes for this vehicle`,
-                path: `/app/gate-pass?vehicle=${pass.vehicle_id}`,
-                icon: '🚪',
-              },
-              {
-                id: 'inspections',
-                title: 'Recent Inspections',
-                subtitle: 'View inspection history for this vehicle',
-                path: `/app/inspections?vehicle=${pass.vehicle_id}`,
-                icon: '🔍',
-              },
-            ]}
-            variant="compact"
-          />
+
+          {/* Record Exit */}
+          {pass.status === 'inside' && (
+            <Button
+              variant="primary"
+              onClick={handleRecordExit}
+              disabled={recordExit.isPending}
+              icon={<XCircle size={20} />}
+              size="lg"
+            >
+              {recordExit.isPending ? 'Recording...' : 'Record Exit'}
+            </Button>
+          )}
+
+          {/* Cancel Pass */}
+          {(pass.status === 'pending' || pass.status === 'active') && (
+            <Button
+              variant="secondary"
+              onClick={handleCancel}
+              disabled={cancelPass.isPending}
+              icon={<X size={20} />}
+              size="lg"
+            >
+              {cancelPass.isPending ? 'Cancelling...' : 'Cancel Pass'}
+            </Button>
+          )}
+
+          {/* No Actions Available */}
+          {pass.status !== 'active' && pass.status !== 'pending' && pass.status !== 'inside' && (
+            <div style={{
+              padding: spacing.md,
+              backgroundColor: colors.neutral[50],
+              borderRadius: borderRadius.md,
+              textAlign: 'center',
+              color: colors.neutral[600],
+            }}>
+              No actions available for this pass status
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* QR Code Modal */}
+      {showQrModal && qrCodeDataUrl && (
+        <div
+          onClick={() => setShowQrModal(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000,
+            cursor: 'pointer',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white',
+              padding: spacing.xl,
+              borderRadius: borderRadius.xl,
+              textAlign: 'center',
+              maxWidth: '90%',
+            }}
+          >
+            <img
+              src={qrCodeDataUrl}
+              alt="QR Code"
+              style={{
+                width: '300px',
+                height: '300px',
+                maxWidth: '100%',
+              }}
+            />
+            <div style={{ marginTop: spacing.md, ...typography.body, fontWeight: 600 }}>
+              Pass #{pass.pass_number}
+            </div>
+            <div style={{ marginTop: spacing.xs, ...typography.bodySmall, color: colors.neutral[600], fontFamily: 'monospace', letterSpacing: '2px' }}>
+              {pass.access_code}
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() => setShowQrModal(false)}
+            >
+              Close
+            </Button>
+          </div>
         </div>
       )}
     </div>
   );
 };
-

@@ -124,9 +124,12 @@ export const RtoDetailsManager: React.FC<RtoDetailsManagerProps> = ({
           discrepancies: details.discrepancies || '',
         });
       }
-    } catch (error) {
-      // No RTO details exist yet, start with empty form
-      console.log('No existing RTO details found');
+    } catch (error: any) {
+      // No RTO details exist yet (404 is expected), start with empty form
+      // Silently handle 404 errors as they're expected when RTO details don't exist
+      if (error?.response?.status !== 404) {
+        console.warn('Failed to load RTO details:', error);
+      }
     } finally {
       setLoading(false);
     }
@@ -608,10 +611,39 @@ export const RtoDetailsManager: React.FC<RtoDetailsManagerProps> = ({
   if (!isOpen) return null;
 
   return (
-    <Modal onClose={onClose} title="RTO Details Management" size="xl" showCloseButton={true}>
-      <div style={{ padding: spacing.lg }}>
+    <Modal 
+      onClose={onClose} 
+      title="RTO Details Management" 
+      size="xl" 
+      showCloseButton={true}
+      footer={
+        <div style={{ display: 'flex', gap: spacing.md, justifyContent: 'flex-end' }}>
+          <Button variant="secondary" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSave} disabled={saving} icon={<Save size={16} />}>
+            {saving ? 'Saving...' : 'Save RTO Details'}
+          </Button>
+        </div>
+      }
+    >
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        height: '100%', 
+        minHeight: 0,
+        maxHeight: 'calc(90vh - 140px)', // Account for header and footer
+      }}>
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: spacing.xs, marginBottom: spacing.lg, borderBottom: `2px solid ${colors.neutral[200]}` }}>
+        <div style={{ 
+          display: 'flex', 
+          gap: spacing.xs, 
+          marginBottom: spacing.lg, 
+          borderBottom: `2px solid ${colors.neutral[200]}`,
+          flexShrink: 0,
+          overflowX: 'auto',
+          paddingBottom: spacing.xs,
+        }}>
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -630,6 +662,7 @@ export const RtoDetailsManager: React.FC<RtoDetailsManagerProps> = ({
                   ...typography.body,
                   color: activeTab === tab.id ? colors.primary : colors.neutral[600],
                   fontWeight: activeTab === tab.id ? 600 : 400,
+                  whiteSpace: 'nowrap',
                 }}
               >
                 <Icon size={16} />
@@ -639,26 +672,22 @@ export const RtoDetailsManager: React.FC<RtoDetailsManagerProps> = ({
           })}
         </div>
 
-        {/* Tab Content */}
+        {/* Tab Content - Scrollable */}
         {loading ? (
           <div style={{ padding: spacing.xl, textAlign: 'center', color: colors.neutral[600] }}>
             Loading RTO details...
           </div>
         ) : (
-          <div style={{ minHeight: '400px', maxHeight: '600px', overflowY: 'auto' }}>
+          <div style={{ 
+            flex: 1,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            minHeight: 0, // Important for flex scrolling
+            paddingRight: spacing.xs, // Space for scrollbar
+          }}>
             {renderTabContent()}
           </div>
         )}
-
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: spacing.md, justifyContent: 'flex-end', marginTop: spacing.lg, paddingTop: spacing.md, borderTop: `1px solid ${colors.neutral[200]}` }}>
-          <Button variant="secondary" onClick={onClose} disabled={saving}>
-            Cancel
-          </Button>
-          <Button variant="primary" onClick={handleSave} disabled={saving} icon={<Save size={16} />}>
-            {saving ? 'Saving...' : 'Save RTO Details'}
-          </Button>
-        </div>
       </div>
     </Modal>
   );

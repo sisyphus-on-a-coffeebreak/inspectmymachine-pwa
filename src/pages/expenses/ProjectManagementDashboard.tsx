@@ -76,87 +76,8 @@ export const ProjectManagementDashboard: React.FC = () => {
       });
       setProjects(response.data);
     } catch (error) {
-      // Mock data for development (fallback)
-      setProjects([
-        {
-          id: '1',
-          name: 'Project Alpha',
-          code: 'PA001',
-          status: 'active',
-          start_date: '2024-01-01',
-          end_date: '2024-06-30',
-          budget: 1000000,
-          spent_amount: 450000,
-          remaining_budget: 550000,
-          revenue: 1200000,
-          profit: 200000,
-          profit_margin: 16.7,
-          completion_percentage: 45,
-          total_expenses: 450000,
-          monthly_expenses: 75000,
-          expense_categories: [
-            { category: 'LABOR', amount: 200000, percentage: 44.4 },
-            { category: 'MATERIALS', amount: 150000, percentage: 33.3 },
-            { category: 'EQUIPMENT', amount: 75000, percentage: 16.7 },
-            { category: 'MISC', amount: 25000, percentage: 5.6 }
-          ],
-          team_size: 8,
-          client_name: 'ABC Corporation',
-          project_manager: 'John Doe'
-        },
-        {
-          id: '2',
-          name: 'Project Beta',
-          code: 'PB002',
-          status: 'completed',
-          start_date: '2023-07-01',
-          end_date: '2023-12-31',
-          budget: 750000,
-          spent_amount: 720000,
-          remaining_budget: 30000,
-          revenue: 800000,
-          profit: 80000,
-          profit_margin: 10,
-          completion_percentage: 100,
-          total_expenses: 720000,
-          monthly_expenses: 0,
-          expense_categories: [
-            { category: 'LABOR', amount: 400000, percentage: 55.6 },
-            { category: 'MATERIALS', amount: 200000, percentage: 27.8 },
-            { category: 'EQUIPMENT', amount: 100000, percentage: 13.9 },
-            { category: 'MISC', amount: 20000, percentage: 2.8 }
-          ],
-          team_size: 6,
-          client_name: 'XYZ Ltd',
-          project_manager: 'Jane Smith'
-        },
-        {
-          id: '3',
-          name: 'Project Gamma',
-          code: 'PG003',
-          status: 'on_hold',
-          start_date: '2024-02-01',
-          end_date: '2024-08-31',
-          budget: 500000,
-          spent_amount: 150000,
-          remaining_budget: 350000,
-          revenue: 0,
-          profit: -150000,
-          profit_margin: -30,
-          completion_percentage: 30,
-          total_expenses: 150000,
-          monthly_expenses: 0,
-          expense_categories: [
-            { category: 'LABOR', amount: 100000, percentage: 66.7 },
-            { category: 'MATERIALS', amount: 30000, percentage: 20 },
-            { category: 'EQUIPMENT', amount: 15000, percentage: 10 },
-            { category: 'MISC', amount: 5000, percentage: 3.3 }
-          ],
-          team_size: 4,
-          client_name: 'DEF Industries',
-          project_manager: 'Mike Johnson'
-        }
-      ]);
+      // Show empty state instead of mock data
+      setProjects([]);
     } finally {
       setLoading(false);
     }
@@ -169,37 +90,8 @@ export const ProjectManagementDashboard: React.FC = () => {
       });
       setProjectExpenses(response.data);
     } catch (error) {
-      // Error is already handled by apiClient
-      // Mock data for development
-      setProjectExpenses([
-        {
-          id: '1',
-          amount: 25000,
-          category: 'LABOR',
-          description: 'Developer salary for January',
-          date: '2024-01-31T10:30:00Z',
-          employee_name: 'John Developer',
-          status: 'approved'
-        },
-        {
-          id: '2',
-          amount: 15000,
-          category: 'MATERIALS',
-          description: 'Software licenses and tools',
-          date: '2024-01-25T14:15:00Z',
-          employee_name: 'Jane Manager',
-          status: 'approved'
-        },
-        {
-          id: '3',
-          amount: 5000,
-          category: 'EQUIPMENT',
-          description: 'Laptop for new team member',
-          date: '2024-01-20T09:45:00Z',
-          employee_name: 'Mike Admin',
-          status: 'pending'
-        }
-      ]);
+      // Show empty state instead of mock data
+      setProjectExpenses([]);
     }
   }, [selectedPeriod]);
 
@@ -208,40 +100,8 @@ export const ProjectManagementDashboard: React.FC = () => {
       const response = await apiClient.get(`/api/projects/${projectId}/phases`);
       setProjectPhases(response.data);
     } catch (error) {
-      // Error is already handled by apiClient
-      // Mock data for development
-      setProjectPhases([
-        {
-          id: '1',
-          name: 'Planning & Design',
-          budget: 100000,
-          spent_amount: 95000,
-          start_date: '2024-01-01',
-          end_date: '2024-02-15',
-          status: 'completed',
-          completion_percentage: 100
-        },
-        {
-          id: '2',
-          name: 'Development',
-          budget: 400000,
-          spent_amount: 200000,
-          start_date: '2024-02-01',
-          end_date: '2024-04-30',
-          status: 'in_progress',
-          completion_percentage: 50
-        },
-        {
-          id: '3',
-          name: 'Testing & Deployment',
-          budget: 200000,
-          spent_amount: 0,
-          start_date: '2024-05-01',
-          end_date: '2024-06-30',
-          status: 'not_started',
-          completion_percentage: 0
-        }
-      ]);
+      // Show empty state instead of mock data
+      setProjectPhases([]);
     }
   }, []);
 

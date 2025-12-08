@@ -67,10 +67,18 @@ export const ContextualGuidance: React.FC<ContextualGuidanceProps> = ({
           gap: variant === 'compact' ? spacing.sm : spacing.md,
         }}
       >
-        {items.map((item) => (
-          <div
+        {items.map((item) => {
+          const Component = item.action ? 'button' : 'div';
+          const buttonProps = item.action ? {
+            onClick: item.action.onClick,
+            type: 'button' as const,
+            'aria-label': `${item.title}: ${item.description}. ${item.action.label}`,
+          } : {};
+          
+          return (
+          <Component
             key={item.id}
-            onClick={item.action?.onClick}
+            {...buttonProps}
             style={{
               display: 'flex',
               alignItems: 'flex-start',
@@ -81,6 +89,12 @@ export const ContextualGuidance: React.FC<ContextualGuidanceProps> = ({
               border: `1px solid ${colors.neutral[200]}`,
               cursor: item.action ? 'pointer' : 'default',
               transition: 'all 0.2s ease',
+              width: '100%',
+              textAlign: 'left' as const,
+              ...(item.action ? {
+                background: 'transparent',
+                border: `1px solid ${colors.neutral[200]}`,
+              } : {}),
             }}
             onMouseEnter={(e) => {
               if (item.action) {
@@ -105,15 +119,6 @@ export const ContextualGuidance: React.FC<ContextualGuidanceProps> = ({
             onBlur={(e) => {
               if (item.action) {
                 e.currentTarget.style.outline = 'none';
-              }
-            }}
-            tabIndex={item.action ? 0 : -1}
-            role={item.action ? 'button' : undefined}
-            aria-label={item.action ? `${item.title}: ${item.description}. ${item.action.label}` : item.title}
-            onKeyDown={(e) => {
-              if (item.action && (e.key === 'Enter' || e.key === ' ')) {
-                e.preventDefault();
-                item.action.onClick();
               }
             }}
           >
@@ -179,8 +184,9 @@ export const ContextualGuidance: React.FC<ContextualGuidanceProps> = ({
                 </div>
               )}
             </div>
-          </div>
-        ))}
+          </Component>
+          );
+        })}
       </div>
     </div>
   );

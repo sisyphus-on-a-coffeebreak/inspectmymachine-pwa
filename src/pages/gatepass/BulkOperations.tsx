@@ -100,23 +100,8 @@ export const BulkOperations: React.FC = () => {
       const response = await apiClient.get('/gate-pass-bulk/templates');
       setBulkTemplates(response.data);
     } catch (error) {
-      // Mock data for development (fallback)
-      setBulkTemplates([
-        {
-          id: '1',
-          name: 'Monthly Inspection Passes',
-          description: 'Template for monthly vehicle inspections',
-          template_data: [
-            {
-              pass_number: 'VP001',
-              type: 'visitor',
-              visitor_name: 'John Smith',
-              purpose: 'inspection',
-              valid_from: '2024-01-21T09:00:00Z',
-              valid_to: '2024-01-21T17:00:00Z',
-              status: 'pending'
-            }
-          ],
+      // Show empty state instead of mock data
+      setBulkTemplates([]);
           created_by: 'Admin User',
           created_at: '2024-01-10T10:00:00Z',
           usage_count: 5

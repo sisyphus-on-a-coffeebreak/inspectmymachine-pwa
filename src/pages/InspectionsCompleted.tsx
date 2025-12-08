@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppShell from "@/layouts/AppShell";
-import { useAuth } from "@/providers/useAuth";
+import { apiClient } from "@/lib/apiClient";
 import { colors, typography, spacing, borderRadius, shadows } from "@/lib/theme";
 import { ChevronLeft, ChevronRight, Search, FileText, Calendar, User, Car, Star, AlertCircle } from "lucide-react";
 
@@ -24,7 +24,6 @@ type Meta = { current_page: number; last_page: number; total: number; per_page: 
 type Resp = { data: Row[]; meta?: Meta; current_page?: number; last_page?: number; total?: number };
 
 export default function InspectionsCompleted() {
-  const { fetchJson } = useAuth();
   const navigate = useNavigate();
   const [rows, setRows] = useState<Row[]>([]);
   const [meta, setMeta] = useState<Meta | undefined>();
@@ -38,16 +37,22 @@ export default function InspectionsCompleted() {
       setLoading(true);
       setErr(undefined);
       try {
-        const json = await fetchJson<any>(`/v1/inspections?status=completed&per_page=20&page=${page}`);
+        const response = await apiClient.get('/v1/inspections', {
+          params: {
+            status: 'completed',
+            per_page: 20,
+            page: page
+          }
+        });
         
         // Handle Laravel paginated response format: { success: true, data: { data: [...], meta: {...} } }
-        const paginatedData = json.data || json;
-        const data = paginatedData.data || paginatedData || [];
-        const paginationMeta = paginatedData.meta || (paginatedData.current_page ? {
-          current_page: paginatedData.current_page,
-          last_page: paginatedData.last_page || 1,
-          total: paginatedData.total || (Array.isArray(data) ? data.length : 0),
-          per_page: paginatedData.per_page || 20
+        const paginatedData = response.data?.data || response.data;
+        const data = paginatedData?.data || paginatedData || [];
+        const paginationMeta = paginatedData?.meta || response.data?.meta || (response.data?.current_page ? {
+          current_page: response.data.current_page,
+          last_page: response.data.last_page || 1,
+          total: response.data.total || (Array.isArray(data) ? data.length : 0),
+          per_page: response.data.per_page || 20
         } : undefined);
         
         // Transform inspection data to match Row type
@@ -75,7 +80,7 @@ export default function InspectionsCompleted() {
         setLoading(false);
       }
     })();
-  }, [page, fetchJson]);
+  }, [page]);
 
   const filteredRows = useMemo(() => {
     if (!searchTerm) return rows;

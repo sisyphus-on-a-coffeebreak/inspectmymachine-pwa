@@ -10,6 +10,7 @@ import { get, set, del, keys } from 'idb-keyval';
 import { apiClient } from './apiClient';
 import { isNetworkError, isRetryableError } from './errorHandling';
 import type { ApiRequestConfig } from './apiClient';
+import { logger } from './logger';
 
 const QUEUE_PREFIX = 'offline-queue:';
 const QUEUE_INDEX_KEY = 'offline-queue-index';
@@ -290,7 +291,10 @@ class OfflineQueue {
       try {
         listener(stats);
       } catch (error) {
-        console.error('Error in queue listener:', error);
+        // Error in queue listener - handled gracefully
+        if (import.meta.env.DEV) {
+          logger.error('Error in queue listener', error, 'offlineQueue');
+        }
       }
     });
   }

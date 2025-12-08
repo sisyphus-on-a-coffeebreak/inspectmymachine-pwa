@@ -57,48 +57,8 @@ export const GatePassCalendar: React.FC = () => {
       const days = generateCalendarDays(currentDate, response.data);
       setCalendarDays(days);
     } catch (error) {
-      // Error is already handled by apiClient
-      // Mock data for development
-      const mockPasses: CalendarPass[] = [
-        {
-          id: '1',
-          type: 'visitor',
-          title: 'John Smith - Inspection',
-          date: '2024-01-20',
-          time: '10:00',
-          status: 'pending',
-          visitor_name: 'John Smith',
-          purpose: 'inspection',
-          duration: '2 hours',
-          color: colors.primary
-        },
-        {
-          id: '2',
-          type: 'vehicle',
-          title: 'ABC-1234 - RTO Work',
-          date: '2024-01-20',
-          time: '14:00',
-          status: 'active',
-          vehicle_registration: 'ABC-1234',
-          purpose: 'rto_work',
-          duration: '1 day',
-          color: colors.status.warning
-        },
-        {
-          id: '3',
-          type: 'visitor',
-          title: 'Sarah Johnson - Service',
-          date: '2024-01-21',
-          time: '09:30',
-          status: 'pending',
-          visitor_name: 'Sarah Johnson',
-          purpose: 'service',
-          duration: '1 hour',
-          color: colors.status.normal
-        }
-      ];
-      
-      const days = generateCalendarDays(currentDate, mockPasses);
+      // Show empty state instead of mock data
+      const days = generateCalendarDays(currentDate, []);
       setCalendarDays(days);
     } finally {
       setLoading(false);

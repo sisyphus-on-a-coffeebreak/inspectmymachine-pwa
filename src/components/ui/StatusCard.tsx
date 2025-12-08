@@ -9,6 +9,7 @@ import React from 'react';
 import { colors, spacing, borderRadius, shadows, typography } from '@/lib/theme';
 import { AlertCircle, CheckCircle2, Clock, XCircle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { Button } from './button';
+import { logger } from '@/lib/logger';
 
 export type StatusLevel = 'healthy' | 'warning' | 'error' | 'offline' | 'stale';
 
@@ -105,7 +106,7 @@ export function StatusCard({
   children,
   className = '',
 }: StatusCardProps) {
-  const config = statusConfig[status];
+  const config = statusConfig[status] || statusConfig.healthy; // Fallback to healthy if invalid status
   const [refreshing, setRefreshing] = React.useState(false);
 
   const handleRefresh = async () => {
@@ -114,7 +115,7 @@ export function StatusCard({
       setRefreshing(true);
       await onRefresh();
     } catch (error) {
-      console.error('Refresh failed:', error);
+      logger.error('Refresh failed', error, 'StatusCard');
     } finally {
       setRefreshing(false);
     }

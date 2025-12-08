@@ -10,6 +10,9 @@ import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PolicyLinks } from '../../components/ui/PolicyLinks';
 import { useAuth } from '../../providers/useAuth';
+import { PullToRefreshWrapper } from '../../components/ui/PullToRefreshWrapper';
+import { LineChart, BarChart, PieChart } from '../../components/ui/charts';
+import { SkeletonCard, SkeletonLoader } from '../../components/ui/SkeletonLoader';
 
 interface DashboardStats {
   total_today: number;
@@ -46,6 +49,8 @@ export const InspectionDashboard: React.FC = () => {
   
   const stats = dashboardData?.stats as DashboardStats | null;
   const recentInspections = (dashboardData?.recent_inspections || []) as RecentInspection[];
+  const dailyTrends = (dashboardData?.daily_trends || []) as Array<{ date: string; count: number }>;
+  const vehicleTypeBreakdown = (dashboardData?.vehicle_type_breakdown || []) as Array<{ vehicle_type: string; count: number }>;
   const error = queryError ? (queryError instanceof Error ? queryError : new Error('Failed to load inspection dashboard')) : null;
 
   const getStatusColor = (status: string) => {
@@ -69,9 +74,24 @@ export const InspectionDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: spacing.xl, textAlign: 'center' }}>
-        <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>🔍</div>
-        <div style={{ color: colors.neutral[600] }}>Loading inspection dashboard...</div>
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: spacing.xl }}>
+        <PageHeader
+          title="Vehicle Inspections"
+          subtitle="Comprehensive vehicle inspection and reporting system"
+          icon="🔍"
+        />
+        <div style={{ marginBottom: spacing.xl }}>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+            gap: spacing.lg 
+          }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonCard key={`stats-${i}`} />
+            ))}
+          </div>
+        </div>
+        <SkeletonLoader variant="card" />
       </div>
     );
   }
@@ -88,15 +108,20 @@ export const InspectionDashboard: React.FC = () => {
     );
   }
 
+  const handleRefresh = async () => {
+    await refetch();
+  };
+
   return (
-    <div style={{ 
-      maxWidth: '1400px', 
-      margin: '0 auto', 
-      padding: spacing.xl,
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      backgroundColor: colors.neutral[50],
-      minHeight: '100vh'
-    }}>
+    <PullToRefreshWrapper onRefresh={handleRefresh}>
+      <div style={{ 
+        maxWidth: '1400px', 
+        margin: '0 auto', 
+        padding: spacing.xl,
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        backgroundColor: colors.neutral[50],
+        minHeight: '100vh'
+      }}>
       {/* Mock Data Notice - Removed, using React Query now */}
       {false && (
         <div style={{
@@ -317,6 +342,77 @@ export const InspectionDashboard: React.FC = () => {
           </div>
         </StatsGrid>
       </div>
+
+      {/* Charts Section */}
+      {(dailyTrends.length > 0 || vehicleTypeBreakdown.length > 0) && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: spacing.lg,
+          marginBottom: spacing.xl
+        }}>
+          {/* Daily Trends Chart */}
+          {dailyTrends.length > 0 && (
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: spacing.xl,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              border: '1px solid rgba(0,0,0,0.05)'
+            }}>
+              <h3 style={{
+                ...typography.subheader,
+                marginBottom: spacing.lg,
+                color: colors.neutral[900]
+              }}>
+                📈 Daily Inspection Trends
+              </h3>
+              <LineChart
+                data={dailyTrends.map(trend => ({
+                  date: trend.date,
+                  count: trend.count
+                }))}
+                dataKeys={[{
+                  key: 'count',
+                  name: 'Inspections',
+                  color: colors.primary,
+                  strokeWidth: 2
+                }]}
+                height={250}
+                tooltipFormatter={(value) => [`${value} inspections`, '']}
+              />
+            </div>
+          )}
+
+          {/* Vehicle Type Breakdown */}
+          {vehicleTypeBreakdown.length > 0 && (
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: spacing.xl,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              border: '1px solid rgba(0,0,0,0.05)'
+            }}>
+              <h3 style={{
+                ...typography.subheader,
+                marginBottom: spacing.lg,
+                color: colors.neutral[900]
+              }}>
+                🚗 Vehicle Type Breakdown
+              </h3>
+              <PieChart
+                data={vehicleTypeBreakdown.map((item, index) => ({
+                  name: item.vehicle_type || 'Unknown',
+                  value: item.count,
+                  color: [colors.primary, colors.success[500], colors.warning[500], colors.error[500]][index % 4]
+                }))}
+                height={250}
+                tooltipFormatter={(value) => [`${value} inspections`, '']}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div style={{
@@ -624,5 +720,6 @@ export const InspectionDashboard: React.FC = () => {
         )}
       </div>
     </div>
+    </PullToRefreshWrapper>
   );
 };

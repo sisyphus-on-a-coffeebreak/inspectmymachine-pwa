@@ -8,10 +8,13 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useToast } from '../../providers/ToastProvider';
-import { useStockyardRequests, useStockyardStats, useStockyardAlerts, useDaysSinceEntry } from '../../lib/queries';
-import type { StockyardRequest, StockyardRequestStatus, StockyardRequestType } from '../../lib/stockyard';
-import { Warehouse, Plus, CheckCircle2, XCircle, Clock, AlertCircle, Search, Filter, Package, Map } from 'lucide-react';
+import { useStockyardRequests, useStockyardStats, useStockyardAlerts, useDaysSinceEntry, useComponents, useComponentCustodyEvents } from '../../lib/queries';
+import type { StockyardRequest, StockyardRequestStatus, StockyardRequestType, ComponentCustodyEvent } from '../../lib/stockyard';
+import { Warehouse, Plus, CheckCircle2, XCircle, Clock, AlertCircle, Search, Filter, Package, Map, ArrowRight, Battery, Circle, Wrench, TrendingUp, Activity } from 'lucide-react';
 import { Pagination } from '../../components/ui/Pagination';
+import { FilterBadges } from '../../components/ui/FilterBadge';
+import { PullToRefreshWrapper } from '../../components/ui/PullToRefreshWrapper';
+import { CollapsibleSection } from '../../components/ui/CollapsibleSection';
 
 // 📦 Stockyard Dashboard
 // Main screen for managing stockyard requests and operations
@@ -51,6 +54,19 @@ export const StockyardDashboard: React.FC = () => {
   // Fetch days since entry for vehicles in yard
   const { data: daysSinceEntryData } = useDaysSinceEntry();
   
+  // Fetch component statistics
+  const { data: allComponents } = useComponents({ per_page: 1 }, { enabled: true }); // Just to get total count
+  const { data: batteryComponents } = useComponents({ type: 'battery', per_page: 1 }, { enabled: true });
+  const { data: tyreComponents } = useComponents({ type: 'tyre', per_page: 1 }, { enabled: true });
+  const { data: sparePartComponents } = useComponents({ type: 'spare_part', per_page: 1 }, { enabled: true });
+  const { data: inStockComponents } = useComponents({ status: 'in_stock', per_page: 1 }, { enabled: true });
+  
+  // Fetch recent component movements
+  const { data: recentMovementsData } = useComponentCustodyEvents(
+    { per_page: 5, page: 1 },
+    { enabled: true }
+  );
+  
   // Apply client-side filtering for "active" filter and search
   const requests = useMemo(() => {
     let filtered = requestsData?.data || [];
@@ -89,6 +105,10 @@ export const StockyardDashboard: React.FC = () => {
   };
   
   const error = queryError ? (queryError instanceof Error ? queryError : new Error('Failed to load stockyard requests')) : null;
+
+  const handleRefresh = async () => {
+    await refetch();
+  };
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -144,6 +164,7 @@ export const StockyardDashboard: React.FC = () => {
   }
 
   return (
+    <PullToRefreshWrapper onRefresh={handleRefresh}>
     <div style={{ padding: spacing.xl }}>
       <PageHeader
         title="Stockyard Management"
@@ -203,8 +224,256 @@ export const StockyardDashboard: React.FC = () => {
         )}
       </StatsGrid>
 
+      {/* Component Statistics Section */}
+      <CollapsibleSection
+        id="stockyard-component-stats"
+        title="Component Statistics"
+        defaultExpanded={false}
+        badge={allComponents?.total ? `${allComponents.total} total` : undefined}
+      >
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing.md }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/app/stockyard/components')}
+            icon={<ArrowRight size={16} />}
+          >
+            View All
+          </Button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: spacing.md }}>
+          <StatCard
+            label="Total Components"
+            value={allComponents?.total || 0}
+            color={colors.primary}
+            loading={loading}
+          />
+          <StatCard
+            label="Batteries"
+            value={batteryComponents?.total || 0}
+            color={colors.warning[500]}
+            icon={<Battery size={20} />}
+            loading={loading}
+          />
+          <StatCard
+            label="Tyres"
+            value={tyreComponents?.total || 0}
+            color={colors.neutral[600]}
+            icon={<Circle size={20} />}
+            loading={loading}
+          />
+          <StatCard
+            label="Spare Parts"
+            value={sparePartComponents?.total || 0}
+            color={colors.success[500]}
+            icon={<Wrench size={20} />}
+            loading={loading}
+          />
+          <StatCard
+            label="In Stock"
+            value={inStockComponents?.total || 0}
+            color={colors.success[600]}
+            loading={loading}
+          />
+        </div>
+      </CollapsibleSection>
+
+      {/* Recent Movements & Yard Occupancy Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg, marginTop: spacing.lg }}>
+        {/* Recent Component Movements */}
+        <CollapsibleSection
+          id="stockyard-recent-movements"
+          title="Recent Movements"
+          defaultExpanded={true}
+          badge={recentMovementsData?.data?.length ? `${recentMovementsData.data.length} events` : undefined}
+        >
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing.md }}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/app/stockyard/components')}
+              icon={<ArrowRight size={16} />}
+            >
+              View All
+            </Button>
+          </div>
+          {recentMovementsData?.data && recentMovementsData.data.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+              {recentMovementsData.data.slice(0, 5).map((event: ComponentCustodyEvent) => (
+                <div
+                  key={event.id}
+                  style={{
+                    padding: spacing.sm,
+                    backgroundColor: colors.neutral[50],
+                    borderRadius: '8px',
+                    border: `1px solid ${colors.neutral[200]}`,
+                    cursor: event.component_id ? 'pointer' : 'default',
+                  }}
+                  onClick={() => {
+                    if (event.component_id && event.component_type) {
+                      navigate(`/app/stockyard/components/${event.component_type}/${event.component_id}`);
+                    }
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.xs }}>
+                        <span
+                          style={{
+                            padding: '2px 8px',
+                            backgroundColor: 
+                              event.event_type === 'install' ? colors.success[100] :
+                              event.event_type === 'remove' ? colors.error[100] :
+                              event.event_type === 'transfer' ? colors.warning[100] :
+                              colors.neutral[100],
+                            color:
+                              event.event_type === 'install' ? colors.success[700] :
+                              event.event_type === 'remove' ? colors.error[700] :
+                              event.event_type === 'transfer' ? colors.warning[700] :
+                              colors.neutral[700],
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            textTransform: 'capitalize',
+                          }}
+                        >
+                          {event.event_type}
+                        </span>
+                        {event.component && (
+                          <span style={{ ...typography.body, fontSize: '13px', fontWeight: 600 }}>
+                            {event.component.brand} {event.component.model}
+                          </span>
+                        )}
+                      </div>
+                      {event.vehicle && (
+                        <div style={{ ...typography.caption, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                          Vehicle: {event.vehicle.registration_number}
+                        </div>
+                      )}
+                      {event.performer && (
+                        <div style={{ ...typography.caption, color: colors.neutral[500] }}>
+                          By: {event.performer.name}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ ...typography.caption, color: colors.neutral[500], textAlign: 'right' }}>
+                      {new Date(event.created_at).toLocaleDateString('en-IN', { 
+                        month: 'short', 
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: spacing.xl, color: colors.neutral[500] }}>
+              <Activity size={32} style={{ marginBottom: spacing.sm, opacity: 0.5 }} />
+              <p style={{ ...typography.body, margin: 0 }}>No recent movements</p>
+            </div>
+          )}
+        </CollapsibleSection>
+
+        {/* Yard Occupancy Visualization */}
+        <CollapsibleSection
+          id="stockyard-yard-occupancy"
+          title="Yard Occupancy"
+          defaultExpanded={true}
+          badge={stats.slots_total !== undefined ? `${stats.slots_occupied || 0}/${stats.slots_total} occupied` : undefined}
+        >
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing.md }}>
+            {stats.slots_total !== undefined && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/app/stockyard/yards')}
+                icon={<Map size={16} />}
+              >
+                View Map
+              </Button>
+            )}
+          </div>
+          {stats.slots_total !== undefined ? (
+            <div>
+              <div style={{ marginBottom: spacing.md }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+                  <span style={{ ...typography.body, fontSize: '14px' }}>Occupancy</span>
+                  <span style={{ ...typography.body, fontSize: '14px', fontWeight: 600 }}>
+                    {stats.slots_occupied || 0} / {stats.slots_total}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    width: '100%',
+                    height: '24px',
+                    backgroundColor: colors.neutral[200],
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${((stats.slots_occupied || 0) / stats.slots_total) * 100}%`,
+                      height: '100%',
+                      backgroundColor: 
+                        ((stats.slots_occupied || 0) / stats.slots_total) > 0.9 ? colors.error[500] :
+                        ((stats.slots_occupied || 0) / stats.slots_total) > 0.7 ? colors.warning[500] :
+                        colors.success[500],
+                      transition: 'width 0.3s ease',
+                    }}
+                  />
+                </div>
+                <div style={{ ...typography.caption, color: colors.neutral[600], marginTop: spacing.xs }}>
+                  {stats.slots_available || 0} slots available
+                </div>
+              </div>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(2, 1fr)', 
+                gap: spacing.sm,
+                marginTop: spacing.md,
+                paddingTop: spacing.md,
+                borderTop: `1px solid ${colors.neutral[200]}`,
+              }}>
+                <div>
+                  <div style={{ ...typography.caption, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                    Vehicles Inside
+                  </div>
+                  <div style={{ ...typography.header, fontSize: '24px', color: colors.primary, margin: 0 }}>
+                    {stats.vehicles_inside || 0}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ ...typography.caption, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                    Requests Today
+                  </div>
+                  <div style={{ ...typography.header, fontSize: '24px', color: colors.warning[500], margin: 0 }}>
+                    {stats.requests_today || 0}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: spacing.xl, color: colors.neutral[500] }}>
+              <Map size={32} style={{ marginBottom: spacing.sm, opacity: 0.5 }} />
+              <p style={{ ...typography.body, margin: 0 }}>Yard map not configured</p>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate('/app/stockyard/yards')}
+                style={{ marginTop: spacing.sm }}
+              >
+                Configure Yards
+              </Button>
+            </div>
+          )}
+        </CollapsibleSection>
+      </div>
+
       {/* Quick Actions */}
-      <ActionGrid>
+      <ActionGrid style={{ marginTop: spacing.lg }}>
         <Button
           variant="primary"
           onClick={() => navigate('/app/stockyard/create')}
@@ -245,6 +514,16 @@ export const StockyardDashboard: React.FC = () => {
           <AlertCircle size={20} style={{ marginRight: spacing.sm }} />
           Alerts
         </Button>
+        {stats.slots_total !== undefined && (
+          <Button
+            variant="secondary"
+            onClick={() => navigate('/app/stockyard/yards')}
+            style={{ width: '100%' }}
+          >
+            <Map size={20} style={{ marginRight: spacing.sm }} />
+            Yard Map
+          </Button>
+        )}
       </ActionGrid>
 
       {/* Filters */}
@@ -297,6 +576,34 @@ export const StockyardDashboard: React.FC = () => {
             </select>
           </div>
         </div>
+        
+        {/* Active Filter Badges */}
+        {(filter !== 'all' || typeFilter !== 'all' || searchQuery.trim()) && (
+          <FilterBadges
+            filters={[
+              ...(filter !== 'all' ? [{
+                label: 'Status',
+                value: filter.charAt(0).toUpperCase() + filter.slice(1),
+                onRemove: () => setFilter('all'),
+              }] : []),
+              ...(typeFilter !== 'all' ? [{
+                label: 'Type',
+                value: typeFilter,
+                onRemove: () => setTypeFilter('all'),
+              }] : []),
+              ...(searchQuery.trim() ? [{
+                label: 'Search',
+                value: `"${searchQuery}"`,
+                onRemove: () => setSearchQuery(''),
+              }] : []),
+            ]}
+            onClearAll={() => {
+              setFilter('all');
+              setTypeFilter('all');
+              setSearchQuery('');
+            }}
+          />
+        )}
       </div>
 
       {/* Requests List */}
@@ -412,6 +719,7 @@ export const StockyardDashboard: React.FC = () => {
         />
       )}
     </div>
+    </PullToRefreshWrapper>
   );
 };
 

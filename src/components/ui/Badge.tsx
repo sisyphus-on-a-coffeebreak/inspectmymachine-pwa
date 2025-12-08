@@ -54,16 +54,19 @@ const sizeStyles = {
     padding: `${spacing.xs} ${spacing.sm}`,
     fontSize: '11px',
     lineHeight: '16px',
+    minHeight: '24px',
   },
   md: {
     padding: `${spacing.xs} ${spacing.md}`,
     fontSize: '12px',
     lineHeight: '18px',
+    minHeight: '24px',
   },
   lg: {
     padding: `${spacing.sm} ${spacing.md}`,
     fontSize: '14px',
     lineHeight: '20px',
+    minHeight: '24px',
   },
 };
 
@@ -96,11 +99,12 @@ export const Badge: React.FC<BadgeProps> = ({
       {dot && (
         <span
           style={{
-            width: '6px',
-            height: '6px',
+            width: '9px',
+            height: '9px',
             borderRadius: '50%',
             backgroundColor: variantStyle.color,
             display: 'inline-block',
+            flexShrink: 0,
           }}
         />
       )}

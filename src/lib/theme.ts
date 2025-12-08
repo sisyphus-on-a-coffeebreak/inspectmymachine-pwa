@@ -410,6 +410,36 @@ export const buttonStyles = {
       ...buttonHoverStates.disabled,
     },
   },
+  
+  destructive: {
+    backgroundColor: colors.error[500],
+    color: 'white',
+    border: 'none',
+    borderRadius: borderRadius.md,
+    padding: `${spacing.md} ${spacing.lg}`,
+    fontSize: '16px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: shadows.sm,
+    // Hover state - darker red
+    '&:hover:not(:disabled)': {
+      ...buttonHoverStates.hover,
+      backgroundColor: colors.error[600],
+    },
+    // Active state
+    '&:active:not(:disabled)': {
+      ...buttonHoverStates.active,
+    },
+    // Focus state
+    '&:focus': {
+      ...focusRings.default,
+    },
+    // Disabled state
+    '&:disabled': {
+      ...buttonHoverStates.disabled,
+    },
+  },
 };
 
 // Helper function to get button hover styles (for inline use)

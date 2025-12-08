@@ -17,10 +17,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { colors, spacing, borderRadius, typography } from '@/lib/theme';
 import { AlertTriangle, CheckSquare, Square, UserPlus, Shield, Clock } from 'lucide-react';
-import type { UnifiedGatePassRecord } from '@/lib/services/GatePassService';
+import type { GatePass } from '@/pages/gatepass/gatePassTypes';
 
 export interface GuardDetailsModalProps {
-  record: UnifiedGatePassRecord;
+  record: GatePass;
   onConfirm: (data: GuardActionData) => Promise<void>;
   onCancel: () => void;
   onClose: () => void;

@@ -8,9 +8,9 @@ import type { Vehicle } from '../gatePassTypes';
 // Fetches live data from backend, shows vehicle details
 
 interface VehicleSelectorProps {
-  onSelect: (vehicleId: number) => void;
-  onRemove: (vehicleId: number) => void;
-  selectedVehicleIds: number[];
+  onSelect: (vehicleId: number | string) => void;
+  onRemove: (vehicleId: number | string) => void;
+  selectedVehicleIds: (number | string)[];
   multiple?: boolean;
   label?: string;
   required?: boolean;
@@ -83,16 +83,22 @@ export const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     }
   };
 
-  const selectedVehicles = vehicles.filter(v => selectedVehicleIds.includes(v.id));
+  // Normalize selected IDs to strings for comparison
+  const normalizedSelectedIds = selectedVehicleIds.map(id => String(id));
   
-  const filteredVehicles = vehicles.filter(v => 
-    !selectedVehicleIds.includes(v.id) &&
-    (v.registration_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     v.make.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     v.model.toLowerCase().includes(searchTerm.toLowerCase()))
+  const selectedVehicles = vehicles.filter(v => 
+    normalizedSelectedIds.includes(String(v.id))
   );
+  
+  const filteredVehicles = vehicles.filter(v => {
+    const isSelected = normalizedSelectedIds.includes(String(v.id));
+    return !isSelected &&
+      (v.registration_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       v.make?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       v.model?.toLowerCase().includes(searchTerm.toLowerCase()));
+  });
 
-  const handleSelect = (vehicleId: number) => {
+  const handleSelect = (vehicleId: number | string) => {
     onSelect(vehicleId);
     setSearchTerm('');
     setShowDropdown(false);

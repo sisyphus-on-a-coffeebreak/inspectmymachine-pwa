@@ -5,7 +5,7 @@
  * Supports sorting, row selection, click handlers, and accessibility
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { colors, typography, spacing, borderRadius, cardStyles } from '../../lib/theme';
 import { SkeletonTable } from './SkeletonLoader';
 import { EmptyState } from './EmptyState';
@@ -38,7 +38,7 @@ export interface DataTableProps<T> {
   stickyHeader?: boolean;
 }
 
-export function DataTable<T extends Record<string, any>>({
+function DataTableComponent<T extends Record<string, any>>({
   data,
   columns,
   loading = false,
@@ -62,27 +62,29 @@ export function DataTable<T extends Record<string, any>>({
     new Set(selectedRows.map(getRowId))
   );
 
-  // Handle row selection
-  const handleRowSelect = (row: T, checked: boolean) => {
+  // Handle row selection - memoized with useCallback
+  const handleRowSelect = useCallback((row: T, checked: boolean) => {
     const rowId = getRowId(row);
-    const newSelectedIds = new Set(selectedRowIds);
-    
-    if (checked) {
-      newSelectedIds.add(rowId);
-    } else {
-      newSelectedIds.delete(rowId);
-    }
-    
-    setSelectedRowIds(newSelectedIds);
-    
-    if (onRowSelect) {
-      const selected = data.filter((r) => newSelectedIds.has(getRowId(r)));
-      onRowSelect(selected);
-    }
-  };
+    setSelectedRowIds((prev) => {
+      const newSelectedIds = new Set(prev);
+      
+      if (checked) {
+        newSelectedIds.add(rowId);
+      } else {
+        newSelectedIds.delete(rowId);
+      }
+      
+      if (onRowSelect) {
+        const selected = data.filter((r) => newSelectedIds.has(getRowId(r)));
+        onRowSelect(selected);
+      }
+      
+      return newSelectedIds;
+    });
+  }, [data, getRowId, onRowSelect]);
 
-  // Handle select all
-  const handleSelectAll = (checked: boolean) => {
+  // Handle select all - memoized with useCallback
+  const handleSelectAll = useCallback((checked: boolean) => {
     if (checked) {
       const allIds = new Set(data.map(getRowId));
       setSelectedRowIds(allIds);
@@ -95,10 +97,10 @@ export function DataTable<T extends Record<string, any>>({
         onRowSelect([]);
       }
     }
-  };
+  }, [data, getRowId, onRowSelect]);
 
-  // Handle sorting
-  const handleSort = (key: string) => {
+  // Handle sorting - memoized with useCallback
+  const handleSort = useCallback((key: string) => {
     if (!sortable) return;
     
     const column = columns.find((col) => col.key === key);
@@ -113,7 +115,7 @@ export function DataTable<T extends Record<string, any>>({
       }
       return { key, direction: 'asc' };
     });
-  };
+  }, [sortable, columns]);
 
   // Sort data
   const sortedData = useMemo(() => {
@@ -142,11 +144,22 @@ export function DataTable<T extends Record<string, any>>({
     });
   }, [data, sortConfig, columns]);
 
-  const allSelected = data.length > 0 && selectedRowIds.size === data.length;
-  const someSelected = selectedRowIds.size > 0 && selectedRowIds.size < data.length;
+  // Memoize selection state
+  const allSelected = useMemo(() => 
+    data.length > 0 && selectedRowIds.size === data.length,
+    [data.length, selectedRowIds.size]
+  );
+  const someSelected = useMemo(() => 
+    selectedRowIds.size > 0 && selectedRowIds.size < data.length,
+    [selectedRowIds.size, data.length]
+  );
 
   if (loading) {
-    return <SkeletonTable rows={5} columns={columns.length} />;
+    return (
+      <div role="status" aria-live="polite" aria-busy="true">
+        <SkeletonTable rows={5} columns={columns.length} />
+      </div>
+    );
   }
 
   if (data.length === 0) {
@@ -159,6 +172,108 @@ export function DataTable<T extends Record<string, any>>({
     );
   }
 
+  // Render mobile card view
+  const renderMobileCard = (row: T, index: number) => {
+    const rowId = getRowId(row);
+    const isSelected = selectedRowIds.has(rowId);
+    const rowClass = rowClassName ? rowClassName(row, index) : '';
+
+    return (
+      <div
+        key={rowId}
+        className={`data-table-mobile-card ${rowClass}`}
+        onClick={() => onRowClick && onRowClick(row, index)}
+        onKeyDown={(e) => {
+          if (onRowClick && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onRowClick(row, index);
+          }
+        }}
+        tabIndex={onRowClick ? 0 : -1}
+        role={onRowClick ? 'button' : 'article'}
+        aria-label={onRowClick ? `Row ${index + 1}: Click to view details` : undefined}
+        aria-selected={selectable ? isSelected : undefined}
+        style={{
+          ...cardStyles.base,
+          padding: spacing.md,
+          marginBottom: spacing.md,
+          cursor: onRowClick ? 'pointer' : 'default',
+          backgroundColor: isSelected ? colors.primary + '10' : 'white',
+          border: `1px solid ${isSelected ? colors.primary : colors.neutral[200]}`,
+          transition: 'all 0.2s ease',
+        }}
+      >
+        {selectable && (
+          <div 
+            style={{ 
+              marginBottom: spacing.sm,
+              padding: '12px', // Add padding to create 44x44px touch target (20px + 12px*2 = 44px)
+              margin: '-12px -12px 0 -12px', // Negative margin to maintain layout
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={(e) => {
+                e.stopPropagation();
+                handleRowSelect(row, e.target.checked);
+              }}
+              aria-label={`Select row ${index + 1}`}
+              style={{
+                width: '20px',
+                height: '20px',
+                cursor: 'pointer',
+                minWidth: '20px',
+                minHeight: '20px',
+              }}
+            />
+          </div>
+        )}
+        {columns.map((column) => {
+          const value = row[column.key];
+          const renderedValue = column.render
+            ? column.render(value, row, index)
+            : value;
+
+          return (
+            <div
+              key={column.key}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                marginBottom: spacing.sm,
+                paddingBottom: spacing.sm,
+                borderBottom: `1px solid ${colors.neutral[100]}`,
+              }}
+            >
+              <div
+                style={{
+                  ...typography.label,
+                  fontSize: '11px',
+                  color: colors.neutral[600],
+                  marginBottom: spacing.xs,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                {column.label}
+              </div>
+              <div
+                style={{
+                  ...typography.body,
+                  color: colors.neutral[900],
+                  fontSize: '14px',
+                }}
+              >
+                {renderedValue}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div
       className={`data-table ${className}`}
@@ -168,7 +283,18 @@ export function DataTable<T extends Record<string, any>>({
         padding: 0,
       }}
     >
-      <div style={{ overflowX: 'auto' }}>
+      {/* Mobile Card View */}
+      <div 
+        className="data-table-mobile-view" 
+        style={{ display: 'none' }}
+        role="list"
+        aria-label="Data table rows"
+      >
+        {sortedData.map((row, index) => renderMobileCard(row, index))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="data-table-desktop-view" style={{ overflowX: 'auto' }}>
         <table
           style={{
             width: '100%',
@@ -179,7 +305,7 @@ export function DataTable<T extends Record<string, any>>({
         >
           <thead
             style={{
-              backgroundColor: colors.neutral[50],
+              backgroundColor: colors.neutral[100],
               borderBottom: `1px solid ${colors.neutral[200]}`,
               position: stickyHeader ? 'sticky' : 'static',
               top: 0,
@@ -198,20 +324,24 @@ export function DataTable<T extends Record<string, any>>({
                     fontWeight: 600,
                   }}
                 >
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    ref={(input) => {
-                      if (input) input.indeterminate = someSelected;
-                    }}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    aria-label="Select all rows"
-                    style={{
-                      width: '18px',
-                      height: '18px',
-                      cursor: 'pointer',
-                    }}
-                  />
+                  <div style={{ padding: '12px', display: 'inline-block' }}>
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      ref={(input) => {
+                        if (input) input.indeterminate = someSelected;
+                      }}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      aria-label="Select all rows"
+                      style={{
+                        width: '20px',
+                        height: '20px',
+                        cursor: 'pointer',
+                        minWidth: '20px',
+                        minHeight: '20px',
+                      }}
+                    />
+                  </div>
                 </th>
               )}
               {columns.map((column) => (
@@ -266,7 +396,7 @@ export function DataTable<T extends Record<string, any>>({
                             color:
                               sortConfig?.key === column.key && sortConfig.direction === 'asc'
                                 ? colors.primary
-                                : colors.neutral[400],
+                                : colors.neutral[500], // Improved contrast for accessibility
                           }}
                         />
                         <ChevronDown
@@ -275,7 +405,7 @@ export function DataTable<T extends Record<string, any>>({
                             color:
                               sortConfig?.key === column.key && sortConfig.direction === 'desc'
                                 ? colors.primary
-                                : colors.neutral[400],
+                                : colors.neutral[500], // Improved contrast for accessibility
                           }}
                         />
                       </div>
@@ -314,7 +444,7 @@ export function DataTable<T extends Record<string, any>>({
                       ? colors.primary + '10'
                       : index % 2 === 0
                       ? 'white'
-                      : colors.neutral[50],
+                      : colors.neutral[100],
                   }}
                   onMouseEnter={(e) => {
                     if (!isSelected) {
@@ -324,7 +454,7 @@ export function DataTable<T extends Record<string, any>>({
                   onMouseLeave={(e) => {
                     if (!isSelected) {
                       e.currentTarget.style.backgroundColor =
-                        index % 2 === 0 ? 'white' : colors.neutral[50];
+                        index % 2 === 0 ? 'white' : colors.neutral[100];
                     }
                   }}
                 >
@@ -375,9 +505,42 @@ export function DataTable<T extends Record<string, any>>({
           </tbody>
         </table>
       </div>
+      <style>{`
+        /* Mobile: Show cards, hide table */
+        @media (max-width: 767px) {
+          .data-table-mobile-view {
+            display: block !important;
+            padding: ${spacing.md};
+          }
+          .data-table-desktop-view {
+            display: none !important;
+          }
+        }
+        
+        /* Desktop: Show table, hide cards */
+        @media (min-width: 768px) {
+          .data-table-mobile-view {
+            display: none !important;
+          }
+          .data-table-desktop-view {
+            display: block !important;
+          }
+        }
+        
+        /* Mobile card hover effect */
+        @media (max-width: 767px) {
+          .data-table-mobile-card:hover {
+            transform: translateY(-2px);
+            box-shadow: ${shadows.md};
+          }
+        }
+      `}</style>
     </div>
   );
 }
+
+// Memoize DataTable to prevent unnecessary re-renders
+export const DataTable = React.memo(DataTableComponent) as typeof DataTableComponent;
 
 export default DataTable;
 

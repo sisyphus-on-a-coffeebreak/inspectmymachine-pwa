@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { logger } from '../lib/logger';
 
 export interface ShareData {
   title?: string;
@@ -7,13 +8,20 @@ export interface ShareData {
   files?: File[];
 }
 
+export interface UseNativeShareOptions {
+  onSuccess?: (shared: boolean) => void;
+  onError?: (error: Error) => void;
+  showToast?: (options: { title: string; description?: string; variant?: 'success' | 'error' | 'warning' | 'info' }) => void;
+}
+
 export interface UseNativeShareReturn {
   share: (data: ShareData) => Promise<boolean>;
   canShare: boolean;
   canShareFiles: boolean;
 }
 
-export function useNativeShare(): UseNativeShareReturn {
+export function useNativeShare(options: UseNativeShareOptions = {}): UseNativeShareReturn {
+  const { onSuccess, onError, showToast } = options;
   const canShare = typeof navigator.share === 'function';
   const canShareFiles = typeof navigator.canShare === 'function';
 
@@ -55,8 +63,14 @@ export function useNativeShare(): UseNativeShareReturn {
       if (textToCopy && navigator.clipboard) {
         await navigator.clipboard.writeText(textToCopy);
         
-        // Show toast notification (you can integrate with your toast system)
-        if (window.dispatchEvent) {
+        // Show toast notification
+        if (showToast) {
+          showToast({
+            title: 'Copied to Clipboard',
+            description: 'Link copied to clipboard',
+            variant: 'success',
+          });
+        } else if (window.dispatchEvent) {
           window.dispatchEvent(
             new CustomEvent('toast', {
               detail: {
@@ -66,6 +80,7 @@ export function useNativeShare(): UseNativeShareReturn {
             })
           );
         }
+        if (onSuccess) onSuccess(false);
         return false;
       }
 
@@ -77,14 +92,20 @@ export function useNativeShare(): UseNativeShareReturn {
         return false;
       }
       
-      console.error('Share failed:', error);
+      logger.error('Share failed', error, 'useNativeShare');
       
       // Fallback to clipboard on error
       try {
         const textToCopy = data.url || data.text || data.title || '';
         if (textToCopy && navigator.clipboard) {
           await navigator.clipboard.writeText(textToCopy);
-          if (window.dispatchEvent) {
+          if (showToast) {
+            showToast({
+              title: 'Copied to Clipboard',
+              description: 'Link copied to clipboard',
+              variant: 'success',
+            });
+          } else if (window.dispatchEvent) {
             window.dispatchEvent(
               new CustomEvent('toast', {
                 detail: {
@@ -94,14 +115,15 @@ export function useNativeShare(): UseNativeShareReturn {
               })
             );
           }
+          if (onSuccess) onSuccess(false);
         }
       } catch (clipboardError) {
-        console.error('Clipboard copy failed:', clipboardError);
+        if (onError) onError(clipboardError as Error);
       }
       
       return false;
     }
-  }, [canShare, canShareFiles]);
+  }, [canShare, canShareFiles, onSuccess, onError, showToast]);
 
   return {
     share,

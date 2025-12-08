@@ -83,60 +83,8 @@ export const CashflowAnalysisDashboard: React.FC = () => {
       });
       setCashflowData(response.data);
     } catch (error) {
-      // Mock data for development (fallback)
-      setCashflowData({
-        total_revenue: 2500000,
-        total_expenses: 1800000,
-        net_profit: 700000,
-        profit_margin: 28,
-        cash_flow_positive: true,
-        monthly_trend: [
-          { month: '2024-01', revenue: 800000, expenses: 600000, profit: 200000 },
-          { month: '2024-02', revenue: 850000, expenses: 620000, profit: 230000 },
-          { month: '2024-03', revenue: 900000, expenses: 650000, profit: 250000 },
-          { month: '2024-04', revenue: 950000, expenses: 680000, profit: 270000 }
-        ],
-        asset_performance: [
-          {
-            asset_id: '1',
-            asset_name: 'Vehicle ABC-1234',
-            revenue: 500000,
-            expenses: 125000,
-            profit: 375000,
-            roi_percentage: 300,
-            cost_efficiency: 85
-          },
-          {
-            asset_id: '2',
-            asset_name: 'Laptop Dell XPS',
-            revenue: 200000,
-            expenses: 25000,
-            profit: 175000,
-            roi_percentage: 700,
-            cost_efficiency: 95
-          }
-        ],
-        project_performance: [
-          {
-            project_id: '1',
-            project_name: 'Project Alpha',
-            revenue: 1200000,
-            expenses: 450000,
-            profit: 750000,
-            profit_margin: 62.5,
-            cost_per_deliverable: 15000
-          },
-          {
-            project_id: '2',
-            project_name: 'Project Beta',
-            revenue: 800000,
-            expenses: 720000,
-            profit: 80000,
-            profit_margin: 10,
-            cost_per_deliverable: 24000
-          }
-        ]
-      });
+      // Show empty state instead of mock data
+      setCashflowData(null);
     } finally {
       setLoading(false);
     }
@@ -149,36 +97,8 @@ export const CashflowAnalysisDashboard: React.FC = () => {
       });
       setInvestmentAnalysis(response.data);
     } catch (error) {
-      // Error is already handled by apiClient
-      // Mock data for development
-      setInvestmentAnalysis([
-        {
-          asset_id: '1',
-          asset_name: 'Vehicle ABC-1234',
-          purchase_price: 300000,
-          current_value: 225000,
-          total_revenue: 500000,
-          total_expenses: 125000,
-          net_profit: 375000,
-          roi_percentage: 125,
-          payback_period_months: 8,
-          recommendation: 'keep',
-          reason: 'High ROI and good performance'
-        },
-        {
-          asset_id: '2',
-          asset_name: 'Laptop Dell XPS',
-          purchase_price: 50000,
-          current_value: 35000,
-          total_revenue: 200000,
-          total_expenses: 25000,
-          net_profit: 175000,
-          roi_percentage: 350,
-          payback_period_months: 3,
-          recommendation: 'keep',
-          reason: 'Excellent ROI and efficiency'
-        }
-      ]);
+      // Show empty state instead of mock data
+      setInvestmentAnalysis([]);
     }
   }, [selectedPeriod]);
 
@@ -190,39 +110,8 @@ export const CashflowAnalysisDashboard: React.FC = () => {
       setCostEfficiency(response.data);
     } catch (error) {
       // Error is already handled by apiClient
-      // Mock data for development
-      setCostEfficiency([
-        {
-          category: 'Labor',
-          total_cost: 800000,
-          output_units: 1000,
-          cost_per_unit: 800,
-          efficiency_score: 85,
-          benchmark_cost: 750,
-          variance_percentage: 6.7,
-          recommendation: 'Optimize workforce allocation'
-        },
-        {
-          category: 'Materials',
-          total_cost: 400000,
-          output_units: 500,
-          cost_per_unit: 800,
-          efficiency_score: 90,
-          benchmark_cost: 850,
-          variance_percentage: -5.9,
-          recommendation: 'Good cost control'
-        },
-        {
-          category: 'Equipment',
-          total_cost: 200000,
-          output_units: 200,
-          cost_per_unit: 1000,
-          efficiency_score: 75,
-          benchmark_cost: 900,
-          variance_percentage: 11.1,
-          recommendation: 'Review equipment utilization'
-        }
-      ]);
+      // Show empty state instead of mock data
+      setCostEfficiency([]);
     }
   }, [selectedPeriod]);
 

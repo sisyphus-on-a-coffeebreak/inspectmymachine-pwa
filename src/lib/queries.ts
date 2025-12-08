@@ -11,6 +11,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';
 import { apiClient, normalizeError } from './apiClient';
+import { logger } from './logger';
 
 // Query Keys - Centralized for consistency
 export const queryKeys = {
@@ -149,13 +150,49 @@ export const queryKeys = {
   },
 } as const;
 
-// Default query options
+// Default query options - optimized per query type
 const defaultQueryOptions = {
   staleTime: 5 * 60 * 1000, // 5 minutes
   gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
   retry: 2,
   refetchOnWindowFocus: false,
   refetchOnReconnect: true,
+};
+
+// Query-specific options for better performance
+export const queryOptions = {
+  // Dashboard stats - refresh frequently but cache well
+  dashboard: {
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000, // Background refetch every 5 minutes
+    refetchOnWindowFocus: true,
+  },
+  // List queries - moderate caching
+  list: {
+    staleTime: 3 * 60 * 1000, // 3 minutes
+    gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  },
+  // Detail queries - longer cache (data changes less frequently)
+  detail: {
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: true,
+  },
+  // Real-time data - short cache, frequent refetch
+  realtime: {
+    staleTime: 30 * 1000, // 30 seconds
+    gcTime: 5 * 60 * 1000,
+    refetchInterval: 30 * 1000, // Refetch every 30 seconds
+    refetchOnWindowFocus: true,
+  },
+  // Static/reference data - long cache
+  reference: {
+    staleTime: 60 * 60 * 1000, // 1 hour
+    gcTime: 24 * 60 * 60 * 1000, // 24 hours
+    refetchOnWindowFocus: false,
+  },
 };
 
 /**
@@ -165,7 +202,9 @@ export function useDashboardStats(options?: Omit<UseQueryOptions<any, Error>, 'q
   return useQuery({
     queryKey: queryKeys.dashboard.stats(),
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: any }>('/v1/dashboard');
+      const response = await apiClient.get<{ success: boolean; data: any }>('/v1/dashboard', {
+        suppressErrorLog: true, // Suppress console errors for connection failures
+      });
       // Handle both response formats: { success: true, data: {...} } or direct data
       if (response.data.success && response.data.data) {
         return response.data.data;
@@ -173,6 +212,18 @@ export function useDashboardStats(options?: Omit<UseQueryOptions<any, Error>, 'q
       return response.data;
     },
     ...defaultQueryOptions,
+    ...queryOptions.dashboard,
+    retry: (failureCount, error) => {
+      // Don't retry on connection errors - server is likely down
+      if (error && typeof error === 'object' && 'code' in error) {
+        const code = (error as any).code;
+        if (code === 'ERR_CONNECTION_REFUSED' || code === 'ERR_NETWORK') {
+          return false;
+        }
+      }
+      // Retry up to 2 times for other errors
+      return failureCount < 2;
+    },
     ...options,
   });
 }
@@ -231,41 +282,48 @@ export function usePermissionChanges(
 }
 
 /**
- * Hook for fetching gate passes (visitor + vehicle)
+ * Hook for fetching gate passes (visitor + vehicle) - Unified API v2
+ * @deprecated Use useGatePasses from '@/hooks/useGatePasses' instead
+ * This is kept for backward compatibility
  */
 export function useGatePasses(
-  filters?: { status?: string; page?: number; per_page?: number },
+  filters?: { status?: string; page?: number; per_page?: number; type?: string },
   options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
 ) {
   return useQuery({
     queryKey: queryKeys.gatePasses.list(filters),
     queryFn: async () => {
-      // Fetch visitor and vehicle passes separately
-      const [visitorRes, vehicleEntryRes, vehicleExitRes] = await Promise.allSettled([
-        apiClient.get('/visitor-gate-passes', { params: filters }),
-        apiClient.get('/vehicle-entry-passes', { params: filters }),
-        apiClient.get('/vehicle-exit-passes', { params: filters }),
-      ]);
+      // Use unified v2 API endpoint
+      const params: Record<string, any> = {
+        ...filters,
+        per_page: filters?.per_page || 20,
+        page: filters?.page || 1,
+      };
 
-      const visitorPasses = visitorRes.status === 'fulfilled' 
-        ? (Array.isArray(visitorRes.value.data) ? visitorRes.value.data : visitorRes.value.data?.data || [])
-        : [];
-      
-      const vehicleEntryPasses = vehicleEntryRes.status === 'fulfilled'
-        ? (Array.isArray(vehicleEntryRes.value.data) ? vehicleEntryRes.value.data : vehicleEntryRes.value.data?.data || [])
-        : [];
-      
-      const vehicleExitPasses = vehicleExitRes.status === 'fulfilled'
-        ? (Array.isArray(vehicleExitRes.value.data) ? vehicleExitRes.value.data : vehicleExitRes.value.data?.data || [])
-        : [];
+      // Map status filter to comma-separated if needed
+      if (params.status) {
+        params.status = params.status;
+      }
 
-      const vehicleMovements = [...vehicleEntryPasses, ...vehicleExitPasses];
-      const total = visitorPasses.length + vehicleMovements.length;
+      const response = await apiClient.get('/v2/gate-passes', { params });
+      
+      // Backend returns paginated response
+      const responseData = response.data;
+      const data = responseData.data || responseData.items || [];
+      
+      // Separate by pass_type for backward compatibility
+      const visitorPasses = data.filter((p: any) => p.pass_type === 'visitor');
+      const vehicleMovements = data.filter((p: any) => 
+        p.pass_type === 'vehicle_inbound' || p.pass_type === 'vehicle_outbound'
+      );
 
       return {
         visitorPasses,
         vehicleMovements,
-        total,
+        total: responseData.total || responseData.pagination?.total || data.length,
+        page: responseData.page || responseData.pagination?.current_page || 1,
+        per_page: responseData.per_page || responseData.pagination?.per_page || 20,
+        last_page: responseData.last_page || responseData.pagination?.last_page || 1,
       };
     },
     ...defaultQueryOptions,
@@ -274,7 +332,9 @@ export function useGatePasses(
 }
 
 /**
- * Hook for fetching gate pass statistics
+ * Hook for fetching gate pass statistics - Unified API v2
+ * @deprecated Use useGatePassStats from '@/hooks/useGatePasses' instead
+ * This is kept for backward compatibility
  */
 export function useGatePassStats(
   options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
@@ -282,22 +342,9 @@ export function useGatePassStats(
   return useQuery({
     queryKey: queryKeys.gatePasses.stats(),
     queryFn: async () => {
-      // Fetch stats from multiple endpoints
-      const [visitorRes, vehicleEntryRes, vehicleExitRes] = await Promise.allSettled([
-        apiClient.get('/visitor-gate-passes/stats').catch(() => ({ data: {} })),
-        apiClient.get('/vehicle-entry-passes/stats').catch(() => ({ data: {} })),
-        apiClient.get('/vehicle-exit-passes/stats').catch(() => ({ data: {} })),
-      ]);
-
-      const visitorStats = visitorRes.status === 'fulfilled' ? visitorRes.value.data : {};
-      const vehicleEntryStats = vehicleEntryRes.status === 'fulfilled' ? vehicleEntryRes.value.data : {};
-      const vehicleExitStats = vehicleExitRes.status === 'fulfilled' ? vehicleExitRes.value.data : {};
-
-      return {
-        ...visitorStats,
-        ...vehicleEntryStats,
-        ...vehicleExitStats,
-      };
+      // Use unified v2 stats endpoint
+      const response = await apiClient.get('/v2/gate-passes-stats');
+      return response.data;
     },
     ...defaultQueryOptions,
     ...options,
@@ -315,15 +362,17 @@ export function useExpenses(
     queryKey: queryKeys.expenses.list(filters),
     queryFn: async () => {
       const response = await apiClient.get('/v1/expenses', { params: filters });
-      const data = Array.isArray(response.data) 
-        ? response.data 
-        : (response.data as any)?.items || [];
+      // Backend returns { data: [...], total, per_page, current_page, last_page }
+      const responseData = response.data;
+      const data = Array.isArray(responseData) 
+        ? responseData 
+        : (responseData as any)?.data || (responseData as any)?.items || [];
       return {
         data,
-        total: (response.data as any)?.total || data.length,
-        page: (response.data as any)?.page || 1,
-        per_page: (response.data as any)?.per_page || filters?.per_page || 20,
-        last_page: (response.data as any)?.last_page || 1,
+        total: (responseData as any)?.total || data.length,
+        page: (responseData as any)?.current_page || (responseData as any)?.page || 1,
+        per_page: (responseData as any)?.per_page || filters?.per_page || 20,
+        last_page: (responseData as any)?.last_page || 1,
       };
     },
     ...defaultQueryOptions,
@@ -341,6 +390,71 @@ export function useFloatBalance(
     queryKey: ['float', 'balance'],
     queryFn: async () => {
       const response = await apiClient.get('/v1/float/me');
+      return response.data;
+    },
+    ...defaultQueryOptions,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching ledger transactions
+ */
+export function useLedgerTransactions(
+  filters?: { type?: 'CR' | 'DR' | 'OPENING'; date_from?: string; date_to?: string; search?: string; per_page?: number; page?: number },
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: ['ledger', 'transactions', filters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (filters?.type) params.append('type', filters.type);
+      if (filters?.date_from) params.append('date_from', filters.date_from);
+      if (filters?.date_to) params.append('date_to', filters.date_to);
+      if (filters?.search) params.append('search', filters.search);
+      if (filters?.per_page) params.append('per_page', filters.per_page.toString());
+      if (filters?.page) params.append('page', filters.page.toString());
+      
+      const response = await apiClient.get(`/v1/ledger/transactions?${params.toString()}`);
+      return response.data;
+    },
+    ...defaultQueryOptions,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching advances
+ * REQUIRED: This endpoint must exist on the backend
+ */
+export function useAdvances(
+  filters?: { status?: string },
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: ['advances', filters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (filters?.status) params.append('status', filters.status);
+      
+      const response = await apiClient.get(`/v1/advances?${params.toString()}`);
+      return response.data;
+    },
+    ...defaultQueryOptions,
+    ...options,
+  });
+}
+
+/**
+ * Hook for fetching reconciliation data
+ */
+export function useReconciliation(
+  options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: ['ledger', 'reconciliation'],
+    queryFn: async () => {
+      const response = await apiClient.get('/v1/ledger/reconciliation');
       return response.data;
     },
     ...defaultQueryOptions,
@@ -402,8 +516,34 @@ export function useApproveExpense(
   
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data?: Record<string, unknown> }) => {
-      const response = await apiClient.post(`/expense-approval/${id}/approve`, data || {});
+      const response = await apiClient.post(`/expense-approval/approve/${id}`, data || {});
       return response.data;
+    },
+    // Optimistic update
+    onMutate: async ({ id }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: queryKeys.expenses.approval.all() });
+      
+      // Snapshot previous value
+      const previousApprovals = queryClient.getQueryData(queryKeys.expenses.approval.all());
+      
+      // Optimistically update - remove from pending list
+      queryClient.setQueryData(queryKeys.expenses.approval.all(), (old: any) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: old.data.filter((expense: any) => expense.id !== id),
+        };
+      });
+      
+      // Return context for rollback
+      return { previousApprovals };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousApprovals) {
+        queryClient.setQueryData(queryKeys.expenses.approval.all(), context.previousApprovals);
+      }
     },
     onSuccess: () => {
       // Invalidate related queries
@@ -425,8 +565,34 @@ export function useRejectExpense(
   
   return useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      const response = await apiClient.post(`/expense-approval/${id}/reject`, { reason });
+      const response = await apiClient.post(`/expense-approval/reject/${id}`, { reason });
       return response.data;
+    },
+    // Optimistic update
+    onMutate: async ({ id }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: queryKeys.expenses.approval.all() });
+      
+      // Snapshot previous value
+      const previousApprovals = queryClient.getQueryData(queryKeys.expenses.approval.all());
+      
+      // Optimistically update - remove from pending list
+      queryClient.setQueryData(queryKeys.expenses.approval.all(), (old: any) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: old.data.filter((expense: any) => expense.id !== id),
+        };
+      });
+      
+      // Return context for rollback
+      return { previousApprovals };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousApprovals) {
+        queryClient.setQueryData(queryKeys.expenses.approval.all(), context.previousApprovals);
+      }
     },
     onSuccess: () => {
       // Invalidate related queries
@@ -504,10 +670,13 @@ export function useInspectionDashboard(
     queryKey: queryKeys.inspections.dashboard(),
     queryFn: async () => {
       const response = await apiClient.get('/v1/inspection-dashboard');
-      // Handle response format: { stats: {...}, recent_inspections: [...] }
+      // Handle response format: { stats: {...}, recent_inspections: [...], daily_trends: [...] }
       return {
         stats: response.data.stats || response.data,
         recent_inspections: response.data.recent_inspections || [],
+        daily_trends: response.data.daily_trends || [],
+        vehicle_type_breakdown: response.data.vehicle_type_breakdown || [],
+        inspector_performance: response.data.inspector_performance || [],
       };
     },
     ...defaultQueryOptions,
@@ -752,15 +921,11 @@ export function useComponents(
         // Handle 404 or other errors gracefully
         if (error?.response?.status === 404) {
           // Only log in development mode
-          if (import.meta.env.DEV) {
-            console.debug('Components endpoint not found, returning empty list');
-          }
+          logger.debug('Components endpoint not found, returning empty list', undefined, 'queries');
           return { data: [], total: 0, page: 1, per_page: 20, last_page: 1 };
         }
         // Only log unexpected errors
-        if (import.meta.env.DEV) {
-          console.error('Failed to fetch components:', error);
-        }
+        logger.error('Failed to fetch components', error, 'queries');
         return { data: [], total: 0, page: 1, per_page: 20, last_page: 1 };
       }
     },
@@ -791,15 +956,11 @@ export function useComponent(
         // Handle 404 or other errors gracefully
         if (error?.response?.status === 404) {
           // Only log in development mode
-          if (import.meta.env.DEV) {
-            console.debug(`Component ${type}/${id} not found`);
-          }
+          logger.debug(`Component ${type}/${id} not found`, undefined, 'queries');
           return null;
         }
         // Only log unexpected errors
-        if (import.meta.env.DEV) {
-          console.error('Failed to fetch component:', error);
-        }
+        logger.error('Failed to fetch component', error, 'queries');
         return null;
       }
     },
@@ -897,15 +1058,11 @@ export function useNotifications(
         // Handle 404 or other errors gracefully
         if (error?.response?.status === 404) {
           // Only log in development mode
-          if (import.meta.env.DEV) {
-            console.debug('Notifications endpoint not found, returning empty list');
-          }
+          logger.debug('Notifications endpoint not found, returning empty list', undefined, 'queries');
           return { data: [], total: 0, page: 1, per_page: 20, last_page: 1 };
         }
         // Only log unexpected errors
-        if (import.meta.env.DEV) {
-          console.error('Failed to fetch notifications:', error);
-        }
+        logger.error('Failed to fetch notifications', error, 'queries');
         return { data: [], total: 0, page: 1, per_page: 20, last_page: 1 };
       }
     },
@@ -941,8 +1098,8 @@ export function useUnreadNotificationCount(
         }
         // For other errors, also return 0 to prevent UI breakage
         // Only log unexpected errors in development
-        if (import.meta.env.DEV && error?.response?.status !== 404) {
-          console.error('Failed to fetch unread notification count:', error);
+        if (error?.response?.status !== 404) {
+          logger.error('Failed to fetch unread notification count', error, 'queries');
         }
         return 0;
       }
@@ -1035,15 +1192,11 @@ export function useComponentCostAnalysis(
         // Handle 404 or other errors gracefully
         if (error?.response?.status === 404) {
           // Only log in development mode
-          if (import.meta.env.DEV) {
-            console.debug('Components cost-analysis endpoint not found');
-          }
+          logger.debug('Components cost-analysis endpoint not found', undefined, 'queries');
           return { success: false, data: null };
         }
         // Only log unexpected errors
-        if (import.meta.env.DEV) {
-          console.error('Failed to fetch component cost analysis:', error);
-        }
+        logger.error('Failed to fetch component cost analysis', error, 'queries');
         return { success: false, data: null };
       }
     },

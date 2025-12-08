@@ -1,4 +1,5 @@
 import type { jsPDF as JsPDFConstructor } from 'jspdf';
+import { logger } from './logger';
 
 export interface PassData {
   passNumber: string;
@@ -41,7 +42,17 @@ const loadJsPdf = async () => {
 
 const loadQrCodeModule = async () => {
   if (!qrCodeModulePromise) {
-    qrCodeModulePromise = import('qrcode');
+    // Import qrcode - it exports toDataURL as a named export
+    qrCodeModulePromise = import('qrcode').then((mod) => {
+      // qrcode library exports toDataURL directly as a named export
+      if (typeof mod.toDataURL === 'function') {
+        return mod;
+      }
+      throw new Error('qrcode module does not export toDataURL function');
+    }).catch((error) => {
+      console.error('[loadQrCodeModule] Failed to load qrcode:', error);
+      throw new Error(`Failed to load QR code library: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    });
   }
   return qrCodeModulePromise;
 };
@@ -61,7 +72,7 @@ const formatDateTime = (value?: string) => {
   try {
     return new Date(value).toLocaleString();
   } catch (error) {
-    console.warn('Unable to format date value for PDF pass', error);
+    logger.warn('Unable to format date value for PDF pass', error, 'pdf-generator');
     return value;
   }
 };
@@ -361,12 +372,13 @@ export const generateQRCode = async (data: string): Promise<string> => {
 
   try {
     const qrModule = await loadQrCodeModule();
-    const toDataURL = qrModule.toDataURL || (qrModule.default && (qrModule.default as any).toDataURL);
-    if (!toDataURL) {
+    
+    // qrcode library exports toDataURL as a named export
+    if (!qrModule || typeof qrModule.toDataURL !== 'function') {
       throw new Error('QR code library missing toDataURL export');
     }
 
-    return await toDataURL(data, {
+    return await qrModule.toDataURL(data, {
       margin: 1,
       width: 256,
       errorCorrectionLevel: 'M',
@@ -377,7 +389,14 @@ export const generateQRCode = async (data: string): Promise<string> => {
     });
   } catch (error) {
     // Don't fallback to placeholder - throw error so caller knows QR generation failed
-    throw new Error(`Failed to generate QR code: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[generateQRCode] Error details:', {
+      error,
+      errorMessage,
+      dataLength: data?.length,
+      dataPreview: data?.substring(0, 50),
+    });
+    throw new Error(`Failed to generate QR code: ${errorMessage}`);
   }
 };
 

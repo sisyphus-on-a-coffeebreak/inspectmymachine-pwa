@@ -18,7 +18,8 @@ function sendToAnalytics(metric: Metric) {
     id: metric.id,
   }
 
-  // Console log in development
+  // Log web vitals in development (using logger would be overkill here)
+  // This is intentionally kept as console.log for web vitals debugging
   if (import.meta.env.DEV) {
     console.log(`[Web Vitals] ${metric.name}:`, metric.value, metric.rating)
   }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing, cardStyles, borderRadius } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
@@ -13,7 +13,6 @@ import { addRecentlyViewed } from '../../lib/recentlyViewed';
 import { RelatedItems } from '../../components/ui/RelatedItems';
 import { ExpenseTimeline, type TimelineEvent } from '../../components/ui/ExpenseTimeline';
 import { AnomalyAlert } from '../../components/ui/AnomalyAlert';
-import { PolicyLinks } from '../../components/ui/PolicyLinks';
 import { useExpenses } from '../../lib/queries';
 
 /**
@@ -23,7 +22,14 @@ import { useExpenses } from '../../lib/queries';
 export const ExpenseDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { showToast } = useToast();
+  
+  // Track where user came from for back navigation
+  const returnPath = (location.state as any)?.from || '/app/expenses/history';
+  const returnLabel = returnPath.includes('history') ? 'History' : 
+                     returnPath.includes('approval') ? 'Approvals' :
+                     returnPath.includes('dashboard') ? 'Dashboard' : 'Expenses';
   const [expense, setExpense] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -228,13 +234,106 @@ export const ExpenseDetails: React.FC = () => {
         actions={
           <Button
             variant="secondary"
-            onClick={() => navigate('/app/expenses')}
+            onClick={() => navigate(returnPath)}
             icon={<ArrowLeft size={16} />}
           >
-            Back
+            Back to {returnLabel}
           </Button>
         }
       />
+
+      {/* Rejected Expense - Resubmit Section */}
+      {expense?.status === 'rejected' && (
+        <div style={{
+          padding: spacing.lg,
+          backgroundColor: colors.status.error + '15',
+          border: `2px solid ${colors.status.error}`,
+          borderRadius: '12px',
+          marginBottom: spacing.lg,
+        }}>
+          <div style={{ 
+            ...typography.subheader, 
+            color: colors.status.error, 
+            marginBottom: spacing.sm,
+            display: 'flex',
+            alignItems: 'center',
+            gap: spacing.sm
+          }}>
+            ❌ Expense Rejected
+          </div>
+          {expense.rejection_reason && (
+            <div style={{ 
+              ...typography.body, 
+              color: colors.neutral[700], 
+              marginBottom: spacing.md 
+            }}>
+              <strong>Reason:</strong> {expense.rejection_reason}
+            </div>
+          )}
+          {expense.rejected_by && expense.rejected_at && (
+            <div style={{ 
+              ...typography.bodySmall, 
+              color: colors.neutral[600], 
+              marginBottom: spacing.md 
+            }}>
+              Rejected by {expense.rejected_by} on {new Date(expense.rejected_at).toLocaleString()}
+            </div>
+          )}
+          <Button
+            variant="primary"
+            onClick={() => {
+              navigate('/app/expenses/create', {
+                state: {
+                  resubmitFrom: expense,
+                  mode: 'resubmit'
+                }
+              });
+            }}
+            icon="✏️"
+          >
+            Edit & Resubmit
+          </Button>
+        </div>
+      )}
+
+      {/* Resubmission History */}
+      {expense?.original_expense_id && (
+        <div style={{
+          padding: spacing.md,
+          backgroundColor: colors.primary + '15',
+          border: `1px solid ${colors.primary}`,
+          borderRadius: '8px',
+          marginBottom: spacing.lg,
+        }}>
+          <div style={{ 
+            ...typography.bodySmall, 
+            color: colors.primary,
+            display: 'flex',
+            alignItems: 'center',
+            gap: spacing.sm
+          }}>
+            <span>📝</span>
+            <span>
+              Resubmission #{expense.resubmission_count || 1} of{' '}
+              <button
+                onClick={() => navigate(`/app/expenses/${expense.original_expense_id}`, {
+                  state: { from: returnPath }
+                })}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: colors.primary,
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                original expense
+              </button>
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Anomaly Alerts */}
       {expense && (() => {
@@ -261,14 +360,22 @@ export const ExpenseDetails: React.FC = () => {
         // Check for duplicate expenses
         if (duplicateExpenses.length > 0) {
           const duplicateCount = duplicateExpenses.length;
-          const duplicateDates = duplicateExpenses.map((e: any) => 
-            e.date ? new Date(e.date).toLocaleDateString() : 'Unknown'
-          ).join(', ');
           
           anomalies.push({
-            title: 'Duplicate Expense Detected',
-            description: `Found ${duplicateCount} similar expense${duplicateCount > 1 ? 's' : ''} with the same amount (₹${expense.amount.toLocaleString('en-IN')})${duplicateDates ? ` on ${duplicateDates}` : ''}. Please verify these are not duplicates.`,
+            title: `Duplicate Expense Detected (${duplicateCount} similar)`,
+            description: `Found ${duplicateCount} similar expense${duplicateCount > 1 ? 's' : ''} with the same amount (₹${expense.amount.toLocaleString('en-IN')}). Click to view details.`,
             severity: 'warning' as const,
+            actions: [{
+              label: 'View Duplicates',
+              onClick: () => {
+                // Scroll to duplicates section or show modal
+                const duplicatesSection = document.getElementById('duplicates-section');
+                if (duplicatesSection) {
+                  duplicatesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              },
+              variant: 'secondary' as const
+            }]
           });
         }
 
@@ -287,69 +394,152 @@ export const ExpenseDetails: React.FC = () => {
           <div style={{ marginTop: spacing.lg }}>
             {anomalies.map((anomaly, index) => (
               <AnomalyAlert
-                key={`anomaly-${anomaly.title || anomaly.id || index}`}
+                key={`anomaly-${anomaly.title || (anomaly as any).id || index}`}
                 title={anomaly.title}
                 description={anomaly.description}
                 severity={anomaly.severity}
                 dismissible={false}
+                actions={(anomaly as any).actions}
               />
             ))}
           </div>
         ) : null;
       })()}
 
+      {/* Main Expense Details Card - Always visible */}
       <div style={{ ...cardStyles.card, marginTop: spacing.lg }}>
-        <h3 style={{ ...typography.subheader, marginBottom: spacing.md }}>Expense Information</h3>
-        <div style={{ display: 'grid', gap: spacing.md }}>
+        <h2 style={{ ...typography.header, marginBottom: spacing.lg, color: colors.neutral[900] }}>
+          Expense Details
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.lg }}>
           <div>
-            <div style={{ ...typography.label, color: colors.neutral[600] }}>Amount</div>
-            <div style={{ ...typography.header, color: colors.primary }}>
+            <dt style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>Amount</dt>
+            <dd style={{ ...typography.header, color: colors.primary, margin: 0, fontSize: '1.5rem' }}>
               {formatCurrency(expense.amount || 0)}
-            </div>
+            </dd>
           </div>
           {expense.category && (
             <div>
-              <div style={{ ...typography.label, color: colors.neutral[600] }}>Category</div>
-              <div style={{ ...typography.body }}>{expense.category}</div>
-            </div>
-          )}
-          {expense.description && (
-            <div>
-              <div style={{ ...typography.label, color: colors.neutral[600] }}>Description</div>
-              <div style={{ ...typography.body }}>{expense.description}</div>
+              <dt style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>Category</dt>
+              <dd style={{ ...typography.body, margin: 0, fontWeight: 600 }}>
+                {expense.category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              </dd>
             </div>
           )}
           {expense.status && (
             <div>
-              <div style={{ ...typography.label, color: colors.neutral[600] }}>Status</div>
-              <div style={{ ...typography.body }}>{expense.status}</div>
+              <dt style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>Status</dt>
+              <dd style={{ 
+                ...typography.body, 
+                margin: 0,
+                padding: `${spacing.xs}px ${spacing.sm}px`,
+                borderRadius: borderRadius.sm,
+                backgroundColor: expense.status === 'approved' ? colors.status.normal + '20' :
+                                 expense.status === 'rejected' ? colors.status.error + '20' :
+                                 colors.status.warning + '20',
+                color: expense.status === 'approved' ? colors.status.normal :
+                       expense.status === 'rejected' ? colors.status.error :
+                       colors.status.warning,
+                display: 'inline-block',
+                fontWeight: 600,
+                textTransform: 'capitalize'
+              }}>
+                {expense.status}
+              </dd>
             </div>
           )}
           {expense.date && (
             <div>
-              <div style={{ ...typography.label, color: colors.neutral[600] }}>Date</div>
-              <div style={{ ...typography.body }}>{new Date(expense.date).toLocaleDateString()}</div>
+              <dt style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>Date</dt>
+              <dd style={{ ...typography.body, margin: 0 }}>
+                {new Date(expense.date).toLocaleDateString('en-IN', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </dd>
+            </div>
+          )}
+          {expense.payment_method && (
+            <div>
+              <dt style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>Payment Method</dt>
+              <dd style={{ ...typography.body, margin: 0 }}>
+                {expense.payment_method.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              </dd>
+            </div>
+          )}
+          {expense.location && (
+            <div>
+              <dt style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>Location</dt>
+              <dd style={{ ...typography.body, margin: 0 }}>{expense.location}</dd>
+            </div>
+          )}
+          {expense.project_name && (
+            <div>
+              <dt style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>Project</dt>
+              <dd style={{ ...typography.body, margin: 0 }}>{expense.project_name}</dd>
+            </div>
+          )}
+          {expense.asset_name && (
+            <div>
+              <dt style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>Asset</dt>
+              <dd style={{ ...typography.body, margin: 0 }}>{expense.asset_name}</dd>
             </div>
           )}
         </div>
+        {expense.description && (
+          <div style={{ marginTop: spacing.lg, paddingTop: spacing.lg, borderTop: `1px solid ${colors.neutral[200]}` }}>
+            <dt style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>Description</dt>
+            <dd style={{ ...typography.body, margin: 0, lineHeight: 1.6 }}>{expense.description}</dd>
+          </div>
+        )}
+        {expense.notes && (
+          <div style={{ marginTop: spacing.md }}>
+            <dt style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>Notes</dt>
+            <dd style={{ ...typography.body, margin: 0, lineHeight: 1.6, color: colors.neutral[700] }}>{expense.notes}</dd>
+          </div>
+        )}
       </div>
 
-      {/* Receipt Preview */}
+      {/* Receipt - Show directly if exists, no "view receipt" button needed */}
       {expense.receipt_key && (
         <div style={{ ...cardStyles.card, marginTop: spacing.lg }}>
           <h3 style={{ ...typography.subheader, marginBottom: spacing.md }}>Receipt</h3>
-          <ReceiptPreview
-            receipts={[{
-              id: expense.id || id || 'receipt-1',
-              url: expense.receipt_key ? `/storage/${expense.receipt_key}` : '',
-              name: `Receipt for ${expense.description || 'expense'}`
-            }]}
-            maxThumbnails={1}
-          />
+          <div style={{
+            borderRadius: borderRadius.md,
+            overflow: 'hidden',
+            border: `1px solid ${colors.neutral[200]}`,
+            cursor: 'pointer',
+            transition: 'transform 0.2s ease'
+          }}
+          onClick={() => {
+            // Open receipt in lightbox or new tab
+            const receiptUrl = expense.receipt_key ? `/storage/${expense.receipt_key}` : '';
+            if (receiptUrl) {
+              window.open(receiptUrl, '_blank');
+            }
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.02)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+          >
+            <img
+              src={expense.receipt_key ? `/storage/${expense.receipt_key}` : ''}
+              alt={`Receipt for ${expense.description || 'expense'}`}
+              style={{
+                width: '100%',
+                height: 'auto',
+                display: 'block'
+              }}
+            />
+          </div>
         </div>
       )}
 
-      {/* Expense Timeline */}
+      {/* Timeline - Always visible if events exist */}
       {timelineEvents.length > 0 && (
         <div style={{ ...cardStyles.card, marginTop: spacing.lg }}>
           <h3 style={{ ...typography.subheader, marginBottom: spacing.md }}>Approval Timeline</h3>
@@ -406,31 +596,6 @@ export const ExpenseDetails: React.FC = () => {
       )}
 
       <div style={{ marginTop: spacing.lg, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: spacing.lg }}>
-      {/* Policy Links */}
-      <PolicyLinks
-        title="Expense Policy & Guidelines"
-        links={[
-          {
-            label: 'Expense Policy',
-            url: '/policies/expense-policy',
-            external: false,
-            icon: '📋'
-          },
-          {
-            label: 'Receipt Requirements',
-            url: '/policies/receipt-requirements',
-            external: false,
-            icon: '🧾'
-          },
-          {
-            label: 'Approval Process',
-            url: '/policies/approval-process',
-            external: false,
-            icon: '✅'
-          }
-        ]}
-        variant="compact"
-      />
 
       {/* Auto-linked Items Panel */}
       {expense?.links && expense.links.length > 0 && (
@@ -482,6 +647,60 @@ export const ExpenseDetails: React.FC = () => {
           />
         )}
 
+        {/* Duplicate Expenses Panel */}
+        {duplicateExpenses.length > 0 && (
+          <div id="duplicates-section" style={{ ...cardStyles.card, marginTop: spacing.lg }}>
+            <h3 style={{ ...typography.subheader, marginBottom: spacing.md, color: colors.status.warning }}>
+              ⚠️ Potential Duplicate Expenses ({duplicateExpenses.length})
+            </h3>
+            <div style={{ ...typography.bodySmall, color: colors.neutral[600], marginBottom: spacing.md }}>
+              The following expenses have similar amounts and dates/descriptions. Please verify these are not duplicates.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+              {duplicateExpenses.map((e: any) => (
+                <div
+                  key={e.id}
+                  style={{
+                    padding: spacing.md,
+                    border: `2px solid ${colors.status.warning}`,
+                    borderRadius: '8px',
+                    backgroundColor: colors.status.warning + '10',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start'
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div style={{ ...typography.subheader, marginBottom: spacing.xs }}>
+                      Expense #{e.id?.substring(0, 8)}
+                    </div>
+                    <div style={{ ...typography.bodySmall, color: colors.neutral[600], marginBottom: spacing.xs }}>
+                      {e.description || 'No description'}
+                    </div>
+                    <div style={{ ...typography.bodySmall, color: colors.neutral[500] }}>
+                      {e.date ? new Date(e.date).toLocaleDateString() : 'Unknown date'} • 
+                      {e.category ? ` ${e.category}` : ''} • 
+                      Status: {e.status || 'Unknown'}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: spacing.xs }}>
+                    <div style={{ ...typography.subheader, color: colors.status.warning, fontWeight: 600 }}>
+                      ₹{e.amount?.toLocaleString('en-IN') || '0'}
+                    </div>
+                    <Button
+                      variant="secondary"
+                      onClick={() => navigate(`/app/expenses/${e.id}`)}
+                      style={{ padding: `${spacing.xs}px ${spacing.sm}px` }}
+                    >
+                      View
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Similar Expenses Panel */}
         {similarExpenses.length > 0 && (
           <RelatedItems
@@ -512,29 +731,100 @@ export const ExpenseDetails: React.FC = () => {
           />
         )}
 
-        {/* Navigation Links */}
-        <RelatedItems
-          title="View All"
-          items={[
-            ...(expense.category ? [{
-              id: 'all-category-expenses',
-              title: `All ${expense.category} Expenses`,
-              subtitle: `View all expenses in this category`,
-              path: `/app/expenses/history?category=${expense.category}`,
-              icon: '💰',
-            }] : []),
-            ...(expense.project_id ? [{
-              id: 'all-project-expenses',
-              title: expense.project_name ? `All ${expense.project_name} Expenses` : 'All Project Expenses',
-              subtitle: `View all expenses for this project`,
-              path: `/app/expenses/history?project=${expense.project_id}`,
-              icon: '📁',
-            }] : []),
-          ]}
-          variant="compact"
-        />
+        {/* Navigation Links - Show if category or project exists */}
+        {(expense.category || expense.project_id) && (
+          <div style={{ ...cardStyles.card, marginTop: spacing.lg }}>
+            <h3 style={{ ...typography.subheader, marginBottom: spacing.md }}>Related Expenses</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+              {expense.category && (
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate(`/app/expenses/history`, {
+                    state: { filters: { category: expense.category } }
+                  })}
+                  style={{ justifyContent: 'flex-start' }}
+                >
+                  View all {expense.category.replace(/_/g, ' ')} expenses →
+                </Button>
+              )}
+              {expense.project_id && (
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate(`/app/expenses/history`, {
+                    state: { filters: { project: expense.project_id } }
+                  })}
+                  style={{ justifyContent: 'flex-start' }}
+                >
+                  View all {expense.project_name || 'project'} expenses →
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Action Buttons at Bottom - Only actual actions */}
+      <div style={{ 
+        marginTop: spacing.xl, 
+        padding: spacing.lg,
+        backgroundColor: 'white',
+        borderRadius: '16px',
+        display: 'flex',
+        gap: spacing.sm,
+        flexWrap: 'wrap'
+      }}>
+        {expense.status === 'rejected' && (
+          <Button
+            variant="primary"
+            onClick={() => {
+              navigate('/app/expenses/create', {
+                state: {
+                  resubmitFrom: expense,
+                  mode: 'resubmit'
+                }
+              });
+            }}
+            icon="✏️"
+          >
+            Edit & Resubmit
+          </Button>
+        )}
+        {expense.status === 'pending' && (
+          <Button
+            variant="secondary"
+            onClick={() => {
+              navigate('/app/expenses/create', {
+                state: {
+                  editFrom: expense,
+                  mode: 'edit'
+                }
+              });
+            }}
+            icon="✏️"
+          >
+            Edit Expense
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          onClick={() => {
+            // Share functionality
+            const url = window.location.href;
+            navigator.clipboard.writeText(url).then(() => {
+              showToast({
+                title: 'Link copied',
+                description: 'Expense link copied to clipboard',
+                variant: 'success',
+              });
+            });
+          }}
+          icon="🔗"
+        >
+          Share
+        </Button>
       </div>
     </div>
   );
 };
+
 

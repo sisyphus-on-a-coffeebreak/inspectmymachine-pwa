@@ -106,7 +106,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
       calculatePosition();
       const handleScroll = () => calculatePosition();
       const handleResize = () => calculatePosition();
-      window.addEventListener('scroll', handleScroll, true);
+      window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
       window.addEventListener('resize', handleResize);
       return () => {
         window.removeEventListener('scroll', handleScroll, true);

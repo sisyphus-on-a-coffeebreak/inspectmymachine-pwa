@@ -1,209 +1,149 @@
 /**
- * FloatingActionButton (FAB) Component
+ * Floating Action Button (FAB)
  * 
- * Floating action button for common tasks
- * Supports multiple actions with expandable menu
+ * Expandable FAB for quick-create actions
  */
 
-import React, { useState, useRef, useEffect } from 'react';
-import { colors, typography, spacing, borderRadius, shadows } from '../../lib/theme';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, X } from 'lucide-react';
+import { colors, spacing, typography, borderRadius, shadows } from '../../lib/theme';
 
-export interface FABAction {
-  id: string;
+export interface FabAction {
   label: string;
-  icon: React.ReactNode;
-  onClick: () => void;
-  color?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  route: string;
 }
 
-export interface FloatingActionButtonProps {
-  mainAction: FABAction;
-  secondaryActions?: FABAction[];
-  position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
-  className?: string;
+interface FloatingActionButtonProps {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  actions: FabAction[];
 }
 
-export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
-  mainAction,
-  secondaryActions = [],
-  position = 'bottom-right',
-  className = '',
-}) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const fabRef = useRef<HTMLDivElement>(null);
+export function FloatingActionButton({ icon: Icon, label, actions }: FloatingActionButtonProps) {
+  const navigate = useNavigate();
+  const [expanded, setExpanded] = useState(false);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (fabRef.current && !fabRef.current.contains(event.target as Node)) {
-        setIsExpanded(false);
-      }
-    };
-
-    if (isExpanded) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [isExpanded]);
-
-  const positionStyles: Record<string, React.CSSProperties> = {
-    'bottom-right': {
-      bottom: spacing.xl,
-      right: spacing.xl,
-    },
-    'bottom-left': {
-      bottom: spacing.xl,
-      left: spacing.xl,
-    },
-    'top-right': {
-      top: spacing.xl,
-      right: spacing.xl,
-    },
-    'top-left': {
-      top: spacing.xl,
-      left: spacing.xl,
-    },
-  };
-
-  const handleMainClick = () => {
-    if (secondaryActions.length > 0) {
-      setIsExpanded(!isExpanded);
-    } else {
-      mainAction.onClick();
-    }
+  const handleActionClick = (route: string) => {
+    navigate(route);
+    setExpanded(false);
   };
 
   return (
-    <div
-      ref={fabRef}
-      className={`fab-container ${className}`}
-      style={{
-        position: 'fixed',
-        ...positionStyles[position],
-        zIndex: 1000,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: spacing.md,
-      }}
-    >
-      {/* Secondary Actions */}
-      {isExpanded && secondaryActions.length > 0 && (
+    <>
+      {/* Backdrop */}
+      {expanded && (
         <div
           style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: spacing.sm,
-            marginBottom: spacing.md,
-            animation: 'fadeInUp 0.2s ease-out',
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            zIndex: 99,
           }}
-        >
-          {secondaryActions.map((action, index) => (
-            <div
-              key={action.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: spacing.sm,
-                animation: `fadeInUp 0.2s ease-out ${index * 0.05}s both`,
-              }}
-            >
-              <div
-                style={{
-                  backgroundColor: 'white',
-                  padding: `${spacing.xs} ${spacing.sm}`,
-                  borderRadius: borderRadius.md,
-                  boxShadow: shadows.md,
-                  fontSize: '12px',
-                  fontFamily: typography.body.fontFamily,
-                  fontWeight: 500,
-                  color: colors.neutral[700],
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {action.label}
-              </div>
-              <button
-                onClick={() => {
-                  action.onClick();
-                  setIsExpanded(false);
-                }}
-                style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '50%',
-                  backgroundColor: action.color || colors.primary,
-                  color: 'white',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: shadows.lg,
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.1)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.outline = `2px solid ${colors.primary}`;
-                  e.currentTarget.style.outlineOffset = '2px';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.outline = 'none';
-                }}
-                aria-label={action.label}
-              >
-                {action.icon}
-              </button>
-            </div>
-          ))}
-        </div>
+          onClick={() => setExpanded(false)}
+        />
       )}
 
-      {/* Main FAB */}
-      <button
-        onClick={handleMainClick}
+      {/* FAB Container */}
+      <div
+        className="fab-container"
         style={{
-          width: '56px',
-          height: '56px',
-          borderRadius: '50%',
-          backgroundColor: mainAction.color || colors.primary,
-          color: 'white',
-          border: 'none',
-          cursor: 'pointer',
+          position: 'fixed',
+          bottom: '80px', // Above bottom nav
+          right: '16px',
+          zIndex: 100,
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: shadows.lg,
-          transition: 'all 0.2s ease',
-          transform: isExpanded ? 'rotate(45deg)' : 'rotate(0deg)',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          gap: spacing.sm,
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = isExpanded
-            ? 'rotate(45deg) scale(1.1)'
-            : 'scale(1.1)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = isExpanded ? 'rotate(45deg)' : 'scale(1)';
-        }}
-        onFocus={(e) => {
-          e.currentTarget.style.outline = `2px solid ${colors.primary}`;
-          e.currentTarget.style.outlineOffset = '2px';
-        }}
-        onBlur={(e) => {
-          e.currentTarget.style.outline = 'none';
-        }}
-        aria-label={secondaryActions.length > 0 ? 'Toggle actions' : mainAction.label}
-        aria-expanded={isExpanded}
       >
-        {isExpanded ? <X size={24} /> : mainAction.icon}
-      </button>
+        {/* Expanded Actions */}
+        {expanded && (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: spacing.sm,
+              marginBottom: spacing.sm,
+            }}
+          >
+            {actions.map((action, index) => {
+              const ActionIcon = action.icon;
+              return (
+                <button
+                  key={action.route}
+                  onClick={() => handleActionClick(action.route)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: spacing.sm,
+                    padding: `${spacing.sm} ${spacing.md}`,
+                    backgroundColor: 'white',
+                    borderRadius: borderRadius.lg,
+                    boxShadow: shadows.lg,
+                    border: 'none',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.2s ease',
+                    animation: `slideIn 0.2s ease ${index * 0.05}s both`,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                    e.currentTarget.style.boxShadow = shadows.xl;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.boxShadow = shadows.lg;
+                  }}
+                >
+                  <ActionIcon size={20} color={colors.primary} />
+                  <span style={{ ...typography.body, fontWeight: 600, color: colors.neutral[900] }}>
+                    {action.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Main FAB */}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            backgroundColor: colors.primary,
+            color: 'white',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: shadows.xl,
+            transition: 'all 0.2s ease',
+            transform: expanded ? 'rotate(45deg)' : 'rotate(0deg)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = expanded ? 'rotate(45deg) scale(1.1)' : 'scale(1.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = expanded ? 'rotate(45deg)' : 'rotate(0deg)';
+          }}
+          aria-label={expanded ? 'Close' : label}
+        >
+          {expanded ? (
+            <X size={24} />
+          ) : (
+            <Icon size={24} />
+          )}
+        </button>
+      </div>
+
       <style>{`
-        @keyframes fadeInUp {
+        @keyframes slideIn {
           from {
             opacity: 0;
             transform: translateY(10px);
@@ -213,10 +153,14 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
             transform: translateY(0);
           }
         }
+        
+        /* Hide FAB on desktop */
+        @media (min-width: 768px) {
+          .fab-container {
+            display: none !important;
+          }
+        }
       `}</style>
-    </div>
+    </>
   );
-};
-
-export default FloatingActionButton;
-
+}

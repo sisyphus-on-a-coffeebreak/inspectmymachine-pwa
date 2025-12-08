@@ -21,7 +21,7 @@ export default defineConfig({
       // Workbox (generateSW) — use RegExp + method for TS-friendly config
       workbox: {
         navigateFallbackDenylist: [/^\/api\//],
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2}"],
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,avif,woff2}"],
         runtimeCaching: [
           // 1) Background Sync specifically for POST /api/v1/files/upload
           {
@@ -74,6 +74,20 @@ export default defineConfig({
           { src: "pwa-512x512-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
         screenshots: [
+          // WebP versions (preferred, smaller file size)
+          {
+            src: "screenshot-dashboard.webp",
+            sizes: "1280x720",
+            type: "image/webp",
+            form_factor: "wide",
+          },
+          {
+            src: "screenshot-mobile.webp",
+            sizes: "750x1334",
+            type: "image/webp",
+            form_factor: "narrow",
+          },
+          // PNG fallbacks (for browsers that don't support WebP)
           {
             src: "screenshot-dashboard.png",
             sizes: "1280x720",
@@ -110,13 +124,31 @@ export default defineConfig({
         "apple-touch-icon.png",
         "pwa-96x96.png",
         "screenshot-dashboard.png",
+        "screenshot-dashboard.webp",
         "screenshot-mobile.png",
+        "screenshot-mobile.webp",
       ],
     }),
   ],
 
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+  },
+
+  // Optimize dependencies to reduce unnecessary preloading
+  optimizeDeps: {
+    // Only preload critical dependencies
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      'qrcode', // Include qrcode so Vite can pre-bundle it for browser compatibility
+    ],
+    // Exclude heavy dependencies from preloading (they'll load on demand)
+    exclude: [
+      'jspdf',
+      'html2canvas',
+    ],
   },
 
   server: {
@@ -145,6 +177,52 @@ export default defineConfig({
           }
         },
       },
+      // Proxy storage paths to avoid CORS issues in development
+      "/storage": {
+        target: process.env.NODE_ENV === 'production' 
+          ? "https://api.inspectmymachine.in" 
+          : "http://127.0.0.1:8000",
+        changeOrigin: true,
+        secure: process.env.NODE_ENV === 'production',
+        cookieDomainRewrite: '',
+        cookiePathRewrite: '/',
+        configure: (proxy) => {
+          // Forward cookies and authentication
+          proxy.on("proxyReq", (proxyReq, req) => {
+            // Forward cookies from the original request
+            if (req.headers.cookie) {
+              proxyReq.setHeader('Cookie', req.headers.cookie);
+            }
+            // Forward other auth headers
+            if (req.headers.authorization) {
+              proxyReq.setHeader('Authorization', req.headers.authorization);
+            }
+            // Set referer to help with CSRF
+            proxyReq.setHeader('Referer', req.headers.referer || req.url);
+            // Log in development for debugging
+            if (process.env.NODE_ENV !== 'production') {
+              console.log("[storage-proxy] →", req.method, req.url, {
+                hasCookies: !!req.headers.cookie,
+                cookies: req.headers.cookie ? 'present' : 'missing'
+              });
+            }
+          });
+          // Set CORS headers for storage files
+          proxy.on("proxyRes", (proxyRes, req) => {
+            proxyRes.headers['Access-Control-Allow-Origin'] = req.headers.origin || '*';
+            proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS';
+            proxyRes.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
+            proxyRes.headers['Access-Control-Allow-Credentials'] = 'true';
+            // Log in development for debugging
+            if (process.env.NODE_ENV !== 'production') {
+              console.log("[storage-proxy] ←", proxyRes.statusCode, req.url);
+            }
+          });
+          proxy.on("error", (err, req) => {
+            console.error("[storage-proxy] error:", err.message, req.url);
+          });
+        },
+      },
     },
   },
   
@@ -159,8 +237,26 @@ export default defineConfig({
         pure_funcs: ['console.log', 'console.info', 'console.debug'], // Remove specific console methods
       },
     } : undefined,
+    cssCodeSplit: true, // Enable CSS code splitting by route/chunk
+    cssMinify: 'lightningcss', // Use lightningcss for faster CSS minification (if available)
     rollupOptions: {
       output: {
+        // CSS chunk naming strategy - split by route
+        assetFileNames: (assetInfo) => {
+          // Group CSS by route/module
+          if (assetInfo.name?.endsWith('.css')) {
+            // Extract route name from chunk if possible
+            const chunkName = assetInfo.name.replace('.css', '');
+            if (chunkName.includes('gate-pass')) return 'assets/css/gate-pass-[hash][extname]';
+            if (chunkName.includes('inspection')) return 'assets/css/inspection-[hash][extname]';
+            if (chunkName.includes('expense')) return 'assets/css/expense-[hash][extname]';
+            if (chunkName.includes('stockyard')) return 'assets/css/stockyard-[hash][extname]';
+            if (chunkName.includes('admin')) return 'assets/css/admin-[hash][extname]';
+            if (chunkName.includes('vendor')) return 'assets/css/vendor-[hash][extname]';
+            return 'assets/css/[name]-[hash][extname]';
+          }
+          return 'assets/[name]-[hash][extname]';
+        },
         manualChunks: (id) => {
           // Core React
           if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
@@ -206,6 +302,39 @@ export default defineConfig({
           if (id.includes('node_modules')) {
             return 'vendor-misc';
           }
+          
+          // Route-based code splitting for pages
+          // Gate Pass routes
+          if (id.includes('/pages/gatepass/') || id.includes('/pages/gate-pass/')) {
+            return 'route-gatepass';
+          }
+          // Inspection routes
+          if (id.includes('/pages/inspections/')) {
+            return 'route-inspections';
+          }
+          // Expense routes
+          if (id.includes('/pages/expenses/')) {
+            return 'route-expenses';
+          }
+          // Stockyard routes
+          if (id.includes('/pages/stockyard/')) {
+            return 'route-stockyard';
+          }
+          // Admin routes
+          if (id.includes('/pages/admin/')) {
+            return 'route-admin';
+          }
+        },
+        // Chunk file naming
+        chunkFileNames: (chunkInfo) => {
+          // Group chunks by type
+          if (chunkInfo.name?.includes('vendor')) {
+            return 'assets/js/vendor/[name]-[hash].js';
+          }
+          if (chunkInfo.name?.includes('route-')) {
+            return 'assets/js/routes/[name]-[hash].js';
+          }
+          return 'assets/js/[name]-[hash].js';
         },
       },
     },

@@ -5,6 +5,8 @@ import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { StatsGrid } from '../../components/ui/ResponsiveGrid';
 import { useToast } from '../../providers/ToastProvider';
+import { LineChart, BarChart } from '../../components/ui/charts';
+import { ExportButton } from '../../components/ui/ExportButton';
 
 // 📊 Gate Pass Reports & Analytics
 // Comprehensive reporting dashboard for gate pass analytics
@@ -101,35 +103,11 @@ export const GatePassReports: React.FC = () => {
       setYardStats(Array.isArray(yardsResponse.data) ? yardsResponse.data : []);
 
     } catch (error) {
-      // Failed to fetch report data, using mock data for development
-      setStats({
-        total_passes: 1247,
-        visitor_passes: 892,
-        vehicle_passes: 355,
-        active_passes: 23,
-        completed_passes: 1189,
-        cancelled_passes: 35,
-        today_passes: 45,
-        week_passes: 234,
-        month_passes: 1247
-      });
-      setTrends([
-        { date: '2024-01-01', visitors: 12, vehicles: 8, total: 20 },
-        { date: '2024-01-02', visitors: 15, vehicles: 6, total: 21 },
-        { date: '2024-01-03', visitors: 18, vehicles: 9, total: 27 },
-        { date: '2024-01-04', visitors: 14, vehicles: 7, total: 21 },
-        { date: '2024-01-05', visitors: 16, vehicles: 10, total: 26 }
-      ]);
-      setPopularTimes([
-        { hour: 9, count: 45 },
-        { hour: 10, count: 67 },
-        { hour: 11, count: 89 },
-        { hour: 14, count: 78 },
-        { hour: 15, count: 92 },
-        { hour: 16, count: 56 }
-      ]);
-      setYardStats([
-        { yard_id: 'yard1', yard_name: 'Main Yard', pass_count: 567, active_passes: 12 },
+      // Show empty state instead of mock data
+      setStats(null);
+      setTrends([]);
+      setPopularTimes([]);
+      setYardStats([]);
         { yard_id: 'yard2', yard_name: 'Secondary Yard', pass_count: 234, active_passes: 8 },
         { yard_id: 'yard3', yard_name: 'Storage Yard', pass_count: 123, active_passes: 3 }
       ]);
@@ -307,13 +285,19 @@ export const GatePassReports: React.FC = () => {
         </div>
         
         <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
-          <Button
+          <ExportButton
+            apiEndpoint="/gate-pass-reports/export"
+            apiParams={{
+              date_range: dateRange,
+              yard_id: selectedYard !== 'all' ? selectedYard : undefined,
+            }}
+            formats={['csv', 'excel', 'json']}
+            options={{
+              filename: `gate-pass-report-${dateRange}-${new Date().toISOString().split('T')[0]}`,
+            }}
+            label="Export Data"
             variant="secondary"
-            onClick={exportToCSV}
-            icon="📊"
-          >
-            Export CSV
-          </Button>
+          />
           <Button
             variant="secondary"
             onClick={exportToPDF}
@@ -505,106 +489,78 @@ export const GatePassReports: React.FC = () => {
       </StatsGrid>
 
       {/* Charts Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.xl, marginBottom: spacing.xl }}>
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+        gap: spacing.xl, 
+        marginBottom: spacing.xl 
+      }}>
         {/* Trends Chart */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '16px',
-          padding: spacing.xl,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-          border: '1px solid rgba(0,0,0,0.05)'
-        }}>
-          <h3 style={{ 
-            ...typography.subheader,
-            marginBottom: spacing.lg,
-            color: colors.neutral[900]
+        {trends.length > 0 && (
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: spacing.xl,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+            border: '1px solid rgba(0,0,0,0.05)'
           }}>
-            📈 Pass Trends
-          </h3>
-          <div style={{ height: '300px', display: 'flex', alignItems: 'end', gap: '4px' }}>
-            {Array.isArray(trends) && trends.length > 0 ? trends.map((trend, index) => (
-              <div key={index} style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                alignItems: 'center',
-                flex: 1
-              }}>
-                <div style={{ 
-                  height: `${trends.length > 0 && Math.max(...trends.map(t => t.total)) > 0 
-                    ? (trend.total / Math.max(...trends.map(t => t.total))) * 200 
-                    : 0}px`,
-                  backgroundColor: colors.primary,
-                  width: '100%',
-                  borderRadius: '4px 4px 0 0',
-                  marginBottom: spacing.xs
-                }} />
-                <div style={{ fontSize: '12px', color: colors.neutral[600] }}>
-                  {new Date(trend.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
-                </div>
-                <div style={{ fontSize: '10px', color: colors.neutral[500] }}>
-                  {trend.total}
-                </div>
-              </div>
-            )) : (
-              <div style={{ width: '100%', textAlign: 'center', color: colors.neutral[500], padding: spacing.lg }}>
-                No trend data available
-              </div>
-            )}
+            <h3 style={{ 
+              ...typography.subheader,
+              marginBottom: spacing.lg,
+              color: colors.neutral[900]
+            }}>
+              📈 Pass Trends
+            </h3>
+            <LineChart
+              data={trends.map(trend => ({
+                date: trend.date,
+                visitors: trend.visitors,
+                vehicles: trend.vehicles,
+                total: trend.total
+              }))}
+              dataKeys={[
+                { key: 'visitors', name: 'Visitors', color: colors.primary, strokeWidth: 2 },
+                { key: 'vehicles', name: 'Vehicles', color: colors.success[500], strokeWidth: 2 },
+                { key: 'total', name: 'Total', color: colors.warning[500], strokeWidth: 2 }
+              ]}
+              height={300}
+              tooltipFormatter={(value) => [value.toString(), '']}
+            />
           </div>
-        </div>
+        )}
 
         {/* Popular Times Chart */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '16px',
-          padding: spacing.xl,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-          border: '1px solid rgba(0,0,0,0.05)'
-        }}>
-          <h3 style={{ 
-            ...typography.subheader,
-            marginBottom: spacing.lg,
-            color: colors.neutral[900]
+        {popularTimes.length > 0 && (
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: spacing.xl,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+            border: '1px solid rgba(0,0,0,0.05)'
           }}>
-            ⏰ Popular Times
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-            {popularTimes.map((time, index) => (
-              <div key={index} style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-                <div style={{ 
-                  width: '40px', 
-                  fontSize: '12px', 
-                  color: colors.neutral[600],
-                  textAlign: 'right'
-                }}>
-                  {time.hour}:00
-                </div>
-                <div style={{ 
-                  flex: 1, 
-                  height: '20px', 
-                  backgroundColor: colors.neutral[200], 
-                  borderRadius: '10px',
-                  position: 'relative'
-                }}>
-                  <div style={{ 
-                    height: '100%', 
-                    backgroundColor: colors.primary,
-                    borderRadius: '10px',
-                    width: `${(time.count / Math.max(...popularTimes.map(t => t.count))) * 100}%`
-                  }} />
-                </div>
-                <div style={{ 
-                  width: '30px', 
-                  fontSize: '12px', 
-                  color: colors.neutral[600],
-                  textAlign: 'right'
-                }}>
-                  {time.count}
-                </div>
-              </div>
-            ))}
+            <h3 style={{ 
+              ...typography.subheader,
+              marginBottom: spacing.lg,
+              color: colors.neutral[900]
+            }}>
+              ⏰ Popular Times
+            </h3>
+            <BarChart
+              data={popularTimes.map(time => ({
+                hour: `${time.hour}:00`,
+                count: time.count
+              }))}
+              dataKeys={[{
+                key: 'count',
+                name: 'Passes',
+                color: colors.primary
+              }]}
+              xAxisKey="hour"
+              height={300}
+              tooltipFormatter={(value) => [`${value} passes`, '']}
+            />
           </div>
-        </div>
+        )}
       </div>
 
       {/* Yard Statistics */}

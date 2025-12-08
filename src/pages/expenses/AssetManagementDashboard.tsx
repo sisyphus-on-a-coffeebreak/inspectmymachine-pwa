@@ -72,70 +72,8 @@ export const AssetManagementDashboard: React.FC = () => {
       });
       setAssets(response.data);
     } catch (error) {
-      // Mock data for development (fallback)
-      setAssets([
-        {
-          id: '1',
-          name: 'Vehicle ABC-1234',
-          type: 'vehicle',
-          registration_number: 'ABC-1234',
-          status: 'active',
-          total_expenses: 125000,
-          monthly_expenses: 15000,
-          maintenance_cost: 45000,
-          fuel_cost: 60000,
-          repair_cost: 15000,
-          other_cost: 5000,
-          roi_percentage: 15.5,
-          utilization_rate: 85,
-          last_maintenance: '2024-01-15',
-          next_maintenance: '2024-02-15',
-          depreciation_value: 75000,
-          current_value: 225000,
-          purchase_date: '2022-01-01',
-          purchase_price: 300000
-        },
-        {
-          id: '2',
-          name: 'Laptop Dell XPS',
-          type: 'technology',
-          status: 'active',
-          total_expenses: 25000,
-          monthly_expenses: 2000,
-          maintenance_cost: 5000,
-          fuel_cost: 0,
-          repair_cost: 15000,
-          other_cost: 5000,
-          roi_percentage: 25.8,
-          utilization_rate: 95,
-          last_maintenance: '2024-01-10',
-          next_maintenance: '2024-04-10',
-          depreciation_value: 15000,
-          current_value: 35000,
-          purchase_date: '2023-06-01',
-          purchase_price: 50000
-        },
-        {
-          id: '3',
-          name: 'Office Building',
-          type: 'building',
-          status: 'active',
-          total_expenses: 500000,
-          monthly_expenses: 25000,
-          maintenance_cost: 200000,
-          fuel_cost: 0,
-          repair_cost: 150000,
-          other_cost: 150000,
-          roi_percentage: 8.2,
-          utilization_rate: 100,
-          last_maintenance: '2024-01-01',
-          next_maintenance: '2024-07-01',
-          depreciation_value: 200000,
-          current_value: 800000,
-          purchase_date: '2020-01-01',
-          purchase_price: 1000000
-        }
-      ]);
+      // Show empty state instead of mock data
+      setAssets([]);
     } finally {
       setLoading(false);
     }
@@ -148,35 +86,8 @@ export const AssetManagementDashboard: React.FC = () => {
       });
       setAssetExpenses(response.data);
     } catch (error) {
-      // Error is already handled by apiClient
-      // Mock data for development
-      setAssetExpenses([
-        {
-          id: '1',
-          amount: 5000,
-          category: 'MAINTENANCE',
-          description: 'Regular service and oil change',
-          date: '2024-01-20T10:30:00Z',
-          project_name: 'Project Alpha',
-          maintenance_type: 'scheduled'
-        },
-        {
-          id: '2',
-          amount: 2500,
-          category: 'FUEL',
-          description: 'Fuel for daily operations',
-          date: '2024-01-19T14:15:00Z',
-          project_name: 'Project Beta'
-        },
-        {
-          id: '3',
-          amount: 3000,
-          category: 'REPAIR',
-          description: 'Brake pad replacement',
-          date: '2024-01-18T09:45:00Z',
-          maintenance_type: 'emergency'
-        }
-      ]);
+      // Show empty state instead of mock data
+      setAssetExpenses([]);
     }
   }, [selectedPeriod]);
 
@@ -187,32 +98,8 @@ export const AssetManagementDashboard: React.FC = () => {
       });
       setAssetPerformance(response.data);
     } catch (error) {
-      // Error is already handled by apiClient
-      // Mock data for development
-      setAssetPerformance([
-        {
-          asset_id: '1',
-          asset_name: 'Vehicle ABC-1234',
-          total_revenue: 500000,
-          total_expenses: 125000,
-          net_profit: 375000,
-          profit_margin: 75,
-          cost_per_hour: 150,
-          utilization_hours: 200,
-          efficiency_score: 85
-        },
-        {
-          asset_id: '2',
-          asset_name: 'Laptop Dell XPS',
-          total_revenue: 200000,
-          total_expenses: 25000,
-          net_profit: 175000,
-          profit_margin: 87.5,
-          cost_per_hour: 25,
-          utilization_hours: 1000,
-          efficiency_score: 95
-        }
-      ]);
+      // Show empty state instead of mock data
+      setAssetPerformance([]);
     }
   }, [selectedPeriod]);
 

@@ -15,6 +15,9 @@ import {
 } from '@/lib/queries';
 import { useToast } from '@/providers/ToastProvider';
 import { formatDistanceToNow } from 'date-fns';
+import { FilterBadges } from '@/components/ui/FilterBadge';
+import { PullToRefreshWrapper } from '@/components/ui/PullToRefreshWrapper';
+import { SwipeableListItem } from '@/components/ui/SwipeableListItem';
 
 interface Notification {
   id: string;
@@ -147,7 +150,12 @@ export const NotificationsPage: React.FC = () => {
     );
   }
 
+  const handleRefresh = async () => {
+    await refetch();
+  };
+
   return (
+    <PullToRefreshWrapper onRefresh={handleRefresh}>
     <div style={{ padding: spacing.xl }}>
       <PageHeader
         title="Notifications"
@@ -211,27 +219,29 @@ export const NotificationsPage: React.FC = () => {
             ))}
           </select>
 
-          {typeFilter && (
-            <button
-              onClick={() => setTypeFilter('')}
-              style={{
-                padding: `${spacing.xs}px ${spacing.sm}px`,
-                background: colors.neutral[100],
-                border: 'none',
-                borderRadius: borderRadius.sm,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: spacing.xs,
-                fontSize: '12px',
-                color: colors.neutral[700],
-              }}
-            >
-              Clear type filter
-              <X size={14} />
-            </button>
-          )}
         </div>
+        
+        {/* Active Filter Badges */}
+        {(filter !== 'all' || typeFilter) && (
+          <FilterBadges
+            filters={[
+              ...(filter !== 'all' ? [{
+                label: 'Status',
+                value: filter.charAt(0).toUpperCase() + filter.slice(1),
+                onRemove: () => setFilter('all'),
+              }] : []),
+              ...(typeFilter ? [{
+                label: 'Type',
+                value: typeConfig[typeFilter]?.label || typeFilter,
+                onRemove: () => setTypeFilter(''),
+              }] : []),
+            ]}
+            onClearAll={() => {
+              setFilter('all');
+              setTypeFilter('');
+            }}
+          />
+        )}
       </div>
 
       {/* Notifications List */}
@@ -254,89 +264,132 @@ export const NotificationsPage: React.FC = () => {
               const typeInfo = typeConfig[notification.type] || typeConfig.info;
               
               return (
-                <div
+                <SwipeableListItem
                   key={notification.id}
-                  onClick={() => handleNotificationClick(notification)}
-                  style={{
-                    ...cardStyles.card,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    borderLeft: `4px solid ${typeInfo.color}`,
-                    background: notification.read ? 'white' : colors.primary + '05',
+                  rightAction={{
+                    icon: <Trash2 size={20} />,
+                    label: 'Delete',
+                    color: colors.error[500],
+                    onClick: () => {
+                      if (window.confirm('Are you sure you want to delete this notification?')) {
+                        handleDelete(notification.id, { stopPropagation: () => {} } as React.MouseEvent);
+                      }
+                    },
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.12)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = cardStyles.card.boxShadow;
-                  }}
+                  leftAction={!notification.read ? {
+                    icon: <CheckCheck size={20} />,
+                    label: 'Mark Read',
+                    color: colors.primary,
+                    onClick: () => handleMarkAsRead(notification.id, { stopPropagation: () => {} } as React.MouseEvent),
+                  } : undefined}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.md }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs }}>
-                        <span
-                          style={{
-                            padding: `${spacing.xs}px ${spacing.sm}px`,
-                            background: typeInfo.color + '20',
-                            color: typeInfo.color,
-                            borderRadius: borderRadius.sm,
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            textTransform: 'uppercase',
-                          }}
-                        >
-                          {typeInfo.label}
-                        </span>
-                        {!notification.read && (
+                  <div
+                    onClick={() => handleNotificationClick(notification)}
+                    style={{
+                      ...cardStyles.card,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      borderLeft: `4px solid ${typeInfo.color}`,
+                      background: notification.read ? 'white' : colors.primary + '05',
+                      padding: spacing.md,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.12)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = cardStyles.card.boxShadow;
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.md }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs }}>
                           <span
                             style={{
-                              width: '8px',
-                              height: '8px',
-                              borderRadius: '50%',
-                              background: colors.primary,
+                              padding: `${spacing.xs}px ${spacing.sm}px`,
+                              background: typeInfo.color + '20',
+                              color: typeInfo.color,
+                              borderRadius: borderRadius.sm,
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              textTransform: 'uppercase',
                             }}
-                          />
-                        )}
+                          >
+                            {typeInfo.label}
+                          </span>
+                          {!notification.read && (
+                            <span
+                              style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                background: colors.primary,
+                              }}
+                            />
+                          )}
+                        </div>
+                        <h3
+                          style={{
+                            ...typography.subheader,
+                            margin: 0,
+                            marginBottom: spacing.xs,
+                            fontWeight: notification.read ? 500 : 700,
+                            color: colors.neutral[900],
+                          }}
+                        >
+                          {notification.title}
+                        </h3>
+                        <p
+                          style={{
+                            ...typography.body,
+                            margin: 0,
+                            marginBottom: spacing.sm,
+                            color: colors.neutral[600],
+                          }}
+                        >
+                          {notification.message}
+                        </p>
+                        <div
+                          style={{
+                            ...typography.caption,
+                            color: colors.neutral[500],
+                          }}
+                        >
+                          {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                          {notification.read_at && (
+                            <> • Read {formatDistanceToNow(new Date(notification.read_at), { addSuffix: true })}</>
+                          )}
+                        </div>
                       </div>
-                      <h3
-                        style={{
-                          ...typography.subheader,
-                          margin: 0,
-                          marginBottom: spacing.xs,
-                          fontWeight: notification.read ? 500 : 700,
-                          color: colors.neutral[900],
-                        }}
-                      >
-                        {notification.title}
-                      </h3>
-                      <p
-                        style={{
-                          ...typography.body,
-                          margin: 0,
-                          marginBottom: spacing.sm,
-                          color: colors.neutral[600],
-                        }}
-                      >
-                        {notification.message}
-                      </p>
-                      <div
-                        style={{
-                          ...typography.caption,
-                          color: colors.neutral[500],
-                        }}
-                      >
-                        {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-                        {notification.read_at && (
-                          <> • Read {formatDistanceToNow(new Date(notification.read_at), { addSuffix: true })}</>
+                      <div style={{ display: 'flex', gap: spacing.xs }}>
+                        {!notification.read && (
+                          <button
+                            onClick={(e) => handleMarkAsRead(notification.id, e)}
+                            style={{
+                              padding: spacing.xs,
+                              background: 'transparent',
+                              border: 'none',
+                              cursor: 'pointer',
+                              borderRadius: borderRadius.sm,
+                              color: colors.neutral[600],
+                              transition: 'all 0.2s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = colors.neutral[100];
+                              e.currentTarget.style.color = colors.primary;
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'transparent';
+                              e.currentTarget.style.color = colors.neutral[600];
+                            }}
+                            title="Mark as read"
+                          >
+                            <CheckCheck size={18} />
+                          </button>
                         )}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: spacing.xs }}>
-                      {!notification.read && (
                         <button
-                          onClick={(e) => handleMarkAsRead(notification.id, e)}
+                          onClick={(e) => handleDelete(notification.id, e)}
                           style={{
                             padding: spacing.xs,
                             background: 'transparent',
@@ -347,44 +400,21 @@ export const NotificationsPage: React.FC = () => {
                             transition: 'all 0.2s ease',
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = colors.neutral[100];
-                            e.currentTarget.style.color = colors.primary;
+                            e.currentTarget.style.background = colors.error[50];
+                            e.currentTarget.style.color = colors.error[600];
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.background = 'transparent';
                             e.currentTarget.style.color = colors.neutral[600];
                           }}
-                          title="Mark as read"
+                          title="Delete"
                         >
-                          <CheckCheck size={18} />
+                          <Trash2 size={18} />
                         </button>
-                      )}
-                      <button
-                        onClick={(e) => handleDelete(notification.id, e)}
-                        style={{
-                          padding: spacing.xs,
-                          background: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          borderRadius: borderRadius.sm,
-                          color: colors.neutral[600],
-                          transition: 'all 0.2s ease',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = colors.error[50];
-                          e.currentTarget.style.color = colors.error[600];
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'transparent';
-                          e.currentTarget.style.color = colors.neutral[600];
-                        }}
-                        title="Delete"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </SwipeableListItem>
               );
             })}
           </div>
@@ -416,5 +446,6 @@ export const NotificationsPage: React.FC = () => {
     </div>
   );
 };
+
 
 

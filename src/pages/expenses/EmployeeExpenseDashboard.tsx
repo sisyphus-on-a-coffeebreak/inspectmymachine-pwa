@@ -6,7 +6,13 @@ import { Button } from '../../components/ui/button';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
 import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { PolicyLinks } from '../../components/ui/PolicyLinks';
+import { LedgerBalanceCard } from '../../components/ui/LedgerBalanceCard';
+import { IssueAdvanceModal } from '../../components/ui/IssueAdvanceModal';
+import { CashReturnModal } from '../../components/ui/CashReturnModal';
+import { ReimbursementModal } from '../../components/ui/ReimbursementModal';
+import { OpenAdvancesSummary } from '../../components/ui/OpenAdvancesSummary';
+import { useAuth } from '../../providers/useAuth';
+import { useAdvances } from '../../lib/queries';
 
 // 💰 Employee Expense Dashboard
 // Personal expense management for employees
@@ -51,13 +57,21 @@ interface BudgetAlert {
 
 export const EmployeeExpenseDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [selectedPeriod, setSelectedPeriod] = useState<'day' | 'week' | 'month' | 'quarter'>('month');
+  const [showIssueAdvance, setShowIssueAdvance] = useState(false);
+  const [showCashReturn, setShowCashReturn] = useState(false);
+  const [showReimbursement, setShowReimbursement] = useState(false);
   
-  // Use React Query for expenses and float balance
+  // Check role at the start - structure by role immediately
+  const isAdmin = user ? ['admin', 'supervisor', 'super_admin'].includes(user.role) : false;
+  
+  // Use React Query for expenses, float balance, and advances
   const { data: expensesData, isLoading: expensesLoading, error: expensesError, refetch: refetchExpenses } = useExpenses(
     { mine: true }
   );
   const { data: floatData, isLoading: floatLoading, error: floatError } = useFloatBalance();
+  const { data: advancesData, isLoading: advancesLoading } = useAdvances({ status: 'open' });
   
   const loading = expensesLoading || floatLoading;
   const error = expensesError || floatError;
@@ -244,31 +258,6 @@ export const EmployeeExpenseDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Policy Links */}
-      <PolicyLinks
-        title="Expense Policy & Guidelines"
-        links={[
-          {
-            label: 'Expense Policy',
-            url: '/policies/expense-policy',
-            external: false,
-            icon: '📋'
-          },
-          {
-            label: 'Receipt Requirements',
-            url: '/policies/receipt-requirements',
-            external: false,
-            icon: '🧾'
-          },
-          {
-            label: 'Approval Process',
-            url: '/policies/approval-process',
-            external: false,
-            icon: '✅'
-          }
-        ]}
-        variant="compact"
-      />
 
       {/* Budget Alerts (only info-level) */}
       {budgetAlerts.filter(a => a.type === 'info').length > 0 && (
@@ -375,34 +364,13 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div style={{ 
-            ...cardStyles.base,
-            padding: spacing.xl,
-            backgroundColor: 'white',
-            border: `2px solid ${colors.status.normal}`,
-            borderRadius: '16px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-          }}>
-            <div style={{ 
-              ...typography.label,
-              color: colors.neutral[600], 
-              marginBottom: spacing.xs,
-              display: 'flex',
-              alignItems: 'center',
-              gap: spacing.sm
-            }}>
-              <span className="status-dot status-dot-normal" />
-              💳 Advance Balance
-            </div>
-            <div style={{ 
-              ...typography.header,
-              fontSize: '32px',
-              color: colors.status.normal,
-              fontWeight: 700
-            }}>
-              ₹{summary?.remaining_budget?.toLocaleString('en-IN') || 0}
-            </div>
-          </div>
+          <LedgerBalanceCard
+            balance={summary?.remaining_budget || 0}
+            label="Advance Balance"
+            variant="default"
+            onClick={() => navigate('/app/expenses/ledger')}
+            showTooltip={true}
+          />
 
           <div style={{ 
             ...cardStyles.base,
@@ -551,6 +519,40 @@ export const EmployeeExpenseDashboard: React.FC = () => {
           </div>
 
           <div
+            onClick={() => navigate('/app/expenses/categories')}
+            style={{
+              ...cardStyles.base,
+              padding: spacing.lg,
+              cursor: 'pointer',
+              minHeight: '100px',
+              display: 'flex',
+              flexDirection: 'column' as const,
+              justifyContent: 'center',
+              alignItems: 'center',
+              textAlign: 'center' as const,
+              border: `2px solid ${colors.status.warning}`,
+              position: 'relative' as const
+            }}
+            className="card-hover touch-feedback"
+          >
+            <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>📈</div>
+            <div style={{ 
+              ...typography.subheader,
+              fontSize: '16px',
+              color: colors.neutral[900],
+              marginBottom: spacing.xs
+            }}>
+              Category Analytics
+            </div>
+            <div style={{ 
+              ...typography.bodySmall,
+              color: colors.neutral[600]
+            }}>
+              View by category
+            </div>
+          </div>
+
+          <div
             onClick={() => navigate('/app/expenses/receipts')}
             style={{
               ...cardStyles.base,
@@ -585,7 +587,219 @@ export const EmployeeExpenseDashboard: React.FC = () => {
           </div>
 
           <div
-            onClick={() => navigate('/app/expenses/analytics')}
+            onClick={() => navigate('/app/expenses/ledger')}
+            style={{
+              ...cardStyles.base,
+              padding: spacing.lg,
+              cursor: 'pointer',
+              minHeight: '100px',
+              display: 'flex',
+              flexDirection: 'column' as const,
+              justifyContent: 'center',
+              alignItems: 'center',
+              textAlign: 'center' as const,
+              border: `2px solid ${colors.primary}`,
+              position: 'relative' as const
+            }}
+            className="card-hover touch-feedback"
+          >
+            <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>📊</div>
+            <div style={{ 
+              ...typography.subheader,
+              fontSize: '16px',
+              color: colors.neutral[900],
+              marginBottom: spacing.xs
+            }}>
+              My Ledger
+            </div>
+            <div style={{ 
+              ...typography.bodySmall,
+              color: colors.neutral[600]
+            }}>
+              View transaction history
+            </div>
+          </div>
+        </ActionGrid>
+      </div>
+
+      {/* Admin-only section - only rendered for admins */}
+      {isAdmin && (
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '16px',
+          padding: spacing.xl,
+          marginBottom: spacing.xl,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+          border: '1px solid rgba(0,0,0,0.05)'
+        }}>
+          <h3 style={{ 
+            ...typography.subheader,
+            marginBottom: spacing.lg,
+            color: colors.neutral[900]
+          }}>
+            👔 Admin Actions
+          </h3>
+          
+          <ActionGrid gap="md">
+            <div
+              onClick={() => navigate('/app/expenses/approval')}
+              style={{
+                ...cardStyles.base,
+                padding: spacing.lg,
+                cursor: 'pointer',
+                minHeight: '100px',
+                display: 'flex',
+                flexDirection: 'column' as const,
+                justifyContent: 'center',
+                alignItems: 'center',
+                textAlign: 'center' as const,
+                border: `2px solid ${colors.status.warning}`,
+                position: 'relative' as const
+              }}
+              className="card-hover touch-feedback"
+            >
+              <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>✅</div>
+              <div style={{ 
+                ...typography.subheader,
+                fontSize: '16px',
+                color: colors.neutral[900],
+                marginBottom: spacing.xs
+              }}>
+                Pending Approvals
+              </div>
+              <div style={{ 
+                ...typography.bodySmall,
+                color: colors.neutral[600]
+              }}>
+                Review expenses
+              </div>
+            </div>
+
+            <div
+              onClick={() => navigate('/app/expenses/reports')}
+              style={{
+                ...cardStyles.base,
+                padding: spacing.lg,
+                cursor: 'pointer',
+                minHeight: '100px',
+                display: 'flex',
+                flexDirection: 'column' as const,
+                justifyContent: 'center',
+                alignItems: 'center',
+                textAlign: 'center' as const,
+                border: `2px solid ${colors.primary}`,
+                position: 'relative' as const
+              }}
+              className="card-hover touch-feedback"
+            >
+              <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>📊</div>
+              <div style={{ 
+                ...typography.subheader,
+                fontSize: '16px',
+                color: colors.neutral[900],
+                marginBottom: spacing.xs
+              }}>
+                Reports
+              </div>
+              <div style={{ 
+                ...typography.bodySmall,
+                color: colors.neutral[600]
+              }}>
+                Analytics & insights
+              </div>
+            </div>
+
+            <div
+              onClick={() => navigate('/app/expenses/accounts')}
+              style={{
+                ...cardStyles.base,
+                padding: spacing.lg,
+                cursor: 'pointer',
+                minHeight: '100px',
+                display: 'flex',
+                flexDirection: 'column' as const,
+                justifyContent: 'center',
+                alignItems: 'center',
+                textAlign: 'center' as const,
+                border: `2px solid ${colors.status.normal}`,
+                position: 'relative' as const
+              }}
+              className="card-hover touch-feedback"
+            >
+              <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>👥</div>
+              <div style={{ 
+                ...typography.subheader,
+                fontSize: '16px',
+                color: colors.neutral[900],
+                marginBottom: spacing.xs
+              }}>
+                Accounts
+              </div>
+              <div style={{ 
+                ...typography.bodySmall,
+                color: colors.neutral[600]
+              }}>
+                Manage accounts
+              </div>
+            </div>
+
+            <div
+              onClick={() => navigate('/app/expenses/cashflow')}
+              style={{
+                ...cardStyles.base,
+                padding: spacing.lg,
+                cursor: 'pointer',
+                minHeight: '100px',
+                display: 'flex',
+                flexDirection: 'column' as const,
+                justifyContent: 'center',
+                alignItems: 'center',
+                textAlign: 'center' as const,
+                border: `2px solid ${colors.status.warning}`,
+                position: 'relative' as const
+              }}
+              className="card-hover touch-feedback"
+            >
+              <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>💰</div>
+              <div style={{ 
+                ...typography.subheader,
+                fontSize: '16px',
+                color: colors.neutral[900],
+                marginBottom: spacing.xs
+              }}>
+                Cashflow
+              </div>
+              <div style={{ 
+                ...typography.bodySmall,
+                color: colors.neutral[600]
+              }}>
+                Cash flow analysis
+              </div>
+            </div>
+          </ActionGrid>
+        </div>
+      )}
+
+      {/* Ledger Actions - Everyone sees these */}
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '16px',
+        padding: spacing.xl,
+        marginBottom: spacing.xl,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+        border: '1px solid rgba(0,0,0,0.05)'
+      }}>
+        <h3 style={{ 
+          ...typography.subheader,
+          marginBottom: spacing.lg,
+          color: colors.neutral[900]
+        }}>
+          💳 Ledger Actions
+        </h3>
+        
+        <ActionGrid gap="md">
+          <div
+            onClick={() => setShowIssueAdvance(true)}
             style={{
               ...cardStyles.base,
               padding: spacing.lg,
@@ -608,13 +822,115 @@ export const EmployeeExpenseDashboard: React.FC = () => {
               color: colors.neutral[900],
               marginBottom: spacing.xs
             }}>
-              Analytics
+              Request Advance
             </div>
             <div style={{ 
               ...typography.bodySmall,
               color: colors.neutral[600]
             }}>
-              Spending insights
+              Issue advance (CR)
+            </div>
+          </div>
+
+          <div
+            onClick={() => setShowCashReturn(true)}
+            style={{
+              ...cardStyles.base,
+              padding: spacing.lg,
+              cursor: 'pointer',
+              minHeight: '100px',
+              display: 'flex',
+              flexDirection: 'column' as const,
+              justifyContent: 'center',
+              alignItems: 'center',
+              textAlign: 'center' as const,
+              border: `2px solid ${colors.status.error}`,
+              position: 'relative' as const
+            }}
+            className="card-hover touch-feedback"
+          >
+            <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>💵</div>
+            <div style={{ 
+              ...typography.subheader,
+              fontSize: '16px',
+              color: colors.neutral[900],
+              marginBottom: spacing.xs
+            }}>
+              Return Cash
+            </div>
+            <div style={{ 
+              ...typography.bodySmall,
+              color: colors.neutral[600]
+            }}>
+              Return cash (DR)
+            </div>
+          </div>
+
+          <div
+            onClick={() => setShowReimbursement(true)}
+            style={{
+              ...cardStyles.base,
+              padding: spacing.lg,
+              cursor: 'pointer',
+              minHeight: '100px',
+              display: 'flex',
+              flexDirection: 'column' as const,
+              justifyContent: 'center',
+              alignItems: 'center',
+              textAlign: 'center' as const,
+              border: `2px solid ${colors.status.normal}`,
+              position: 'relative' as const
+            }}
+            className="card-hover touch-feedback"
+          >
+            <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>💰</div>
+            <div style={{ 
+              ...typography.subheader,
+              fontSize: '16px',
+              color: colors.neutral[900],
+              marginBottom: spacing.xs
+            }}>
+              Reimbursement
+            </div>
+            <div style={{ 
+              ...typography.bodySmall,
+              color: colors.neutral[600]
+            }}>
+              Post reimbursement (CR)
+            </div>
+          </div>
+
+          <div
+            onClick={() => navigate('/app/expenses/reconciliation')}
+            style={{
+              ...cardStyles.base,
+              padding: spacing.lg,
+              cursor: 'pointer',
+              minHeight: '100px',
+              display: 'flex',
+              flexDirection: 'column' as const,
+              justifyContent: 'center',
+              alignItems: 'center',
+              textAlign: 'center' as const,
+              border: `2px solid ${colors.primary}`,
+              position: 'relative' as const
+            }}
+            className="card-hover touch-feedback"
+          >
+            <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>⚖️</div>
+            <div style={{ 
+              ...typography.subheader,
+              fontSize: '16px',
+              color: colors.neutral[900],
+              marginBottom: spacing.xs
+            }}>
+              Reconciliation
+            </div>
+            <div style={{ 
+              ...typography.bodySmall,
+              color: colors.neutral[600]
+            }}>
+              CR-DR summary
             </div>
           </div>
         </ActionGrid>
@@ -681,6 +997,51 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Open Advances */}
+      {!isAdmin && (
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '16px',
+          padding: spacing.xl,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+          border: '1px solid rgba(0,0,0,0.05)',
+          marginBottom: spacing.xl
+        }}>
+          <h3 style={{ 
+            ...typography.subheader,
+            margin: 0,
+            marginBottom: spacing.lg,
+            color: colors.neutral[900]
+          }}>
+            💳 Open Advances
+          </h3>
+          <OpenAdvancesSummary
+            advances={advancesData?.data?.map((adv: any) => ({
+              id: String(adv.id),
+              amount: Number(adv.amount || 0),
+              remaining: Number(adv.remaining || 0),
+              used: Number(adv.used || 0),
+              purpose: String(adv.purpose || ''),
+              issued_date: adv.created_at || new Date().toISOString(),
+              expiry_date: adv.expiry_date || undefined,
+              status: (adv.status || 'open') as 'open' | 'closed' | 'expired',
+            })) || []}
+            loading={advancesLoading}
+            onViewLedger={(advanceId) => navigate(`/app/expenses/advances/${advanceId}/ledger`)}
+            onReturn={(advance) => {
+              // Navigate to ledger with return action
+              navigate('/app/expenses/ledger', {
+                state: {
+                  action: 'return_advance',
+                  advanceId: advance.id,
+                  advanceAmount: advance.remaining
+                }
+              });
+            }}
+          />
         </div>
       )}
 
@@ -803,6 +1164,29 @@ export const EmployeeExpenseDashboard: React.FC = () => {
           />
         )}
       </div>
+
+      {/* Modals */}
+      <IssueAdvanceModal
+        isOpen={showIssueAdvance}
+        onClose={() => setShowIssueAdvance(false)}
+        onSuccess={() => {
+          // Refetch data if needed
+        }}
+      />
+      <CashReturnModal
+        isOpen={showCashReturn}
+        onClose={() => setShowCashReturn(false)}
+        onSuccess={() => {
+          // Refetch data if needed
+        }}
+      />
+      <ReimbursementModal
+        isOpen={showReimbursement}
+        onClose={() => setShowReimbursement(false)}
+        onSuccess={() => {
+          // Refetch data if needed
+        }}
+      />
     </div>
   );
 };

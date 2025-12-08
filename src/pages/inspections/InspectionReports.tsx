@@ -16,6 +16,7 @@ import { NetworkError } from '../../components/ui/NetworkError';
 import { InspectionReport } from '../../components/inspection/InspectionReport';
 import { useInspections } from '../../lib/queries';
 import { FileText, Search, Filter, Download, Share2, Eye, Calendar, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { logger } from '../../lib/logger';
 
 export const InspectionReports: React.FC = () => {
   const navigate = useNavigate();
@@ -57,12 +58,12 @@ export const InspectionReports: React.FC = () => {
 
   const handleGeneratePDF = async () => {
     // TODO: Implement PDF generation
-    console.log('Generate PDF for inspection:', selectedInspection);
+    logger.info('Generate PDF for inspection', { selectedInspection }, 'InspectionReports');
   };
 
   const handleEmailReport = async () => {
     // TODO: Implement email report
-    console.log('Email report for inspection:', selectedInspection);
+    logger.info('Email report for inspection', { selectedInspection }, 'InspectionReports');
   };
 
   const handleShareReport = async () => {

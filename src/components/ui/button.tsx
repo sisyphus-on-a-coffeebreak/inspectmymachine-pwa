@@ -1,9 +1,10 @@
 import React from 'react';
 import { buttonStyles, colors, spacing, borderRadius } from '../../lib/theme';
+import { useHapticFeedback } from '../../hooks/useHapticFeedback';
 
 interface ButtonProps {
   children: React.ReactNode;
-  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'critical';
+  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'critical' | 'destructive';
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
   loading?: boolean;
@@ -30,6 +31,7 @@ export const Button: React.FC<ButtonProps> = ({
   'aria-label': ariaLabel,
   'aria-labelledby': ariaLabelledBy
 }) => {
+  const { trigger: hapticTrigger } = useHapticFeedback();
   const sizeMap = {
     sm: {
       padding: `${spacing.sm} ${spacing.md}`,
@@ -66,8 +68,21 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    if (!disabled && !loading && onClick) {
-      onClick(e);
+    if (!disabled && !loading) {
+      // Haptic feedback based on button variant
+      if (variant === 'critical' || variant === 'error') {
+        hapticTrigger('error');
+      } else if (variant === 'success') {
+        hapticTrigger('success');
+      } else if (variant === 'warning') {
+        hapticTrigger('warning');
+      } else {
+        hapticTrigger('medium');
+      }
+      
+      if (onClick) {
+        onClick(e);
+      }
     }
   };
 
@@ -109,22 +124,52 @@ export const Button: React.FC<ButtonProps> = ({
       disabled={disabled || loading}
       className={`btn-hover-scale touch-feedback ${className}`}
       aria-disabled={disabled || loading}
+      aria-busy={loading}
       aria-label={ariaLabel || (typeof children === 'string' ? children : undefined)}
       aria-labelledby={ariaLabelledBy}
     >
       {loading && (
-        <div 
-          className="loading-spinner"
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
           style={{
-            width: '16px',
-            height: '16px',
-            border: '2px solid transparent',
-            borderTop: '2px solid currentColor',
-            borderRadius: '50%',
-            marginRight: spacing.sm
+            marginRight: spacing.sm,
+            animation: 'spin 1s linear infinite',
           }}
-        />
+          aria-hidden="true"
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeDasharray="32"
+            strokeDashoffset="32"
+            opacity="0.3"
+          />
+          <circle
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeDasharray="32"
+            strokeDashoffset="24"
+          />
+        </svg>
       )}
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
       {icon && !loading && icon}
       {children}
     </button>
@@ -170,11 +215,11 @@ export const IconButton: React.FC<Omit<ButtonProps, 'children' | 'icon'> & { ico
       size={size}
       style={{
         ...buttonStyles[props.variant || 'primary'],
-        width: size === 'sm' ? '32px' : size === 'lg' ? '48px' : '40px',
-        height: size === 'sm' ? '32px' : size === 'lg' ? '48px' : '40px',
+        width: size === 'sm' ? '44px' : size === 'lg' ? '56px' : '48px',
+        height: size === 'sm' ? '44px' : size === 'lg' ? '56px' : '48px',
         padding: 0,
-        minWidth: 'auto',
-        minHeight: 'auto'
+        minWidth: '44px', // Ensure minimum touch target
+        minHeight: '44px' // Ensure minimum touch target
       }}
     >
       <div style={{ fontSize: iconSizeMap[size] }}>

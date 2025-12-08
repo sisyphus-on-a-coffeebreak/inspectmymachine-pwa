@@ -23,7 +23,7 @@ export const SkeletonCard: React.FC<{ className?: string }> = ({ className = '' 
     className={`skeleton-card ${className}`}
     style={{
       ...cardStyles.base,
-      animation: 'pulse 1.5s ease-in-out infinite',
+      animation: 'skeleton-pulse 1.5s ease-in-out infinite',
     }}
   >
     <div style={{
@@ -47,9 +47,18 @@ export const SkeletonCard: React.FC<{ className?: string }> = ({ className = '' 
       borderRadius: borderRadius.sm,
     }} />
     <style>{`
-      @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
+      @keyframes skeleton-pulse {
+        0%, 100% { 
+          opacity: 1;
+          background-color: ${colors.neutral[200]};
+        }
+        50% { 
+          opacity: 0.6;
+          background-color: ${colors.neutral[300]};
+        }
+      }
+      .skeleton-card {
+        animation: skeleton-pulse 1.5s ease-in-out infinite;
       }
     `}</style>
   </div>
@@ -78,7 +87,7 @@ export const SkeletonTable: React.FC<{ rows?: number; columns?: number }> = ({ r
               height: '20px',
               backgroundColor: colors.neutral[200],
               borderRadius: borderRadius.sm,
-              animation: 'pulse 1.5s ease-in-out infinite',
+              animation: 'skeleton-pulse 1.5s ease-in-out infinite',
               animationDelay: `${(i * columns + j) * 0.1}s`,
             }}
           />
@@ -86,9 +95,18 @@ export const SkeletonTable: React.FC<{ rows?: number; columns?: number }> = ({ r
       </div>
     ))}
     <style>{`
-      @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
+      @keyframes skeleton-pulse {
+        0%, 100% { 
+          opacity: 1;
+          background-color: ${colors.neutral[200]};
+        }
+        50% { 
+          opacity: 0.6;
+          background-color: ${colors.neutral[300]};
+        }
+      }
+      .skeleton-card {
+        animation: skeleton-pulse 1.5s ease-in-out infinite;
       }
     `}</style>
   </div>
@@ -107,15 +125,24 @@ export const SkeletonText: React.FC<{ lines?: number; width?: string }> = ({ lin
           width: i === lines - 1 ? '60%' : width,
           backgroundColor: colors.neutral[200],
           borderRadius: borderRadius.sm,
-          animation: 'pulse 1.5s ease-in-out infinite',
+          animation: 'skeleton-pulse 1.5s ease-in-out infinite',
           animationDelay: `${i * 0.1}s`,
         }}
       />
     ))}
     <style>{`
-      @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
+      @keyframes skeleton-pulse {
+        0%, 100% { 
+          opacity: 1;
+          background-color: ${colors.neutral[200]};
+        }
+        50% { 
+          opacity: 0.6;
+          background-color: ${colors.neutral[300]};
+        }
+      }
+      .skeleton-card {
+        animation: skeleton-pulse 1.5s ease-in-out infinite;
       }
     `}</style>
   </div>
@@ -132,7 +159,7 @@ export const SkeletonPage: React.FC<{ className?: string }> = ({ className = '' 
       backgroundColor: colors.neutral[200],
       borderRadius: borderRadius.sm,
       marginBottom: spacing.xl,
-      animation: 'pulse 1.5s ease-in-out infinite',
+      animation: 'skeleton-pulse 1.5s ease-in-out infinite',
     }} />
     <div style={{ display: 'grid', gap: spacing.lg }}>
       {Array.from({ length: 3 }).map((_, i) => (
@@ -140,9 +167,18 @@ export const SkeletonPage: React.FC<{ className?: string }> = ({ className = '' 
       ))}
     </div>
     <style>{`
-      @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
+      @keyframes skeleton-pulse {
+        0%, 100% { 
+          opacity: 1;
+          background-color: ${colors.neutral[200]};
+        }
+        50% { 
+          opacity: 0.6;
+          background-color: ${colors.neutral[300]};
+        }
+      }
+      .skeleton-card {
+        animation: skeleton-pulse 1.5s ease-in-out infinite;
       }
     `}</style>
   </div>

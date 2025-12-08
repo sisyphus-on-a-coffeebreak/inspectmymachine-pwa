@@ -7,7 +7,7 @@ import { AuthContext } from "./AuthContext";
 import type { User, AuthContextType, ApiErrorResponse } from "./authTypes";
 
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 
-  (import.meta.env.PROD ? "https://api.inspectmymachine.in/api" : "http://localhost:8000");
+  (import.meta.env.PROD ? "https://api.inspectmymachine.in/api" : "http://localhost:8000/api");
 const API_BASE = (import.meta.env.VITE_API_BASE || API_ORIGIN).replace(/\/$/, "");
 
 // Configure axios defaults
@@ -50,7 +50,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         // 419 CSRF or 401 unauthenticated → try to refresh CSRF + retry once
         // But only if not already retrying and not an auth check
-        if ((status === 419 || status === 401) && !retrying && !isAuthCheck && !isAuthCheckHeader && !skipRetry) {
+        // Skip if it's a connection error (server unavailable)
+        const isConnectionError = !error.response && (error.code === 'ERR_CONNECTION_REFUSED' || error.code === 'ERR_NETWORK');
+        if ((status === 419 || status === 401) && !retrying && !isAuthCheck && !isAuthCheckHeader && !skipRetry && !isConnectionError) {
           try {
             retrying = true;
             const csrfUrl = API_ORIGIN.endsWith('/api') 
@@ -138,7 +140,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         // Log the full error for debugging (only in development)
         if (import.meta.env.DEV) {
-          console.log('Validation error details:', errorData);
+          logger.debug('Validation error details', errorData, 'AuthProvider');
         }
         
         if (errorData && typeof errorData === 'object' && 'errors' in errorData) {

@@ -23,7 +23,7 @@ function withCacheBuster(u: string, n = 0) {
   return `${base}${sep}cb=${n}${hash ? `#${hash}` : ""}`;
 }
 
-const BTN_SIZE = 30; // slightly smaller than the 48px version, still very tappable
+const BTN_SIZE = 32; // 32px minimum touch target for accessibility
 
 export default function ThumbnailGrid({ items, onDelete }: Props) {
   const [retryMap, setRetryMap] = useState<Record<string, number>>({});
@@ -51,7 +51,7 @@ export default function ThumbnailGrid({ items, onDelete }: Props) {
           <div key={key} className="relative overflow-hidden rounded-md">
             <img
               src={shownUrl}
-              alt=""
+              alt={`Thumbnail ${key}`}
               loading="lazy"
               className="w-full h-28 object-cover select-none"
               style={{ pointerEvents: "none" }}

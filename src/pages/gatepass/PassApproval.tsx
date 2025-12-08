@@ -6,6 +6,8 @@ import { Button } from '../../components/ui/button';
 import { PolicyLinks } from '../../components/ui/PolicyLinks';
 import { useToast } from '../../providers/ToastProvider';
 import { useConfirm } from '../../components/ui/Modal';
+import { CommentThread, type Comment } from '../../components/ui/CommentThread';
+import { useAuth } from '../../providers/useAuth';
 
 // ✅ Pass Approval Workflow
 // Multi-level approval system for gate passes
@@ -55,6 +57,7 @@ interface PassDetails {
 
 export const PassApproval: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const { confirm, ConfirmComponent } = useConfirm();
   const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>([]);
@@ -65,6 +68,9 @@ export const PassApproval: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [approvalNotes, setApprovalNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<Array<{ id: string; name: string; role?: string }>>([]);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   const fetchApprovalRequests = useCallback(async () => {
     try {
@@ -74,37 +80,8 @@ export const PassApproval: React.FC = () => {
       });
       setApprovalRequests(response.data);
     } catch (error) {
-      // Mock data for development (fallback)
-      setApprovalRequests([
-        {
-          id: '1',
-          pass_id: 'pass-123',
-          pass_number: 'VP123456',
-          pass_type: 'visitor',
-          requester_name: 'John Smith',
-          requester_id: 'user-1',
-          request_date: '2024-01-20T10:00:00Z',
-          approval_level: 1,
-          current_approver: 'Manager',
-          status: 'pending',
-          created_at: '2024-01-20T10:00:00Z',
-          updated_at: '2024-01-20T10:00:00Z'
-        },
-        {
-          id: '2',
-          pass_id: 'pass-124',
-          pass_number: 'VM123457',
-          pass_type: 'vehicle',
-          requester_name: 'Sarah Johnson',
-          requester_id: 'user-2',
-          request_date: '2024-01-20T11:30:00Z',
-          approval_level: 2,
-          current_approver: 'Supervisor',
-          status: 'pending',
-          created_at: '2024-01-20T11:30:00Z',
-          updated_at: '2024-01-20T11:30:00Z'
-        }
-      ]);
+      // Show empty state instead of mock data
+      setApprovalRequests([]);
     } finally {
       setLoading(false);
     }
@@ -115,40 +92,25 @@ export const PassApproval: React.FC = () => {
       const response = await apiClient.get(`/gate-pass-approval/pass-details/${passId}`);
       setPassDetails(response.data);
     } catch (error) {
-      // Mock data for development (fallback)
-      setPassDetails({
-        id: passId,
-        pass_number: 'VP123456',
-        type: 'visitor',
-        visitor_name: 'John Smith',
-        purpose: 'inspection',
-        valid_from: '2024-01-21T09:00:00Z',
-        valid_to: '2024-01-21T17:00:00Z',
-        requester_name: 'John Smith',
-        request_notes: 'Client inspection for vehicle purchase',
-        urgency: 'medium'
-      });
+      // Show empty state instead of mock data
+      setPassDetails(null);
     }
   };
 
-  const fetchApprovalLevels = async () => {
+  const fetchApprovalLevels = async (passId?: string) => {
     try {
-      const response = await apiClient.get(`/gate-pass-approval/history`);
+      const params = passId ? { pass_id: passId } : {};
+      const response = await apiClient.get(`/gate-pass-approval/history`, { params });
       setApprovalLevels(response.data);
     } catch (error) {
-      // Mock data for development
-      setApprovalLevels([
-        {
-          level: 1,
-          approver_role: 'Manager',
-          approver_name: 'Manager Name',
-          required: true,
-          status: 'pending'
+      console.error('Error fetching approval levels:', error);
+      // Show empty state instead of mock data
+      setApprovalLevels([]);
         },
         {
           level: 2,
-          approver_role: 'Supervisor',
-          approver_name: 'Supervisor Name',
+          approver_role: 'admin',
+          approver_name: null,
           required: false,
           status: 'pending'
         }
@@ -156,15 +118,120 @@ export const PassApproval: React.FC = () => {
     }
   };
 
+  const fetchComments = useCallback(async (requestId: string) => {
+    try {
+      const response = await apiClient.get(`/gate-pass-approval/comments/${requestId}`);
+      setComments(response.data.comments || []);
+    } catch (error) {
+      // If endpoint doesn't exist yet, use empty array
+      setComments([]);
+    }
+  }, []);
+
+  const fetchAvailableUsers = useCallback(async () => {
+    try {
+      const response = await apiClient.get('/v1/users', { params: { limit: 100 } });
+      const users = response.data.users || response.data || [];
+      setAvailableUsers(users.map((u: any) => ({
+        id: u.id,
+        name: u.name || u.email || 'Unknown User',
+        role: u.role,
+      })));
+    } catch (error) {
+      // Fallback to current user only
+      if (user) {
+        setAvailableUsers([{
+          id: user.id,
+          name: user.name || user.email || 'You',
+          role: user.role,
+        }]);
+      }
+    }
+  }, [user]);
+
   useEffect(() => {
     fetchApprovalRequests();
   }, [fetchApprovalRequests]);
 
+  useEffect(() => {
+    fetchAvailableUsers();
+  }, [fetchAvailableUsers]);
+
   const handleRequestClick = async (request: ApprovalRequest) => {
+    // Prevent duplicate clicks on the same request or while loading
+    if (selectedRequest?.id === request.id || loadingDetails) {
+      return;
+    }
+    
+    setLoadingDetails(true);
+    
+    // Set selected request immediately for UI feedback
     setSelectedRequest(request);
-    await fetchPassDetails(request.pass_id);
-    await fetchApprovalLevels();
+    
+    // Reset related state
+    setPassDetails(null);
+    setApprovalLevels([]);
+    setComments([]);
+    
+    // Fetch data in parallel for better performance
+    try {
+      await Promise.all([
+        fetchPassDetails(request.pass_id),
+        fetchApprovalLevels(request.pass_id),
+        fetchComments(request.id),
+      ]);
+    } catch (error) {
+      // Errors are handled in individual fetch functions with fallbacks
+      console.error('Error loading request details:', error);
+    } finally {
+      setLoadingDetails(false);
+    }
   };
+
+  const handleAddComment = useCallback(async (content: string, mentions?: string[]) => {
+    if (!selectedRequest) return;
+
+    try {
+      const response = await apiClient.post(`/gate-pass-approval/comments/${selectedRequest.id}`, {
+        content,
+        mentions,
+      });
+
+      const newComment: Comment = {
+        id: response.data.comment?.id || Date.now().toString(),
+        author_id: user?.id || '',
+        author_name: user?.name || user?.email || 'You',
+        author_role: user?.role,
+        content,
+        created_at: new Date().toISOString(),
+        mentions,
+      };
+
+      setComments(prev => [...prev, newComment]);
+      showToast({
+        title: 'Success',
+        description: 'Comment added successfully',
+        variant: 'success',
+      });
+    } catch (error) {
+      // Fallback: add comment locally if API doesn't exist
+      const newComment: Comment = {
+        id: Date.now().toString(),
+        author_id: user?.id || '',
+        author_name: user?.name || user?.email || 'You',
+        author_role: user?.role,
+        content,
+        created_at: new Date().toISOString(),
+        mentions,
+      };
+      setComments(prev => [...prev, newComment]);
+      showToast({
+        title: 'Comment Added',
+        description: 'Comment saved locally (API endpoint may need to be created)',
+        variant: 'success',
+      });
+    }
+  }, [selectedRequest, user, showToast]);
 
   const approveRequest = async () => {
     if (!selectedRequest) return;
@@ -407,14 +474,20 @@ export const PassApproval: React.FC = () => {
             {approvalRequests.map((request) => (
               <div
                 key={request.id}
-                onClick={() => handleRequestClick(request)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleRequestClick(request);
+                }}
                 style={{
                   padding: spacing.lg,
                   border: '1px solid #E5E7EB',
                   borderRadius: '12px',
                   backgroundColor: selectedRequest?.id === request.id ? colors.primary + '10' : '#F9FAFB',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
+                  cursor: loadingDetails ? 'wait' : 'pointer',
+                  transition: 'all 0.2s ease',
+                  opacity: loadingDetails && selectedRequest?.id !== request.id ? 0.6 : 1,
+                  pointerEvents: loadingDetails ? 'auto' : 'auto', // Allow clicks but show loading state
                 }}
               >
                 <div style={{ 

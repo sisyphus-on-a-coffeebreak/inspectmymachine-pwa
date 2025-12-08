@@ -1,6 +1,6 @@
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
-import { colors, typography, spacing } from '../../lib/theme';
+import { colors, typography, spacing, shadows } from '../../lib/theme';
 import { Button } from './button';
 
 interface EmptyStateProps {
@@ -43,13 +43,13 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         textAlign: 'center',
         backgroundColor: 'white',
         borderRadius: '16px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-        border: '1px solid rgba(0,0,0,0.05)',
+        boxShadow: shadows.md,
+        border: `1px solid ${colors.neutral[200]}`,
         fontFamily: typography.body.fontFamily,
         margin: spacing.lg
       }}
     >
-      <div style={{ fontSize: '4rem', marginBottom: spacing.lg }}>
+      <div style={{ fontSize: 'clamp(2rem, 10vw, 4rem)', marginBottom: spacing.lg }}>
         {icon}
       </div>
       

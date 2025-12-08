@@ -36,6 +36,7 @@ export function Modal({
 }: ModalProps) {
   const showCloseButton = true;
   const modalRef = useFocusTrap<HTMLDivElement>(true);
+  const overlayRef = React.useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -44,25 +45,38 @@ export function Modal({
       }
     };
     document.addEventListener('keydown', handleEscape);
+    const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    
+    // Force overlay to scroll to top to ensure modal is centered in viewport
+    // Use both immediate and next frame to ensure it works
+    if (overlayRef.current) {
+      overlayRef.current.scrollTop = 0;
+    }
+    requestAnimationFrame(() => {
+      if (overlayRef.current) {
+        overlayRef.current.scrollTop = 0;
+      }
+    });
+    
     return () => {
       document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = '';
+      document.body.style.overflow = originalOverflow;
     };
   }, [onClose]);
 
   return (
     <div
+      ref={overlayRef}
       style={{
         position: 'fixed',
-        inset: 0,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         zIndex: 9999,
         overflowY: 'auto',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: spacing.lg,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
         backdropFilter: 'blur(4px)',
       }}
       onClick={(e) => {
@@ -75,34 +89,45 @@ export function Modal({
       aria-labelledby={title ? 'modal-title' : undefined}
     >
       <div
-        ref={modalRef}
-        className={className}
         style={{
-          backgroundColor: '#ffffff',
-          borderRadius: borderRadius.lg,
-          boxShadow: shadows.lg,
-          width: '100%',
-          ...sizeMap[size],
-          maxHeight: '90vh',
+          minHeight: '100vh',
           display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          border: `1px solid ${colors.neutral[200]}`,
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
         }}
-        onClick={(e) => e.stopPropagation()}
       >
+        <div
+          ref={modalRef}
+          className={className}
+          style={{
+            backgroundColor: '#ffffff',
+            borderRadius: borderRadius.lg,
+            boxShadow: shadows.lg,
+            width: '100%',
+            ...sizeMap[size],
+            maxHeight: 'calc(100vh - 40px)',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            border: `1px solid ${colors.neutral[200]}`,
+            flexShrink: 0,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
         {(title || showCloseButton) && (
           <div
             style={{
+              position: 'relative',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: spacing.lg,
+              padding: 'clamp(12px, 4vw, 24px)',
+              paddingRight: showCloseButton ? '48px' : 'clamp(12px, 4vw, 24px)',
               borderBottom: `1px solid ${colors.neutral[200]}`,
             }}
           >
             {title && (
-              <h2 id="modal-title" style={{ ...typography.heading, margin: 0 }}>
+              <h2 id="modal-title" style={{ ...typography.heading, margin: 0, flex: 1 }}>
                 {title}
               </h2>
             )}
@@ -111,6 +136,9 @@ export function Modal({
                 onClick={onClose}
                 aria-label="Close modal"
                 style={{
+                  position: 'absolute',
+                  top: 'clamp(12px, 4vw, 24px)',
+                  right: 'clamp(12px, 4vw, 24px)',
                   background: 'transparent',
                   border: 'none',
                   cursor: 'pointer',
@@ -121,6 +149,10 @@ export function Modal({
                   justifyContent: 'center',
                   color: colors.neutral[600],
                   transition: 'all 0.2s',
+                  minWidth: '44px', // Minimum touch target
+                  minHeight: '44px', // Minimum touch target
+                  width: '44px',
+                  height: '44px',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = colors.neutral[100];
@@ -140,15 +172,18 @@ export function Modal({
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: spacing.lg,
+            overflowX: 'hidden',
+            padding: 'clamp(12px, 4vw, 24px)',
+            minHeight: 0, // Important for flex children to allow scrolling
           }}
         >
           {children}
         </div>
         {footer && (
           <div
+            className="modal-footer"
             style={{
-              padding: spacing.lg,
+              padding: 'clamp(12px, 4vw, 24px)',
               borderTop: `1px solid ${colors.neutral[200]}`,
               display: 'flex',
               gap: spacing.md,
@@ -158,7 +193,18 @@ export function Modal({
             {footer}
           </div>
         )}
+        </div>
       </div>
+      <style>{`
+        @media (max-width: 480px) {
+          .modal-footer {
+            flex-direction: column;
+          }
+          .modal-footer > * {
+            width: 100%;
+          }
+        }
+      `}</style>
     </div>
   );
 }

@@ -6,7 +6,10 @@ import { useToast } from '../../providers/ToastProvider';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { ReceiptPreview } from '../../components/ui/ReceiptPreview';
-import { PolicyLinks } from '../../components/ui/PolicyLinks';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { Pagination } from '../../components/ui/Pagination';
+import { StatCard } from '../../components/ui/StatCard';
+import { useExpenseApprovals, useExpenseApprovalStats, useApproveExpense, useRejectExpense } from '../../lib/queries';
 
 // ✅ Expense Approval Workflow
 // Admin approval system for employee expenses
@@ -76,7 +79,9 @@ export const ExpenseApproval: React.FC = () => {
   }, [filter]);
 
   const handleExpenseClick = (expense: ExpenseApproval) => {
-    navigate(`/app/expenses/${expense.id}`);
+    navigate(`/app/expenses/${expense.id}`, { 
+      state: { from: '/app/expenses/approval' } 
+    });
   };
 
   const approveExpense = async (expenseId: string) => {
@@ -261,31 +266,6 @@ export const ExpenseApproval: React.FC = () => {
         }
       />
 
-      {/* Policy Links */}
-      <PolicyLinks
-        title="Expense Policy & Guidelines"
-        links={[
-          {
-            label: 'Expense Policy',
-            url: '/policies/expense-policy',
-            external: false,
-            icon: '📋'
-          },
-          {
-            label: 'Approval Limits',
-            url: '/policies/approval-limits',
-            external: false,
-            icon: '💰'
-          },
-          {
-            label: 'Receipt Requirements',
-            url: '/policies/receipt-requirements',
-            external: false,
-            icon: '🧾'
-          }
-        ]}
-        variant="compact"
-      />
 
       {/* Anomaly Alerts */}
       {(() => {

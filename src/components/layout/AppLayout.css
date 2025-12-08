@@ -11,14 +11,14 @@
   }
 }
 
-/* Desktop Sidebar - visible on desktop only */
+/* Desktop Sidebar - hidden on mobile, visible on desktop only */
 .app-layout-desktop-sidebar {
-  display: none;
+  display: none !important;
 }
 
 @media (min-width: 768px) {
   .app-layout-desktop-sidebar {
-    display: block;
+    display: block !important;
   }
 }
 
@@ -29,23 +29,38 @@
 
 @media (min-width: 768px) {
   .app-layout-mobile-sidebar {
-    display: none;
+    display: none !important;
   }
 }
 
 /* Main Content - adjust margin for sidebar */
 .app-layout-main-content {
-  margin-left: 0;
-  padding: 1rem;
+  margin-left: 0 !important;
+  padding: 1.5rem;
   min-height: calc(100vh - 64px);
+  transition: margin-left 0.3s ease, padding 0.3s ease;
+}
+
+/* Mobile: no sidebar margin */
+.app-layout-main-content[data-is-mobile="true"] {
+  margin-left: 0 !important;
+  padding-bottom: calc(1.5rem + 64px) !important; /* Account for bottom nav */
 }
 
 @media (min-width: 768px) {
   .app-layout-main-content {
-    margin-left: 280px;
     padding: 2rem;
     min-height: 100vh;
-    transition: margin-left 0.3s ease;
+  }
+  
+  /* Desktop: sidebar margin */
+  .app-layout-main-content[data-is-mobile="false"] {
+    margin-left: 280px !important;
+  }
+  
+  /* When sidebar is collapsed on desktop */
+  .app-layout-main-content[data-is-mobile="false"][data-sidebar-collapsed="true"] {
+    margin-left: 64px !important;
   }
 }
 

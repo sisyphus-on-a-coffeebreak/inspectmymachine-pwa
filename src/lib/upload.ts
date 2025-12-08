@@ -1,5 +1,6 @@
 // src/lib/upload.ts
 import { useAuth } from "@/providers/useAuth";
+import { ensureCsrfToken } from "./csrf";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000/api";
 
@@ -7,6 +8,16 @@ function join(apiBase: string, path: string) {
   if (/^https?:\/\//i.test(path)) return path;
   if (!apiBase) return path.startsWith("/") ? path : `/${path}`;
   return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
+}
+
+// Helper to get CSRF token from cookie
+function getCsrfToken(): string | null {
+  const cookies = document.cookie;
+  const match = cookies.match(/XSRF-TOKEN=([^;]+)/);
+  if (match) {
+    return decodeURIComponent(match[1]);
+  }
+  return null;
 }
 
 export type UploadResult = {
@@ -48,7 +59,7 @@ export function useUploader() {
     prefix?: string,
     onProgress?: (pct: number) => void
   ): Promise<UploadResult> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       let base: string;
       try {
         base = requireApiBase();
@@ -57,10 +68,24 @@ export function useUploader() {
         return;
       }
 
+      // Ensure CSRF token is available
+      try {
+        await ensureCsrfToken();
+      } catch (csrfError) {
+        // If CSRF fails, try to continue anyway (backend might have it excluded)
+        console.warn('CSRF token initialization failed, continuing anyway:', csrfError);
+      }
+
       const url = join(base, "/v1/files/upload");
       const xhr = new XMLHttpRequest();
       xhr.open("POST", url);
       xhr.setRequestHeader("Accept", "application/json");
+      
+      // Add CSRF token if available
+      const csrfToken = getCsrfToken();
+      if (csrfToken) {
+        xhr.setRequestHeader("X-XSRF-TOKEN", csrfToken);
+      }
       
       // Cookie-based auth - credentials are sent automatically
       xhr.withCredentials = true;
@@ -84,9 +109,18 @@ export function useUploader() {
 
         if (!ok) {
           const errorData = data as UploadError;
-          const msg =
-            (errorData && (errorData.message || errorData.error)) ||
-            (xhr.status === 401 ? "Unauthorized (401)" : `Upload failed: ${xhr.status}`);
+          let msg: string;
+          
+          if (xhr.status === 419) {
+            msg = "Session expired. Please refresh the page and try again.";
+          } else if (xhr.status === 401) {
+            msg = "Unauthorized. Please log in again.";
+          } else if (errorData && (errorData.message || errorData.error)) {
+            msg = errorData.message || errorData.error || `Upload failed: ${xhr.status}`;
+          } else {
+            msg = `Upload failed: ${xhr.status}`;
+          }
+          
           reject(new Error(msg));
           return;
         }

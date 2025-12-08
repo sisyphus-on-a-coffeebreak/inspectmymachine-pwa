@@ -1,79 +1,29 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  Home,
-  DoorOpen,
-  ClipboardCheck,
-  Receipt,
-  MoreHorizontal,
-  Warehouse,
-  UserCog,
-  AlertTriangle,
-} from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
 import { colors, spacing, borderRadius, shadows } from '../../lib/theme';
-import { Modal } from './Modal';
-
-interface NavItem {
-  id: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  path: string;
-  badge?: number;
-}
-
-const mainNavItems: NavItem[] = [
-  {
-    id: 'home',
-    label: 'Home',
-    icon: Home,
-    path: '/dashboard',
-  },
-  {
-    id: 'gate-pass',
-    label: 'Gate Pass',
-    icon: DoorOpen,
-    path: '/app/gate-pass',
-  },
-  {
-    id: 'inspections',
-    label: 'Inspections',
-    icon: ClipboardCheck,
-    path: '/app/inspections',
-  },
-  {
-    id: 'expenses',
-    label: 'Expenses',
-    icon: Receipt,
-    path: '/app/expenses',
-  },
-];
-
-const moreNavItems: NavItem[] = [
-  {
-    id: 'stockyard',
-    label: 'Stockyard',
-    icon: Warehouse,
-    path: '/app/stockyard',
-  },
-  {
-    id: 'alerts',
-    label: 'Alerts',
-    icon: AlertTriangle,
-    path: '/app/alerts',
-  },
-  {
-    id: 'users',
-    label: 'Users',
-    icon: UserCog,
-    path: '/app/admin/users',
-  },
-];
+import { BottomSheet } from './BottomSheet';
+import { FloatingActionButton } from './FloatingActionButton';
+import { useAuth } from '../../providers/useAuth';
+import { navigationByRole, getMoreItemsForRole, type NavItem } from '../../lib/navigationConfig';
+import { useUnifiedApprovals } from '../../hooks/useUnifiedApprovals';
 
 export function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [showMoreSheet, setShowMoreSheet] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  // Get role-based navigation config
+  const role = (user?.role || 'clerk') as keyof typeof navigationByRole;
+  const config = navigationByRole[role] || navigationByRole.clerk;
+  const moreItems = getMoreItemsForRole(role);
+
+  // Get approval count for badge (only for roles that can approve)
+  const canApprove = role === 'super_admin' || role === 'admin' || role === 'supervisor';
+  const { counts } = useUnifiedApprovals({}, { enabled: canApprove });
+  const approvalCount = canApprove ? (counts?.all || null) : null;
 
   // Detect keyboard open/close
   useEffect(() => {
@@ -100,15 +50,26 @@ export function BottomNav() {
     return location.pathname.startsWith(path);
   };
 
-  const handleNavClick = (path: string) => {
+  const handleNavClick = (path: string | null) => {
+    if (!path) {
+      setShowMoreSheet(true);
+      return;
+    }
     navigate(path);
     setShowMoreSheet(false);
   };
 
-  // Hide on desktop
-  if (window.innerWidth >= 768) {
+  const getBadgeCount = (item: NavItem): number | null => {
+    // Special case for approvals - use the approval count
+    if (item.id === 'approvals') {
+      return approvalCount;
+    }
+    // If item has a badge function, call it
+    if (item.badge) {
+      return item.badge();
+    }
     return null;
-  }
+  };
 
   // Hide when keyboard is open
   if (keyboardOpen) {
@@ -118,6 +79,7 @@ export function BottomNav() {
   return (
     <>
       <nav
+        className="bottom-nav-container"
         style={{
           position: 'fixed',
           bottom: 0,
@@ -135,14 +97,15 @@ export function BottomNav() {
         }}
         className="dark:bg-zinc-900 dark:border-zinc-800"
       >
-        {mainNavItems.map((item) => {
+        {config.items.map((item) => {
           const Icon = item.icon;
-          const active = isActive(item.path);
+          const active = item.route ? isActive(item.route) : false;
+          const badgeCount = getBadgeCount(item);
 
           return (
             <button
               key={item.id}
-              onClick={() => handleNavClick(item.path)}
+              onClick={() => handleNavClick(item.route)}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -154,30 +117,31 @@ export function BottomNav() {
                 background: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
-                color: active ? colors.primary : colors.neutral[600],
-                transition: 'color 0.2s',
+                color: active ? colors.primary : colors.neutral[700],
+                transition: 'transform 0.2s ease, color 0.2s',
                 position: 'relative',
+                transform: active ? 'scale(1.05)' : 'scale(1)',
               }}
               aria-label={item.label}
             >
               <Icon
                 style={{
-                  width: '24px',
-                  height: '24px',
+                  width: '20px',
+                  height: '20px',
                   fill: active ? colors.primary : 'none',
                   strokeWidth: active ? 2.5 : 2,
                 }}
               />
               <span
                 style={{
-                  fontSize: '11px',
+                  fontSize: '12px',
                   fontWeight: active ? 600 : 400,
-                  color: active ? colors.primary : colors.neutral[600],
+                  color: active ? colors.primary : colors.neutral[700],
                 }}
               >
                 {item.label}
               </span>
-              {item.badge && item.badge > 0 && (
+              {badgeCount !== null && badgeCount > 0 && (
                 <span
                   style={{
                     position: 'absolute',
@@ -196,68 +160,72 @@ export function BottomNav() {
                     fontWeight: 600,
                   }}
                 >
-                  {item.badge > 9 ? '9+' : item.badge}
+                  {badgeCount > 9 ? '9+' : badgeCount}
                 </span>
               )}
             </button>
           );
         })}
 
-        {/* More Button */}
-        <button
-          onClick={() => setShowMoreSheet(true)}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '4px',
-            flex: 1,
-            padding: spacing.sm,
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            color: showMoreSheet ? colors.primary : colors.neutral[600],
-            transition: 'color 0.2s',
-          }}
-          aria-label="More"
-        >
-          <MoreHorizontal
+        {/* More Button - only show if there's a "more" item */}
+        {config.items.some(item => item.route === null) && (
+          <button
+            onClick={() => setShowMoreSheet(true)}
             style={{
-              width: '24px',
-              height: '24px',
-              fill: showMoreSheet ? colors.primary : 'none',
-              strokeWidth: showMoreSheet ? 2.5 : 2,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px',
+              flex: 1,
+              padding: spacing.sm,
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: showMoreSheet ? colors.primary : colors.neutral[700],
+              transition: 'transform 0.2s ease, color 0.2s',
+              transform: showMoreSheet ? 'scale(1.05)' : 'scale(1)',
             }}
-          />
-          <span
-            style={{
-              fontSize: '11px',
-              fontWeight: showMoreSheet ? 600 : 400,
-              color: showMoreSheet ? colors.primary : colors.neutral[600],
-            }}
+            aria-label="More"
           >
-            More
-          </span>
-        </button>
+            <MoreHorizontal
+              style={{
+                width: '20px',
+                height: '20px',
+                fill: showMoreSheet ? colors.primary : 'none',
+                strokeWidth: showMoreSheet ? 2.5 : 2,
+              }}
+            />
+            <span
+              style={{
+                fontSize: '12px',
+                fontWeight: showMoreSheet ? 600 : 400,
+                color: showMoreSheet ? colors.primary : colors.neutral[700],
+              }}
+            >
+              More
+            </span>
+          </button>
+        )}
       </nav>
 
-      {/* More Sheet Modal */}
+      {/* More Sheet */}
       {showMoreSheet && (
-        <Modal
+        <BottomSheet
           title="More"
           onClose={() => setShowMoreSheet(false)}
-          size="sm"
+          isOpen={showMoreSheet}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-            {moreNavItems.map((item) => {
+            {moreItems.map((item) => {
               const Icon = item.icon;
-              const active = isActive(item.path);
+              const active = item.route ? isActive(item.route) : false;
+              const badgeCount = getBadgeCount(item);
 
               return (
                 <button
                   key={item.id}
-                  onClick={() => handleNavClick(item.path)}
+                  onClick={() => handleNavClick(item.route)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -293,7 +261,7 @@ export function BottomNav() {
                   <span style={{ flex: 1, fontWeight: active ? 600 : 400 }}>
                     {item.label}
                   </span>
-                  {item.badge && item.badge > 0 && (
+                  {badgeCount !== null && badgeCount > 0 && (
                     <span
                       style={{
                         backgroundColor: colors.error[500],
@@ -308,15 +276,33 @@ export function BottomNav() {
                         fontWeight: 600,
                       }}
                     >
-                      {item.badge > 9 ? '9+' : item.badge}
+                      {badgeCount > 9 ? '9+' : badgeCount}
                     </span>
                   )}
                 </button>
               );
             })}
           </div>
-        </Modal>
+        </BottomSheet>
       )}
+
+      {/* Floating Action Button */}
+      {config.fab && (
+        <FloatingActionButton
+          icon={config.fab.icon}
+          label={config.fab.label}
+          actions={config.fab.actions}
+        />
+      )}
+      
+      <style>{`
+        /* Hide on desktop using CSS */
+        @media (min-width: 768px) {
+          .bottom-nav-container {
+            display: none !important;
+          }
+        }
+      `}</style>
     </>
   );
 }

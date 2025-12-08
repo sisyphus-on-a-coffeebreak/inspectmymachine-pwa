@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useHapticFeedback } from '../hooks/useHapticFeedback';
 
 type ToastVariant = 'default' | 'success' | 'error' | 'warning';
 
@@ -47,6 +48,7 @@ function createId() {
 export const ToastProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastEntry[]>([]);
   const timers = useRef<Map<string, number>>(new Map());
+  const { trigger: hapticTrigger } = useHapticFeedback();
 
   useEffect(() => {
     const timersRef = timers.current;
@@ -68,6 +70,16 @@ export const ToastProvider: React.FC<React.PropsWithChildren> = ({ children }) =
   const showToast = useCallback(
     ({ duration = 5000, ...options }: ToastOptions) => {
       const id = options.id ?? createId();
+      
+      // Haptic feedback based on toast variant
+      if (options.variant === 'error') {
+        hapticTrigger('error');
+      } else if (options.variant === 'success') {
+        hapticTrigger('success');
+      } else if (options.variant === 'warning') {
+        hapticTrigger('warning');
+      }
+      
       setToasts((prev) => {
         const next = prev.filter((toast) => toast.id !== id);
         return [...next, { ...options, id }];
@@ -80,7 +92,7 @@ export const ToastProvider: React.FC<React.PropsWithChildren> = ({ children }) =
 
       return id;
     },
-    [dismissToast],
+    [dismissToast, hapticTrigger],
   );
 
   const value = useMemo<ToastContextValue>(() => ({ showToast, dismissToast }), [showToast, dismissToast]);

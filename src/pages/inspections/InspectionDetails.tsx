@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { apiClient } from '../../lib/apiClient';
-import { colors, typography, spacing } from '../../lib/theme';
+import { colors, typography, spacing, borderRadius, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { NetworkError } from '../../components/ui/NetworkError';
@@ -18,6 +18,231 @@ import { ImageDownloadManager } from '../../components/inspection/ImageDownloadM
 import { fetchInspectionTemplate } from '../../lib/inspection-templates';
 import { useInspections } from '../../lib/queries';
 import { useAuth } from '../../providers/useAuth';
+import { generateInspectionPDF } from '../../lib/inspection-pdf-generator';
+import { logger } from '../../lib/logger';
+import { ShareButton } from '../../components/ui/ShareButton';
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
+import { ActionMenu, type ActionMenuItem } from '../../components/ui/ActionMenu';
+import { CollapsibleSection } from '../../components/ui/CollapsibleSection';
+import { MapPin, FileText, Download, Trash2, Settings } from 'lucide-react';
+
+const API_ORIGIN_RAW = import.meta.env.VITE_API_ORIGIN ||
+  (import.meta.env.PROD ? "https://api.inspectmymachine.in/api" : "http://localhost:8000");
+const STORAGE_ORIGIN = API_ORIGIN_RAW.endsWith('/api')
+  ? API_ORIGIN_RAW.replace(/\/api$/, '')
+  : API_ORIGIN_RAW;
+
+type MediaType = 'image' | 'video';
+
+interface AnswerMediaItem {
+  id: string;
+  url: string;
+  type: MediaType;
+  name: string;
+  s3Key?: string; // S3 key for fetching signed URLs
+}
+
+const buildMediaUrl = (pathOrUrl?: string | null): string | null => {
+  if (!pathOrUrl) return null;
+  if (pathOrUrl.startsWith('http') || pathOrUrl.startsWith('data:')) {
+    return pathOrUrl;
+  }
+
+  let normalized = pathOrUrl.trim();
+  let storagePath = '';
+
+  // Build storage path
+  if (normalized.startsWith('/storage/')) {
+    storagePath = normalized;
+  } else if (normalized.startsWith('storage/')) {
+    storagePath = `/${normalized}`;
+  } else if (normalized.startsWith('/')) {
+    storagePath = normalized;
+  } else if (normalized.startsWith('inspections/')) {
+    storagePath = `/storage/${normalized}`;
+  } else {
+    storagePath = `/storage/inspections/media/${normalized}`;
+  }
+
+  // In development, use relative path (Vite proxy handles it)
+  // In production, use full URL
+  if (import.meta.env.DEV) {
+    return storagePath;
+  } else {
+    return `${STORAGE_ORIGIN}${storagePath}`;
+  }
+};
+
+const guessMediaType = (value?: string): MediaType => {
+  if (!value) return 'image';
+  const normalized = value.toLowerCase();
+  const videoExtensions = /\.(mp4|webm|mov|avi|mkv|ogg)$/i;
+  if (
+    normalized.startsWith('video/') ||
+    videoExtensions.test(normalized)
+  ) {
+    return 'video';
+  }
+  return 'image';
+};
+
+const extractStringArray = (value: unknown): string[] => {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === 'string' && item.length > 0)
+      .map(item => item.trim().replace(/^["']|["']$/g, '')); // Remove surrounding quotes
+  }
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((item): item is string => typeof item === 'string' && item.length > 0)
+          .map(item => item.trim().replace(/^["']|["']$/g, '')); // Remove surrounding quotes
+      }
+      // If parsed value is a single string (not array), return it
+      if (typeof parsed === 'string' && parsed.length > 0) {
+        return [parsed.trim().replace(/^["']|["']$/g, '')];
+      }
+    } catch {
+      // Not JSON – allow comma-separated or single filename
+      // Also handle cases like ["filename.jpg"] as plain string
+      const cleaned = value.trim();
+      
+      // Try to extract filename from array-like string: ["filename.jpg"]
+      const arrayMatch = cleaned.match(/\["([^"]+)"\]|\['([^']+)'\]/);
+      if (arrayMatch) {
+        return [arrayMatch[1] || arrayMatch[2]];
+      }
+      
+      if (cleaned.includes(',')) {
+        return cleaned
+          .split(',')
+          .map((part) => part.trim().replace(/^["'\[\]]+|["'\[\]]+$/g, ''))
+          .filter(Boolean);
+      }
+      if (cleaned.length > 0) {
+        // Remove any JSON array brackets or quotes
+        const final = cleaned.replace(/^["'\[\]]+|["'\[\]]+$/g, '').trim();
+        return final ? [final] : [];
+      }
+    }
+  }
+  return [];
+};
+
+const getAnswerMediaItems = (answer: any): AnswerMediaItem[] => {
+  const items: AnswerMediaItem[] = [];
+  
+  if (Array.isArray(answer?.answer_files) && answer.answer_files.length > 0) {
+    answer.answer_files.forEach((file: any, index: number) => {
+      const directUrl = file?.url;
+      const storageKey = file?.key || file?.path;
+      const localPath = file?.path;
+      
+      let url = '';
+      if (directUrl && (directUrl.startsWith('http') || directUrl.startsWith('data:'))) {
+        url = directUrl;
+      } else if (localPath) {
+        url = buildMediaUrl(localPath) || '';
+      } else if (file?.name) {
+        url = buildMediaUrl(file.name) || '';
+      }
+      
+      if (!url && !storageKey) {
+        console.warn('[InspectionDetails] Skipping file with no accessible path:', file);
+        return;
+      }
+      
+      items.push({
+        id: `${answer.id || answer.question_id}-file-${index}`,
+        url: url || '',
+        type: guessMediaType(file?.type || file?.name || file?.path),
+        name: file?.name || file?.path || `Media ${index + 1}`,
+        s3Key: storageKey ? storageKey.trim().replace(/^\/+|\/+$/g, '') : undefined,
+      });
+    });
+  }
+
+  // If no items from answer_files, try to extract from answer_value
+  // This handles cases where files were stored but answer_files wasn't populated
+  if (items.length === 0) {
+    const filenames = extractStringArray(answer?.answer_value);
+    
+    filenames.forEach((name: string, index: number) => {
+      if (!name || typeof name !== 'string' || name.length === 0) {
+        return;
+      }
+      
+      // Clean the filename - remove any JSON array brackets or quotes
+      const cleanName = name.trim().replace(/^\[|\]$/g, '').replace(/^["']|["']$/g, '').trim();
+      
+      if (!cleanName) {
+        console.warn('[InspectionDetails] Empty filename after cleaning:', name);
+        return;
+      }
+      
+      // Check if it looks like a filename (has extension)
+      const hasExtension = cleanName.match(/\.(jpg|jpeg|png|gif|webp|mp4|mov|avi|webm)$/i);
+      if (!hasExtension) {
+        console.warn('[InspectionDetails] Filename does not have valid extension:', cleanName);
+        return;
+      }
+      
+      // Build path - if it's just a filename (not already a full path), prepend inspections/media/
+      let pathToUse = cleanName;
+      if (!cleanName.startsWith('inspections/') && 
+          !cleanName.startsWith('/storage/') && 
+          !cleanName.startsWith('storage/') && 
+          !cleanName.startsWith('http') &&
+          !cleanName.startsWith('data:')) {
+        pathToUse = `inspections/media/${cleanName}`;
+      }
+      
+      // Build URL using the path
+      let url = buildMediaUrl(pathToUse);
+      
+      // Fallback: if buildMediaUrl fails, construct manually
+      if (!url) {
+        if (import.meta.env.DEV) {
+          url = `/storage/${pathToUse}`;
+        } else {
+          url = `${STORAGE_ORIGIN}/storage/${pathToUse}`;
+        }
+      }
+      
+      
+      if (!url) {
+        console.warn('[InspectionDetails] Could not build URL for filename:', cleanName);
+        return;
+      }
+      
+      items.push({
+        id: `${answer.id || answer.question_id}-value-${index}`,
+        url,
+        type: guessMediaType(cleanName),
+        name: cleanName,
+        s3Key: pathToUse && !pathToUse.startsWith('http') && !pathToUse.startsWith('data:') ? pathToUse : undefined,
+      });
+    });
+  }
+
+  return items;
+};
+
+const formatAnswerValue = (value: any): string => {
+  if (value === null || value === undefined || value === '') {
+    return 'No answer provided';
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'Yes' : 'No';
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value, null, 2);
+  }
+  return String(value);
+};
 
 interface InspectionDetails {
   id: string;
@@ -143,6 +368,293 @@ export const InspectionDetails: React.FC = () => {
   const [resolvingConflict, setResolvingConflict] = useState(false);
   const [showReportBuilder, setShowReportBuilder] = useState(false);
   const [showRtoManager, setShowRtoManager] = useState(false);
+  const [signedUrlCache, setSignedUrlCache] = useState<Map<string, string>>(new Map());
+  const [failedSignedUrls, setFailedSignedUrls] = useState<Set<string>>(new Set());
+
+  // Get the actual URL for a media item (signed URL if available)
+  // Always returns a full, absolute URL that works in new tabs
+const getMediaUrl = useCallback((item: AnswerMediaItem): string => {
+    // If signed URL failed before, use the local URL instead
+    if (item.s3Key && failedSignedUrls.has(item.s3Key)) {
+      // Fall through to use item.url
+    } else if (item.s3Key && signedUrlCache.has(item.s3Key)) {
+      // Use signed URL if available and not failed
+      let cachedUrl = signedUrlCache.get(item.s3Key)!;
+      
+      // In development, convert absolute URLs to relative paths to use Vite proxy
+      if (import.meta.env.DEV && cachedUrl.startsWith('http')) {
+        try {
+          const urlObj = new URL(cachedUrl);
+          cachedUrl = urlObj.pathname; // Extract path (e.g., /storage/inspections/media/...)
+        } catch (e) {
+          // If URL parsing fails, use as-is
+        }
+      }
+      
+      return cachedUrl;
+    }
+    
+    // Existing absolute or data URLs
+    if (item.url && (item.url.startsWith('http://') || item.url.startsWith('https://') || item.url.startsWith('data:'))) {
+      // In development, convert absolute URLs to relative paths
+      if (import.meta.env.DEV && item.url.startsWith('http')) {
+        try {
+          const urlObj = new URL(item.url);
+          return urlObj.pathname; // Extract path
+        } catch (e) {
+          // If URL parsing fails, use as-is
+        }
+      }
+      return item.url;
+    }
+    
+    // If we have a local URL, use it (prefer this over waiting for signed URL)
+    if (item.url) {
+      return item.url;
+    }
+    
+    // If we have an S3/local key but the signed URL isn't ready yet, show placeholder
+    if (item.s3Key && !failedSignedUrls.has(item.s3Key)) {
+      return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="150"%3E%3Crect fill="%23f3f4f6" width="200" height="150"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="14" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ELoading...%3C/text%3E%3C/svg%3E';
+    }
+    
+    return '';
+  }, [signedUrlCache, failedSignedUrls]);
+
+  // Fetch signed URLs for S3 files
+  useEffect(() => {
+    const fetchSignedUrls = async () => {
+      // Get all media items from all answers
+      const allMediaItems: AnswerMediaItem[] = [];
+      if (inspection?.answers) {
+        inspection.answers.forEach((answer: any) => {
+          allMediaItems.push(...getAnswerMediaItems(answer));
+        });
+      }
+
+      const itemsNeedingSignedUrls = allMediaItems.filter(item => 
+        item.s3Key && 
+        !signedUrlCache.has(item.s3Key)
+      );
+      
+      if (itemsNeedingSignedUrls.length === 0) return;
+
+      const newCache = new Map(signedUrlCache);
+      
+      await Promise.all(
+        itemsNeedingSignedUrls.map(async (item) => {
+          if (!item.s3Key) return;
+          
+          try {
+            const response = await apiClient.get<{ key: string; url: string; expires_at?: string }>(
+              `/v1/files/signed?key=${encodeURIComponent(item.s3Key)}`
+            );
+            let urlToCache = response.data.url;
+            
+            // In development, convert absolute URLs to relative paths to use Vite proxy
+            if (import.meta.env.DEV && urlToCache.startsWith('http')) {
+              try {
+                const urlObj = new URL(urlToCache);
+                urlToCache = urlObj.pathname; // Extract path (e.g., /storage/inspections/media/...)
+              } catch (e) {
+                // If URL parsing fails, use as-is
+              }
+            }
+            
+            newCache.set(item.s3Key, urlToCache);
+          } catch (error) {
+            logger.error(`Failed to get signed URL for ${item.s3Key}`, error, 'InspectionDetails');
+          }
+        })
+      );
+      
+      if (newCache.size > signedUrlCache.size) {
+        setSignedUrlCache(newCache);
+      }
+    };
+
+    if (inspection) {
+      fetchSignedUrls();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inspection]);
+
+  const renderAnswerContent = useCallback((answer: any) => {
+    const mediaItems = getAnswerMediaItems(answer);
+
+    // Check if answer_value contains filenames that should be displayed as media
+    const answerValueStr = String(answer?.answer_value || '');
+    const looksLikeFilenames = answerValueStr.match(/\.(jpg|jpeg|png|gif|webp|mp4|mov|avi|webm)/i);
+
+    // If we have media items OR it looks like filenames, show media and don't show the answer_value text
+    if (mediaItems.length > 0 || looksLikeFilenames) {
+      // If we have media items, render them
+      if (mediaItems.length > 0) {
+        return (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+              gap: spacing.sm,
+            }}
+          >
+            {mediaItems.map((item) => (
+              <div
+                key={item.id}
+                style={{
+                  border: `1px solid ${colors.neutral[200]}`,
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  backgroundColor: colors.neutral[50],
+                  display: 'flex',
+                  flexDirection: 'column',
+                  minHeight: '190px',
+                }}
+              >
+                {item.type === 'video' ? (
+                  <video
+                    src={getMediaUrl(item)}
+                    style={{ width: '100%', height: '140px', objectFit: 'cover' }}
+                    controls
+                  />
+                ) : (
+                  <a
+                    href={getMediaUrl(item)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: 'block', width: '100%', height: '140px', textDecoration: 'none' }}
+                  >
+                    <img
+                      src={getMediaUrl(item)}
+                      alt={item.name}
+                      // In development, relative paths are same-origin via Vite proxy (no crossOrigin needed)
+                      // In production, use crossOrigin for external URLs
+                      crossOrigin={import.meta.env.DEV ? undefined : (getMediaUrl(item).startsWith('http') && !getMediaUrl(item).startsWith(window.location.origin) ? "anonymous" : undefined)}
+                      style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }}
+                      onError={(e) => {
+                        const img = e.target as HTMLImageElement;
+                        const currentUrl = img.src;
+                        console.warn('[InspectionDetails] Image failed to load:', currentUrl, 'for item:', item);
+                        
+                        // If this was a signed URL that failed, mark it as failed and use local URL
+                        if (item.s3Key && signedUrlCache.has(item.s3Key) && currentUrl === signedUrlCache.get(item.s3Key)) {
+                          console.log('[InspectionDetails] Signed URL failed, marking as failed and using local URL');
+                          setFailedSignedUrls(prev => new Set(prev).add(item.s3Key!));
+                          // Use the local storage URL instead
+                          if (item.url && item.url !== currentUrl) {
+                            img.src = item.url;
+                            return;
+                          }
+                        }
+                        
+                        // Try alternative URL formats
+                        const alternatives: string[] = [];
+                        
+                        // First, try the local URL if we have one and it's different
+                        if (item.url && item.url !== currentUrl) {
+                          alternatives.push(item.url);
+                        }
+                        
+                        // Try with s3Key directly (it may already be a full path)
+                        if (item.s3Key) {
+                          // Don't prepend inspections/media/ if s3Key already starts with it
+                          const keyToUse = item.s3Key.startsWith('inspections/') 
+                            ? item.s3Key 
+                            : `inspections/media/${item.s3Key}`;
+                          const builtUrl = buildMediaUrl(keyToUse);
+                          if (builtUrl && builtUrl !== currentUrl) {
+                            alternatives.push(builtUrl);
+                          }
+                        }
+                        
+                        // If current URL has /storage/, try without it
+                        if (currentUrl.includes('/storage/')) {
+                          const withoutStorage = currentUrl.replace('/storage/', '/');
+                          if (withoutStorage !== currentUrl) {
+                            alternatives.push(withoutStorage);
+                          }
+                        }
+                        
+                        // Try direct filename (only if it's just a filename, not a path)
+                        if (item.name && item.name.match(/\.(jpg|jpeg|png|gif|webp)/i)) {
+                          // Only prepend if name doesn't already look like a path
+                          if (!item.name.includes('/')) {
+                            const builtUrl = buildMediaUrl(`inspections/media/${item.name}`);
+                            if (builtUrl && builtUrl !== currentUrl) {
+                              alternatives.push(builtUrl);
+                            }
+                          } else {
+                            const builtUrl = buildMediaUrl(item.name);
+                            if (builtUrl && builtUrl !== currentUrl) {
+                              alternatives.push(builtUrl);
+                            }
+                          }
+                        }
+                        
+                        // Try next alternative
+                        for (const altUrl of alternatives) {
+                          if (altUrl && altUrl !== currentUrl) {
+                            console.log('[InspectionDetails] Trying alternative URL:', altUrl);
+                            img.src = altUrl;
+                            return;
+                          }
+                        }
+                        
+                        // If all alternatives fail, show placeholder
+                        img.style.display = 'none';
+                        const placeholder = document.createElement('div');
+                        placeholder.style.cssText = 'width: 100%; height: 140px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 12px;';
+                        placeholder.textContent = 'Image not found';
+                        img.parentElement?.appendChild(placeholder);
+                      }}
+                    />
+                  </a>
+                )}
+                <div
+                  style={{
+                    padding: spacing.xs,
+                    fontSize: '12px',
+                    color: colors.neutral[700],
+                    textAlign: 'center',
+                    whiteSpace: 'nowrap',
+                    textOverflow: 'ellipsis',
+                    overflow: 'hidden',
+                  }}
+                  title={item.name}
+                >
+                  {item.name}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      }
+      
+      // If it looks like filenames but we have no media items, show a message instead of raw text
+      return (
+        <div style={{ color: colors.neutral[500], fontStyle: 'italic' }}>
+          Media files detected but could not be loaded. Please check file paths.
+        </div>
+      );
+    }
+    
+    const formattedValue = formatAnswerValue(answer?.answer_value);
+    const isEmpty = formattedValue === 'No answer provided';
+    const isMultiline = formattedValue.includes('\n');
+
+    return (
+      <div
+        style={{
+          color: isEmpty ? colors.neutral[500] : colors.neutral[700],
+          fontStyle: isEmpty ? 'italic' : 'normal',
+          whiteSpace: isMultiline ? 'pre-wrap' : 'normal',
+        }}
+      >
+        {formattedValue}
+      </div>
+    );
+  }, [getMediaUrl]);
+
   const [showImageDownload, setShowImageDownload] = useState(false);
 
   // Fetch related inspections for the same vehicle
@@ -203,6 +715,8 @@ export const InspectionDetails: React.FC = () => {
         id: String(response.data?.id || id),
       };
       
+      // Inspection data loaded successfully
+      
       // If template is not fully loaded, fetch it
       if (inspectionData.template_id && (!inspectionData.template || !inspectionData.template.sections)) {
         try {
@@ -212,7 +726,7 @@ export const InspectionDetails: React.FC = () => {
             template: templateData.template,
           };
         } catch (err) {
-          console.warn('Failed to fetch template for inspection:', err);
+          logger.warn('Failed to fetch template for inspection', err, 'InspectionDetails');
         }
       }
       
@@ -236,7 +750,7 @@ export const InspectionDetails: React.FC = () => {
           }
         } catch (err) {
           // Silently fail - template fetch is not critical
-          console.warn('Failed to fetch current template for conflict detection:', err);
+          logger.warn('Failed to fetch current template for conflict detection', err, 'InspectionDetails');
         }
       }
       
@@ -263,46 +777,11 @@ export const InspectionDetails: React.FC = () => {
   }, [fetchInspectionDetails]);
 
   const generatePDF = async () => {
-    if (!inspection) return;
+    if (!inspection || !id) return;
     
     try {
       setGeneratingPDF(true);
-      
-      // Try to generate PDF from backend first
-      try {
-        // Note: apiClient doesn't support blob responseType directly, use axios for PDF downloads
-        // For blob responses, we need to use axios directly with apiClient's CSRF handling
-        const axios = (await import('axios')).default;
-        const { apiClient: client } = await import('../../lib/apiClient');
-        await (client as any).ensureCsrfToken?.();
-        const csrfToken = (client as any).getCsrfToken?.();
-        
-        const response = await axios.get(`/v1/inspections/${id}/report`, {
-          responseType: 'blob',
-          withCredentials: true,
-          headers: {
-            ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
-          },
-        });
-        
-        // Create download link
-        const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `VIR-${inspection.id}.pdf`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-        
-        // PDF generated successfully from backend
-        return;
-      } catch (apiError) {
-        // Backend PDF generation not available, using client-side generation
-      }
-      
-      // Fallback to client-side PDF generation
-      await generateClientSidePDF();
+      await generateInspectionPDF(inspection, id);
     } catch (error) {
       showToast({
         title: 'Error',
@@ -312,425 +791,6 @@ export const InspectionDetails: React.FC = () => {
     } finally {
       setGeneratingPDF(false);
     }
-  };
-
-  const generateClientSidePDF = async () => {
-    if (!inspection) return;
-
-    // Method 1: Try using browser's native PDF generation
-    try {
-      await generateNativePDF();
-    } catch (error) {
-      // Native PDF generation failed, trying print method
-      
-      // Method 2: Try using browser's print to PDF functionality
-      try {
-        await generatePDFViaPrint();
-      } catch (printError) {
-        // Print method failed, using fallback HTML
-        // Method 3: Fallback to downloadable HTML
-        await generateDownloadableHTML();
-      }
-    }
-  };
-
-  const generateNativePDF = async () => {
-    // Check if browser supports PDF generation
-    if (!window.print) {
-      throw new Error('Browser does not support PDF generation');
-    }
-
-    // Create a temporary element with the PDF content
-    const tempDiv = document.createElement('div');
-    tempDiv.style.position = 'absolute';
-    tempDiv.style.left = '-9999px';
-    tempDiv.style.top = '-9999px';
-    tempDiv.style.width = '210mm';
-    tempDiv.style.height = '297mm';
-    tempDiv.innerHTML = generatePDFHTML();
-    document.body.appendChild(tempDiv);
-
-    // Create a new window for PDF generation
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
-    if (!printWindow) {
-      throw new Error('Could not open print window');
-    }
-
-    return new Promise<void>((resolve, reject) => {
-      try {
-        printWindow.document.write(generatePDFHTML());
-        printWindow.document.close();
-
-        printWindow.onload = () => {
-          setTimeout(() => {
-            try {
-              printWindow.print();
-              
-              // Clean up
-              setTimeout(() => {
-                printWindow.close();
-                document.body.removeChild(tempDiv);
-                resolve();
-              }, 2000);
-            } catch (printError) {
-              printWindow.close();
-              document.body.removeChild(tempDiv);
-              reject(printError);
-            }
-          }, 1000);
-        };
-
-        printWindow.onerror = () => {
-          printWindow.close();
-          document.body.removeChild(tempDiv);
-          reject(new Error('Failed to load print window'));
-        };
-      } catch (error) {
-        printWindow.close();
-        document.body.removeChild(tempDiv);
-        reject(error);
-      }
-    });
-  };
-
-  const generatePDFViaPrint = async () => {
-    // Create a hidden iframe for PDF generation
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'absolute';
-    iframe.style.left = '-9999px';
-    iframe.style.top = '-9999px';
-    iframe.style.width = '210mm'; // A4 width
-    iframe.style.height = '297mm'; // A4 height
-    document.body.appendChild(iframe);
-
-    return new Promise<void>((resolve, reject) => {
-      iframe.onload = () => {
-        try {
-          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-          if (!iframeDoc) {
-            reject(new Error('Could not access iframe document'));
-            return;
-          }
-
-          // Write HTML content to iframe
-          iframeDoc.write(generatePDFHTML());
-          iframeDoc.close();
-
-          // Wait for content to load, then trigger print
-          setTimeout(() => {
-            try {
-              iframe.contentWindow?.print();
-              
-              // Clean up after a delay
-              setTimeout(() => {
-                document.body.removeChild(iframe);
-                resolve();
-              }, 2000);
-            } catch (printError) {
-              document.body.removeChild(iframe);
-              reject(printError);
-            }
-          }, 500);
-        } catch (error) {
-          document.body.removeChild(iframe);
-          reject(error);
-        }
-      };
-
-      iframe.onerror = () => {
-        document.body.removeChild(iframe);
-        reject(new Error('Failed to load iframe'));
-      };
-
-      // Set iframe source to trigger onload
-      iframe.src = 'about:blank';
-    });
-  };
-
-  const generateDownloadableHTML = async () => {
-    // Generate HTML content for PDF
-    const htmlContent = generatePDFHTML();
-    
-    // Create blob with proper MIME type
-    const blob = new Blob([htmlContent], { 
-      type: 'text/html;charset=utf-8' 
-    });
-    
-    // Create download link
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `VIR-${inspection.id}.html`);
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-    
-    // Show instructions to user
-    showToast({
-      title: 'Download Complete',
-      description: 'HTML file downloaded. You can open it in your browser and use "Print to PDF" to save as PDF.',
-      variant: 'success',
-      duration: 7000,
-    });
-  };
-
-  const generatePDFHTML = () => {
-    if (!inspection) return '';
-
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Vehicle Inspection Report - ${inspection.id}</title>
-        <style>
-          @media print {
-            @page {
-              margin: 0.5in;
-              size: A4;
-            }
-            body { 
-              font-family: Arial, sans-serif; 
-              margin: 0; 
-              padding: 0;
-              font-size: 12px;
-              line-height: 1.4;
-            }
-            .no-print { display: none !important; }
-            .page-break { page-break-before: always; }
-          }
-          
-          body { 
-            font-family: Arial, sans-serif; 
-            margin: 0; 
-            padding: 20px;
-            font-size: 12px;
-            line-height: 1.4;
-            color: #333;
-          }
-          
-          .header { 
-            text-align: center; 
-            margin-bottom: 30px; 
-            border-bottom: 2px solid #2563eb;
-            padding-bottom: 20px;
-          }
-          .company-name { 
-            font-size: 24px; 
-            font-weight: bold; 
-            color: #2563eb; 
-            margin-bottom: 5px;
-          }
-          .report-title { 
-            font-size: 18px; 
-            margin: 10px 0; 
-            color: #1f2937;
-          }
-          .report-id { 
-            font-size: 14px; 
-            color: #6b7280;
-          }
-          
-          .inspection-info { 
-            background: #f8fafc; 
-            padding: 15px; 
-            border-radius: 8px; 
-            margin-bottom: 20px;
-            border: 1px solid #e5e7eb;
-          }
-          .info-grid { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 15px; 
-          }
-          .info-item { 
-            display: flex; 
-            justify-content: space-between; 
-            padding: 5px 0;
-            border-bottom: 1px solid #e5e7eb;
-          }
-          .info-item:last-child { 
-            border-bottom: none; 
-          }
-          .info-label { 
-            font-weight: bold; 
-            color: #374151;
-          }
-          .info-value { 
-            color: #1f2937;
-          }
-          
-          .section { 
-            margin: 25px 0; 
-            page-break-inside: avoid;
-          }
-          .section-title { 
-            font-size: 16px; 
-            font-weight: bold; 
-            color: #1f2937; 
-            margin-bottom: 15px;
-            padding: 10px;
-            background: #f3f4f6;
-            border-left: 4px solid #3b82f6;
-          }
-          
-          .question { 
-            margin: 12px 0; 
-            padding: 12px; 
-            background: #ffffff; 
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            page-break-inside: avoid;
-          }
-          .question-text { 
-            font-weight: bold; 
-            margin-bottom: 8px; 
-            color: #1f2937;
-            font-size: 13px;
-          }
-          .answer { 
-            color: #374151; 
-            padding: 8px;
-            background: #f9fafb;
-            border-radius: 4px;
-            border: 1px solid #e5e7eb;
-          }
-          .critical { 
-            border-left: 4px solid #ef4444; 
-            background: #fef2f2;
-          }
-          .critical-label {
-            background: #ef4444;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 10px;
-            font-weight: 600;
-            margin-left: 8px;
-          }
-          
-          .status-pass { color: #059669; font-weight: bold; }
-          .status-fail { color: #dc2626; font-weight: bold; }
-          .status-conditional { color: #d97706; font-weight: bold; }
-          
-          .notes-section {
-            margin-top: 30px;
-            padding: 15px;
-            background: #f8fafc;
-            border-radius: 8px;
-            border: 1px solid #e5e7eb;
-          }
-          
-          .footer {
-            margin-top: 40px;
-            text-align: center;
-            color: #6b7280;
-            font-size: 10px;
-            border-top: 1px solid #e5e7eb;
-            padding-top: 15px;
-          }
-          
-          .critical-issues {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            color: #dc2626;
-            padding: 10px;
-            border-radius: 6px;
-            margin: 15px 0;
-            font-weight: bold;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="company-name">VOMS</div>
-          <div class="report-title">Vehicle Inspection Report (VIR)</div>
-          <div class="report-id">Report ID: ${inspection.id}</div>
-        </div>
-
-        <div class="inspection-info">
-          <div class="info-grid">
-            <div class="info-item">
-              <span class="info-label">Vehicle:</span>
-              <span class="info-value">${inspection.vehicle?.make || 'N/A'} ${inspection.vehicle?.model || 'N/A'}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Registration:</span>
-              <span class="info-value">${inspection.vehicle?.registration_number || 'N/A'}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Inspector:</span>
-              <span class="info-value">${inspection.inspector?.name || 'N/A'}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Date:</span>
-              <span class="info-value">${new Date(inspection.completed_at || inspection.created_at).toLocaleDateString('en-IN')}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Overall Rating:</span>
-              <span class="info-value">${inspection.overall_rating || 'N/A'}/10</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Result:</span>
-              <span class="info-value">
-                <span class="status-${inspection.pass_fail || 'unknown'}">${inspection.pass_fail || 'N/A'}</span>
-              </span>
-            </div>
-          </div>
-          
-          ${inspection.has_critical_issues ? 
-            '<div class="critical-issues">⚠️ Critical Issues Found - Immediate Attention Required</div>' : 
-            '<div style="color: #059669; font-weight: bold; margin-top: 10px;">✅ No Critical Issues Found</div>'
-          }
-        </div>
-
-        ${inspection.template?.sections.map((section, sectionIndex) => `
-          <div class="section ${sectionIndex > 0 ? 'page-break' : ''}">
-            <div class="section-title">${section.name}</div>
-            ${section.questions.map(question => {
-              const answer = inspection.answers.find(a => a.question_id === question.id);
-              const answerValue = answer ? 
-                (typeof answer.answer_value === 'object' ? JSON.stringify(answer.answer_value) : String(answer.answer_value)) : 
-                'No answer provided';
-              
-              return `
-                <div class="question ${question.is_critical ? 'critical' : ''}">
-                  <div class="question-text">
-                    ${question.question_text}
-                    ${question.is_critical ? '<span class="critical-label">CRITICAL</span>' : ''}
-                  </div>
-                  <div class="answer">
-                    ${answerValue}
-                    ${answer?.is_critical_finding ? '<br><strong style="color: #dc2626;">⚠️ Critical Finding</strong>' : ''}
-                  </div>
-                </div>
-              `;
-            }).join('')}
-          </div>
-        `).join('') || ''}
-
-        ${inspection.inspector_notes ? `
-          <div class="notes-section">
-            <div class="section-title">Inspector Notes</div>
-            <div style="padding: 10px; background: white; border-radius: 4px; border: 1px solid #e5e7eb;">
-              ${inspection.inspector_notes}
-            </div>
-          </div>
-        ` : ''}
-
-        <div class="footer">
-          <div>This report was generated on ${new Date().toLocaleString('en-IN')}</div>
-          <div>VOMS - Vehicle Operations Management System</div>
-          <div style="margin-top: 10px;">
-            <strong>Disclaimer:</strong> This inspection report is based on the conditions observed at the time of inspection. 
-            Vehicle conditions may change over time and regular maintenance is recommended.
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
   };
 
   const getStatusColor = (status: string) => {
@@ -754,9 +814,8 @@ export const InspectionDetails: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: spacing.xl, textAlign: 'center' }}>
-        <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>🔍</div>
-        <div style={{ color: colors.neutral[600] }}>Loading inspection details...</div>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: spacing.xl }}>
+        <SkeletonLoader variant="page" />
       </div>
     );
   }
@@ -810,45 +869,75 @@ export const InspectionDetails: React.FC = () => {
           { label: 'Details' }
         ]}
         actions={
-          <div style={{ display: 'flex', gap: spacing.sm }}>
-            <Button
-              variant="secondary"
-              onClick={() => navigate('/app/inspections')}
-              icon="⬅️"
-            >
-              Back
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => setShowReportBuilder(true)}
-              icon="🎨"
-            >
-              Customize Report
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => setShowImageDownload(true)}
-              icon="📷🎥"
-            >
-              Download Media
-            </Button>
+          <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
+            {/* Primary Actions - Always Visible */}
             <Button
               variant="primary"
               onClick={generatePDF}
               disabled={generatingPDF}
               icon="📄"
             >
-              {generatingPDF ? 'Generating...' : 'Download PDF'}
+              {generatingPDF ? 'Generating...' : 'PDF'}
             </Button>
-            {(user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'supervisor') && (
-              <Button
-                variant="secondary"
-                onClick={() => setShowRtoManager(true)}
-                icon="📋"
-              >
-                Add RTO Details
-              </Button>
-            )}
+            <ShareButton
+              title={`Inspection Report: ${inspection.vehicle?.registration_number || inspection.id}`}
+              text={`Inspection report for ${inspection.vehicle?.registration_number || 'vehicle'}`}
+              url={`${window.location.origin}/app/inspections/${inspection.id}`}
+              variant="secondary"
+            >
+              Share
+            </ShareButton>
+            
+            {/* Secondary Actions - In Menu */}
+            <ActionMenu
+              items={[
+                {
+                  id: 'customize',
+                  label: 'Customize Report',
+                  icon: <Settings size={16} />,
+                  onClick: () => setShowReportBuilder(true),
+                },
+                {
+                  id: 'download-media',
+                  label: 'Download All Media',
+                  icon: <Download size={16} />,
+                  onClick: () => setShowImageDownload(true),
+                },
+                {
+                  id: 'rto',
+                  label: 'Add RTO Details',
+                  icon: <FileText size={16} />,
+                  onClick: () => setShowRtoManager(true),
+                  hidden: !(user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'supervisor'),
+                },
+                {
+                  id: 'related',
+                  label: 'View Related',
+                  icon: <MapPin size={16} />,
+                  onClick: () => {
+                    // Scroll to related items section
+                    const relatedSection = document.getElementById('related-items-section');
+                    relatedSection?.scrollIntoView({ behavior: 'smooth' });
+                  },
+                },
+                // Divider before destructive
+                {
+                  id: 'delete',
+                  label: 'Delete Inspection',
+                  icon: <Trash2 size={16} />,
+                  onClick: () => {
+                    // TODO: Implement delete confirmation
+                    showToast({
+                      title: 'Delete Inspection',
+                      description: 'Delete functionality coming soon',
+                      variant: 'info',
+                    });
+                  },
+                  variant: 'destructive',
+                  hidden: !(user?.role === 'super_admin' || user?.role === 'admin'),
+                },
+              ]}
+            />
           </div>
         }
       />
@@ -935,7 +1024,7 @@ export const InspectionDetails: React.FC = () => {
         ) : null;
       })()}
 
-      {/* Inspection Summary */}
+      {/* Summary Card */}
       <div style={{
         backgroundColor: 'white',
         borderRadius: '16px',
@@ -944,13 +1033,51 @@ export const InspectionDetails: React.FC = () => {
         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
         border: '1px solid rgba(0,0,0,0.05)'
       }}>
-        <h3 style={{ 
-          ...typography.subheader,
-          marginBottom: spacing.lg,
-          color: colors.neutral[900]
-        }}>
-          📊 Inspection Summary
-        </h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
+          <div>
+            <h3 style={{ 
+              ...typography.header,
+              fontSize: '20px',
+              marginBottom: spacing.xs,
+              color: colors.neutral[900]
+            }}>
+              {inspection.template?.name || 'Inspection Report'}
+            </h3>
+            <p style={{ ...typography.body, color: colors.neutral[600], marginBottom: spacing.sm }}>
+              {inspection.vehicle?.registration_number || 'N/A'} • {inspection.vehicle?.make || ''} {inspection.vehicle?.model || ''}
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+              <div style={{ ...typography.bodySmall, color: colors.neutral[600] }}>
+                Rating: <strong style={{ color: colors.primary }}>{inspection.overall_rating || 'N/A'}/10</strong>
+              </div>
+              <span style={{ color: colors.neutral[400] }}>•</span>
+              <div style={{ ...typography.bodySmall, color: colors.neutral[600] }}>
+                Inspector: {inspection.inspector?.name || 'Unknown'} • {inspection.completed_at ? new Date(inspection.completed_at).toLocaleDateString('en-IN') : 'N/A'}
+              </div>
+            </div>
+          </div>
+          
+          {/* Primary Actions in Summary */}
+          <div style={{ display: 'flex', gap: spacing.sm }}>
+            <Button
+              variant="primary"
+              onClick={generatePDF}
+              disabled={generatingPDF}
+              icon="📄"
+              size="sm"
+            >
+              {generatingPDF ? 'Generating...' : 'Download PDF'}
+            </Button>
+            <ShareButton
+              title={`Inspection Report: ${inspection.vehicle?.registration_number || inspection.id}`}
+              text={`Inspection report for ${inspection.vehicle?.registration_number || 'vehicle'}`}
+              url={`${window.location.origin}/app/inspections/${inspection.id}`}
+              variant="secondary"
+            >
+              Share
+            </ShareButton>
+          </div>
+        </div>
         
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.lg }}>
           <div>
@@ -1057,23 +1184,36 @@ export const InspectionDetails: React.FC = () => {
         </h3>
         
         {inspection.template?.sections && inspection.template.sections.length > 0 ? (
-          inspection.template.sections.map(section => (
-            <div key={section.id} style={{ marginBottom: spacing.xl }}>
-              <h4 style={{ 
-                ...typography.subheader,
-                fontSize: '18px',
-                color: colors.neutral[900],
-                marginBottom: spacing.md,
-                paddingBottom: spacing.sm,
-                borderBottom: `2px solid ${colors.primary}`
-              }}>
-                {section.name}
-              </h4>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-                {section.questions && section.questions.length > 0 ? (
-                  section.questions.map(question => {
+          inspection.template.sections.map((section, sectionIndex) => {
+            // Count answered questions and photos in this section
+            const sectionQuestions = section.questions || [];
+            const answeredCount = sectionQuestions.filter((q: any) => {
+              const answer = inspection.answers?.find((a: any) => a.question_id === q.id);
+              return answer && answer.answer_value !== null && answer.answer_value !== undefined && answer.answer_value !== '';
+            }).length;
+            
+            const photoCount = sectionQuestions.reduce((count: number, q: any) => {
+              const answer = inspection.answers?.find((a: any) => a.question_id === q.id);
+              const mediaItems = getAnswerMediaItems(answer);
+              return count + mediaItems.filter((item: AnswerMediaItem) => item.type === 'image').length;
+            }, 0);
+            
+            const subtitle = `${answeredCount}/${sectionQuestions.length} answered${photoCount > 0 ? ` • ${photoCount} photo${photoCount !== 1 ? 's' : ''}` : ''}`;
+            
+            return (
+              <CollapsibleSection
+                key={section.id}
+                id={`inspection-section-${section.id}`}
+                title={section.name}
+                badge={subtitle}
+                defaultExpanded={sectionIndex === 0} // First section expanded by default
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+                  {sectionQuestions.map((question: any) => {
                     const answer = inspection.answers?.find((a: any) => a.question_id === question.id);
+                    const mediaItems = getAnswerMediaItems(answer);
+                    const hasPhotos = mediaItems.filter((item: AnswerMediaItem) => item.type === 'image').length > 0;
+                    
                     return (
                       <div key={question.id} style={{
                         padding: spacing.lg,
@@ -1111,21 +1251,18 @@ export const InspectionDetails: React.FC = () => {
                           padding: spacing.sm,
                           backgroundColor: 'white',
                           borderRadius: '8px',
-                          border: '1px solid #E5E7EB'
+                          border: '1px solid #E5E7EB',
+                          marginBottom: hasPhotos ? spacing.md : 0,
                         }}>
                           {answer ? (
                             <div>
-                              <div style={{ marginBottom: spacing.xs }}>
-                                {typeof answer.answer_value === 'object' ? 
-                                  JSON.stringify(answer.answer_value) : 
-                                  String(answer.answer_value)
-                                }
-                              </div>
+                              {renderAnswerContent(answer)}
                               {answer.is_critical_finding && (
                                 <div style={{
                                   color: colors.status.critical,
                                   fontWeight: 600,
-                                  fontSize: '14px'
+                                  fontSize: '14px',
+                                  marginTop: spacing.xs,
                                 }}>
                                   ⚠️ Critical Finding
                                 </div>
@@ -1137,17 +1274,81 @@ export const InspectionDetails: React.FC = () => {
                             </div>
                           )}
                         </div>
+                        
+                        {/* Inline Media Gallery */}
+                        {hasPhotos && (
+                          <div style={{ marginTop: spacing.md }}>
+                            <div style={{ 
+                              ...typography.label, 
+                              fontSize: '12px', 
+                              color: colors.neutral[600],
+                              marginBottom: spacing.xs 
+                            }}>
+                              Photos:
+                            </div>
+                            <div style={{ 
+                              display: 'flex', 
+                              gap: spacing.sm, 
+                              flexWrap: 'wrap',
+                              marginTop: spacing.xs,
+                            }}>
+                              {mediaItems
+                                .filter((item: AnswerMediaItem) => item.type === 'image')
+                                .slice(0, 6)
+                                .map((item: AnswerMediaItem, idx: number) => (
+                                  <img
+                                    key={idx}
+                                    src={item.url}
+                                    alt={`Photo ${idx + 1}`}
+                                    style={{
+                                      width: '80px',
+                                      height: '80px',
+                                      objectFit: 'cover',
+                                      borderRadius: borderRadius.md,
+                                      cursor: 'pointer',
+                                      border: `1px solid ${colors.neutral[200]}`,
+                                    }}
+                                    onClick={() => {
+                                      // Open in new tab for now (can add lightbox later)
+                                      window.open(item.url, '_blank');
+                                    }}
+                                  />
+                                ))}
+                              {mediaItems.filter((item: AnswerMediaItem) => item.type === 'image').length > 6 && (
+                                <div
+                                  style={{
+                                    width: '80px',
+                                    height: '80px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    backgroundColor: colors.neutral[100],
+                                    borderRadius: borderRadius.md,
+                                    border: `1px solid ${colors.neutral[200]}`,
+                                    ...typography.bodySmall,
+                                    color: colors.neutral[600],
+                                    cursor: 'pointer',
+                                  }}
+                                  onClick={() => setShowImageDownload(true)}
+                                >
+                                  +{mediaItems.filter((item: AnswerMediaItem) => item.type === 'image').length - 6}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
-                  })
-                ) : (
-                  <div style={{ ...typography.bodySmall, color: colors.neutral[500], fontStyle: 'italic' }}>
-                    No questions in this section
-                  </div>
-                )}
-              </div>
-            </div>
-          ))
+                  })}
+                  {sectionQuestions.length === 0 && (
+                    <div style={{ ...typography.bodySmall, color: colors.neutral[500], fontStyle: 'italic' }}>
+                      No questions in this section
+                    </div>
+                  )}
+                </div>
+              </CollapsibleSection>
+            );
+          })
         ) : inspection.answers && inspection.answers.length > 0 ? (
           // Fallback: Show answers even if template sections are missing
           <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
@@ -1174,10 +1375,7 @@ export const InspectionDetails: React.FC = () => {
                   borderRadius: '8px',
                   border: '1px solid #E5E7EB'
                 }}>
-                  {typeof answer.answer_value === 'object' ? 
-                    JSON.stringify(answer.answer_value) : 
-                    String(answer.answer_value || 'No answer')
-                  }
+                  {renderAnswerContent(answer)}
                   {answer.is_critical_finding && (
                     <div style={{
                       color: colors.status.critical,
@@ -1308,7 +1506,7 @@ export const InspectionDetails: React.FC = () => {
 
       {/* Related Items */}
       {inspection.vehicle_id && (
-        <div style={{ marginTop: spacing.lg, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: spacing.lg }}>
+        <div id="related-items-section" style={{ marginTop: spacing.lg, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: spacing.lg }}>
           {/* Related Inspections Panel */}
           {relatedInspections.length > 0 && (
             <RelatedItems
@@ -1428,3 +1626,5 @@ export const InspectionDetails: React.FC = () => {
     </div>
   );
 };
+
+export default InspectionDetails;

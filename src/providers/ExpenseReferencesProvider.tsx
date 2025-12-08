@@ -3,6 +3,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { apiClient, normalizeError } from '../lib/apiClient';
 import { useToast } from './ToastProvider';
 import { useAuth } from './useAuth';
+import { logger } from '../lib/logger';
 
 export interface ProjectReference {
   id: string;
@@ -76,7 +77,7 @@ function safeParse<T>(value: string | null): ResourceState<T> | null {
     if (!parsed || !Array.isArray(parsed.data)) return null;
     return parsed;
   } catch (error) {
-    console.warn('Failed to parse cached expense references', error);
+    logger.warn('Failed to parse cached expense references', error, 'ExpenseReferencesProvider');
     return null;
   }
 }

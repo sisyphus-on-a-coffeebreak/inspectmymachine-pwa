@@ -1,11 +1,12 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiClient } from '../../lib/apiClient';
-import type { VisitorGatePass, VehicleMovementPass } from './gatePassTypes';
 import { useToast } from '../../providers/ToastProvider';
 import { useConfirm } from '../../components/ui/Modal';
 import { GuardDetailsModal, type GuardActionData } from '../../components/gatepass/GuardDetailsModal';
-import { gatePassService, type UnifiedGatePassRecord } from '../../lib/services/GatePassService';
+import { gatePassService } from '../../lib/services/gatePassService';
+import { useGatePasses } from '@/hooks/useGatePasses';
+import type { GatePass } from './gatePassTypes';
+import { isVisitorPass } from './gatePassTypes';
 
 // 🛡️ Guard Register
 // Mobile-first interface for security guards to manage gate activities
@@ -15,62 +16,30 @@ export const GuardRegister: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { confirm, ConfirmComponent } = useConfirm();
-  const [visitorPasses, setVisitorPasses] = useState<VisitorGatePass[]>([]);
-  const [vehicleMovements, setVehicleMovements] = useState<VehicleMovementPass[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedRecord, setSelectedRecord] = useState<GatePass | null>(null);
   const [activeTab, setActiveTab] = useState<'expected' | 'inside'>('expected');
-  const [selectedRecord, setSelectedRecord] = useState<UnifiedGatePassRecord | null>(null);
 
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
+  // Fetch today's expected and inside passes using unified hook
+  const today = new Date().toISOString().split('T')[0];
+  const { data: passesData, isLoading: loading } = useGatePasses({
+    date_from: today,
+    date_to: today,
+    status: activeTab === 'expected' ? 'pending' : 'inside',
+    per_page: 100,
+  });
 
-      // Fetch today's expected and inside passes
-      const today = new Date().toISOString().split('T')[0];
-      
-      const visitorResponse = await apiClient.get('/visitor-gate-passes', {
-        params: { 
-          date: today,
-          status: activeTab === 'expected' ? 'pending' : 'inside'
-        }
-      });
-
-      const vehicleResponse = await apiClient.get('/vehicle-entry-passes', {
-        params: { status: 'out' }
-      });
-
-      // Handle response structure - backend may return { success: true, data: [...] } or just [...]
-      const visitorData = Array.isArray(visitorResponse.data) 
-        ? visitorResponse.data 
-        : (visitorResponse.data?.data || []);
-      const vehicleData = Array.isArray(vehicleResponse.data) 
-        ? vehicleResponse.data 
-        : (vehicleResponse.data?.data || []);
-
-      setVisitorPasses(Array.isArray(visitorData) ? visitorData : []);
-      setVehicleMovements(Array.isArray(vehicleData) ? vehicleData : []);
-
-    } catch (error) {
-      // Error is already handled by apiClient
-    } finally {
-      setLoading(false);
-    }
-  } , [activeTab]);
-
-  useEffect(() => {
-    fetchData();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
+  const allPasses = passesData?.data || [];
+  const visitorPasses = allPasses.filter((p: GatePass) => isVisitorPass(p));
+  const vehicleMovements = allPasses.filter((p: GatePass) => !isVisitorPass(p));
 
 
-  const handleMarkEntry = async (passId: number, type: 'visitor' | 'vehicle') => {
+
+  const handleMarkEntry = async (passId: string) => {
     try {
       // Fetch the full record to show in Guard Details Modal
-      const record = await gatePassService.get(String(passId), type);
+      const record = await gatePassService.get(passId);
       setSelectedRecord(record);
-    } catch (error) {
+    } catch {
       showToast({
         title: 'Error',
         description: 'Failed to load pass details. Please try again.',
@@ -83,12 +52,7 @@ export const GuardRegister: React.FC = () => {
     if (!selectedRecord) return;
     
     try {
-      await gatePassService.markEntry(selectedRecord.id, selectedRecord.type, {
-        notes: data.notes,
-        incident_log: data.incident_log,
-        escort_required: data.escort_required,
-        asset_checklist: data.asset_checklist,
-      });
+      await gatePassService.recordEntry(selectedRecord.id, data.notes);
       
       showToast({
         title: 'Success',
@@ -97,21 +61,21 @@ export const GuardRegister: React.FC = () => {
       });
       
       setSelectedRecord(null);
-      fetchData();
-    } catch (error) {
+      // Refetch will happen automatically via React Query
+    } catch {
       showToast({
         title: 'Error',
         description: 'Failed to mark entry. Please try again.',
         variant: 'error',
       });
-      throw error; // Re-throw so modal can handle it
+      throw new Error('Failed to mark entry'); // Re-throw so modal can handle it
     }
   };
 
-  const handleMarkExit = async (passId: number, type: 'visitor' | 'vehicle') => {
+  const handleMarkExit = async (passId: string) => {
     const confirmed = await confirm({
       title: 'Mark Exit',
-      message: `Mark this ${type === 'visitor' ? 'visitor' : 'vehicle'} as exited?`,
+      message: `Mark this pass as exited?`,
       confirmLabel: 'Mark Exit',
       cancelLabel: 'Cancel',
     });
@@ -119,14 +83,14 @@ export const GuardRegister: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      await gatePassService.markExit(String(passId), type);
+      await gatePassService.recordExit(passId);
       showToast({
         title: 'Success',
         description: 'Exit marked successfully!',
         variant: 'success',
       });
-      fetchData();
-    } catch (error) {
+      // Refetch will happen automatically via React Query
+    } catch {
       showToast({
         title: 'Error',
         description: 'Failed to mark exit. Please try again.',
@@ -135,13 +99,13 @@ export const GuardRegister: React.FC = () => {
     }
   };
 
-  const handleMarkReturn = async (movementId: number) => {
-    navigate(`/app/gate-pass/vehicle/${movementId}/return`);
+  const handleMarkReturn = async (movementId: string) => {
+    navigate(`/app/gate-pass/${movementId}`);
   };
 
   const currentlyInside = {
-    visitors: visitorPasses.filter(p => p.status === 'inside').length,
-    vehicles: vehicleMovements.filter(v => v.status === 'out').length
+    visitors: visitorPasses.filter((p: GatePass) => p.status === 'inside').length,
+    vehicles: vehicleMovements.filter((p: GatePass) => p.status === 'inside').length // inside = out for vehicles
   };
 
   const expectedToday = visitorPasses.filter(p => p.status === 'pending').length;
@@ -167,7 +131,7 @@ export const GuardRegister: React.FC = () => {
     return `${hours}h ${minutes % 60}m ago`;
   };
 
-  if (loading && visitorPasses.length === 0) {
+  if (loading && allPasses.length === 0) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
         <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⏳</div>
@@ -314,7 +278,7 @@ export const GuardRegister: React.FC = () => {
             📥 Expected Arrivals
           </h2>
 
-          {visitorPasses.filter(p => p.status === 'pending').length === 0 ? (
+          {visitorPasses.filter((p: GatePass) => p.status === 'pending').length === 0 ? (
             <div style={{
               padding: '2rem',
               textAlign: 'center',
@@ -327,8 +291,8 @@ export const GuardRegister: React.FC = () => {
             </div>
           ) : (
             visitorPasses
-              .filter(p => p.status === 'pending')
-              .map(pass => (
+              .filter((p: GatePass) => p.status === 'pending')
+              .map((pass: GatePass) => (
                 <div
                   key={pass.id}
                   style={{
@@ -350,15 +314,17 @@ export const GuardRegister: React.FC = () => {
                       <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>
                         Pass #{pass.pass_number}
                       </div>
-                      <div style={{ 
-                        fontSize: '0.75rem',
-                        color: '#6B7280',
-                        backgroundColor: '#F3F4F6',
-                        padding: '0.25rem 0.5rem',
-                        borderRadius: '4px'
-                      }}>
-                        🕐 {pass.expected_time}
-                      </div>
+                      {pass.valid_from && (
+                        <div style={{ 
+                          fontSize: '0.75rem',
+                          color: '#6B7280',
+                          backgroundColor: '#F3F4F6',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '4px'
+                        }}>
+                          🕐 {formatTime(pass.valid_from)}
+                        </div>
+                      )}
                     </div>
                     <div style={{ height: '1px', backgroundColor: '#E5E7EB' }} />
                   </div>
@@ -370,13 +336,15 @@ export const GuardRegister: React.FC = () => {
                     lineHeight: 1.6
                   }}>
                     <div style={{ marginBottom: '0.25rem' }}>
-                      <strong>👤 {pass.primary_visitor_name}</strong>
+                      <strong>👤 {pass.visitor_name}</strong>
                       {pass.additional_visitors && ` + ${pass.additional_visitors.split(',').length}`}
                       {pass.additional_head_count ? ` + ${pass.additional_head_count} more` : ''}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>
-                      🚗 Viewing: {pass.vehicles?.map(v => v.registration_number).join(', ')}
-                    </div>
+                    {pass.vehicles_to_view && pass.vehicles_to_view.length > 0 && (
+                      <div style={{ fontSize: '0.75rem', color: '#6B7280' }}>
+                        🚗 Viewing: {pass.vehicles_to_view.join(', ')}
+                      </div>
+                    )}
                     {pass.referred_by && (
                       <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '0.25rem' }}>
                         📝 Ref: {pass.referred_by}
@@ -385,7 +353,7 @@ export const GuardRegister: React.FC = () => {
                   </div>
 
                   <button
-                    onClick={() => handleMarkEntry(pass.id!, 'visitor')}
+                    onClick={() => handleMarkEntry(pass.id)}
                     style={{
                       width: '100%',
                       padding: '0.75rem',
@@ -419,8 +387,8 @@ export const GuardRegister: React.FC = () => {
           </h2>
 
           {/* Visitors Inside */}
-          {visitorPasses.filter(p => p.status === 'inside').length === 0 && 
-           vehicleMovements.filter(v => v.status === 'out').length === 0 ? (
+          {visitorPasses.filter((p: GatePass) => p.status === 'inside').length === 0 && 
+           vehicleMovements.filter((p: GatePass) => p.status === 'inside').length === 0 ? (
             <div style={{
               padding: '2rem',
               textAlign: 'center',
@@ -434,8 +402,8 @@ export const GuardRegister: React.FC = () => {
           ) : (
             <>
               {visitorPasses
-                .filter(p => p.status === 'inside')
-                .map(pass => (
+                .filter((p: GatePass) => p.status === 'inside')
+                .map((pass: GatePass) => (
                   <div
                     key={pass.id}
                     style={{
@@ -467,21 +435,25 @@ export const GuardRegister: React.FC = () => {
                       lineHeight: 1.6
                     }}>
                       <div style={{ marginBottom: '0.25rem' }}>
-                        <strong>👤 {pass.primary_visitor_name}</strong>
+                        <strong>👤 {pass.visitor_name}</strong>
                         {pass.additional_visitors && ` + ${pass.additional_visitors.split(',').length}`}
                         {pass.additional_head_count ? ` + ${pass.additional_head_count} more` : ''}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#16A34A' }}>
-                        🚗 {pass.vehicles?.map(v => v.registration_number).join(', ')}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: '#16A34A', marginTop: '0.25rem' }}>
-                        ⏰ Entry: {formatTime(pass.entry_time)} ({getTimeAgo(pass.entry_time)})
-                      </div>
+                      {pass.vehicles_to_view && pass.vehicles_to_view.length > 0 && (
+                        <div style={{ fontSize: '0.75rem', color: '#16A34A' }}>
+                          🚗 {pass.vehicles_to_view.join(', ')}
+                        </div>
+                      )}
+                      {pass.entry_time && (
+                        <div style={{ fontSize: '0.75rem', color: '#16A34A', marginTop: '0.25rem' }}>
+                          ⏰ Entry: {formatTime(pass.entry_time)} ({getTimeAgo(pass.entry_time)})
+                        </div>
+                      )}
                     </div>
 
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button
-                        onClick={() => {/* TODO: Add visitor pass modal */}}
+                        onClick={() => navigate(`/app/gate-pass/${pass.id}`)}
                         style={{
                           flex: 1,
                           padding: '0.75rem',
@@ -497,7 +469,7 @@ export const GuardRegister: React.FC = () => {
                         👁️ Details
                       </button>
                       <button
-                        onClick={() => handleMarkExit(pass.id!, 'visitor')}
+                        onClick={() => handleMarkExit(pass.id)}
                         style={{
                           flex: 1,
                           padding: '0.75rem',
@@ -518,8 +490,8 @@ export const GuardRegister: React.FC = () => {
 
               {/* Vehicles Out */}
               {vehicleMovements
-                .filter(v => v.status === 'out')
-                .map(movement => (
+                .filter((p: GatePass) => p.status === 'inside') // inside = out for vehicles
+                .map((movement: GatePass) => (
                   <div
                     key={movement.id}
                     style={{
@@ -559,9 +531,11 @@ export const GuardRegister: React.FC = () => {
                       <div style={{ fontSize: '0.75rem', color: '#B45309' }}>
                         👤 Driver: {movement.driver_name}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#B45309', marginTop: '0.25rem' }}>
-                        🕒 Left: {formatTime(movement.departure_time)} ({getTimeAgo(movement.departure_time)})
-                      </div>
+                      {movement.entry_time && (
+                        <div style={{ fontSize: '0.75rem', color: '#B45309', marginTop: '0.25rem' }}>
+                          🕒 Left: {formatTime(movement.entry_time)} ({getTimeAgo(movement.entry_time)})
+                        </div>
+                      )}
                       {movement.expected_return_date && (
                         <div style={{ fontSize: '0.75rem', color: '#B45309' }}>
                           ⏰ Expected: {new Date(movement.expected_return_date).toLocaleDateString()}
@@ -587,7 +561,7 @@ export const GuardRegister: React.FC = () => {
                         👁️ Details
                       </button>
                       <button
-                        onClick={() => handleMarkReturn(movement.id!)}
+                        onClick={() => handleMarkReturn(movement.id)}
                         style={{
                           flex: 1,
                           padding: '0.75rem',
@@ -622,7 +596,7 @@ export const GuardRegister: React.FC = () => {
         </h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <button
-            onClick={() => navigate('/app/gate-pass/create-visitor')}
+            onClick={() => navigate('/app/gate-pass/create?type=visitor')}
             style={{
               padding: '1rem',
               border: '1px solid #D1D5DB',
@@ -638,7 +612,7 @@ export const GuardRegister: React.FC = () => {
             + Log Walk-in Visitor
           </button>
           <button
-            onClick={() => navigate('/app/gate-pass/create-vehicle')}
+            onClick={() => navigate('/app/gate-pass/create?type=inbound')}
             style={{
               padding: '1rem',
               border: '1px solid #D1D5DB',

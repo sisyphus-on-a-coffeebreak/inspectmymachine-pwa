@@ -1,261 +1,87 @@
 /**
  * Gate Pass Service
  * 
- * Unified service for managing all gate pass records (visitor + vehicle)
- * Combines visitor and vehicle pass data with timeline events into a single
- * normalized data structure consumed by all dashboards.
+ * Service layer for unified Gate Pass API v2
+ * Handles all API calls to /api/v2/gate-passes endpoints
  */
 
 import { apiClient, normalizeError } from '../apiClient';
-import type { VisitorGatePass, VehicleMovementPass } from '@/pages/gatepass/gatePassTypes';
+import type {
+  GatePass,
+  GatePassFilters,
+  GatePassListResponse,
+  GatePassStats,
+  CreateGatePassData,
+  UpdateGatePassData,
+  ValidatePassRequest,
+  ValidatePassResponse,
+  GuardLogParams,
+} from '@/pages/gatepass/gatePassTypes';
 
-export interface TimelineEvent {
-  id: string;
-  type: 'created' | 'entry' | 'exit' | 'approved' | 'rejected' | 'escalated' | 'updated';
-  timestamp: string;
-  actor?: {
-    id: number;
-    name: string;
-    role: string;
-  };
-  notes?: string;
-  metadata?: Record<string, unknown>;
-}
+const BASE_URL = '/v2/gate-passes';
 
-export interface UnifiedGatePassRecord {
-  id: string;
-  type: 'visitor' | 'vehicle';
-  passNumber: string;
-  
-  // Visitor-specific fields
-  visitorName?: string;
-  visitorPhone?: string;
-  visitorCompany?: string;
-  additionalVisitors?: string[];
-  additionalHeadCount?: number;
-  
-  // Vehicle-specific fields
-  vehicleId?: number;
-  vehicle?: {
-    id: number;
-    registration_number: string;
-    make: string;
-    model: string;
-    year?: number;
-    type?: string;
-  };
-  driverName?: string;
-  driverContact?: string;
-  driverLicenseNumber?: string;
-  
-  // Common fields
-  purpose: string;
-  direction?: 'inbound' | 'outbound';
-  status: string;
-  validFrom: string;
-  validTo: string;
-  expectedReturnDate?: string;
-  expectedReturnTime?: string;
-  entryTime?: string;
-  exitTime?: string;
-  notes?: string;
-  
-  // QR and access
-  accessCode?: string;
-  qrPayload?: string;
-  qrCode?: string;
-  
-  // Metadata
-  yardId?: string;
-  createdBy?: number;
-  createdAt: string;
-  updatedAt: string;
-  
-  // Timeline
-  timeline: TimelineEvent[];
-  
-  // Raw data for backward compatibility
-  raw: VisitorGatePass | VehicleMovementPass;
-}
-
-export interface GatePassListParams {
-  status?: string;
-  type?: 'visitor' | 'vehicle' | 'all';
-  yardId?: string;
-  dateFrom?: string;
-  dateTo?: string;
-  search?: string;
-  page?: number;
-  perPage?: number;
-}
-
-export interface GatePassListResponse {
-  data: UnifiedGatePassRecord[];
-  total: number;
-  page: number;
-  perPage: number;
-  lastPage: number;
-}
-
-/**
- * Gate Pass Service
- */
 class GatePassService {
   /**
-   * Fetch all gate pass records (unified)
+   * List gate passes with filters
    */
-  async list(params?: GatePassListParams): Promise<GatePassListResponse> {
+  async list(filters?: GatePassFilters): Promise<GatePassListResponse> {
     try {
-      const response = await apiClient.get<GatePassListResponse>('/gate-pass-records', {
-        params,
-      });
-      return response.data;
-    } catch (error) {
-      throw normalizeError(error);
-    }
-  }
+      const params: Record<string, any> = {};
 
-  /**
-   * Get a single gate pass record by ID
-   */
-  async get(id: string, type: 'visitor' | 'vehicle'): Promise<UnifiedGatePassRecord> {
-    try {
-      const endpoint = type === 'visitor' 
-        ? `/visitor-gate-passes/${id}`
-        : `/vehicle-exit-passes/${id}`;
-      
-      const response = await apiClient.get<UnifiedGatePassRecord>(endpoint);
-      return response.data;
-    } catch (error) {
-      throw normalizeError(error);
-    }
-  }
-
-  /**
-   * Create a visitor gate pass
-   */
-  async createVisitorPass(data: {
-    visitor_name: string;
-    visitor_phone: string;
-    visitor_company?: string;
-    vehicles_to_view: number[];
-    purpose: string;
-    valid_from: string;
-    valid_to: string;
-    yard_id: string;
-    notes?: string;
-  }): Promise<UnifiedGatePassRecord> {
-    try {
-      const response = await apiClient.post<UnifiedGatePassRecord>('/visitor-gate-passes', data);
-      return response.data;
-    } catch (error) {
-      throw normalizeError(error);
-    }
-  }
-
-  /**
-   * Create a vehicle movement pass
-   */
-  async createVehiclePass(data: {
-    vehicle_id: number;
-    direction: 'inbound' | 'outbound';
-    purpose: string;
-    driver_name: string;
-    driver_contact: string;
-    driver_license_number?: string;
-    driver_license_photo?: string;
-    expected_return_date?: string;
-    expected_return_time?: string;
-    destination?: string;
-    exit_photos?: string[];
-    exit_odometer?: number;
-    notes?: string;
-    yard_id?: string;
-  }): Promise<UnifiedGatePassRecord> {
-    try {
-      const response = await apiClient.post<UnifiedGatePassRecord>('/vehicle-exit-passes', data);
-      return response.data;
-    } catch (error) {
-      throw normalizeError(error);
-    }
-  }
-
-  /**
-   * Mark entry for a gate pass
-   */
-  async markEntry(id: string, type: 'visitor' | 'vehicle', data?: {
-    notes?: string;
-    incident_log?: string;
-    escort_required?: boolean;
-    asset_checklist?: Record<string, boolean>;
-  }): Promise<UnifiedGatePassRecord> {
-    try {
-      const endpoint = type === 'visitor'
-        ? `/visitor-gate-passes/${id}/entry`
-        : `/vehicle-exit-passes/${id}/entry`;
-      
-      const response = await apiClient.post<UnifiedGatePassRecord>(endpoint, data || {});
-      return response.data;
-    } catch (error) {
-      throw normalizeError(error);
-    }
-  }
-
-  /**
-   * Mark exit for a gate pass
-   */
-  async markExit(id: string, type: 'visitor' | 'vehicle', data?: {
-    notes?: string;
-  }): Promise<UnifiedGatePassRecord> {
-    try {
-      const endpoint = type === 'visitor'
-        ? `/visitor-gate-passes/${id}/exit`
-        : `/vehicle-exit-passes/${id}/exit`;
-      
-      const response = await apiClient.post<UnifiedGatePassRecord>(endpoint, data || {});
-      return response.data;
-    } catch (error) {
-      throw normalizeError(error);
-    }
-  }
-
-  /**
-   * Sync gate pass record (ensure QR payload exists)
-   */
-  async syncRecord(passId: string | number, passType: 'visitor' | 'vehicle', metadata?: Record<string, unknown>): Promise<{
-    id: string;
-    accessCode: string;
-    qrPayload: string;
-    qrCode?: string;
-    passNumber: string;
-  }> {
-    try {
-      const response = await apiClient.post<{
-        record: {
-          id: string;
-          access_code: string;
-          qr_payload: string;
-          qr_code?: string;
-          pass_number?: string;
-        };
-      }>('/gate-pass-records/sync', {
-        pass_id: passId,
-        pass_type: passType,
-        metadata,
-      });
-
-      const record = response.data.record;
-      
-      if (!record.qr_payload) {
-        throw new Error('Backend did not return qr_payload. This is required for verifiable QR codes.');
+      // Handle type filter (can be single, array, or 'all')
+      if (filters?.type) {
+        if (filters.type === 'all') {
+          // Don't filter by type
+        } else if (Array.isArray(filters.type)) {
+          params.type = filters.type.join(',');
+        } else {
+          params.type = filters.type;
+        }
       }
 
+      // Handle status filter (can be single or array)
+      if (filters?.status) {
+        if (Array.isArray(filters.status)) {
+          params.status = filters.status.join(',');
+        } else {
+          params.status = filters.status;
+        }
+      }
+
+      // Other filters
+      if (filters?.yard_id) params.yard_id = filters.yard_id;
+      if (filters?.date_from) params.date_from = filters.date_from;
+      if (filters?.date_to) params.date_to = filters.date_to;
+      if (filters?.search) params.search = filters.search;
+      if (filters?.sort_by) params.sort_by = filters.sort_by;
+      if (filters?.sort_dir) params.sort_dir = filters.sort_dir;
+      if (filters?.per_page) params.per_page = filters.per_page;
+      if (filters?.page) params.page = filters.page;
+      if (filters?.include_stats) params.include_stats = true;
+
+      const response = await apiClient.get<GatePassListResponse>(BASE_URL, { params });
+      const responseData = response.data;
+
+      // Handle different response formats
+      if (responseData.data) {
+        return {
+          data: responseData.data,
+          total: responseData.total || responseData.pagination?.total || 0,
+          page: responseData.page || responseData.pagination?.current_page || 1,
+          per_page: responseData.per_page || responseData.pagination?.per_page || 20,
+          last_page: responseData.last_page || responseData.pagination?.last_page || 1,
+          stats: responseData.stats,
+        };
+      }
+
+      // Fallback for array response
+      const data = Array.isArray(responseData) ? responseData : [];
       return {
-        id: record.id,
-        accessCode: record.access_code,
-        qrPayload: record.qr_payload,
-        qrCode: record.qr_code,
-        passNumber: record.pass_number || `${passType === 'visitor' ? 'VP' : 'VM'}${String(passId).substring(0, 8).toUpperCase()}`,
+        data,
+        total: data.length,
+        page: 1,
+        per_page: data.length,
+        last_page: 1,
       };
     } catch (error) {
       throw normalizeError(error);
@@ -263,26 +89,175 @@ class GatePassService {
   }
 
   /**
-   * Get dashboard statistics
+   * Get statistics
    */
-  async getDashboardStats(yardId?: string): Promise<{
-    visitors_inside: number;
-    vehicles_out: number;
-    expected_today: number;
-    total_today: number;
-    pending_approvals: number;
+  async getStats(yardId?: string): Promise<GatePassStats> {
+    try {
+      const params = yardId ? { yard_id: yardId } : {};
+      const response = await apiClient.get<GatePassStats>('/v2/gate-passes-stats', { params });
+      
+      // Map pending_approval field if needed
+      const stats = response.data;
+      return {
+        ...stats,
+        pending_approval: stats.pending_approval || 0,
+      };
+    } catch (error) {
+      throw normalizeError(error);
+    }
+  }
+
+  /**
+   * Get a single gate pass by ID
+   */
+  async get(id: string): Promise<GatePass> {
+    try {
+      const response = await apiClient.get<GatePass>(`${BASE_URL}/${id}`);
+      return response.data;
+    } catch (error) {
+      throw normalizeError(error);
+    }
+  }
+
+  /**
+   * Create a new gate pass
+   */
+  async create(data: CreateGatePassData): Promise<GatePass> {
+    try {
+      // Normalize vehicles_to_view to ensure it's a plain array
+      const normalizedData = { ...data };
+      if ('vehicles_to_view' in normalizedData && normalizedData.vehicles_to_view) {
+        normalizedData.vehicles_to_view = Array.isArray(normalizedData.vehicles_to_view)
+          ? normalizedData.vehicles_to_view.map(id => String(id)).filter(id => id.length > 0)
+          : [];
+      }
+
+      // Log normalized payload
+      console.log('[GatePassService] Sending create request:', {
+        url: BASE_URL,
+        payload: normalizedData,
+        vehicles_to_view: normalizedData.vehicles_to_view,
+        vehicles_to_view_type: typeof normalizedData.vehicles_to_view,
+        vehicles_to_view_isArray: Array.isArray(normalizedData.vehicles_to_view),
+      });
+
+      const response = await apiClient.post<GatePass>(BASE_URL, normalizedData);
+      return response.data;
+    } catch (error) {
+      console.error('[GatePassService] Create error:', error);
+      throw normalizeError(error);
+    }
+  }
+
+  /**
+   * Update a gate pass
+   */
+  async update(id: string, data: UpdateGatePassData): Promise<GatePass> {
+    try {
+      const response = await apiClient.patch<GatePass>(`${BASE_URL}/${id}`, data);
+      return response.data;
+    } catch (error) {
+      throw normalizeError(error);
+    }
+  }
+
+  /**
+   * Cancel a gate pass (soft delete)
+   */
+  async cancel(id: string): Promise<void> {
+    try {
+      await apiClient.delete(`${BASE_URL}/${id}`);
+    } catch (error) {
+      throw normalizeError(error);
+    }
+  }
+
+  /**
+   * Validate and optionally process a pass (entry/exit)
+   */
+  async validateAndProcess(data: ValidatePassRequest): Promise<ValidatePassResponse> {
+    try {
+      const response = await apiClient.post<ValidatePassResponse>(
+        `${BASE_URL}/validate`,
+        data
+      );
+      return response.data;
+    } catch (error) {
+      throw normalizeError(error);
+    }
+  }
+
+  /**
+   * Record entry for a gate pass
+   */
+  async recordEntry(id: string, notes?: string): Promise<GatePass> {
+    try {
+      const response = await apiClient.post<GatePass>(
+        `${BASE_URL}/${id}/entry`,
+        { notes: notes || undefined }
+      );
+      return response.data;
+    } catch (error) {
+      throw normalizeError(error);
+    }
+  }
+
+  /**
+   * Record exit for a gate pass
+   */
+  async recordExit(id: string, notes?: string): Promise<GatePass> {
+    try {
+      const response = await apiClient.post<GatePass>(
+        `${BASE_URL}/${id}/exit`,
+        { notes: notes || undefined }
+      );
+      return response.data;
+    } catch (error) {
+      throw normalizeError(error);
+    }
+  }
+
+  /**
+   * Get guard logs (validation records)
+   */
+  async getGuardLogs(params?: GuardLogParams): Promise<{
+    data: any[];
+    total: number;
+    page: number;
+    per_page: number;
+    last_page: number;
   }> {
     try {
-      const response = await apiClient.get<{
-        visitors_inside: number;
-        vehicles_out: number;
-        expected_today: number;
-        total_today: number;
-        pending_approvals: number;
-      }>('/gate-pass-records/stats', {
-        params: yardId ? { yard_id: yardId } : {},
+      const queryParams: Record<string, any> = {};
+      if (params?.date) queryParams.date = params.date;
+      if (params?.guard_id) queryParams.guard_id = params.guard_id;
+      if (params?.per_page) queryParams.per_page = params.per_page;
+      if (params?.page) queryParams.page = params.page;
+
+      const response = await apiClient.get('/v2/gate-passes-guard-logs', {
+        params: queryParams,
       });
-      return response.data;
+
+      const responseData = response.data;
+      if (responseData.data) {
+        return {
+          data: responseData.data,
+          total: responseData.total || responseData.pagination?.total || 0,
+          page: responseData.page || responseData.pagination?.current_page || 1,
+          per_page: responseData.per_page || responseData.pagination?.per_page || 20,
+          last_page: responseData.last_page || responseData.pagination?.last_page || 1,
+        };
+      }
+
+      // Fallback
+      const data = Array.isArray(responseData) ? responseData : [];
+      return {
+        data,
+        total: data.length,
+        page: 1,
+        per_page: data.length,
+        last_page: 1,
+      };
     } catch (error) {
       throw normalizeError(error);
     }
@@ -291,4 +266,3 @@ class GatePassService {
 
 // Export singleton instance
 export const gatePassService = new GatePassService();
-

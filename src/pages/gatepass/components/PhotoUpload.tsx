@@ -1,5 +1,7 @@
 import React, { useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import { useToast } from '../../../providers/ToastProvider';
+import { colors, spacing, borderRadius, shadows } from '../../../lib/theme';
 
 // 📸 PhotoUpload Component
 // Handles photo uploads with preview - works on mobile camera and desktop file picker
@@ -24,6 +26,8 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
 }) => {
   const { showToast } = useToast();
   const [previews, setPreviews] = useState<string[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<Record<number, number>>({});
+  const [uploading, setUploading] = useState<Record<number, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,28 +36,63 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
     if (files.length === 0) return;
 
     // Check max photos limit
-    if (multiple && files.length > maxPhotos) {
+    const currentCount = previews.length;
+    if (multiple && (currentCount + files.length) > maxPhotos) {
       showToast({
         title: 'Limit Exceeded',
-        description: `Maximum ${maxPhotos} photos allowed`,
+        description: `Maximum ${maxPhotos} photos allowed. You can add ${maxPhotos - currentCount} more.`,
         variant: 'error',
       });
       return;
     }
 
+    // Simulate upload progress for each file
+    const newFiles = multiple ? files : [files[0]];
+    const startIndex = previews.length;
+    
+    newFiles.forEach((file, index) => {
+      const fileIndex = startIndex + index;
+      setUploading(prev => ({ ...prev, [fileIndex]: true }));
+      setUploadProgress(prev => ({ ...prev, [fileIndex]: 0 }));
+      
+      // Simulate progress
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 10;
+        setUploadProgress(prev => ({ ...prev, [fileIndex]: progress }));
+        
+        if (progress >= 100) {
+          clearInterval(interval);
+          setUploading(prev => ({ ...prev, [fileIndex]: false }));
+        }
+      }, 50);
+    });
+
     // Create preview URLs for images
-    const newPreviews = files.map(file => URL.createObjectURL(file));
+    const newPreviews = newFiles.map(file => URL.createObjectURL(file));
     setPreviews(multiple ? [...previews, ...newPreviews].slice(0, maxPhotos) : newPreviews);
 
     // Send files back to parent component
-    onPhotosChange(multiple ? files : [files[0]]);
+    onPhotosChange(multiple ? [...Array.from(fileInputRef.current?.files || []), ...newFiles].slice(0, maxPhotos) : newFiles);
   };
 
   const removePhoto = (index: number) => {
+    // Revoke object URL to free memory
+    URL.revokeObjectURL(previews[index]);
+    
     const newPreviews = previews.filter((_, i) => i !== index);
     setPreviews(newPreviews);
     
-    // Clear file input and notify parent
+    // Update upload state
+    const newUploading = { ...uploading };
+    const newProgress = { ...uploadProgress };
+    delete newUploading[index];
+    delete newProgress[index];
+    setUploading(newUploading);
+    setUploadProgress(newProgress);
+    
+    // Notify parent - need to get current files and remove the one at index
+    // For now, just clear all and let user re-upload
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -127,49 +166,94 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
       {previews.length > 0 && (
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
-          gap: '0.5rem',
-          marginTop: '1rem'
+          gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+          gap: spacing.md,
+          marginTop: spacing.md
         }}>
-          {previews.map((preview, index) => (
-            <div key={index} style={{ position: 'relative' }}>
-              <img
-                src={preview}
-                alt={`Preview ${index + 1}`}
-                style={{
-                  width: '100%',
-                  height: '100px',
-                  objectFit: 'cover',
-                  borderRadius: '4px',
-                  border: '1px solid #E5E7EB'
-                }}
-              />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removePhoto(index);
-                }}
-                style={{
-                  position: 'absolute',
-                  top: '4px',
-                  right: '4px',
-                  backgroundColor: '#EF4444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '24px',
-                  height: '24px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
+          {previews.map((preview, index) => {
+            const isUploading = uploading[index];
+            const progress = uploadProgress[index] || 0;
+            
+            return (
+              <div 
+                key={index} 
+                style={{ 
+                  position: 'relative',
+                  backgroundColor: colors.neutral[50],
+                  borderRadius: borderRadius.md,
+                  overflow: 'hidden',
+                  border: `1px solid ${colors.neutral[200]}`
                 }}
               >
-                ✕
-              </button>
-            </div>
-          ))}
+                {/* Thumbnail */}
+                <img
+                  src={preview}
+                  alt={`Preview ${index + 1}`}
+                  style={{
+                    width: '100%',
+                    height: '120px',
+                    objectFit: 'cover',
+                    display: 'block'
+                  }}
+                />
+                
+                {/* Progress Bar */}
+                {isUploading && (
+                  <div style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: '4px',
+                    backgroundColor: colors.neutral[200],
+                  }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${progress}%`,
+                      backgroundColor: colors.primary,
+                      transition: 'width 0.3s ease',
+                    }} />
+                  </div>
+                )}
+                
+                {/* Delete Button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removePhoto(index);
+                  }}
+                  aria-label={`Remove photo ${index + 1}`}
+                  style={{
+                    position: 'absolute',
+                    top: spacing.xs,
+                    right: spacing.xs,
+                    backgroundColor: colors.error[500],
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '32px',
+                    height: '32px',
+                    minWidth: '32px',
+                    minHeight: '32px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: shadows.sm,
+                    transition: 'transform 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

@@ -10,6 +10,16 @@ html, body, #root {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
 }
 
+/* Safe area support for devices with notches */
+@supports (padding: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
 /* Global VOMS Styles */
 * {
   box-sizing: border-box;
@@ -21,15 +31,36 @@ button, input, select, textarea, [role="button"] {
   min-width: 44px;
 }
 
-/* Focus styles for accessibility */
-*:focus {
-  outline: 2px solid #2563eb;
+/* Focus styles for accessibility - WCAG compliant */
+*:focus-visible {
+  outline: 3px solid #2563eb;
   outline-offset: 2px;
+  border-radius: 2px;
 }
 
-/* Remove focus outline for mouse users */
+/* Remove focus outline for mouse users (but keep for keyboard) */
 *:focus:not(:focus-visible) {
   outline: none;
+}
+
+/* Enhanced focus for interactive elements */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+}
+
+/* Focus for modals and dialogs */
+[role="dialog"]:focus-visible,
+[role="alertdialog"]:focus-visible {
+  outline: 4px solid #2563eb;
+  outline-offset: 4px;
 }
 
 /* High contrast mode support */
@@ -46,4 +77,56 @@ button, input, select, textarea, [role="button"] {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Placeholder text contrast - WCAG AA compliant */
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280; /* neutral[500] - 4.6:1 contrast ratio on white */
+}
+
+/* Keyboard-aware layouts */
+.keyboard-visible {
+  /* Adjust padding when keyboard is visible on mobile */
+  padding-bottom: env(keyboard-inset-height, 0);
+}
+
+/* Auto-scroll behavior for focused inputs */
+input:focus,
+textarea:focus,
+select:focus {
+  scroll-margin-top: 100px; /* Offset for auto-scroll */
+}
+
+/* Mobile keyboard handling */
+@media (max-width: 768px) {
+  /* Ensure inputs are visible when keyboard opens */
+  input:focus,
+  textarea:focus,
+  select:focus {
+    position: relative;
+    z-index: 1;
+  }
+  
+  /* Adjust viewport when keyboard is visible */
+  .keyboard-visible {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height */
+    overflow: hidden;
+  }
+  
+  /* Prevent body scroll when keyboard is visible */
+  body.keyboard-visible {
+    position: fixed;
+    width: 100%;
+  }
+}
+
+/* Disabled state contrast */
+input:disabled,
+textarea:disabled,
+select:disabled,
+button:disabled {
+  color: #4b5563; /* neutral[600] - 7:1 contrast ratio for better visibility */
+  opacity: 0.7; /* Slight opacity reduction while maintaining contrast */
 }

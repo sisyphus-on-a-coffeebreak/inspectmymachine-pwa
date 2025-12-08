@@ -7,6 +7,11 @@ import { SignaturePad } from './SignaturePad';
 import { GeolocationCapture } from './GeolocationCapture';
 import { DynamicTyreFields } from './DynamicTyreFields';
 import { SegmentedControl } from '../ui/SegmentedControl';
+import { InspectionProgressBar } from './InspectionProgressBar';
+import { SectionNavigator } from './SectionNavigator';
+import { AutoSaveIndicator } from './AutoSaveIndicator';
+import { useDebounce } from '../../hooks/useDebounce';
+import { CheckCircle2 } from 'lucide-react';
 
 interface Question {
   id: string;
@@ -50,10 +55,15 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [pendingUploads, setPendingUploads] = useState<File[]>([]);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const answersRef = useRef(answers);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentSectionData = template.sections[currentSection];
   const totalSections = template.sections.length;
+
+  // Debounce answers for auto-save (3 seconds)
+  const debouncedAnswers = useDebounce(answers, 3000);
 
   const retryPendingUploads = useCallback(async () => {
     // Implementation for retrying failed uploads when back online
@@ -67,17 +77,83 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
 
   useEffect(() => {
     setAnswers(initialAnswers);
-  }, [initialAnswers]);
+    
+    // Resume draft: Navigate to last section with answers
+    if (Object.keys(initialAnswers).length > 0) {
+      // Find the last section that has at least one answer
+      let lastSectionWithAnswers = 0;
+      template.sections.forEach((section, index) => {
+        const hasAnswer = section.questions.some((q) => initialAnswers[q.id] !== undefined);
+        if (hasAnswer) {
+          lastSectionWithAnswers = index;
+        }
+      });
+      
+      // Navigate to the section after the last one with answers (or stay at 0)
+      // This allows user to continue from where they left off
+      if (lastSectionWithAnswers < totalSections - 1) {
+        setCurrentSection(lastSectionWithAnswers);
+      }
+    }
+  }, [initialAnswers, template.sections, totalSections]);
 
-  // Auto-save every 30 seconds
+  // Calculate progress
+  const progress = React.useMemo(() => {
+    const totalQuestions = template.sections.reduce(
+      (sum, section) => sum + section.questions.length,
+      0
+    );
+
+    const answeredQuestions = Object.keys(answers).filter(
+      (questionId) => {
+        const value = answers[questionId];
+        return value !== null && value !== undefined && value !== '';
+      }
+    ).length;
+
+    const sectionCompletion: Record<string, boolean> = {};
+    template.sections.forEach((section) => {
+      const sectionQuestions = section.questions.map((q) => q.id);
+      const answeredInSection = sectionQuestions.filter(
+        (qId) => {
+          const value = answers[qId];
+          return value !== null && value !== undefined && value !== '';
+        }
+      ).length;
+      sectionCompletion[section.id] = answeredInSection === section.questions.length;
+    });
+
+    return { totalQuestions, answeredQuestions, sectionCompletion };
+  }, [template.sections, answers]);
+
+  // Auto-save with debounce (3 seconds after last change)
   useEffect(() => {
-    const interval = setInterval(() => {
-      onSaveDraft(answersRef.current);
-      setLastSaved(new Date());
-    }, 30000);
+    // Skip if answers haven't changed from initial
+    if (Object.keys(debouncedAnswers).length === 0) return;
 
-    return () => clearInterval(interval);
-  }, [onSaveDraft]);
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    setAutoSaveStatus('saving');
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        await onSaveDraft(debouncedAnswers);
+        setLastSaved(new Date());
+        setAutoSaveStatus('saved');
+      } catch (error) {
+        setAutoSaveStatus('error');
+      }
+    }, 100); // Small delay to show "saving" state
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [debouncedAnswers, onSaveDraft]);
 
   // Offline detection
   useEffect(() => {
@@ -275,22 +351,59 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     if (validateSection()) {
       if (currentSection < totalSections - 1) {
         setCurrentSection(prev => prev + 1);
+        // Scroll to top of section
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         onSubmit(answers);
       }
+    } else {
+      // Show error toast or highlight missing fields
+      const missingFields = currentSectionData.questions.filter(
+        (q) => q.is_required && !answers[q.id]
+      );
+      if (missingFields.length > 0) {
+        // Errors are already set by validateSection
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     }
-  }, [validateSection, currentSection, totalSections, answers, onSubmit]);
+  }, [validateSection, currentSection, totalSections, answers, onSubmit, currentSectionData]);
 
   const handlePrevious = useCallback(() => {
     if (currentSection > 0) {
       setCurrentSection(prev => prev - 1);
+      // Scroll to top of section
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [currentSection]);
+
+  const handleSectionNavigate = useCallback((index: number) => {
+    setCurrentSection(index);
+    // Scroll to top of section
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const handleRetrySave = useCallback(() => {
+    setAutoSaveStatus('saving');
+    onSaveDraft(answers)
+      .then(() => {
+        setLastSaved(new Date());
+        setAutoSaveStatus('saved');
+      })
+      .catch(() => {
+        setAutoSaveStatus('error');
+      });
+  }, [answers, onSaveDraft]);
+
+  const isQuestionAnswered = (questionId: string): boolean => {
+    const value = answers[questionId];
+    return value !== null && value !== undefined && value !== '';
+  };
 
   const renderQuestion = (question: Question) => {
     const value = answers[question.id];
     const error = errors[question.id];
     const isVisible = checkConditionalLogic(question);
+    const isAnswered = isQuestionAnswered(question.id);
 
     if (!isVisible) return null;
 
@@ -300,11 +413,18 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
           ...typography.label,
           color: colors.neutral[900],
           marginBottom: spacing.sm,
-          display: 'block'
+          display: 'flex',
+          alignItems: 'center',
+          gap: spacing.xs,
         }}>
-          {question.question_text}
-          {question.is_required && <span style={{ color: colors.status.critical }}> *</span>}
-          {question.is_critical && <span style={{ color: colors.status.warning }}> ⚠</span>}
+          {isAnswered && (
+            <CheckCircle2 size={16} color={colors.success} style={{ flexShrink: 0 }} />
+          )}
+          <span style={{ flex: 1 }}>
+            {question.question_text}
+            {question.is_required && <span style={{ color: colors.status.critical }}> *</span>}
+            {question.is_critical && <span style={{ color: colors.status.warning }}> ⚠</span>}
+          </span>
         </label>
 
         {question.help_text && (
@@ -656,112 +776,65 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       // Mobile optimizations - using CSS classes instead of inline styles
       // Mobile styles will be handled by CSS classes
     }}>
-      {/* Progress Indicator */}
-      <div style={{ marginBottom: spacing.xl }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-          <span style={{ ...typography.label, color: colors.neutral[600] }}>
-            Step {currentSection + 1} of {totalSections}
-          </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-            <span style={{ ...typography.bodySmall, color: colors.neutral[500] }}>
-              {Math.round(((currentSection + 1) / totalSections) * 100)}% Complete
-            </span>
-            {isOffline && (
-              <span style={{ 
-                ...typography.bodySmall, 
-                color: colors.status.warning,
-                display: 'flex',
-                alignItems: 'center',
-                gap: spacing.xs
-              }}>
-                📡 Offline
-              </span>
-            )}
-            {lastSaved && (
-              <span style={{ 
-                ...typography.bodySmall, 
-                color: colors.status.normal,
-                display: 'flex',
-                alignItems: 'center',
-                gap: spacing.xs
-              }}>
-                💾 Saved {lastSaved.toLocaleTimeString()}
-              </span>
-            )}
-          </div>
+      {/* Progress Bar */}
+      <InspectionProgressBar
+        sections={template.sections}
+        currentSectionIndex={currentSection}
+        answeredQuestions={progress.answeredQuestions}
+        totalQuestions={progress.totalQuestions}
+        onSectionClick={handleSectionNavigate}
+      />
+
+      {/* Section Header with Navigator */}
+      <div style={{ 
+        marginBottom: spacing.xl,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        gap: spacing.md,
+      }}>
+        <div style={{ flex: 1 }}>
+          <h2 style={{
+            ...typography.header,
+            color: colors.neutral[900],
+            marginBottom: spacing.sm
+          }}>
+            {currentSectionData.name}
+          </h2>
+          <p style={{
+            ...typography.body,
+            color: colors.neutral[600]
+          }}>
+            Please complete all required fields in this section.
+          </p>
         </div>
-        <div style={{
-          width: '100%',
-          height: '8px',
-          backgroundColor: colors.neutral[200],
-          borderRadius: '4px',
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            width: `${((currentSection + 1) / totalSections) * 100}%`,
-            height: '100%',
-            backgroundColor: isOffline ? colors.status.warning : colors.primary,
-            transition: 'width 0.3s ease'
-          }} />
-        </div>
-        
-        {/* Section completion status */}
-        <div style={{ 
-          display: 'flex', 
-          gap: spacing.xs, 
-          marginTop: spacing.sm,
-          flexWrap: 'wrap'
-        }}>
-          {template.sections.map((section, index) => {
-            const isCompleted = index < currentSection;
-            const isCurrent = index === currentSection;
-            const hasErrors = Object.keys(errors).some(errorId => 
-              section.questions.some(q => q.id === errorId)
-            );
-            
-            return (
-              <div
-                key={section.id}
-                style={{
-                  width: '12px',
-                  height: '12px',
-                  borderRadius: '50%',
-                  backgroundColor: isCompleted 
-                    ? colors.status.normal 
-                    : isCurrent 
-                      ? (hasErrors ? colors.status.critical : colors.primary)
-                      : colors.neutral[300],
-                  border: isCurrent ? `2px solid ${colors.primary}` : 'none',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                title={`${section.name} ${isCompleted ? '(Completed)' : isCurrent ? '(Current)' : '(Pending)'}`}
-              />
-            );
-          })}
-        </div>
+        <SectionNavigator
+          sections={template.sections}
+          currentIndex={currentSection}
+          onNavigate={handleSectionNavigate}
+          completionStatus={progress.sectionCompletion}
+        />
       </div>
 
-      {/* Section Header */}
-      <div style={{ marginBottom: spacing.xl }}>
-        <h2 style={{
-          ...typography.header,
-          color: colors.neutral[900],
-          marginBottom: spacing.sm
-        }}>
-          {currentSectionData.name}
-        </h2>
-        <p style={{
-          ...typography.body,
-          color: colors.neutral[600]
-        }}>
-          Please complete all required fields in this section.
-        </p>
-      </div>
 
       {/* Questions */}
       <div style={{ marginBottom: spacing.xl }}>
         {currentSectionData.questions.map(renderQuestion)}
+      </div>
+
+      {/* Auto-Save Indicator */}
+      <div style={{ 
+        marginBottom: spacing.lg,
+        paddingTop: spacing.md,
+        borderTop: `1px solid ${colors.neutral[200]}`,
+        display: 'flex',
+        justifyContent: 'center',
+      }}>
+        <AutoSaveIndicator
+          status={autoSaveStatus}
+          lastSaved={lastSaved}
+          onRetry={handleRetrySave}
+        />
       </div>
 
       {/* Navigation */}
@@ -783,7 +856,17 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         <div style={{ display: 'flex', gap: spacing.sm }}>
           <Button
             variant="secondary"
-            onClick={() => onSaveDraft(answers)}
+            onClick={() => {
+              setAutoSaveStatus('saving');
+              onSaveDraft(answers)
+                .then(() => {
+                  setLastSaved(new Date());
+                  setAutoSaveStatus('saved');
+                })
+                .catch(() => {
+                  setAutoSaveStatus('error');
+                });
+            }}
           >
             Save Draft
           </Button>
@@ -793,7 +876,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             onClick={handleNext}
             disabled={submitting}
           >
-            {currentSection === totalSections - 1 ? 'Submit Inspection' : 'Next'}
+            {currentSection === totalSections - 1 ? 'Submit Inspection' : 'Next Section'}
           </Button>
         </div>
       </div>

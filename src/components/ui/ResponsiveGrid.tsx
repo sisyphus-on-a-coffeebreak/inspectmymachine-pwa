@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { spacing, breakpoints } from '../../lib/theme';
 
 interface ResponsiveGridProps {
@@ -12,26 +12,26 @@ interface ResponsiveGridProps {
   className?: string;
 }
 
-export const ResponsiveGrid: React.FC<ResponsiveGridProps> = ({
+const ResponsiveGridComponent: React.FC<ResponsiveGridProps> = ({
   children,
   columns = { mobile: 1, tablet: 2, desktop: 3 },
   gap = 'md',
   className = ''
 }) => {
-  const gapMap = {
+  const gapMap = useMemo(() => ({
     sm: spacing.sm,
     md: spacing.md,
     lg: spacing.lg
-  };
+  }), []);
 
-  const gridStyle = {
-    display: 'grid',
+  const gridStyle = useMemo(() => ({
+    display: 'grid' as const,
     gap: gapMap[gap],
     gridTemplateColumns: `repeat(${columns.mobile}, 1fr)`,
     width: '100%'
-  };
+  }), [gapMap, gap, columns.mobile]);
 
-  const mediaQueries = `
+  const mediaQueries = useMemo(() => `
     @media (min-width: ${breakpoints.tablet}) {
       .responsive-grid {
         grid-template-columns: repeat(${columns.tablet}, 1fr) !important;
@@ -43,7 +43,7 @@ export const ResponsiveGrid: React.FC<ResponsiveGridProps> = ({
         grid-template-columns: repeat(${columns.desktop}, 1fr) !important;
       }
     }
-  `;
+  `, [columns.tablet, columns.desktop]);
 
   return (
     <>
@@ -57,6 +57,9 @@ export const ResponsiveGrid: React.FC<ResponsiveGridProps> = ({
     </>
   );
 };
+
+// Memoize ResponsiveGrid to prevent unnecessary re-renders
+export const ResponsiveGrid = React.memo(ResponsiveGridComponent);
 
 // Mobile-first card grid
 export const CardGrid: React.FC<Omit<ResponsiveGridProps, 'columns'>> = (props) => (

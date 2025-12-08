@@ -87,6 +87,13 @@ export const InspectionSyncCenter: React.FC = () => {
         try {
           const draft = await get<InspectionDraftRecord>(key);
           if (!draft) continue;
+          
+          // Skip and clean up mock templates
+          if (draft.templateId && draft.templateId.toLowerCase().includes('mock')) {
+            await del(key);
+            continue;
+          }
+          
           if (draft && draft.templateId) {
             // Fetch current template version
             let templateInfo: TemplateVersionInfo | null = null;

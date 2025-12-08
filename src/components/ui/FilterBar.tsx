@@ -39,16 +39,26 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   showClearButton = true,
 }) => {
   const hasActiveFilters = filters.some(f => f.value !== 'all' && f.value !== '') || (search?.value && search.value.length > 0);
+  
+  // Get active filters for badge display
+  const activeFilters = filters.filter(f => f.value !== 'all' && f.value !== '');
+  const activeSearch = search?.value && search.value.length > 0;
 
   return (
     <div style={{
       ...cardStyles.base,
       display: 'flex',
+      flexDirection: 'column',
       gap: spacing.md,
-      flexWrap: 'wrap',
-      alignItems: 'center',
       padding: spacing.md,
     }}>
+      {/* Filter Controls Row */}
+      <div style={{
+        display: 'flex',
+        gap: spacing.md,
+        flexWrap: 'wrap',
+        alignItems: 'center',
+      }}>
       {search && (
         <div style={{ position: 'relative', flex: '1', minWidth: '200px' }}>
           <Search
@@ -58,7 +68,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               left: spacing.sm,
               top: '50%',
               transform: 'translateY(-50%)',
-              color: colors.neutral[400],
+              color: colors.neutral[500], // Improved contrast for accessibility
             }}
           />
           <input
@@ -128,42 +138,153 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         </div>
       ))}
 
-      {showClearButton && hasActiveFilters && onClear && (
-        <button
-          onClick={onClear}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: spacing.xs,
-            padding: `${spacing.sm} ${spacing.md}`,
-            backgroundColor: colors.neutral[100],
-            border: `1px solid ${colors.neutral[300]}`,
-            borderRadius: borderRadius.md,
-            fontSize: '14px',
-            fontFamily: typography.body.fontFamily,
-            color: colors.neutral[700],
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = colors.neutral[200];
-            e.currentTarget.style.borderColor = colors.neutral[400];
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = colors.neutral[100];
-            e.currentTarget.style.borderColor = colors.neutral[300];
-          }}
-          onFocus={(e) => {
-            e.currentTarget.style.outline = `2px solid ${colors.primary}`;
-            e.currentTarget.style.outlineOffset = '2px';
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.outline = 'none';
-          }}
-        >
-          <X size={16} />
-          Clear Filters
-        </button>
+        {showClearButton && hasActiveFilters && onClear && (
+          <button
+            onClick={onClear}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: spacing.xs,
+              padding: `${spacing.sm} ${spacing.md}`,
+              backgroundColor: colors.neutral[100],
+              border: `1px solid ${colors.neutral[300]}`,
+              borderRadius: borderRadius.md,
+              fontSize: '14px',
+              fontFamily: typography.body.fontFamily,
+              color: colors.neutral[700],
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = colors.neutral[200];
+              e.currentTarget.style.borderColor = colors.neutral[400];
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = colors.neutral[100];
+              e.currentTarget.style.borderColor = colors.neutral[300];
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.outline = `2px solid ${colors.primary}`;
+              e.currentTarget.style.outlineOffset = '2px';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.outline = 'none';
+            }}
+          >
+            <X size={16} />
+            Clear All
+          </button>
+        )}
+      </div>
+
+      {/* Active Filter Badges */}
+      {hasActiveFilters && (
+        <div style={{
+          display: 'flex',
+          gap: spacing.sm,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          paddingTop: spacing.xs,
+          borderTop: `1px solid ${colors.neutral[200]}`,
+        }}>
+          {activeSearch && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.xs,
+                padding: `${spacing.xs} ${spacing.sm}`,
+                backgroundColor: colors.primary + '15',
+                border: `1px solid ${colors.primary}`,
+                borderRadius: borderRadius.md,
+                fontSize: '13px',
+                fontFamily: typography.body.fontFamily,
+                color: colors.primary,
+              }}
+            >
+              <span style={{ fontWeight: 500 }}>Search: "{search.value}"</span>
+              <button
+                onClick={() => search.onChange('')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  borderRadius: '50%',
+                  color: colors.primary,
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = colors.primary;
+                  e.currentTarget.style.color = 'white';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = colors.primary;
+                }}
+                aria-label="Remove search filter"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+          
+          {activeFilters.map((filter) => {
+            const selectedOption = filter.options.find(opt => opt.value === filter.value);
+            const label = selectedOption?.label || filter.value;
+            
+            return (
+              <div
+                key={filter.key}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing.xs,
+                  padding: `${spacing.xs} ${spacing.sm}`,
+                  backgroundColor: colors.primary + '15',
+                  border: `1px solid ${colors.primary}`,
+                  borderRadius: borderRadius.md,
+                  fontSize: '13px',
+                  fontFamily: typography.body.fontFamily,
+                  color: colors.primary,
+                }}
+              >
+                <span style={{ fontWeight: 500 }}>{filter.label}: {label}</span>
+                <button
+                  onClick={() => filter.onChange('all')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    borderRadius: '50%',
+                    color: colors.primary,
+                    transition: 'all 0.2s ease',
+                    minWidth: '20px',
+                    minHeight: '20px',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = colors.primary;
+                    e.currentTarget.style.color = 'white';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = colors.primary;
+                  }}
+                  aria-label={`Remove ${filter.label} filter`}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

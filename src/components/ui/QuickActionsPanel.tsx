@@ -5,10 +5,27 @@
  * Displays contextual actions based on user role
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { colors, typography, spacing, borderRadius, cardStyles } from '../../lib/theme';
-import { Plus, Search, FileText, CheckCircle, AlertCircle, QrCode } from 'lucide-react';
+import { 
+  Plus, 
+  Search, 
+  FileText, 
+  CheckCircle, 
+  AlertCircle, 
+  QrCode, 
+  DollarSign, 
+  Warehouse,
+  Users,
+  Settings,
+  BarChart3,
+  Calendar,
+  Package,
+  ClipboardList,
+  TrendingUp,
+  Bell
+} from 'lucide-react';
 
 export interface QuickAction {
   id: string;
@@ -24,6 +41,12 @@ export interface QuickActionsPanelProps {
   actions: QuickAction[];
   columns?: number;
   className?: string;
+  compact?: boolean;
+  contextData?: {
+    pendingApprovals?: number;
+    urgentItems?: number;
+    activePasses?: number;
+  };
 }
 
 export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
@@ -31,7 +54,26 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
   actions,
   columns = 3,
   className = '',
+  compact = false,
+  contextData,
 }) => {
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+  const desktopColumns = Math.min(columns, 4);
+  
+  // Responsive detection
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 768);
+      setIsTablet(width >= 768 && width < 1024);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+  
   return (
     <div
       className={`quick-actions-panel ${className}`}
@@ -56,9 +98,14 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: `repeat(${columns}, 1fr)`,
-          gap: spacing.md,
+          // Responsive grid: 2 columns on mobile, 3 on tablet, configured on desktop
+          gridTemplateColumns: compact 
+            ? `repeat(auto-fit, minmax(120px, 1fr))` 
+            : `repeat(2, 1fr)`,
+          gap: compact ? spacing.sm : spacing.md,
         }}
+        className="quick-actions-grid"
+        data-columns={desktopColumns}
       >
         {actions.map((action) => (
           <button
@@ -69,14 +116,14 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: spacing.lg,
+              padding: compact ? spacing.md : spacing.lg,
               backgroundColor: 'white',
               border: `2px solid ${action.color || colors.primary}`,
               borderRadius: borderRadius.md,
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               textAlign: 'center',
-              minHeight: '120px',
+              minHeight: compact ? '100px' : '120px',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'translateY(-4px)';
@@ -130,21 +177,128 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
           </button>
         ))}
       </div>
+      <style>{`
+        /* Responsive Quick Actions Grid */
+        .quick-actions-grid {
+          grid-template-columns: repeat(2, 1fr) !important;
+        }
+        
+        @media (min-width: 768px) {
+          .quick-actions-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
+          }
+        }
+        
+        @media (min-width: 1024px) {
+          .quick-actions-grid[data-columns="2"] {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+          .quick-actions-grid[data-columns="3"] {
+            grid-template-columns: repeat(3, 1fr) !important;
+          }
+          .quick-actions-grid[data-columns="4"] {
+            grid-template-columns: repeat(4, 1fr) !important;
+          }
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 767px) {
+          .quick-actions-panel button {
+            min-height: 100px !important;
+            padding: 12px !important;
+          }
+          
+          .quick-actions-panel button > div:first-child {
+            font-size: 1.5rem !important;
+            margin-bottom: 8px !important;
+          }
+          
+          .quick-actions-panel button > div:nth-child(2) {
+            font-size: 13px !important;
+          }
+          
+          .quick-actions-panel button > div:nth-child(3) {
+            font-size: 10px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };
 
 /**
  * Role-based quick actions factory
+ * Enhanced with context-aware actions and comprehensive role support
  */
 export const getRoleQuickActions = (
   role: string,
-  navigate: ReturnType<typeof useNavigate>
+  navigate: ReturnType<typeof useNavigate>,
+  contextData?: {
+    pendingApprovals?: number;
+    urgentItems?: number;
+    activePasses?: number;
+  }
 ): QuickAction[] => {
   const baseActions: QuickAction[] = [];
 
-  // Common actions for all roles
-  if (role === 'super_admin' || role === 'admin' || role === 'supervisor') {
+  // Super Admin & Admin - Full access
+  if (role === 'super_admin' || role === 'admin') {
+    baseActions.push(
+      {
+        id: 'create-pass',
+        label: 'Create Pass',
+        icon: <Plus size={24} />,
+        onClick: () => navigate('/app/gate-pass/create-visitor'),
+        color: colors.primary,
+        description: 'Visitor or vehicle',
+      },
+      {
+        id: 'start-inspection',
+        label: 'Start Inspection',
+        icon: <FileText size={24} />,
+        onClick: () => navigate('/app/inspections/new'),
+        color: colors.success[500],
+        description: 'New inspection',
+      },
+      {
+        id: 'approve-expenses',
+        label: 'Approve Expenses',
+        icon: <CheckCircle size={24} />,
+        onClick: () => navigate('/app/expenses/approval'),
+        color: contextData?.pendingApprovals ? colors.warning[500] : colors.success[500],
+        description: contextData?.pendingApprovals 
+          ? `${contextData.pendingApprovals} pending` 
+          : 'Review pending',
+      },
+      {
+        id: 'scan-qr',
+        label: 'Quick Validation',
+        icon: <QrCode size={24} />,
+        onClick: () => navigate('/app/gate-pass/quick-validation'),
+        color: colors.warning[500],
+        description: 'Validate pass',
+      },
+      {
+        id: 'manage-users',
+        label: 'Manage Users',
+        icon: <Users size={24} />,
+        onClick: () => navigate('/app/admin/users'),
+        color: colors.neutral[600],
+        description: 'User management',
+      },
+      {
+        id: 'reports',
+        label: 'Reports',
+        icon: <BarChart3 size={24} />,
+        onClick: () => navigate('/app/gate-pass/reports'),
+        color: colors.primary,
+        description: 'View analytics',
+      }
+    );
+  }
+
+  // Supervisor - Management access
+  if (role === 'supervisor') {
     baseActions.push(
       {
         id: 'create-pass',
@@ -159,21 +313,10 @@ export const getRoleQuickActions = (
         label: 'Approve Expenses',
         icon: <CheckCircle size={24} />,
         onClick: () => navigate('/app/expenses/approval'),
-        color: colors.success[500],
-        description: 'Review pending',
-      }
-    );
-  }
-
-  if (role === 'super_admin' || role === 'admin') {
-    baseActions.push(
-      {
-        id: 'start-inspection',
-        label: 'Start Inspection',
-        icon: <FileText size={24} />,
-        onClick: () => navigate('/app/inspections/new'),
-        color: colors.primary,
-        description: 'New inspection',
+        color: contextData?.pendingApprovals ? colors.warning[500] : colors.success[500],
+        description: contextData?.pendingApprovals 
+          ? `${contextData.pendingApprovals} pending` 
+          : 'Review pending',
       },
       {
         id: 'scan-qr',
@@ -182,19 +325,30 @@ export const getRoleQuickActions = (
         onClick: () => navigate('/app/gate-pass/validation'),
         color: colors.warning[500],
         description: 'Validate pass',
+      },
+      {
+        id: 'view-alerts',
+        label: 'View Alerts',
+        icon: <Bell size={24} />,
+        onClick: () => navigate('/app/alerts'),
+        color: contextData?.urgentItems ? colors.error[500] : colors.warning[500],
+        description: contextData?.urgentItems 
+          ? `${contextData.urgentItems} urgent` 
+          : 'System alerts',
       }
     );
   }
 
+  // Guard - Entry/Exit focus
   if (role === 'guard') {
     baseActions.push(
       {
-        id: 'scan-qr',
-        label: 'Scan QR',
+        id: 'quick-validation',
+        label: 'Quick Validation',
         icon: <QrCode size={24} />,
-        onClick: () => navigate('/app/gate-pass/validation'),
+        onClick: () => navigate('/app/gate-pass/quick-validation'),
         color: colors.primary,
-        description: 'Validate pass',
+        description: 'Scan QR code',
       },
       {
         id: 'register-entry',
@@ -203,10 +357,21 @@ export const getRoleQuickActions = (
         onClick: () => navigate('/app/gate-pass/guard-register'),
         color: colors.success[500],
         description: 'Manual entry',
+      },
+      {
+        id: 'view-active',
+        label: 'Active Passes',
+        icon: <ClipboardList size={24} />,
+        onClick: () => navigate('/app/gate-pass?filter=active'),
+        color: colors.primary,
+        description: contextData?.activePasses 
+          ? `${contextData.activePasses} active` 
+          : 'View all',
       }
     );
   }
 
+  // Inspector - Inspection focus
   if (role === 'inspector') {
     baseActions.push(
       {
@@ -219,26 +384,78 @@ export const getRoleQuickActions = (
       },
       {
         id: 'view-pending',
-        label: 'View Pending',
+        label: 'Pending Inspections',
         icon: <AlertCircle size={24} />,
         onClick: () => navigate('/app/inspections?filter=pending'),
         color: colors.warning[500],
-        description: 'Pending items',
+        description: 'View pending',
+      },
+      {
+        id: 'inspection-reports',
+        label: 'Reports',
+        icon: <BarChart3 size={24} />,
+        onClick: () => navigate('/app/inspections/reports'),
+        color: colors.primary,
+        description: 'View analytics',
       }
     );
   }
 
-  // Common actions
+  // Clerk - Administrative tasks
+  if (role === 'clerk') {
+    baseActions.push(
+      {
+        id: 'create-pass',
+        label: 'Create Pass',
+        icon: <Plus size={24} />,
+        onClick: () => navigate('/app/gate-pass/create-visitor'),
+        color: colors.primary,
+        description: 'Visitor or vehicle',
+      },
+      {
+        id: 'view-passes',
+        label: 'View Passes',
+        icon: <ClipboardList size={24} />,
+        onClick: () => navigate('/app/gate-pass'),
+        color: colors.primary,
+        description: 'All passes',
+      },
+      {
+        id: 'calendar',
+        label: 'Calendar',
+        icon: <Calendar size={24} />,
+        onClick: () => navigate('/app/gate-pass/calendar'),
+        color: colors.success[500],
+        description: 'Schedule view',
+      }
+    );
+  }
+
+  // Common actions for all roles
   baseActions.push(
     {
       id: 'create-expense',
       label: 'Create Expense',
-      icon: <Plus size={24} />,
+      icon: <DollarSign size={24} />,
       onClick: () => navigate('/app/expenses/create'),
       color: colors.success[500],
       description: 'Add expense',
     }
   );
+
+  // Stockyard access for relevant roles
+  if (role === 'super_admin' || role === 'admin' || role === 'supervisor' || role === 'clerk') {
+    baseActions.push(
+      {
+        id: 'stockyard',
+        label: 'Stockyard',
+        icon: <Warehouse size={24} />,
+        onClick: () => navigate('/app/stockyard'),
+        color: colors.warning[500],
+        description: 'Manage stockyard',
+      }
+    );
+  }
 
   return baseActions;
 };

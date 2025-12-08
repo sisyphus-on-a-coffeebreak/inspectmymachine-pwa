@@ -9,6 +9,7 @@ import { Battery, Package, Wrench, ArrowLeft, ShoppingCart, Truck } from 'lucide
 import { useToast } from '@/providers/ToastProvider';
 import { useCreateComponent } from '@/lib/queries';
 import { apiClient } from '@/lib/apiClient';
+import { logger } from '@/lib/logger';
 
 interface Vehicle {
   id: string;
@@ -37,7 +38,12 @@ const TYRE_POSITIONS = [
 
 type ComponentSource = 'purchased' | 'vehicle_entry';
 
-export const CreateComponent: React.FC = () => {
+interface CreateComponentProps {
+  onSuccess?: () => void;
+  onCancel?: () => void;
+}
+
+export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onCancel }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { showToast } = useToast();
@@ -210,7 +216,7 @@ export const CreateComponent: React.FC = () => {
         submitData.category = formData.category;
       }
 
-      console.log('Submitting component data:', submitData);
+      logger.debug('Submitting component data', submitData, 'CreateComponent');
       await createMutation.mutateAsync(submitData);
       
       showToast({
@@ -219,9 +225,13 @@ export const CreateComponent: React.FC = () => {
         variant: 'success',
       });
       
-      navigate('/app/stockyard/components');
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        navigate('/app/stockyard/components');
+      }
     } catch (error: any) {
-      console.error('Component creation error:', error);
+      logger.error('Component creation error', error, 'CreateComponent');
       let errorMessage = 'Failed to create component';
       
       if (error?.response) {
@@ -261,25 +271,27 @@ export const CreateComponent: React.FC = () => {
   const TypeIcon = COMPONENT_TYPES.find(t => t.value === componentType)?.icon || Battery;
 
   return (
-    <div style={{ padding: spacing.xl, maxWidth: '900px', margin: '0 auto' }}>
-      <PageHeader
-        title="Add Component"
-        breadcrumbs={[
-          { label: 'Dashboard', path: '/app/dashboard' },
-          { label: 'Stockyard', path: '/app/stockyard' },
-          { label: 'Component Ledger', path: '/app/stockyard/components' },
-          { label: 'Add Component' },
-        ]}
-        actions={
-          <Button
-            onClick={() => navigate('/app/stockyard/components')}
-            variant="secondary"
-            icon={<ArrowLeft size={18} />}
-          >
-            Back
-          </Button>
-        }
-      />
+    <div style={{ padding: onCancel ? 0 : spacing.xl, maxWidth: '900px', margin: onCancel ? 0 : '0 auto' }}>
+      {!onCancel && (
+        <PageHeader
+          title="Add Component"
+          breadcrumbs={[
+            { label: 'Dashboard', path: '/app/dashboard' },
+            { label: 'Stockyard', path: '/app/stockyard' },
+            { label: 'Component Ledger', path: '/app/stockyard/components' },
+            { label: 'Add Component' },
+          ]}
+          actions={
+            <Button
+              onClick={() => navigate('/app/stockyard/components')}
+              variant="secondary"
+              icon={<ArrowLeft size={18} />}
+            >
+              Back
+            </Button>
+          }
+        />
+      )}
 
       {/* Component Source Selector */}
       <div style={{ ...cardStyles.card, marginTop: spacing.lg, marginBottom: spacing.md }}>
@@ -788,7 +800,13 @@ export const CreateComponent: React.FC = () => {
           <div style={{ display: 'flex', gap: spacing.md, justifyContent: 'flex-end', marginTop: spacing.md }}>
             <Button
               type="button"
-              onClick={() => navigate('/app/stockyard/components')}
+              onClick={() => {
+                if (onCancel) {
+                  onCancel();
+                } else {
+                  navigate('/app/stockyard/components');
+                }
+              }}
               variant="secondary"
             >
               Cancel

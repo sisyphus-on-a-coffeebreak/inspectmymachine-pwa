@@ -56,7 +56,7 @@ export function usePWAInstall(): PWAInstallState {
       setDeferredPrompt(null)
       localStorage.setItem("voms_pwa_installed", "true")
       // Analytics: track install
-      console.log("[PWA] App installed successfully")
+      // App installed successfully - tracked via localStorage
     })
 
     return () => window.removeEventListener("beforeinstallprompt", handler)

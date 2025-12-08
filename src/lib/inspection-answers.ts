@@ -176,7 +176,7 @@ export function buildFormDataFromSerialized(
   const payload = {
     template_id: templateId,
     vehicle_id: vehicleId ?? null,
-    status: mode === 'final' ? 'submitted' : 'draft',
+    status: mode === 'final' ? 'completed' : 'draft',
     answers: answerPayload,
     meta: metadata,
   };

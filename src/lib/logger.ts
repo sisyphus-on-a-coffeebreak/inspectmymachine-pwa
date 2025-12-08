@@ -36,6 +36,77 @@ class Logger {
   }
 
   /**
+   * Safely serialize data for console logging
+   * Handles circular references and non-serializable values
+   * Always returns a string to prevent "Cannot convert object to primitive value" errors
+   */
+  private safeSerialize(data: unknown): string {
+    if (data === undefined || data === null) {
+      return '';
+    }
+    
+    // Primitives can be converted to string
+    if (typeof data !== 'object') {
+      return String(data);
+    }
+    
+    // Handle Error instances specially
+    if (data instanceof Error) {
+      try {
+        return JSON.stringify({
+          name: data.name,
+          message: data.message,
+          stack: data.stack,
+        }, null, 2);
+      } catch {
+        return `Error: ${data.name || 'Unknown'} - ${data.message || 'No message'}`;
+      }
+    }
+    
+    // For objects, try to serialize safely
+    try {
+      // Use a replacer to handle circular references
+      const seen = new WeakSet();
+      return JSON.stringify(data, (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) {
+            return '[Circular]';
+          }
+          seen.add(value);
+        }
+        // Handle non-serializable values
+        if (value === undefined) {
+          return '[undefined]';
+        }
+        if (typeof value === 'function') {
+          return '[Function]';
+        }
+        if (value instanceof Error) {
+          return {
+            name: value.name,
+            message: value.message,
+            stack: value.stack,
+          };
+        }
+        // Handle React ErrorInfo objects
+        if (value && typeof value === 'object' && 'componentStack' in value) {
+          return {
+            componentStack: value.componentStack,
+          };
+        }
+        return value;
+      }, 2);
+    } catch (err) {
+      // If serialization fails, return a safe string representation
+      try {
+        return `[Object: ${Object.prototype.toString.call(data)}]`;
+      } catch {
+        return '[Object: Unable to serialize]';
+      }
+    }
+  }
+
+  /**
    * Send log to external service (e.g., Sentry, LogRocket)
    * This can be extended to integrate with error tracking services
    */
@@ -64,19 +135,21 @@ class Logger {
     // In development, always log to console
     if (this.isDevelopment) {
       const formattedMessage = this.formatLog(entry);
+      const safeData = data !== undefined ? this.safeSerialize(data) : '';
       
       switch (level) {
         case 'debug':
-          console.debug(formattedMessage, data || '');
+          console.debug(formattedMessage, safeData);
           break;
         case 'info':
-          console.info(formattedMessage, data || '');
+          console.info(formattedMessage, safeData);
           break;
         case 'warn':
-          console.warn(formattedMessage, data || '');
+          console.warn(formattedMessage, safeData);
           break;
         case 'error':
-          console.error(formattedMessage, data || '');
+          // Always pass as string to prevent primitive conversion errors
+          console.error(formattedMessage + (safeData ? '\n' + safeData : ''));
           break;
       }
     }
@@ -124,7 +197,9 @@ class Logger {
     // In production, also log to console for critical errors
     // (browser console is still useful for debugging production issues)
     if (this.isProduction) {
-      console.error(`[${context || 'ERROR'}] ${message}`, errorData);
+      const safeErrorData = this.safeSerialize(errorData);
+      // Pass as string to prevent primitive conversion errors
+      console.error(`[${context || 'ERROR'}] ${message}\n${safeErrorData}`);
     }
   }
 

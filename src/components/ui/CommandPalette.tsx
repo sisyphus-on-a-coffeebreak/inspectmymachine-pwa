@@ -9,18 +9,85 @@ import {
   Search,
   ArrowUp,
   ArrowDown,
-  Loader2
+  Loader2,
+  Plus,
+  Settings,
+  BarChart3,
+  Calendar,
+  Users,
+  Package,
+  Wrench,
+  Shield,
+  TrendingUp,
+  Receipt,
+  MapPin,
+  CheckSquare,
+  FileCheck,
+  AlertCircle,
+  Bell,
+  Activity,
+  Key
 } from 'lucide-react';
 import { colors, typography, spacing, borderRadius, shadows } from '../../lib/theme';
 import { useCommandPalette, type SearchResult } from '../../hooks/useCommandPalette';
 import { useGatePasses } from '../../lib/queries';
 import { apiClient } from '../../lib/apiClient';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { generateBreadcrumbs } from '../../lib/breadcrumbUtils';
 
-// Simple fuzzy search function
-function fuzzyMatch(query: string, text: string): boolean {
-  const queryLower = query.toLowerCase();
+// Enhanced fuzzy search function with improved scoring
+function fuzzyMatch(query: string, text: string): { match: boolean; score: number } {
+  const queryLower = query.toLowerCase().trim();
   const textLower = text.toLowerCase();
-  return textLower.includes(queryLower);
+  
+  if (!queryLower) return { match: true, score: 0 };
+  
+  // Exact match gets highest score
+  if (textLower === queryLower) return { match: true, score: 100 };
+  
+  // Starts with query gets very high score
+  if (textLower.startsWith(queryLower)) return { match: true, score: 90 };
+  
+  // Word boundary match (starts with word) gets high score
+  const words = textLower.split(/\s+/);
+  const wordMatch = words.some(word => word.startsWith(queryLower));
+  if (wordMatch) return { match: true, score: 75 };
+  
+  // Contains query as substring gets medium-high score
+  if (textLower.includes(queryLower)) return { match: true, score: 60 };
+  
+  // Fuzzy match: check if all characters in query appear in order
+  let queryIndex = 0;
+  let consecutiveMatches = 0;
+  let maxConsecutive = 0;
+  
+  for (let i = 0; i < textLower.length && queryIndex < queryLower.length; i++) {
+    if (textLower[i] === queryLower[queryIndex]) {
+      queryIndex++;
+      consecutiveMatches++;
+      maxConsecutive = Math.max(maxConsecutive, consecutiveMatches);
+    } else {
+      consecutiveMatches = 0;
+    }
+  }
+  
+  if (queryIndex === queryLower.length) {
+    // Score based on how many consecutive matches we found
+    const baseScore = 30;
+    const consecutiveBonus = Math.min(maxConsecutive * 5, 20);
+    return { match: true, score: baseScore + consecutiveBonus };
+  }
+  
+  // Check if query words appear in text (even if not in order)
+  const queryWords = queryLower.split(/\s+/).filter(w => w.length > 0);
+  const matchedWords = queryWords.filter(qw => 
+    words.some(w => w.includes(qw))
+  );
+  if (matchedWords.length === queryWords.length && matchedWords.length > 0) {
+    return { match: true, score: 25 };
+  }
+  
+  return { match: false, score: 0 };
 }
 
 // Debounce hook
@@ -65,6 +132,7 @@ export function CommandPalette() {
   const [isSearching, setIsSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const debouncedQuery = useDebounce(query, 300);
 
@@ -84,25 +152,28 @@ export function CommandPalette() {
 
         // Search Gate Passes
         try {
-          const gatePassRes = await apiClient.get('/visitor-gate-passes', {
+          const gatePassRes = await apiClient.get('/v2/gate-passes', {
             params: { per_page: 10 },
             suppressErrorLog: true
           });
-          const gatePasses = Array.isArray(gatePassRes.data) 
-            ? gatePassRes.data 
-            : (gatePassRes.data as any)?.data || [];
           
-          gatePasses.forEach((pass: any) => {
+          // Extract visitor passes from unified response
+          const allPasses = gatePassRes.data?.data || gatePassRes.data || [];
+          const visitorPasses = allPasses.filter((p: any) => p.pass_type === 'visitor');
+          
+          visitorPasses.forEach((pass: any) => {
             const title = pass.visitor_name || pass.name || `Pass ${pass.id}`;
-            if (fuzzyMatch(debouncedQuery, title)) {
+            const match = fuzzyMatch(debouncedQuery, title);
+            if (match.match) {
               allResults.push({
                 id: `gate-pass-${pass.id}`,
                 type: 'gate-pass',
                 title,
                 subtitle: `Visitor Pass #${pass.id}`,
                 icon: ClipboardList,
-                path: `/app/gate-pass/${pass.id}`
-              });
+                path: `/app/gate-pass/${pass.id}`,
+                score: match.score
+              } as any);
             }
           });
         } catch (e) {
@@ -121,15 +192,17 @@ export function CommandPalette() {
           
           inspections.forEach((inspection: any) => {
             const title = inspection.vehicle?.registration_number || inspection.template?.name || `Inspection ${inspection.id}`;
-            if (fuzzyMatch(debouncedQuery, title)) {
+            const match = fuzzyMatch(debouncedQuery, title);
+            if (match.match) {
               allResults.push({
                 id: `inspection-${inspection.id}`,
                 type: 'inspection',
                 title,
                 subtitle: `Inspection #${inspection.id}`,
                 icon: FileText,
-                path: `/app/inspections/${inspection.id}`
-              });
+                path: `/app/inspections/${inspection.id}`,
+                score: match.score
+              } as any);
             }
           });
         } catch (e) {
@@ -148,15 +221,17 @@ export function CommandPalette() {
           
           expenses.forEach((expense: any) => {
             const title = expense.description || expense.category || `Expense ${expense.id}`;
-            if (fuzzyMatch(debouncedQuery, title)) {
+            const match = fuzzyMatch(debouncedQuery, title);
+            if (match.match) {
               allResults.push({
                 id: `expense-${expense.id}`,
                 type: 'expense',
                 title,
                 subtitle: `₹${expense.amount || 0}`,
                 icon: DollarSign,
-                path: `/app/expenses/${expense.id}`
-              });
+                path: `/app/expenses/${expense.id}`,
+                score: match.score
+              } as any);
             }
           });
         } catch (e) {
@@ -175,15 +250,17 @@ export function CommandPalette() {
           
           vehicles.forEach((vehicle: any) => {
             const title = vehicle.registration_number || vehicle.chassis_number || `Vehicle ${vehicle.id}`;
-            if (fuzzyMatch(debouncedQuery, title)) {
+            const match = fuzzyMatch(debouncedQuery, title);
+            if (match.match) {
               allResults.push({
                 id: `vehicle-${vehicle.id}`,
                 type: 'vehicle',
                 title,
                 subtitle: vehicle.model || 'Vehicle',
                 icon: Car,
-                path: `/app/vehicles/${vehicle.id}`
-              });
+                path: `/app/vehicles/${vehicle.id}`,
+                score: match.score
+              } as any);
             }
           });
         } catch (e) {
@@ -217,7 +294,107 @@ export function CommandPalette() {
           // Silently fail
         }
 
-        setResults(allResults.slice(0, 20)); // Limit to 20 results
+        // Add comprehensive route-based search results with breadcrumb integration
+        const allRoutes: Array<{ title: string; subtitle: string; icon: any; path: string; keywords: string[] }> = [
+          // Main Dashboard
+          { title: 'Dashboard', subtitle: 'Main dashboard', icon: BarChart3, path: '/dashboard', keywords: ['dashboard', 'home', 'main'] },
+          
+          // Gate Pass Routes
+          { title: 'Gate Pass', subtitle: 'Gate pass management', icon: ClipboardList, path: '/app/gate-pass', keywords: ['gate pass', 'gatepass', 'visitor'] },
+          { title: 'Create Gate Pass', subtitle: 'New gate pass', icon: Plus, path: '/app/gate-pass/create', keywords: ['create pass', 'new pass', 'gate pass', 'visitor', 'vehicle'] },
+          { title: 'Guard Register', subtitle: 'Guard registration', icon: Shield, path: '/app/gate-pass/guard-register', keywords: ['guard', 'register', 'security'] },
+          { title: 'Gate Pass Reports', subtitle: 'View gate pass reports', icon: FileText, path: '/app/gate-pass/reports', keywords: ['reports', 'gate pass reports'] },
+          { title: 'Pass Templates', subtitle: 'Manage pass templates', icon: FileCheck, path: '/app/gate-pass/templates', keywords: ['templates', 'pass templates'] },
+          { title: 'Visitor Management', subtitle: 'Manage visitors', icon: Users, path: '/app/gate-pass/visitors', keywords: ['visitors', 'visitor management'] },
+          { title: 'Gate Pass Calendar', subtitle: 'View calendar', icon: Calendar, path: '/app/gate-pass/calendar', keywords: ['calendar', 'schedule'] },
+          { title: 'Scan & Validate', subtitle: 'Quick validation for guards', icon: CheckSquare, path: '/app/gate-pass/scan', keywords: ['validation', 'validate', 'qr', 'scan', 'guard'] },
+          { title: 'Pass Approval', subtitle: 'Approve passes', icon: Shield, path: '/app/gate-pass/approval', keywords: ['approval', 'approve'] },
+          { title: 'Bulk Operations', subtitle: 'Bulk gate pass operations', icon: Package, path: '/app/gate-pass/bulk', keywords: ['bulk', 'bulk operations'] },
+          
+          // Inspection Routes
+          { title: 'Inspections', subtitle: 'Vehicle inspections', icon: FileText, path: '/app/inspections', keywords: ['inspections', 'inspection'] },
+          { title: 'Inspection Studio', subtitle: 'Create inspection templates', icon: Wrench, path: '/app/inspections/studio', keywords: ['studio', 'templates', 'inspection templates'] },
+          { title: 'Sync Center', subtitle: 'Inspection sync center', icon: Activity, path: '/app/inspections/sync', keywords: ['sync', 'synchronize'] },
+          { title: 'Completed Inspections', subtitle: 'View completed inspections', icon: CheckSquare, path: '/app/inspections/completed', keywords: ['completed', 'finished'] },
+          { title: 'Inspection Reports', subtitle: 'View inspection reports', icon: FileText, path: '/app/inspections/reports', keywords: ['reports', 'inspection reports'] },
+          { title: 'New Inspection', subtitle: 'Start new inspection', icon: Plus, path: '/app/inspections/new', keywords: ['new inspection', 'create inspection', 'start inspection'] },
+          
+          // Expense Routes
+          { title: 'Expenses', subtitle: 'Expense management', icon: DollarSign, path: '/app/expenses', keywords: ['expenses', 'expense'] },
+          { title: 'Create Expense', subtitle: 'New expense', icon: Plus, path: '/app/expenses/create', keywords: ['create expense', 'new expense'] },
+          { title: 'Expense History', subtitle: 'View expense history', icon: Calendar, path: '/app/expenses/history', keywords: ['history', 'expense history'] },
+          { title: 'Asset Management', subtitle: 'Manage assets', icon: Package, path: '/app/expenses/assets', keywords: ['assets', 'asset management'] },
+          { title: 'Project Management', subtitle: 'Manage projects', icon: BarChart3, path: '/app/expenses/projects', keywords: ['projects', 'project management'] },
+          { title: 'Cashflow Analysis', subtitle: 'Cashflow dashboard', icon: TrendingUp, path: '/app/expenses/cashflow', keywords: ['cashflow', 'cash flow', 'analysis'] },
+          { title: 'Expense Approval', subtitle: 'Approve expenses', icon: Shield, path: '/app/expenses/approval', keywords: ['approval', 'expense approval'] },
+          { title: 'Expense Reports', subtitle: 'View expense reports', icon: FileText, path: '/app/expenses/reports', keywords: ['reports', 'expense reports', 'analytics'] },
+          { title: 'Accounts Dashboard', subtitle: 'Accounts overview', icon: BarChart3, path: '/app/expenses/accounts', keywords: ['accounts', 'accounting'] },
+          { title: 'Receipts Gallery', subtitle: 'View receipts', icon: Receipt, path: '/app/expenses/receipts', keywords: ['receipts', 'receipt'] },
+          
+          // Stockyard Routes
+          { title: 'Stockyard', subtitle: 'Stockyard management', icon: Package, path: '/app/stockyard', keywords: ['stockyard', 'yard'] },
+          { title: 'Create Movement', subtitle: 'Create stockyard movement', icon: Plus, path: '/app/stockyard/create', keywords: ['create movement', 'new movement'] },
+          { title: 'Scan Component', subtitle: 'Scan component', icon: Search, path: '/app/stockyard/scan', keywords: ['scan', 'component scan'] },
+          { title: 'Component Ledger', subtitle: 'Component ledger', icon: FileText, path: '/app/stockyard/components', keywords: ['components', 'ledger', 'component ledger'] },
+          { title: 'Create Component', subtitle: 'New component', icon: Plus, path: '/app/stockyard/components/create', keywords: ['create component', 'new component'] },
+          { title: 'Transfer Approvals', subtitle: 'Component transfer approvals', icon: Shield, path: '/app/stockyard/components/transfers/approvals', keywords: ['transfers', 'transfer approvals'] },
+          { title: 'Cost Analysis', subtitle: 'Component cost analysis', icon: TrendingUp, path: '/app/stockyard/components/cost-analysis', keywords: ['cost', 'cost analysis'] },
+          { title: 'Component Health', subtitle: 'Component health dashboard', icon: Activity, path: '/app/stockyard/components/health', keywords: ['health', 'component health'] },
+          { title: 'Buyer Readiness', subtitle: 'Buyer readiness board', icon: CheckSquare, path: '/app/stockyard/buyer-readiness', keywords: ['buyer', 'readiness'] },
+          { title: 'Stockyard Alerts', subtitle: 'Stockyard alerts', icon: AlertCircle, path: '/app/stockyard/alerts', keywords: ['alerts', 'stockyard alerts'] },
+          
+          // User Management Routes
+          { title: 'User Management', subtitle: 'Manage users', icon: Users, path: '/app/admin/users', keywords: ['users', 'user management', 'admin'] },
+          { title: 'User Activity', subtitle: 'User activity logs', icon: Activity, path: '/app/admin/users/activity', keywords: ['activity', 'logs', 'user activity'] },
+          { title: 'Capability Matrix', subtitle: 'User capabilities', icon: Key, path: '/app/admin/users/capability-matrix', keywords: ['capabilities', 'permissions', 'matrix'] },
+          { title: 'Bulk User Operations', subtitle: 'Bulk user operations', icon: Package, path: '/app/admin/users/bulk-operations', keywords: ['bulk', 'bulk users'] },
+          
+          // Alerts & Notifications
+          { title: 'Alerts', subtitle: 'System alerts', icon: AlertCircle, path: '/app/alerts', keywords: ['alerts', 'alert'] },
+          { title: 'Notifications', subtitle: 'View notifications', icon: Bell, path: '/app/notifications', keywords: ['notifications', 'notification'] },
+        ];
+        
+        // Generate route results with fuzzy matching and breadcrumb integration
+        const routeResults: SearchResult[] = allRoutes
+          .map(route => {
+            // Search in title, subtitle, and keywords
+            const titleMatch = fuzzyMatch(debouncedQuery, route.title);
+            const subtitleMatch = fuzzyMatch(debouncedQuery, route.subtitle);
+            const keywordMatches = route.keywords.map(kw => fuzzyMatch(debouncedQuery, kw));
+            const bestKeywordMatch = keywordMatches.reduce((best, match) => 
+              match.score > best.score ? match : best, { match: false, score: 0 }
+            );
+            
+            // Use the best match score
+            const bestScore = Math.max(
+              titleMatch.score,
+              subtitleMatch.score * 0.7, // Subtitle matches are weighted less
+              bestKeywordMatch.score * 0.8 // Keyword matches are weighted less
+            );
+            
+            // Generate breadcrumb path for subtitle
+            const breadcrumbs = generateBreadcrumbs(route.path);
+            const breadcrumbPath = breadcrumbs.length > 1 
+              ? breadcrumbs.slice(1).map(b => b.label).join(' > ')
+              : route.subtitle;
+            
+            return {
+              id: `route-${route.path}`,
+              type: 'route' as any,
+              title: route.title,
+              subtitle: breadcrumbPath,
+              icon: route.icon,
+              path: route.path,
+              score: bestScore
+            } as any;
+          })
+          .filter(r => r.score > 0);
+
+        // Combine and sort by score
+        const combined = [...allResults, ...routeResults];
+        combined.sort((a, b) => ((b as any).score || 0) - ((a as any).score || 0));
+        
+        setResults(combined.slice(0, 20)); // Limit to 20 results
         setIsSearching(false);
       } catch (error) {
         setIsSearching(false);
@@ -294,6 +471,7 @@ export function CommandPalette() {
       }}
     >
       <div
+        ref={containerRef}
         style={{
           width: '100%',
           maxWidth: '600px',

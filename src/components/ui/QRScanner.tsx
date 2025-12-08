@@ -84,7 +84,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     
     if (!ctx || video.readyState < 2) {
       animationRef.current = requestAnimationFrame(detectFrame);

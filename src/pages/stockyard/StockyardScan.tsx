@@ -74,7 +74,7 @@ export const StockyardScan: React.FC = () => {
         engine_hours: engineHours ? parseInt(engineHours) : undefined,
       };
 
-      await scanStockyardRequest(requestId.trim(), payload);
+      const updatedRequest = await scanStockyardRequest(requestId.trim(), payload);
       
       showToast({
         title: 'Success',
@@ -82,7 +82,19 @@ export const StockyardScan: React.FC = () => {
         variant: 'success',
       });
       
-      navigate(`/app/stockyard/${requestId.trim()}`);
+      // For entry scans, optionally prompt to record components
+      if (action === 'IN' && updatedRequest.vehicle_id) {
+        const shouldRecord = window.confirm(
+          'Vehicle scanned in successfully. Would you like to record components now?'
+        );
+        if (shouldRecord) {
+          navigate(`/app/stockyard/${requestId.trim()}?recordComponents=true`);
+        } else {
+          navigate(`/app/stockyard/${requestId.trim()}`);
+        }
+      } else {
+        navigate(`/app/stockyard/${requestId.trim()}`);
+      }
     } catch (err) {
       showToast({
         title: 'Error',

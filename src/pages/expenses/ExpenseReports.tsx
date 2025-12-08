@@ -516,11 +516,36 @@ export const ExpenseReports: React.FC = () => {
               {categoryBreakdown.map((category) => (
                 <div
                   key={category.category}
+                  onClick={() => {
+                    // Navigate to history with filter applied
+                    navigate('/app/expenses/history', {
+                      state: {
+                        filters: {
+                          category: category.category,
+                          dateRange: dateRange
+                        }
+                      }
+                    });
+                  }}
                   style={{
                     padding: spacing.lg,
                     backgroundColor: colors.neutral[50],
                     borderRadius: '12px',
-                    border: '1px solid rgba(0,0,0,0.05)'
+                    border: '1px solid rgba(0,0,0,0.05)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = colors.primary + '10';
+                    e.currentTarget.style.borderColor = colors.primary;
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = colors.neutral[50];
+                    e.currentTarget.style.borderColor = 'rgba(0,0,0,0.05)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
                   <div style={{ 

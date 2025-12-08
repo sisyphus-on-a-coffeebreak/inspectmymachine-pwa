@@ -47,10 +47,17 @@ export const StatCard: React.FC<StatCardProps> = ({
   };
 
   const isClickable = !!(onClick || href) && !loading;
+  const Component = isClickable ? 'button' : 'div';
+  const buttonProps = isClickable ? {
+    onClick: handleClick,
+    type: 'button' as const,
+    'aria-label': `${label}: ${value}. ${description || 'Click to view details'}`,
+    'aria-busy': loading,
+  } : {};
 
   return (
-    <div
-      onClick={isClickable ? handleClick : undefined}
+    <Component
+      {...buttonProps}
       className={`stat-card ${className}`}
       style={{
         ...cardStyles.base,
@@ -63,6 +70,11 @@ export const StatCard: React.FC<StatCardProps> = ({
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
+        ...(isClickable ? {
+          background: 'transparent',
+          border: cardStyles.base.border,
+          textAlign: 'left' as const,
+        } : {}),
       }}
       onMouseEnter={(e) => {
         if (isClickable) {
@@ -99,15 +111,6 @@ export const StatCard: React.FC<StatCardProps> = ({
           e.currentTarget.style.outline = 'none';
         }
       }}
-      tabIndex={isClickable ? 0 : -1}
-      role={isClickable ? 'button' : undefined}
-      aria-label={isClickable ? `${label}: ${value}. ${description || 'Click to view details'}` : `${label}: ${value}`}
-      onKeyDown={(e) => {
-        if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
-          e.preventDefault();
-          handleClick();
-        }
-      }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.sm }}>
         <div style={{ ...typography.label, color: colors.neutral[600], display: 'flex', alignItems: 'center', gap: spacing.xs }}>
@@ -118,7 +121,7 @@ export const StatCard: React.FC<StatCardProps> = ({
           <ChevronRight
             size={16}
             style={{
-              color: colors.neutral[400],
+              color: colors.neutral[500], // Improved contrast for accessibility
               transition: 'all 0.2s ease',
             }}
             className="stat-card-chevron"
@@ -126,7 +129,7 @@ export const StatCard: React.FC<StatCardProps> = ({
         )}
       </div>
 
-      <div style={{ ...typography.header, color: color, margin: 0, fontSize: '32px', fontWeight: 700 }}>
+      <div style={{ ...typography.header, color: color, margin: 0, fontSize: 'clamp(24px, 8vw, 32px)', fontWeight: 700 }}>
         {loading ? (
           <div
             style={{
@@ -143,7 +146,7 @@ export const StatCard: React.FC<StatCardProps> = ({
       </div>
 
       {trend && !loading && (
-        <div style={{ ...typography.caption, color: colors.neutral[500], marginTop: spacing.xs }}>
+        <div style={{ ...typography.caption, color: colors.neutral[600], marginTop: spacing.xs }}>
           {trend}
         </div>
       )}
@@ -168,7 +171,7 @@ export const StatCard: React.FC<StatCardProps> = ({
           50% { opacity: 0.5; }
         }
       `}</style>
-    </div>
+    </Component>
   );
 };
 

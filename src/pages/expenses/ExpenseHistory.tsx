@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '../../providers/ToastProvider';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
@@ -9,7 +9,9 @@ import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
 import { LoadingError } from '../../components/ui/LoadingError';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
-import { useExpenses } from '../../lib/queries';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { useExpenses, useFloatBalance } from '../../lib/queries';
+import { PullToRefreshWrapper } from '../../components/ui/PullToRefreshWrapper';
 
 // 📊 Expense History
 // Complete expense history with advanced filtering and search
@@ -45,30 +47,69 @@ interface FilterOptions {
 
 export const ExpenseHistory: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Initialize filters from navigation state if available
+  const initialFilters = location.state?.filters || {};
   const [filters, setFilters] = useState<FilterOptions>({
     status: 'all',
-    category: 'all',
+    category: initialFilters.category || 'all',
     project: 'all',
     asset: 'all',
-    dateRange: 'all',
+    dateRange: initialFilters.dateRange || 'all',
     amountRange: 'all'
   });
+  
+  // Clear navigation state after applying filters
+  useEffect(() => {
+    if (location.state?.filters) {
+      // Clear the state so it doesn't persist on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'status'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedExpense, setSelectedExpense] = useState<ExpenseHistoryItem | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
   
-  // Use React Query for expenses
+  // Use React Query for expenses and float balance
   const { data: expensesData, isLoading: loading, error: queryError, refetch } = useExpenses(
     { mine: true, page: currentPage, per_page: perPage }
   );
+  const { data: floatData } = useFloatBalance();
   
   const expenses = (expensesData?.data || []) as ExpenseHistoryItem[];
   const totalItems = expensesData?.total || 0;
   const error = queryError ? (queryError instanceof Error ? queryError : new Error('Failed to fetch expenses')) : null;
+  
+  // Calculate running balance
+  const currentBalance = Number(floatData?.balance ?? 0);
+  
+  // Calculate running balance for each expense (reverse chronological order)
+  const expensesWithRunningBalance = useMemo(() => {
+    // Sort expenses by date descending (newest first)
+    const sortedExpenses = [...expenses].sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+    
+    // Calculate running balance starting from current balance
+    let runningBalance = currentBalance;
+    const expensesWithBalance = sortedExpenses.map(expense => {
+      // Expenses are DR (debit), so they reduce balance
+      runningBalance += expense.amount; // Add back to get previous balance
+      return {
+        ...expense,
+        runningBalance: runningBalance - expense.amount, // Balance before this expense
+        balanceAfter: runningBalance, // Balance after this expense
+      };
+    });
+    
+    // Reverse back to original order (oldest first) for display
+    return expensesWithBalance.reverse();
+  }, [expenses, currentBalance]);
 
   // Reset to page 1 when filters or search change
   useEffect(() => {
@@ -77,7 +118,7 @@ export const ExpenseHistory: React.FC = () => {
 
   // Apply filters, search, and sorting with useMemo
   const filteredExpenses = useMemo(() => {
-    let filtered = expenses;
+    let filtered = expensesWithRunningBalance;
 
     // Search filter
     if (searchTerm) {
@@ -89,9 +130,11 @@ export const ExpenseHistory: React.FC = () => {
       );
     }
 
-    // Status filter
+    // Status filter (case-insensitive)
     if (filters.status !== 'all') {
-      filtered = filtered.filter(expense => expense.status === filters.status);
+      filtered = filtered.filter(expense => 
+        expense.status?.toLowerCase() === filters.status.toLowerCase()
+      );
     }
 
     // Category filter
@@ -263,9 +306,14 @@ export const ExpenseHistory: React.FC = () => {
     );
   }
 
+  const handleRefresh = async () => {
+    await refetch();
+  };
+
   return (
-    <div style={{ 
-      maxWidth: '1400px', 
+    <PullToRefreshWrapper onRefresh={handleRefresh}>
+      <div style={{ 
+        maxWidth: '1400px', 
       margin: '0 auto', 
       padding: spacing.xl,
       fontFamily: typography.body.fontFamily,
@@ -301,6 +349,77 @@ export const ExpenseHistory: React.FC = () => {
           </div>
         }
       />
+
+      {/* Active Filters Banner (from Reports drilldown) */}
+      {initialFilters && Object.keys(initialFilters).length > 0 && (
+        <div style={{
+          padding: spacing.md,
+          backgroundColor: colors.primary + '15',
+          border: `2px solid ${colors.primary}`,
+          borderRadius: '12px',
+          marginBottom: spacing.lg,
+        }}>
+          <div style={{ 
+            ...typography.body, 
+            color: colors.neutral[700],
+            marginBottom: spacing.sm
+          }}>
+            <div style={{ fontWeight: 600, marginBottom: spacing.xs }}>
+              🔍 Filtered view from Reports
+            </div>
+            <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap', alignItems: 'center' }}>
+              {initialFilters.category && (
+                <span style={{
+                  padding: `${spacing.xs}px ${spacing.sm}px`,
+                  backgroundColor: colors.primary,
+                  color: 'white',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600
+                }}>
+                  Category: {initialFilters.category.replace(/_/g, ' ')}
+                </span>
+              )}
+              {initialFilters.dateRange && (
+                <span style={{
+                  padding: `${spacing.xs}px ${spacing.sm}px`,
+                  backgroundColor: colors.primary,
+                  color: 'white',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600
+                }}>
+                  Date Range: {initialFilters.dateRange}
+                </span>
+              )}
+              <button
+                onClick={() => {
+                  setFilters({
+                    status: 'all',
+                    category: 'all',
+                    project: 'all',
+                    asset: 'all',
+                    dateRange: 'all',
+                    amountRange: 'all'
+                  });
+                }}
+                style={{
+                  padding: `${spacing.xs}px ${spacing.sm}px`,
+                  backgroundColor: 'transparent',
+                  border: `1px solid ${colors.primary}`,
+                  color: colors.primary,
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Clear filters
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div style={{
@@ -452,11 +571,15 @@ export const ExpenseHistory: React.FC = () => {
           {filteredExpenses.map((expense) => (
             <div
               key={expense.id}
-              onClick={() => navigate(`/app/expenses/${expense.id}`)}
+              onClick={() => navigate(`/app/expenses/${expense.id}`, { 
+                state: { from: '/app/expenses/history' } 
+              })}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  navigate(`/app/expenses/${expense.id}`);
+                  navigate(`/app/expenses/${expense.id}`, { 
+                    state: { from: '/app/expenses/history' } 
+                  });
                 }
               }}
               tabIndex={0}
@@ -576,13 +699,55 @@ export const ExpenseHistory: React.FC = () => {
                   alignItems: 'flex-end',
                   gap: spacing.sm
                 }}>
-                  <div style={{ 
-                    ...typography.subheader,
-                    color: colors.neutral[900],
-                    fontWeight: 700,
-                    fontSize: '18px'
-                  }}>
-                    ₹{expense.amount.toLocaleString('en-IN')}
+                  {/* Amount with CR/DR indicator */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: spacing.xs }}>
+                    <div style={{ 
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: spacing.xs
+                    }}>
+                      <span style={{
+                        padding: '2px 6px',
+                        backgroundColor: colors.status.error + '20',
+                        color: colors.status.error,
+                        borderRadius: '4px',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                      }}>
+                        DR
+                      </span>
+                      <div style={{ 
+                        ...typography.subheader,
+                        color: colors.status.error,
+                        fontWeight: 700,
+                        fontSize: '18px'
+                      }}>
+                        -₹{expense.amount.toLocaleString('en-IN')}
+                      </div>
+                    </div>
+                    
+                    {/* Running Balance */}
+                    {(expense as any).runningBalance !== undefined && (
+                      <div style={{
+                        ...typography.bodySmall,
+                        color: colors.neutral[500],
+                        fontSize: '11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: spacing.xs
+                      }}>
+                        <span>Balance:</span>
+                        <span style={{
+                          color: (expense as any).balanceAfter >= 0 
+                            ? colors.status.normal 
+                            : colors.status.error,
+                          fontWeight: 600
+                        }}>
+                          ₹{((expense as any).balanceAfter || 0).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   
                   <span style={{
@@ -672,6 +837,7 @@ export const ExpenseHistory: React.FC = () => {
       )}
       </div>
     </div>
+    </PullToRefreshWrapper>
   );
 };
 

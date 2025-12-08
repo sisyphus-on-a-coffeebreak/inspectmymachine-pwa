@@ -53,54 +53,8 @@ export const PassTemplates: React.FC = () => {
       const response = await apiClient.get('/v1/gate-pass-templates');
       setTemplates(response.data);
     } catch (error) {
-      // Mock data for development
-      setTemplates([
-        {
-          id: '1',
-          name: 'Vehicle Inspection - Standard',
-          description: 'Standard vehicle inspection pass for clients',
-          type: 'visitor',
-          template_data: {
-            purpose: 'inspection',
-            expected_duration: '2 hours',
-            notes: 'Standard inspection process'
-          },
-          usage_count: 45,
-          created_by: 'Admin User',
-          created_at: '2024-01-15T10:00:00Z',
-          updated_at: '2024-01-15T10:00:00Z'
-        },
-        {
-          id: '2',
-          name: 'RTO Work - Vehicle Out',
-          description: 'Vehicle going out for RTO work',
-          type: 'vehicle',
-          template_data: {
-            purpose: 'rto_work',
-            expected_duration: '1 day',
-            notes: 'RTO documentation work'
-          },
-          usage_count: 23,
-          created_by: 'Admin User',
-          created_at: '2024-01-10T14:30:00Z',
-          updated_at: '2024-01-10T14:30:00Z'
-        },
-        {
-          id: '3',
-          name: 'Service Visit - Quick',
-          description: 'Quick service visit for vehicle maintenance',
-          type: 'visitor',
-          template_data: {
-            purpose: 'service',
-            expected_duration: '30 minutes',
-            notes: 'Quick service check'
-          },
-          usage_count: 67,
-          created_by: 'Admin User',
-          created_at: '2024-01-05T09:15:00Z',
-          updated_at: '2024-01-05T09:15:00Z'
-        }
-      ]);
+      // Show empty state instead of mock data
+      setTemplates([]);
     } finally {
       setLoading(false);
     }

@@ -55,7 +55,11 @@ export const VisitorManagement: React.FC = () => {
           sort_order: sortOrder
         }
       });
-      setVisitors(response.data);
+      // Ensure we always set an array - handle different API response structures
+      const visitorsData = Array.isArray(response.data) 
+        ? response.data 
+        : (Array.isArray(response.data?.data) ? response.data.data : []);
+      setVisitors(visitorsData);
     } catch (error) {
       // Mock data for development (fallback)
       setVisitors([
@@ -107,23 +111,8 @@ export const VisitorManagement: React.FC = () => {
       const response = await apiClient.get('/visitor-management/stats');
       setStats(response.data);
     } catch (error) {
-      // Mock data for development
-      setStats({
-        total_visitors: 156,
-        active_visitors: 89,
-        frequent_visitors: 23,
-        new_visitors_this_month: 12,
-        top_companies: [
-          { company: 'ABC Motors', count: 45 },
-          { company: 'XYZ Auto', count: 32 },
-          { company: 'DEF Cars', count: 28 }
-        ],
-        visit_purposes: [
-          { purpose: 'inspection', count: 78 },
-          { purpose: 'service', count: 45 },
-          { purpose: 'meeting', count: 23 }
-        ]
-      });
+      // Show empty state instead of mock data
+      setStats(null);
     }
   }, []);
 

@@ -44,13 +44,39 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
     );
   }
 
+  const statusLabels = {
+    normal: 'OK',
+    warning: '!',
+    critical: '!!'
+  };
+
   return (
     <div 
-      style={dotStyle} 
+      style={{
+        ...dotStyle,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+      }}
       className={`status-dot status-dot-${status} ${className}`}
       title={`Status: ${status}`}
       aria-label={`Status: ${status}`}
-    />
+    >
+      {/* Text label for colorblind users */}
+      <span
+        style={{
+          fontSize: size === 'sm' ? '6px' : size === 'lg' ? '10px' : '8px',
+          fontWeight: 'bold',
+          color: 'white',
+          lineHeight: '1',
+          textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+        }}
+        aria-hidden="true"
+      >
+        {statusLabels[status]}
+      </span>
+    </div>
   );
 };
 

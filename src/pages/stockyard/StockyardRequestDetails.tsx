@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { colors, typography, spacing, cardStyles } from '../../lib/theme';
+import { colors, typography, spacing, cardStyles, borderRadius } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useToast } from '../../providers/ToastProvider';
@@ -12,11 +12,13 @@ import {
   cancelStockyardRequest,
   type StockyardRequest,
 } from '../../lib/stockyard';
-import { Warehouse, ArrowLeft, CheckCircle2, XCircle, Clock, AlertCircle, Calendar, FileText, ListChecks, MapPin, Truck, ShoppingBag, History, Package } from 'lucide-react';
+import { Warehouse, ArrowLeft, CheckCircle2, XCircle, Clock, AlertCircle, Calendar, FileText, ListChecks, MapPin, Truck, ShoppingBag, History, Package, Plus, Battery, Circle, Wrench, ExternalLink, BarChart3, FolderOpen } from 'lucide-react';
 import { addRecentlyViewed } from '../../lib/recentlyViewed';
 import { RelatedItems } from '../../components/ui/RelatedItems';
-import { useStockyardRequests, useDaysSinceEntry, useChecklist, useStockyardDocuments, useTransporterBids } from '../../lib/queries';
+import { useStockyardRequests, useDaysSinceEntry, useChecklist, useStockyardDocuments, useTransporterBids, useComponentCustodyEvents } from '../../lib/queries';
 import { DaysSinceEntryWidget } from '../../components/stockyard/DaysSinceEntryWidget';
+import { ComponentRecordingModal } from '../../components/stockyard/ComponentRecordingModal';
+import type { ComponentCustodyEvent } from '../../lib/stockyard';
 
 export const StockyardRequestDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +28,8 @@ export const StockyardRequestDetails: React.FC = () => {
   const [request, setRequest] = useState<StockyardRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [showComponentModal, setShowComponentModal] = useState(false);
+  const [activeActionTab, setActiveActionTab] = useState<'overview' | 'checklists' | 'documents' | 'analytics'>('overview');
 
   // Fetch related stockyard requests for the same vehicle
   const { data: relatedRequestsData } = useStockyardRequests(
@@ -59,11 +63,37 @@ export const StockyardRequestDetails: React.FC = () => {
   // Fetch transporter bids
   const { data: transporterBids } = useTransporterBids(id || '', { enabled: !!id && request?.type === 'EXIT' });
 
+  // Fetch components recorded for this vehicle/request
+  const { data: componentsData, refetch: refetchComponents } = useComponentCustodyEvents(
+    {
+      vehicle_id: request?.vehicle_id,
+      page: 1,
+      per_page: 10,
+    },
+    { enabled: !!request?.vehicle_id && !!request?.scan_in_at }
+  );
+
+  const recordedComponents = componentsData?.data?.filter(
+    (event: ComponentCustodyEvent) =>
+      event.stockyard_request_id === id || 
+      (event.event_type === 'install' && event.vehicle_id === request?.vehicle_id)
+  ) || [];
+
   useEffect(() => {
     if (id) {
       fetchRequest();
     }
   }, [id]);
+
+  // Check if we should open component modal from URL param
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('recordComponents') === 'true' && request?.vehicle_id && request.scan_in_at) {
+      setShowComponentModal(true);
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [request?.vehicle_id, request?.scan_in_at]);
 
   const fetchRequest = async () => {
     if (!id) return;
@@ -311,90 +341,387 @@ export const StockyardRequestDetails: React.FC = () => {
         </div>
       )}
 
-      {/* Quick Actions */}
+      {/* Quick Actions - Tabbed Interface */}
       <div style={{ ...cardStyles.card, marginBottom: spacing.lg }}>
-        <h3 style={{ ...typography.header, marginBottom: spacing.md }}>Quick Actions</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md }}>
-          {request.scan_in_at && (
-            <Button
-              variant="secondary"
-              onClick={() => navigate(`/app/stockyard/requests/${id}/checklist?type=inbound`)}
-              style={{ width: '100%' }}
-            >
-              <ListChecks size={16} style={{ marginRight: spacing.xs }} />
-              View Inbound Checklist
-            </Button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+          <h3 style={{ ...typography.header, margin: 0 }}>Quick Actions</h3>
+        </div>
+
+        {/* Tab Navigation */}
+        <div style={{ 
+          display: 'flex', 
+          gap: spacing.xs, 
+          borderBottom: `1px solid ${colors.neutral[200]}`,
+          marginBottom: spacing.md,
+          overflowX: 'auto',
+          scrollbarWidth: 'none',
+        }}>
+          {[
+            { id: 'overview', label: 'Overview', icon: Package },
+            { id: 'checklists', label: 'Checklists', icon: ListChecks },
+            { id: 'documents', label: 'Documents', icon: FolderOpen },
+            { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveActionTab(tab.id as any)}
+                style={{
+                  padding: `${spacing.sm}px ${spacing.md}px`,
+                  border: 'none',
+                  borderBottom: activeActionTab === tab.id ? `2px solid ${colors.primary}` : '2px solid transparent',
+                  backgroundColor: 'transparent',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing.xs,
+                  ...typography.body,
+                  color: activeActionTab === tab.id ? colors.primary : colors.neutral[600],
+                  fontWeight: activeActionTab === tab.id ? 600 : 400,
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <Icon size={16} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tab Content */}
+        <div style={{ minHeight: '120px' }}>
+          {/* Overview Tab */}
+          {activeActionTab === 'overview' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md }}>
+              {request.scan_in_at && request.vehicle_id && request.type === 'ENTRY' && (
+                <Button
+                  variant="primary"
+                  onClick={() => setShowComponentModal(true)}
+                  style={{ width: '100%' }}
+                  icon={<Plus size={16} />}
+                >
+                  Record Components
+                </Button>
+              )}
+              {request.scan_in_at && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setActiveActionTab('checklists');
+                    navigate(`/app/stockyard/requests/${id}/checklist?type=inbound`);
+                  }}
+                  style={{ width: '100%' }}
+                  icon={<ListChecks size={16} />}
+                >
+                  Inbound Checklist
+                </Button>
+              )}
+              {request.type === 'EXIT' && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setActiveActionTab('checklists');
+                    navigate(`/app/stockyard/requests/${id}/checklist?type=outbound`);
+                  }}
+                  style={{ width: '100%' }}
+                  icon={<ListChecks size={16} />}
+                >
+                  Outbound Checklist
+                </Button>
+              )}
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setActiveActionTab('documents');
+                  navigate(`/app/stockyard/requests/${id}/documents`);
+                }}
+                style={{ width: '100%' }}
+                icon={<FileText size={16} />}
+              >
+                Documents ({documents?.length || 0})
+              </Button>
+              {request.vehicle_id && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setActiveActionTab('analytics');
+                    navigate(`/app/stockyard/vehicles/${request.vehicle_id}/timeline`);
+                  }}
+                  style={{ width: '100%' }}
+                  icon={<History size={16} />}
+                >
+                  View Timeline
+                </Button>
+              )}
+            </div>
           )}
-          {request.type === 'EXIT' && (
-            <Button
-              variant="secondary"
-              onClick={() => navigate(`/app/stockyard/requests/${id}/checklist?type=outbound`)}
-              style={{ width: '100%' }}
-            >
-              <ListChecks size={16} style={{ marginRight: spacing.xs }} />
-              View Outbound Checklist
-            </Button>
+
+          {/* Checklists Tab */}
+          {activeActionTab === 'checklists' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md }}>
+              {request.scan_in_at && (
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate(`/app/stockyard/requests/${id}/checklist?type=inbound`)}
+                  style={{ width: '100%' }}
+                  icon={<ListChecks size={16} />}
+                >
+                  View Inbound Checklist
+                </Button>
+              )}
+              {request.type === 'EXIT' && (
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate(`/app/stockyard/requests/${id}/checklist?type=outbound`)}
+                  style={{ width: '100%' }}
+                  icon={<ListChecks size={16} />}
+                >
+                  View Outbound Checklist
+                </Button>
+              )}
+              {!request.scan_in_at && request.type !== 'EXIT' && (
+                <div style={{ 
+                  padding: spacing.xl, 
+                  textAlign: 'center', 
+                  color: colors.neutral[600],
+                  gridColumn: '1 / -1'
+                }}>
+                  Checklists will be available after the vehicle is scanned in.
+                </div>
+              )}
+            </div>
           )}
-          <Button
-            variant="secondary"
-            onClick={() => navigate(`/app/stockyard/requests/${id}/documents`)}
-            style={{ width: '100%' }}
-          >
-            <FileText size={16} style={{ marginRight: spacing.xs }} />
-            View Documents ({documents?.length || 0})
-          </Button>
-          {request.vehicle_id && (
-            <Button
-              variant="secondary"
-              onClick={() => navigate(`/app/stockyard/vehicles/${request.vehicle_id}/timeline`)}
-              style={{ width: '100%' }}
-            >
-              <History size={16} style={{ marginRight: spacing.xs }} />
-              View Timeline
-            </Button>
+
+          {/* Documents Tab */}
+          {activeActionTab === 'documents' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md }}>
+              <Button
+                variant="secondary"
+                onClick={() => navigate(`/app/stockyard/requests/${id}/documents`)}
+                style={{ width: '100%' }}
+                icon={<FileText size={16} />}
+              >
+                View All Documents ({documents?.length || 0})
+              </Button>
+              {documents && documents.length > 0 && (
+                <div style={{ 
+                  gridColumn: '1 / -1',
+                  padding: spacing.md,
+                  backgroundColor: colors.neutral[50],
+                  borderRadius: borderRadius.md,
+                  marginTop: spacing.sm
+                }}>
+                  <div style={{ ...typography.label, marginBottom: spacing.xs }}>Recent Documents</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xs }}>
+                    {documents.slice(0, 3).map((doc: any) => (
+                      <div
+                        key={doc.id}
+                        style={{
+                          padding: spacing.sm,
+                          backgroundColor: 'white',
+                          borderRadius: borderRadius.sm,
+                          border: `1px solid ${colors.neutral[200]}`,
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                          <FileText size={16} color={colors.neutral[600]} />
+                          <span style={{ ...typography.body, fontSize: '14px' }}>{doc.name || doc.filename || 'Document'}</span>
+                        </div>
+                        <span style={{ ...typography.caption, color: colors.neutral[500] }}>
+                          {doc.created_at ? new Date(doc.created_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : ''}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
-          {request.yard_id && (
-            <Button
-              variant="secondary"
-              onClick={() => navigate(`/app/stockyard/yards/${request.yard_id}/map`)}
-              style={{ width: '100%' }}
-            >
-              <MapPin size={16} style={{ marginRight: spacing.xs }} />
-              View Yard Map
-            </Button>
-          )}
-          {request.type === 'EXIT' && (
-            <Button
-              variant="secondary"
-              onClick={() => navigate(`/app/stockyard/requests/${id}/transporter-bids`)}
-              style={{ width: '100%' }}
-            >
-              <Truck size={16} style={{ marginRight: spacing.xs }} />
-              Transporter Bids ({transporterBids?.length || 0})
-            </Button>
-          )}
-          {request.vehicle_id && (
-            <Button
-              variant="secondary"
-              onClick={() => navigate(`/app/stockyard/vehicles/${request.vehicle_id}/profitability`)}
-              style={{ width: '100%' }}
-            >
-              <ShoppingBag size={16} style={{ marginRight: spacing.xs }} />
-              Profitability Analysis
-            </Button>
-          )}
-          {request.scan_in_at && request.vehicle_id && request.type === 'ENTRY' && (
-            <Button
-              variant="primary"
-              onClick={() => navigate(`/app/stockyard/components/create?vehicle_id=${request.vehicle_id}&source=vehicle_entry&stockyard_request_id=${request.id}`)}
-              style={{ width: '100%' }}
-            >
-              <Package size={16} style={{ marginRight: spacing.xs }} />
-              Record Components
-            </Button>
+
+          {/* Analytics Tab */}
+          {activeActionTab === 'analytics' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md }}>
+              {request.vehicle_id && (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate(`/app/stockyard/vehicles/${request.vehicle_id}/timeline`)}
+                    style={{ width: '100%' }}
+                    icon={<History size={16} />}
+                  >
+                    Vehicle Timeline
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate(`/app/stockyard/vehicles/${request.vehicle_id}/profitability`)}
+                    style={{ width: '100%' }}
+                    icon={<ShoppingBag size={16} />}
+                  >
+                    Profitability Analysis
+                  </Button>
+                </>
+              )}
+              {request.yard_id && (
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate(`/app/stockyard/yards/${request.yard_id}/map`)}
+                  style={{ width: '100%' }}
+                  icon={<MapPin size={16} />}
+                >
+                  Yard Map
+                </Button>
+              )}
+              {request.type === 'EXIT' && (
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate(`/app/stockyard/requests/${id}/transporter-bids`)}
+                  style={{ width: '100%' }}
+                  icon={<Truck size={16} />}
+                >
+                  Transporter Bids ({transporterBids?.length || 0})
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>
+
+      {/* Component Recording Section */}
+      {request.scan_in_at && request.vehicle_id && request.type === 'ENTRY' && (
+        <div style={{ ...cardStyles.card, marginBottom: spacing.lg }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+            <div>
+              <h3 style={{ ...typography.subheader, margin: 0, marginBottom: spacing.xs }}>Recorded Components</h3>
+              <p style={{ ...typography.caption, color: colors.neutral[600], margin: 0 }}>
+                Components recorded for this vehicle entry
+              </p>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setShowComponentModal(true)}
+              icon={<Plus size={16} />}
+            >
+              Add Component
+            </Button>
+          </div>
+
+          {recordedComponents.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+              {recordedComponents.slice(0, 5).map((event: ComponentCustodyEvent) => {
+                const getComponentIcon = () => {
+                  if (!event.component) return Package;
+                  const type = event.component.type;
+                  if (type === 'battery') return Battery;
+                  if (type === 'tyre') return Circle;
+                  return Wrench;
+                };
+                const ComponentIcon = getComponentIcon();
+                const getComponentColor = () => {
+                  if (!event.component) return colors.neutral[500];
+                  const type = event.component.type;
+                  if (type === 'battery') return colors.warning[500];
+                  if (type === 'tyre') return colors.neutral[600];
+                  return colors.success[500];
+                };
+
+                return (
+                  <div
+                    key={event.id}
+                    style={{
+                      padding: spacing.md,
+                      backgroundColor: colors.neutral[50],
+                      borderRadius: borderRadius.md,
+                      border: `1px solid ${colors.neutral[200]}`,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      cursor: event.component_id ? 'pointer' : 'default',
+                    }}
+                    onClick={() => {
+                      if (event.component_id && event.component?.type) {
+                        navigate(`/app/stockyard/components/${event.component.type}/${event.component_id}`);
+                      }
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, flex: 1 }}>
+                      <div
+                        style={{
+                          padding: spacing.sm,
+                          backgroundColor: getComponentColor() + '20',
+                          borderRadius: borderRadius.sm,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <ComponentIcon size={20} color={getComponentColor()} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ ...typography.body, fontWeight: 600, marginBottom: spacing.xs }}>
+                          {event.component?.brand} {event.component?.model || event.component?.name || 'Unknown Component'}
+                        </div>
+                        <div style={{ ...typography.caption, color: colors.neutral[600] }}>
+                          {event.component?.serial_number && `SN: ${event.component.serial_number}`}
+                          {event.component?.part_number && `PN: ${event.component.part_number}`}
+                          {event.performer && ` • Recorded by: ${event.performer.name}`}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ ...typography.caption, color: colors.neutral[500], textAlign: 'right' }}>
+                      {new Date(event.created_at).toLocaleDateString('en-IN', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+              {recordedComponents.length > 5 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate(`/app/stockyard/components?vehicle_id=${request.vehicle_id}`)}
+                  style={{ alignSelf: 'flex-start', marginTop: spacing.xs }}
+                  icon={<ExternalLink size={14} />}
+                >
+                  View All ({recordedComponents.length})
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div
+              style={{
+                padding: spacing.xl,
+                textAlign: 'center',
+                backgroundColor: colors.neutral[50],
+                borderRadius: borderRadius.md,
+                border: `2px dashed ${colors.neutral[300]}`,
+              }}
+            >
+              <Package size={48} color={colors.neutral[400]} style={{ marginBottom: spacing.sm, opacity: 0.5 }} />
+              <p style={{ ...typography.body, color: colors.neutral[600], marginBottom: spacing.md }}>
+                No components recorded yet
+              </p>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setShowComponentModal(true)}
+                icon={<Plus size={16} />}
+              >
+                Record First Component
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Scan Information */}
       {(request.scan_in_at || request.scan_out_at) && (
@@ -559,6 +886,20 @@ export const StockyardRequestDetails: React.FC = () => {
       )}
 
       {ConfirmComponent}
+
+      {/* Component Recording Modal */}
+      {request?.vehicle_id && (
+        <ComponentRecordingModal
+          vehicleId={request.vehicle_id}
+          stockyardRequestId={request.id}
+          open={showComponentModal}
+          onClose={() => setShowComponentModal(false)}
+          onSuccess={() => {
+            refetchComponents();
+            fetchRequest(); // Refresh request data
+          }}
+        />
+      )}
     </div>
   );
 };
