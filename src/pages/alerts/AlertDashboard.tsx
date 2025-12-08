@@ -278,6 +278,7 @@ export const AlertDashboard: React.FC = () => {
   }
 
   return (
+    <PullToRefreshWrapper onRefresh={refetch}>
     <div style={{ padding: spacing.lg }}>
       <PageHeader
         title="Alert Dashboard"

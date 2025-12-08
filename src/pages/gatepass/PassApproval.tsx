@@ -106,15 +106,6 @@ export const PassApproval: React.FC = () => {
       console.error('Error fetching approval levels:', error);
       // Show empty state instead of mock data
       setApprovalLevels([]);
-        },
-        {
-          level: 2,
-          approver_role: 'admin',
-          approver_name: null,
-          required: false,
-          status: 'pending'
-        }
-      ]);
     }
   };
 

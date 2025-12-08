@@ -102,11 +102,6 @@ export const BulkOperations: React.FC = () => {
     } catch (error) {
       // Show empty state instead of mock data
       setBulkTemplates([]);
-          created_by: 'Admin User',
-          created_at: '2024-01-10T10:00:00Z',
-          usage_count: 5
-        }
-      ]);
     }
   }, []);
 

@@ -108,9 +108,6 @@ export const GatePassReports: React.FC = () => {
       setTrends([]);
       setPopularTimes([]);
       setYardStats([]);
-        { yard_id: 'yard2', yard_name: 'Secondary Yard', pass_count: 234, active_passes: 8 },
-        { yard_id: 'yard3', yard_name: 'Storage Yard', pass_count: 123, active_passes: 3 }
-      ]);
     } finally {
       setLoading(false);
     }

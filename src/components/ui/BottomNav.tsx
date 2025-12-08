@@ -79,7 +79,7 @@ export function BottomNav() {
   return (
     <>
       <nav
-        className="bottom-nav-container"
+        className="bottom-nav-container dark:bg-zinc-900 dark:border-zinc-800"
         style={{
           position: 'fixed',
           bottom: 0,
@@ -95,7 +95,6 @@ export function BottomNav() {
           zIndex: 100,
           paddingBottom: 'env(safe-area-inset-bottom, 0)',
         }}
-        className="dark:bg-zinc-900 dark:border-zinc-800"
       >
         {config.items.map((item) => {
           const Icon = item.icon;
