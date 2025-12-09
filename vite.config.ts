@@ -102,10 +102,10 @@ export default defineConfig({
         categories: ["productivity", "business"],
         lang: "en",
         icons: [
-          { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
-          { src: "pwa-256x256.png", sizes: "256x256", type: "image/png" },
-          { src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
-          { src: "pwa-512x512-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          { src: "logo-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: "logo-256x256.png", sizes: "256x256", type: "image/png" },
+          { src: "logo-512x512.png", sizes: "512x512", type: "image/png" },
+          { src: "logo-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
         screenshots: [
           // WebP versions (preferred, smaller file size)
@@ -139,24 +139,25 @@ export default defineConfig({
           {
             name: "New Gate Pass",
             url: "/app/gate-pass/create-visitor",
-            icons: [{ src: "pwa-96x96.png", sizes: "96x96", type: "image/png" }],
+            icons: [{ src: "logo-96x96.png", sizes: "96x96", type: "image/png" }],
           },
           {
             name: "New Inspection",
             url: "/app/inspections/new",
-            icons: [{ src: "pwa-96x96.png", sizes: "96x96", type: "image/png" }],
+            icons: [{ src: "logo-96x96.png", sizes: "96x96", type: "image/png" }],
           },
           {
             name: "Log Expense",
             url: "/app/expenses/create",
-            icons: [{ src: "pwa-96x96.png", sizes: "96x96", type: "image/png" }],
+            icons: [{ src: "logo-96x96.png", sizes: "96x96", type: "image/png" }],
           },
         ],
       },
       includeAssets: [
-        "favicon.svg",
+        "logo-32x32.png",
+        "logo-192x192.png",
+        "logo-512x512.png",
         "apple-touch-icon.png",
-        "pwa-96x96.png",
         "screenshot-dashboard.png",
         "screenshot-dashboard.webp",
         "screenshot-mobile.png",
