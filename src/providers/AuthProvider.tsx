@@ -92,18 +92,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const checkAuth = async () => {
     try {
       // Add timeout to prevent hanging on connection errors
+      // Reduced to 2 seconds for faster initial render
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Auth check timeout')), 5000);
+        setTimeout(() => reject(new Error('Auth check timeout')), 2000);
       });
       
       // Mark this request as an auth check by using a custom header that the interceptor can check
       const response = await Promise.race([
         apiClient.get<{ user: User }>("/user", {
-          skipRetry: true, // Don't retry on 401 - user is just not authenticated
-          suppressErrorLog: true, // Suppress console errors for expected auth check failures
-          headers: {
-            'X-Auth-Check': 'true', // Custom header to identify auth check requests
-          },
+        skipRetry: true, // Don't retry on 401 - user is just not authenticated
+        suppressErrorLog: true, // Suppress console errors for expected auth check failures
+        headers: {
+          'X-Auth-Check': 'true', // Custom header to identify auth check requests
+        },
         } as any),
         timeoutPromise
       ]) as any;
