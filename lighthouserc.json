@@ -15,13 +15,14 @@
           "cpuSlowdownMultiplier": 1
         },
         "throttlingMethod": "simulate",
+        "formFactor": "desktop",
         "screenEmulation": {
           "mobile": false,
           "width": 1350,
           "height": 940,
-          "deviceScaleFactor": 1
+          "deviceScaleFactor": 1,
+          "disabled": false
         },
-        "emulatedFormFactor": "desktop",
         "locale": "en",
         "maxWaitForFcp": 30000,
         "maxWaitForLoad": 60000
