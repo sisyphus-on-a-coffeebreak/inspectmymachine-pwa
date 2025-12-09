@@ -28,9 +28,10 @@ function reactFirstPlugin(): Plugin {
         preloads.push({ full: match[0], href: match[1] });
       }
       
-      // Separate vendor-react from others
-      const reactPreloads = preloads.filter(p => p.href.includes('vendor-react'));
-      const otherPreloads = preloads.filter(p => !p.href.includes('vendor-react'));
+      // Separate chunks by priority: core React first, then React libs, then others
+      const reactCorePreloads = preloads.filter(p => p.href.includes('vendor-react-core'));
+      const reactPreloads = preloads.filter(p => p.href.includes('vendor-react') && !p.href.includes('vendor-react-core'));
+      const otherPreloads = preloads.filter(p => !p.href.includes('vendor-react') && !p.href.includes('vendor-misc'));
       const vendorMiscPreloads = preloads.filter(p => p.href.includes('vendor-misc'));
       
       // Remove all preloads
@@ -38,10 +39,11 @@ function reactFirstPlugin(): Plugin {
         html = html.replace(p.full, '');
       });
       
-      // Insert in correct order: vendor-react first, then others, then vendor-misc last
+      // Insert in correct order: vendor-react-core first, then vendor-react, then others, then vendor-misc last
       const orderedPreloads = [
+        ...reactCorePreloads.map(p => p.full),
         ...reactPreloads.map(p => p.full),
-        ...otherPreloads.filter(p => !p.href.includes('vendor-misc')).map(p => p.full),
+        ...otherPreloads.map(p => p.full),
         ...vendorMiscPreloads.map(p => p.full)
       ];
       
@@ -123,12 +125,8 @@ export default defineConfig({
         categories: ["productivity", "business"],
         lang: "en",
         icons: [
-          { src: "logo-192x192.png", sizes: "192x192", type: "image/png" },
-          { src: "logo-256x256.png", sizes: "256x256", type: "image/png" },
-          { src: "logo-512x512.png", sizes: "512x512", type: "image/png" },
-          { src: "logo-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
-          // Fallback to PWA icons if logo not generated
           { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: "pwa-256x256.png", sizes: "256x256", type: "image/png" },
           { src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
           { src: "pwa-512x512-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
@@ -301,29 +299,35 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: process.env.NODE_ENV !== 'production',
-    minify: 'terser',
-    terserOptions: process.env.NODE_ENV === 'production' ? {
-      compress: {
-        drop_console: true, // Remove all console.* calls in production
-        drop_debugger: true, // Remove debugger statements
-        pure_funcs: ['console.log', 'console.info', 'console.debug'], // Remove specific console methods
-      },
-    } : undefined,
+    // Use esbuild for minification - better at handling circular dependencies
+    minify: 'esbuild',
+    // esbuild minification options
+    minifySyntax: true,
+    minifyIdentifiers: true,
+    minifyWhitespace: true,
     cssCodeSplit: true, // Enable CSS code splitting by route/chunk
     cssMinify: 'lightningcss', // Use lightningcss for faster CSS minification (if available)
     // Ensure proper chunk ordering - React must be available before other chunks
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
-      // Preserve entry signatures to maintain proper dependency order
-      preserveEntrySignatures: 'strict',
+      // Use 'exports' to allow better tree-shaking and avoid circular dependency issues
+      preserveEntrySignatures: 'exports-only',
       output: {
-        // Chunk file naming - ensure vendor-react loads first
+        // Ensure proper module format to avoid initialization issues
+        format: 'es',
+        // Prevent circular dependency issues
+        hoistTransitiveImports: false,
+        // Chunk file naming - ensure proper loading order
         chunkFileNames: (chunkInfo) => {
-          // Ensure vendor-react has a predictable name and loads first
+          // Ensure vendor-react-core loads FIRST (core React)
+          if (chunkInfo.name === 'vendor-react-core') {
+            return 'assets/js/vendor/vendor-react-core-[hash].js';
+          }
+          // Then vendor-react (React-dependent libraries)
           if (chunkInfo.name === 'vendor-react') {
             return 'assets/js/vendor/vendor-react-[hash].js';
           }
-          // Group chunks by type
+          // Group other chunks by type
           if (chunkInfo.name?.includes('vendor')) {
             return 'assets/js/vendor/[name]-[hash].js';
           }
@@ -335,18 +339,22 @@ export default defineConfig({
         manualChunks: (id) => {
           // CRITICAL: Check for React dependencies FIRST, before any other chunking logic
           // This ensures React-dependent code never ends up in vendor-misc
+          // IMPORTANT: Order matters - check most specific first to avoid false positives
           if (id.includes('node_modules')) {
-            // ULTRA-AGGRESSIVE check: ANY mention of "react" in the path goes to vendor-react
-            // This catches all React dependencies, sub-dependencies, and transitive dependencies
-            const lowerId = id.toLowerCase();
+            // Core React packages - MUST be first and most specific
             if (
-              // Core React packages (exact matches)
-              id.includes('node_modules/react') || 
-              id.includes('node_modules/react-dom') ||
+              id.includes('node_modules/react/') || 
+              id.includes('node_modules/react-dom/') ||
               id.includes('react/jsx-runtime') ||
               id.includes('react/jsx-dev-runtime') ||
-              id.includes('node_modules/scheduler') ||
-              id.includes('node_modules/use-sync-external-store') ||
+              id.includes('node_modules/scheduler/') ||
+              id.includes('node_modules/use-sync-external-store/')
+            ) {
+              return 'vendor-react-core';
+            }
+            
+            // React-dependent libraries - check before catch-all
+            if (
               // React UI libraries
               id.includes('node_modules/lucide-react') ||
               id.includes('node_modules/class-variance-authority') ||
@@ -361,12 +369,17 @@ export default defineConfig({
               id.includes('node_modules/react-i18next') ||
               // React state management
               id.includes('node_modules/react-redux') ||
-              id.includes('node_modules/@reduxjs/toolkit') ||
-              // CATCH-ALL: Any path containing "react" anywhere (case-insensitive)
-              // This catches all React dependencies and sub-dependencies
-              lowerId.includes('react') ||
-              lowerId.includes('scheduler') ||
-              lowerId.includes('use-sync-external-store')
+              id.includes('node_modules/@reduxjs/toolkit')
+            ) {
+              return 'vendor-react';
+            }
+            
+            // Catch-all for any remaining React dependencies (less aggressive)
+            const lowerId = id.toLowerCase();
+            if (
+              (lowerId.includes('/react') || lowerId.includes('react-')) &&
+              !lowerId.includes('preact') && // Exclude preact
+              !lowerId.includes('reactivate') // Exclude false positives
             ) {
               return 'vendor-react';
             }
