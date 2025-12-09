@@ -22,9 +22,11 @@
           "deviceScaleFactor": 1
         },
         "emulatedFormFactor": "desktop",
-        "locale": "en"
+        "locale": "en",
+        "maxWaitForFcp": 30000,
+        "maxWaitForLoad": 60000
       },
-      "wait": 5000
+      "wait": 10000
     },
     "assert": {
       "assertions": {
