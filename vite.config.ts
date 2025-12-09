@@ -11,26 +11,43 @@ function reactFirstPlugin(): Plugin {
   return {
     name: 'react-first',
     transformIndexHtml(html) {
-      // Reorder modulepreload links to ensure vendor-react loads first
-      const reactPreloadRegex = /<link[^>]*vendor-react[^>]*>/i;
-      const reactMatch = html.match(reactPreloadRegex);
+      // Collect all modulepreload links
+      const preloadRegex = /<link[^>]*rel=["']modulepreload["'][^>]*>/gi;
+      const allPreloads = html.match(preloadRegex) || [];
       
-      if (reactMatch) {
-        // Remove React preload from its current position
-        html = html.replace(reactPreloadRegex, '');
-        
-        // Find the first modulepreload and insert React before it
-        const firstPreloadRegex = /(<link[^>]*rel=["']modulepreload["'][^>]*>)/i;
-        const firstMatch = html.match(firstPreloadRegex);
-        
-        if (firstMatch) {
-          // Insert React preload before the first modulepreload
-          html = html.replace(firstPreloadRegex, reactMatch[0] + '\n    ' + firstMatch[1]);
+      // Separate vendor-react from others
+      const reactPreloads: string[] = [];
+      const otherPreloads: string[] = [];
+      
+      allPreloads.forEach(preload => {
+        if (preload.includes('vendor-react')) {
+          reactPreloads.push(preload);
         } else {
-          // If no modulepreload found, insert after the main script tag
-          const scriptRegex = /(<script[^>]*type=["']module["'][^>]*>)/i;
-          html = html.replace(scriptRegex, reactMatch[0] + '\n    ' + '$1');
+          otherPreloads.push(preload);
         }
+      });
+      
+      // Remove all preloads from HTML
+      html = html.replace(preloadRegex, '');
+      
+      // Find insertion point (before first script tag or first existing preload)
+      const scriptRegex = /(<script[^>]*type=["']module["'][^>]*>)/i;
+      const scriptMatch = html.match(scriptRegex);
+      
+      if (scriptMatch && reactPreloads.length > 0) {
+        // Insert React preloads first, then other preloads, then the script
+        const allPreloadsOrdered = [...reactPreloads, ...otherPreloads].join('\n    ');
+        html = html.replace(scriptRegex, allPreloadsOrdered + '\n    ' + scriptMatch[1]);
+      } else if (otherPreloads.length > 0) {
+        // If no script tag, insert React first, then others
+        const firstOtherPreload = otherPreloads[0];
+        const restPreloads = otherPreloads.slice(1);
+        const allPreloadsOrdered = [...reactPreloads, firstOtherPreload, ...restPreloads].join('\n    ');
+        html = html.replace(firstOtherPreload, allPreloadsOrdered);
+      } else if (reactPreloads.length > 0) {
+        // Only React preloads, insert before closing head tag
+        const headCloseRegex = /(<\/head>)/i;
+        html = html.replace(headCloseRegex, reactPreloads.join('\n    ') + '\n    $1');
       }
       
       return html;
@@ -106,6 +123,10 @@ export default defineConfig({
           { src: "logo-256x256.png", sizes: "256x256", type: "image/png" },
           { src: "logo-512x512.png", sizes: "512x512", type: "image/png" },
           { src: "logo-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          // Fallback to PWA icons if logo not generated
+          { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
+          { src: "pwa-512x512-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
         screenshots: [
           // WebP versions (preferred, smaller file size)
@@ -154,9 +175,19 @@ export default defineConfig({
         ],
       },
       includeAssets: [
+        "favicon.svg",
+        "logo-16x16.png",
         "logo-32x32.png",
+        "logo-96x96.png",
+        "logo-152x152.png",
+        "logo-167x167.png",
+        "logo-180x180.png",
         "logo-192x192.png",
+        "logo-256x256.png",
         "logo-512x512.png",
+        "pwa-96x96.png",
+        "pwa-192x192.png",
+        "pwa-512x512.png",
         "apple-touch-icon.png",
         "screenshot-dashboard.png",
         "screenshot-dashboard.webp",
@@ -234,7 +265,8 @@ export default defineConfig({
               proxyReq.setHeader('Authorization', req.headers.authorization);
             }
             // Set referer to help with CSRF
-            proxyReq.setHeader('Referer', req.headers.referer || req.url);
+            const referer = req.headers.referer || req.url || '';
+            proxyReq.setHeader('Referer', referer);
             // Log in development for debugging
             if (process.env.NODE_ENV !== 'production') {
               console.log("[storage-proxy] →", req.method, req.url, {
@@ -278,31 +310,50 @@ export default defineConfig({
     // Ensure proper chunk ordering - React must be available before other chunks
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
+      // Preserve entry signatures to maintain proper dependency order
+      preserveEntrySignatures: 'strict',
       output: {
+        // Ensure proper chunk ordering - vendor-react must be loaded first
+        // Use explicit chunk dependencies to ensure vendor-react loads before others
+        chunkFileNames: (chunkInfo) => {
+          // Ensure vendor-react has a predictable name and loads first
+          if (chunkInfo.name === 'vendor-react') {
+            return 'assets/vendor-react-[hash].js';
+          }
+          return 'assets/[name]-[hash].js';
+        },
         manualChunks: (id) => {
           // Core React - MUST be first priority to ensure React is always available
           // Include react/jsx-runtime to ensure all React exports are available
           // Also include lucide-react and class-variance-authority since they use React.forwardRef
+          // Include use-sync-external-store as it's a React dependency
           if (id.includes('node_modules/react') || 
               id.includes('node_modules/react-dom') ||
               id.includes('react/jsx-runtime') ||
               id.includes('react/jsx-dev-runtime') ||
+              id.includes('node_modules/scheduler') ||
               id.includes('node_modules/lucide-react') ||
-              id.includes('node_modules/class-variance-authority')) {
+              id.includes('node_modules/class-variance-authority') ||
+              id.includes('node_modules/recharts') ||
+              id.includes('node_modules/@dnd-kit') ||
+              id.includes('node_modules/use-sync-external-store')) {
             return 'vendor-react';
           }
-          // Router (depends on React)
+          // React Query - MUST be in vendor-react since it depends on React
+          if (id.includes('node_modules/@tanstack/react-query')) {
+            return 'vendor-react';
+          }
+          // Router (depends on React) - move to vendor-react to ensure React loads first
           if (id.includes('node_modules/react-router-dom')) {
-            return 'vendor-router';
+            return 'vendor-react';
           }
           // Pure utility libraries (don't depend on React)
           if (id.includes('node_modules/clsx') || 
               id.includes('node_modules/tailwind-merge')) {
             return 'vendor-ui';
           }
-          // Data fetching
-          if (id.includes('node_modules/@tanstack/react-query') || 
-              id.includes('node_modules/axios')) {
+          // Data fetching (axios doesn't depend on React, so it can be separate)
+          if (id.includes('node_modules/axios')) {
             return 'vendor-query';
           }
           // Heavy utilities (lazy load)
@@ -319,14 +370,32 @@ export default defineConfig({
           if (id.includes('node_modules/date-fns')) {
             return 'vendor-date';
           }
-          // i18n
+          // i18n (react-i18next depends on React, so include it in vendor-react)
+          if (id.includes('node_modules/react-i18next')) {
+            return 'vendor-react';
+          }
           if (id.includes('node_modules/i18next') || 
-              id.includes('node_modules/react-i18next') ||
               id.includes('node_modules/i18next-browser-languagedetector')) {
             return 'vendor-i18n';
           }
-          // Other node_modules
+          // React Query (depends on React, already handled above but ensure it's not in misc)
+          // @tanstack/react-query is already in vendor-query above
+          // Other node_modules (but exclude anything that might use React)
           if (id.includes('node_modules')) {
+            // AGGRESSIVE check: if it's ANY React-dependent library, put it in vendor-react
+            // This catches any libraries that might have been missed
+            // Check for common React dependency patterns
+            if (id.includes('/react') || 
+                id.includes('react-') ||
+                id.includes('use-sync-external-store') ||
+                id.includes('react-redux') ||
+                id.includes('@reduxjs/toolkit') ||
+                id.includes('@tanstack') ||
+                id.includes('react-router') ||
+                id.includes('react-dom') ||
+                id.includes('scheduler')) {
+              return 'vendor-react';
+            }
             return 'vendor-misc';
           }
           

@@ -2,14 +2,29 @@
 
 # Script to generate all required logo sizes from a single source image
 # Usage: ./scripts/generate-logo-sizes.sh path/to/your-logo.png
+# Or: ./scripts/generate-logo-sizes.sh (will look for logo in src/assets/logo/)
 
 if [ -z "$1" ]; then
-  echo "Usage: $0 <path-to-logo-image>"
-  echo "Example: $0 ~/Downloads/my-logo.png"
-  exit 1
+  # Try to find logo in assets directory
+  if [ -f "src/assets/logo/logo.png" ]; then
+    SOURCE_IMAGE="src/assets/logo/logo.png"
+    echo "Found logo at: $SOURCE_IMAGE"
+  elif [ -f "src/assets/logo/logo.svg" ]; then
+    SOURCE_IMAGE="src/assets/logo/logo.svg"
+    echo "Found logo at: $SOURCE_IMAGE"
+  elif [ -f "src/assets/logo/logo.jpg" ]; then
+    SOURCE_IMAGE="src/assets/logo/logo.jpg"
+    echo "Found logo at: $SOURCE_IMAGE"
+  else
+    echo "Usage: $0 <path-to-logo-image>"
+    echo "Example: $0 ~/Downloads/my-logo.png"
+    echo "Or place your logo at: src/assets/logo/logo.png and run without arguments"
+    exit 1
+  fi
+else
+  SOURCE_IMAGE="$1"
 fi
 
-SOURCE_IMAGE="$1"
 PUBLIC_DIR="public"
 
 if [ ! -f "$SOURCE_IMAGE" ]; then
