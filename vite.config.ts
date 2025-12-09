@@ -313,14 +313,20 @@ export default defineConfig({
       // Preserve entry signatures to maintain proper dependency order
       preserveEntrySignatures: 'strict',
       output: {
-        // Ensure proper chunk ordering - vendor-react must be loaded first
-        // Use explicit chunk dependencies to ensure vendor-react loads before others
+        // Chunk file naming - ensure vendor-react loads first
         chunkFileNames: (chunkInfo) => {
           // Ensure vendor-react has a predictable name and loads first
           if (chunkInfo.name === 'vendor-react') {
-            return 'assets/vendor-react-[hash].js';
+            return 'assets/js/vendor/vendor-react-[hash].js';
           }
-          return 'assets/[name]-[hash].js';
+          // Group chunks by type
+          if (chunkInfo.name?.includes('vendor')) {
+            return 'assets/js/vendor/[name]-[hash].js';
+          }
+          if (chunkInfo.name?.includes('route-')) {
+            return 'assets/js/routes/[name]-[hash].js';
+          }
+          return 'assets/js/[name]-[hash].js';
         },
         manualChunks: (id) => {
           // Core React - MUST be first priority to ensure React is always available
@@ -436,17 +442,6 @@ export default defineConfig({
             return 'assets/css/[name]-[hash][extname]';
           }
           return 'assets/[name]-[hash][extname]';
-        },
-        // Chunk file naming
-        chunkFileNames: (chunkInfo) => {
-          // Group chunks by type
-          if (chunkInfo.name?.includes('vendor')) {
-            return 'assets/js/vendor/[name]-[hash].js';
-          }
-          if (chunkInfo.name?.includes('route-')) {
-            return 'assets/js/routes/[name]-[hash].js';
-          }
-          return 'assets/js/[name]-[hash].js';
         },
       },
     },
