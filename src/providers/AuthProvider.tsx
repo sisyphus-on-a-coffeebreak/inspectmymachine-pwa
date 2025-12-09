@@ -84,7 +84,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // CSRF token initialization is handled automatically by apiClient on first request
     // No need to pre-initialize - it will happen when needed
     // Run auth check asynchronously without blocking initial render
-    setLoading(true);
+    // Only set loading to true if we're on a protected route
+    const isPublicRoute = window.location.pathname === '/login' || window.location.pathname === '/offline';
+    if (!isPublicRoute) {
+      setLoading(true);
+    }
     checkAuth().finally(() => {
       setLoading(false);
     });
