@@ -11,43 +11,47 @@ function reactFirstPlugin(): Plugin {
   return {
     name: 'react-first',
     transformIndexHtml(html) {
-      // Collect all modulepreload links
-      const preloadRegex = /<link[^>]*rel=["']modulepreload["'][^>]*>/gi;
-      const allPreloads = html.match(preloadRegex) || [];
+      // Find all script tags
+      const scriptRegex = /<script[^>]*type=["']module["'][^>]*src=["']([^"']+)["'][^>]*>/gi;
+      const scripts: Array<{ full: string; src: string }> = [];
+      let match;
+      
+      while ((match = scriptRegex.exec(html)) !== null) {
+        scripts.push({ full: match[0], src: match[1] });
+      }
+      
+      // Find all modulepreload links
+      const preloadRegex = /<link[^>]*rel=["']modulepreload["'][^>]*href=["']([^"']+)["'][^>]*>/gi;
+      const preloads: Array<{ full: string; href: string }> = [];
+      
+      while ((match = preloadRegex.exec(html)) !== null) {
+        preloads.push({ full: match[0], href: match[1] });
+      }
       
       // Separate vendor-react from others
-      const reactPreloads: string[] = [];
-      const otherPreloads: string[] = [];
+      const reactPreloads = preloads.filter(p => p.href.includes('vendor-react'));
+      const otherPreloads = preloads.filter(p => !p.href.includes('vendor-react'));
+      const vendorMiscPreloads = preloads.filter(p => p.href.includes('vendor-misc'));
       
-      allPreloads.forEach(preload => {
-        if (preload.includes('vendor-react')) {
-          reactPreloads.push(preload);
-        } else {
-          otherPreloads.push(preload);
-        }
+      // Remove all preloads
+      preloads.forEach(p => {
+        html = html.replace(p.full, '');
       });
       
-      // Remove all preloads from HTML
-      html = html.replace(preloadRegex, '');
+      // Insert in correct order: vendor-react first, then others, then vendor-misc last
+      const orderedPreloads = [
+        ...reactPreloads.map(p => p.full),
+        ...otherPreloads.filter(p => !p.href.includes('vendor-misc')).map(p => p.full),
+        ...vendorMiscPreloads.map(p => p.full)
+      ];
       
-      // Find insertion point (before first script tag or first existing preload)
-      const scriptRegex = /(<script[^>]*type=["']module["'][^>]*>)/i;
-      const scriptMatch = html.match(scriptRegex);
-      
-      if (scriptMatch && reactPreloads.length > 0) {
-        // Insert React preloads first, then other preloads, then the script
-        const allPreloadsOrdered = [...reactPreloads, ...otherPreloads].join('\n    ');
-        html = html.replace(scriptRegex, allPreloadsOrdered + '\n    ' + scriptMatch[1]);
-      } else if (otherPreloads.length > 0) {
-        // If no script tag, insert React first, then others
-        const firstOtherPreload = otherPreloads[0];
-        const restPreloads = otherPreloads.slice(1);
-        const allPreloadsOrdered = [...reactPreloads, firstOtherPreload, ...restPreloads].join('\n    ');
-        html = html.replace(firstOtherPreload, allPreloadsOrdered);
-      } else if (reactPreloads.length > 0) {
-        // Only React preloads, insert before closing head tag
-        const headCloseRegex = /(<\/head>)/i;
-        html = html.replace(headCloseRegex, reactPreloads.join('\n    ') + '\n    $1');
+      // Find the first script tag to insert before it
+      if (scripts.length > 0 && orderedPreloads.length > 0) {
+        const firstScript = scripts[0].full;
+        html = html.replace(firstScript, orderedPreloads.join('\n    ') + '\n    ' + firstScript);
+      } else if (orderedPreloads.length > 0) {
+        // Insert before closing head tag if no scripts found
+        html = html.replace('</head>', orderedPreloads.join('\n    ') + '\n    </head>');
       }
       
       return html;
@@ -329,103 +333,105 @@ export default defineConfig({
           return 'assets/js/[name]-[hash].js';
         },
         manualChunks: (id) => {
-          // Core React - MUST be first priority to ensure React is always available
-          // Include react/jsx-runtime to ensure all React exports are available
-          // Also include lucide-react and class-variance-authority since they use React.forwardRef
-          // Include use-sync-external-store as it's a React dependency
-          if (id.includes('node_modules/react') || 
+          // CRITICAL: Check for React dependencies FIRST, before any other chunking logic
+          // This ensures React-dependent code never ends up in vendor-misc
+          if (id.includes('node_modules')) {
+            // ULTRA-AGGRESSIVE check: ANY mention of "react" in the path goes to vendor-react
+            // This catches all React dependencies, sub-dependencies, and transitive dependencies
+            const lowerId = id.toLowerCase();
+            if (
+              // Core React packages (exact matches)
+              id.includes('node_modules/react') || 
               id.includes('node_modules/react-dom') ||
               id.includes('react/jsx-runtime') ||
               id.includes('react/jsx-dev-runtime') ||
               id.includes('node_modules/scheduler') ||
+              id.includes('node_modules/use-sync-external-store') ||
+              // React UI libraries
               id.includes('node_modules/lucide-react') ||
               id.includes('node_modules/class-variance-authority') ||
               id.includes('node_modules/recharts') ||
               id.includes('node_modules/@dnd-kit') ||
-              id.includes('node_modules/use-sync-external-store')) {
-            return 'vendor-react';
-          }
-          // React Query - MUST be in vendor-react since it depends on React
-          if (id.includes('node_modules/@tanstack/react-query')) {
-            return 'vendor-react';
-          }
-          // Router (depends on React) - move to vendor-react to ensure React loads first
-          if (id.includes('node_modules/react-router-dom')) {
-            return 'vendor-react';
-          }
-          // Pure utility libraries (don't depend on React)
-          if (id.includes('node_modules/clsx') || 
-              id.includes('node_modules/tailwind-merge')) {
-            return 'vendor-ui';
-          }
-          // Data fetching (axios doesn't depend on React, so it can be separate)
-          if (id.includes('node_modules/axios')) {
-            return 'vendor-query';
-          }
-          // Heavy utilities (lazy load)
-          if (id.includes('node_modules/jspdf') || id.includes('node_modules/html2canvas')) {
-            return 'vendor-pdf';
-          }
-          if (id.includes('node_modules/qrcode') || id.includes('node_modules/jsqr')) {
-            return 'vendor-qr';
-          }
-          if (id.includes('node_modules/jszip')) {
-            return 'vendor-zip';
-          }
-          // Date utilities
-          if (id.includes('node_modules/date-fns')) {
-            return 'vendor-date';
-          }
-          // i18n (react-i18next depends on React, so include it in vendor-react)
-          if (id.includes('node_modules/react-i18next')) {
-            return 'vendor-react';
-          }
-          if (id.includes('node_modules/i18next') || 
-              id.includes('node_modules/i18next-browser-languagedetector')) {
-            return 'vendor-i18n';
-          }
-          // React Query (depends on React, already handled above but ensure it's not in misc)
-          // @tanstack/react-query is already in vendor-query above
-          // Other node_modules (but exclude anything that might use React)
-          if (id.includes('node_modules')) {
-            // AGGRESSIVE check: if it's ANY React-dependent library, put it in vendor-react
-            // This catches any libraries that might have been missed
-            // Check for common React dependency patterns
-            if (id.includes('/react') || 
-                id.includes('react-') ||
-                id.includes('use-sync-external-store') ||
-                id.includes('react-redux') ||
-                id.includes('@reduxjs/toolkit') ||
-                id.includes('@tanstack') ||
-                id.includes('react-router') ||
-                id.includes('react-dom') ||
-                id.includes('scheduler')) {
+              // React routing
+              id.includes('node_modules/react-router') ||
+              // React query/data fetching
+              id.includes('node_modules/@tanstack/react-query') ||
+              id.includes('node_modules/@tanstack/react-query-devtools') ||
+              // React i18n
+              id.includes('node_modules/react-i18next') ||
+              // React state management
+              id.includes('node_modules/react-redux') ||
+              id.includes('node_modules/@reduxjs/toolkit') ||
+              // CATCH-ALL: Any path containing "react" anywhere (case-insensitive)
+              // This catches all React dependencies and sub-dependencies
+              lowerId.includes('react') ||
+              lowerId.includes('scheduler') ||
+              lowerId.includes('use-sync-external-store')
+            ) {
               return 'vendor-react';
             }
+          }
+          
+          // Now handle non-React node_modules
+          if (id.includes('node_modules')) {
+            // Pure utility libraries (don't depend on React)
+            if (id.includes('node_modules/clsx') || 
+                id.includes('node_modules/tailwind-merge')) {
+              return 'vendor-ui';
+            }
+            // Data fetching (axios doesn't depend on React)
+            if (id.includes('node_modules/axios')) {
+              return 'vendor-query';
+            }
+            // Heavy utilities (lazy load)
+            if (id.includes('node_modules/jspdf') || id.includes('node_modules/html2canvas')) {
+              return 'vendor-pdf';
+            }
+            if (id.includes('node_modules/qrcode') || id.includes('node_modules/jsqr')) {
+              return 'vendor-qr';
+            }
+            if (id.includes('node_modules/jszip')) {
+              return 'vendor-zip';
+            }
+            // Date utilities
+            if (id.includes('node_modules/date-fns')) {
+              return 'vendor-date';
+            }
+            // i18n (non-React parts)
+            if (id.includes('node_modules/i18next') || 
+                id.includes('node_modules/i18next-browser-languagedetector')) {
+              return 'vendor-i18n';
+            }
+            // Everything else goes to vendor-misc (but React deps already caught above)
             return 'vendor-misc';
           }
           
-          // Route-based code splitting for pages
-          // Gate Pass routes
-          if (id.includes('/pages/gatepass/') || id.includes('/pages/gate-pass/')) {
-            return 'route-gatepass';
+          // Route-based code splitting for pages (only for source files, not node_modules)
+          if (!id.includes('node_modules')) {
+            // Gate Pass routes
+            if (id.includes('/pages/gatepass/') || id.includes('/pages/gate-pass/')) {
+              return 'route-gatepass';
+            }
+            // Inspection routes
+            if (id.includes('/pages/inspections/')) {
+              return 'route-inspections';
+            }
+            // Expense routes
+            if (id.includes('/pages/expenses/')) {
+              return 'route-expenses';
+            }
+            // Stockyard routes
+            if (id.includes('/pages/stockyard/')) {
+              return 'route-stockyard';
+            }
+            // Admin routes
+            if (id.includes('/pages/admin/')) {
+              return 'route-admin';
+            }
           }
-          // Inspection routes
-          if (id.includes('/pages/inspections/')) {
-            return 'route-inspections';
-          }
-          // Expense routes
-          if (id.includes('/pages/expenses/')) {
-            return 'route-expenses';
-          }
-          // Stockyard routes
-          if (id.includes('/pages/stockyard/')) {
-            return 'route-stockyard';
-          }
-          // Admin routes
-          if (id.includes('/pages/admin/')) {
-            return 'route-admin';
-          }
+          
+          // Return undefined to let Vite handle it (shouldn't reach here for node_modules)
+          return undefined;
         },
         // CSS chunk naming strategy - split by route
         assetFileNames: (assetInfo) => {
