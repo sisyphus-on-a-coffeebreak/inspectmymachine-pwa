@@ -521,13 +521,14 @@ export default function AppLayout({
                 zIndex: 50,
                 transition: "width 0.3s ease"
               }}>
-              {/* Scrollable Content Area */}
+              {/* Scrollable Content Area - Only menu items scroll */}
               <div style={{
                 flex: 1,
+                minHeight: 0,
                 overflowY: "auto",
                 overflowX: "hidden",
                 padding: spacing.lg,
-                paddingBottom: 0
+                paddingBottom: spacing.md
               }}>
                 {/* Logo */}
                 <div style={{ marginBottom: spacing.xl }}>
@@ -583,12 +584,14 @@ export default function AppLayout({
                 )}
               </div>
 
-              {/* User Section - Fixed at Bottom */}
+              {/* User Section - Fixed at Bottom, Separate Component */}
               <div style={{
                 padding: spacing.lg,
                 background: "white",
                 borderTop: `1px solid ${colors.neutral[200]}`,
-                flexShrink: 0
+                flexShrink: 0,
+                zIndex: 10,
+                position: "relative"
               }}>
                 {!isCollapsed ? (
                   <>
@@ -636,7 +639,8 @@ export default function AppLayout({
                         cursor: "pointer",
                         fontSize: "12px",
                         fontWeight: 500,
-                        transition: "all 0.2s ease"
+                        transition: "all 0.2s ease",
+                        marginBottom: spacing.sm
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.background = colors.status.critical;
@@ -694,7 +698,8 @@ export default function AppLayout({
                     cursor: "pointer",
                     fontSize: "12px",
                     fontWeight: 500,
-                    transition: "all 0.2s ease"
+                    transition: "all 0.2s ease",
+                    marginTop: !isCollapsed ? spacing.sm : 0
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = colors.neutral[100];
