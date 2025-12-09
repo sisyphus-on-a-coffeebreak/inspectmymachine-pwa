@@ -21,6 +21,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
+      - name: Install serve for SPA routing
+        run: npm install -g serve
+      
       - name: Build
         run: npm run build
       

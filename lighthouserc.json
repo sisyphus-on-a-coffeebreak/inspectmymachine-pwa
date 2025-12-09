@@ -2,7 +2,10 @@
   "ci": {
     "collect": {
       "staticDistDir": "./dist",
-      "url": ["http://localhost/login"],
+      "startServerCommand": "npx serve -s dist -l 8080",
+      "startServerReadyPattern": "Accepting connections",
+      "startServerReadyTimeout": 10000,
+      "url": ["http://localhost:8080/login"],
       "numberOfRuns": 1,
       "settings": {
         "skipAudits": [],
