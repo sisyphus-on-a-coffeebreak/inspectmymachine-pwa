@@ -17,7 +17,19 @@ use Illuminate\Support\Facades\Route;
 // Include v2 routes
 Route::prefix('v2')->group(base_path('routes/api/v2.php'));
 
-// V1 API routes
+// Authentication routes (no auth required)
+Route::post('/login', [\App\Http\Controllers\Api\AuthController::class, 'login']);
+Route::post('/logout', [\App\Http\Controllers\Api\AuthController::class, 'logout'])->middleware(['auth:sanctum']);
+
+// User endpoint (auth required)
+Route::middleware(['auth:sanctum'])->get('/user', [\App\Http\Controllers\Api\AuthController::class, 'user']);
+
+// Analytics routes (no auth required for vitals)
+Route::prefix('v1')->group(function () {
+    Route::post('/analytics/vitals', [\App\Http\Controllers\Api\AnalyticsController::class, 'storeVitals']);
+});
+
+// V1 API routes (auth required)
 Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     // Inspections endpoints
     Route::get('/inspections', [\App\Http\Controllers\Api\InspectionController::class, 'index']);
@@ -29,6 +41,9 @@ Route::prefix('v1')->middleware(['auth:sanctum'])->group(function () {
     Route::post('/settings/report-branding', [\App\Http\Controllers\Api\ReportBrandingController::class, 'store']);
     Route::post('/settings/report-branding/logo', [\App\Http\Controllers\Api\ReportBrandingController::class, 'uploadLogo']);
     Route::delete('/settings/report-branding/logo', [\App\Http\Controllers\Api\ReportBrandingController::class, 'deleteLogo']);
+    
+    // Users endpoints
+    Route::get('/users', [\App\Http\Controllers\Api\UserController::class, 'index']);
 });
 
 // Gate Pass Approval routes (legacy v1-style endpoints for compatibility)

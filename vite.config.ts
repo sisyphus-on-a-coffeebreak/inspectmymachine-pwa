@@ -241,6 +241,75 @@ export default defineConfig({
     cssMinify: 'lightningcss', // Use lightningcss for faster CSS minification (if available)
     rollupOptions: {
       output: {
+        // Ensure React is bundled first and separately to prevent forwardRef errors
+        manualChunks: (id) => {
+          // Core React - MUST be first priority to ensure React is always available
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+            return 'vendor-react';
+          }
+          // Router
+          if (id.includes('node_modules/react-router-dom')) {
+            return 'vendor-router';
+          }
+          // UI libraries
+          if (id.includes('node_modules/lucide-react') || 
+              id.includes('node_modules/clsx') || 
+              id.includes('node_modules/class-variance-authority') ||
+              id.includes('node_modules/tailwind-merge')) {
+            return 'vendor-ui';
+          }
+          // Data fetching
+          if (id.includes('node_modules/@tanstack/react-query') || 
+              id.includes('node_modules/axios')) {
+            return 'vendor-query';
+          }
+          // Heavy utilities (lazy load)
+          if (id.includes('node_modules/jspdf') || id.includes('node_modules/html2canvas')) {
+            return 'vendor-pdf';
+          }
+          if (id.includes('node_modules/qrcode') || id.includes('node_modules/jsqr')) {
+            return 'vendor-qr';
+          }
+          if (id.includes('node_modules/jszip')) {
+            return 'vendor-zip';
+          }
+          // Date utilities
+          if (id.includes('node_modules/date-fns')) {
+            return 'vendor-date';
+          }
+          // i18n
+          if (id.includes('node_modules/i18next') || 
+              id.includes('node_modules/react-i18next') ||
+              id.includes('node_modules/i18next-browser-languagedetector')) {
+            return 'vendor-i18n';
+          }
+          // Other node_modules
+          if (id.includes('node_modules')) {
+            return 'vendor-misc';
+          }
+          
+          // Route-based code splitting for pages
+          // Gate Pass routes
+          if (id.includes('/pages/gatepass/') || id.includes('/pages/gate-pass/')) {
+            return 'route-gatepass';
+          }
+          // Inspection routes
+          if (id.includes('/pages/inspections/')) {
+            return 'route-inspections';
+          }
+          // Expense routes
+          if (id.includes('/pages/expenses/')) {
+            return 'route-expenses';
+          }
+          // Stockyard routes
+          if (id.includes('/pages/stockyard/')) {
+            return 'route-stockyard';
+          }
+          // Admin routes
+          if (id.includes('/pages/admin/')) {
+            return 'route-admin';
+          }
+        },
         // CSS chunk naming strategy - split by route
         assetFileNames: (assetInfo) => {
           // Group CSS by route/module

@@ -285,3 +285,4 @@ export const InspectionSyncWidget: React.FC<WidgetProps> = ({ config }) => {
   );
 };
 
+

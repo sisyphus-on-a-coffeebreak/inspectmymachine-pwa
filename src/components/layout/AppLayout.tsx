@@ -512,78 +512,83 @@ export default function AppLayout({
                 width: isCollapsed ? "64px" : "280px",
                 background: "white",
                 borderRight: `1px solid ${colors.neutral[200]}`,
-                padding: spacing.lg,
                 position: "fixed",
                 left: 0,
                 top: 0,
                 height: "100vh",
-                overflowY: "auto",
-                overflowX: "hidden",
+                display: "flex",
+                flexDirection: "column",
                 zIndex: 50,
                 transition: "width 0.3s ease"
               }}>
-              {/* Logo */}
-              <div style={{ marginBottom: spacing.xl }}>
-                {!isCollapsed ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: spacing.md, marginBottom: spacing.md }}>
-                    <div style={{
-                      width: "40px",
-                      height: "40px",
-                      background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
-                      borderRadius: "12px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center"
-                    }}>
-                      <Home style={{ width: "20px", height: "20px", color: "white" }} aria-hidden="true" />
+              {/* Scrollable Content Area */}
+              <div style={{
+                flex: 1,
+                overflowY: "auto",
+                overflowX: "hidden",
+                padding: spacing.lg,
+                paddingBottom: 0
+              }}>
+                {/* Logo */}
+                <div style={{ marginBottom: spacing.xl }}>
+                  {!isCollapsed ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: spacing.md, marginBottom: spacing.md }}>
+                      <div style={{
+                        width: "40px",
+                        height: "40px",
+                        background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
+                        borderRadius: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
+                      }}>
+                        <Home style={{ width: "20px", height: "20px", color: "white" }} aria-hidden="true" />
+                      </div>
+                      <div>
+                        <h1 style={{ ...typography.header, fontSize: "18px", margin: 0, fontWeight: 700 }}>
+                          VOMS
+                        </h1>
+                        <p style={{ ...typography.bodySmall, fontSize: "11px", color: colors.neutral[600], margin: 0 }}>
+                          Vehicle Operations
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h1 style={{ ...typography.header, fontSize: "18px", margin: 0, fontWeight: 700 }}>
-                        VOMS
-                      </h1>
-                      <p style={{ ...typography.bodySmall, fontSize: "11px", color: colors.neutral[600], margin: 0 }}>
-                        Vehicle Operations
-                      </p>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: spacing.md }}>
+                      <div style={{
+                        width: "40px",
+                        height: "40px",
+                        background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
+                        borderRadius: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
+                      }}>
+                        <Home style={{ width: "20px", height: "20px", color: "white" }} aria-hidden="true" />
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: spacing.md }}>
-                    <div style={{
-                      width: "40px",
-                      height: "40px",
-                      background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
-                      borderRadius: "12px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center"
-                    }}>
-                      <Home style={{ width: "20px", height: "20px", color: "white" }} aria-hidden="true" />
-                    </div>
+                  )}
+                </div>
+
+                {/* Navigation */}
+                <nav style={{ marginBottom: spacing.xl }}>
+                  {accessibleNavItems.map(item => renderNavItem(item))}
+                </nav>
+
+                {/* Recently Viewed - Hide when collapsed */}
+                {!isCollapsed && (
+                  <div style={{ marginBottom: spacing.xl }}>
+                    <RecentlyViewed />
                   </div>
                 )}
               </div>
 
-              {/* Navigation */}
-              <nav style={{ marginBottom: spacing.xl }}>
-                {accessibleNavItems.map(item => renderNavItem(item))}
-              </nav>
-
-              {/* Recently Viewed - Hide when collapsed */}
-              {!isCollapsed && (
-                <div style={{ marginBottom: spacing.xl }}>
-                  <RecentlyViewed />
-                </div>
-              )}
-
-              {/* User Section */}
+              {/* User Section - Fixed at Bottom */}
               <div style={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
                 padding: spacing.lg,
                 background: "white",
-                borderTop: `1px solid ${colors.neutral[200]}`
+                borderTop: `1px solid ${colors.neutral[200]}`,
+                flexShrink: 0
               }}>
                 {!isCollapsed ? (
                   <>
