@@ -91,19 +91,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const checkAuth = async () => {
     try {
+      // Add timeout to prevent hanging on connection errors
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Auth check timeout')), 5000);
+      });
+      
       // Mark this request as an auth check by using a custom header that the interceptor can check
-      const response = await apiClient.get<{ user: User }>("/user", {
-        skipRetry: true, // Don't retry on 401 - user is just not authenticated
-        suppressErrorLog: true, // Suppress console errors for expected auth check failures
-        headers: {
-          'X-Auth-Check': 'true', // Custom header to identify auth check requests
-        },
-      } as any);
+      const response = await Promise.race([
+        apiClient.get<{ user: User }>("/user", {
+          skipRetry: true, // Don't retry on 401 - user is just not authenticated
+          suppressErrorLog: true, // Suppress console errors for expected auth check failures
+          headers: {
+            'X-Auth-Check': 'true', // Custom header to identify auth check requests
+          },
+        } as any),
+        timeoutPromise
+      ]) as any;
+      
       // Handle both { user: User } and direct User response formats
       setUser((response.data as any).user || response.data);
     } catch (err) {
       // Silently handle authentication check failures
       // 401 means user is not logged in, which is fine
+      // Timeout or connection errors are also fine - just assume not authenticated
       // This is expected behavior, not an error
       setUser(null);
     } finally {
