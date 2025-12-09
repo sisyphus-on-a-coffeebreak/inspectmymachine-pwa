@@ -4,10 +4,44 @@ import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 import { fileURLToPath, URL } from "node:url";
 import { visualizer } from "rollup-plugin-visualizer";
+import type { Plugin } from "vite";
+
+// Plugin to ensure React loads before other vendor chunks
+function reactFirstPlugin(): Plugin {
+  return {
+    name: 'react-first',
+    transformIndexHtml(html) {
+      // Reorder modulepreload links to ensure vendor-react loads first
+      const reactPreloadRegex = /<link[^>]*vendor-react[^>]*>/i;
+      const reactMatch = html.match(reactPreloadRegex);
+      
+      if (reactMatch) {
+        // Remove React preload from its current position
+        html = html.replace(reactPreloadRegex, '');
+        
+        // Find the first modulepreload and insert React before it
+        const firstPreloadRegex = /(<link[^>]*rel=["']modulepreload["'][^>]*>)/i;
+        const firstMatch = html.match(firstPreloadRegex);
+        
+        if (firstMatch) {
+          // Insert React preload before the first modulepreload
+          html = html.replace(firstPreloadRegex, reactMatch[0] + '\n    ' + firstMatch[1]);
+        } else {
+          // If no modulepreload found, insert after the main script tag
+          const scriptRegex = /(<script[^>]*type=["']module["'][^>]*>)/i;
+          html = html.replace(scriptRegex, reactMatch[0] + '\n    ' + '$1');
+        }
+      }
+      
+      return html;
+    },
+  };
+}
 
 export default defineConfig({
   plugins: [
     react(),
+    reactFirstPlugin(),
     visualizer({
       filename: "dist/stats.html",
       open: false,
@@ -141,6 +175,7 @@ export default defineConfig({
     include: [
       'react',
       'react-dom',
+      'react/jsx-runtime',
       'react-router-dom',
       'qrcode', // Include qrcode so Vite can pre-bundle it for browser compatibility
     ],
@@ -239,22 +274,28 @@ export default defineConfig({
     } : undefined,
     cssCodeSplit: true, // Enable CSS code splitting by route/chunk
     cssMinify: 'lightningcss', // Use lightningcss for faster CSS minification (if available)
+    // Ensure proper chunk ordering - React must be available before other chunks
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
-        // Ensure React is bundled first and separately to prevent forwardRef errors
         manualChunks: (id) => {
           // Core React - MUST be first priority to ensure React is always available
-          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+          // Include react/jsx-runtime to ensure all React exports are available
+          // Also include lucide-react and class-variance-authority since they use React.forwardRef
+          if (id.includes('node_modules/react') || 
+              id.includes('node_modules/react-dom') ||
+              id.includes('react/jsx-runtime') ||
+              id.includes('react/jsx-dev-runtime') ||
+              id.includes('node_modules/lucide-react') ||
+              id.includes('node_modules/class-variance-authority')) {
             return 'vendor-react';
           }
-          // Router
+          // Router (depends on React)
           if (id.includes('node_modules/react-router-dom')) {
             return 'vendor-router';
           }
-          // UI libraries
-          if (id.includes('node_modules/lucide-react') || 
-              id.includes('node_modules/clsx') || 
-              id.includes('node_modules/class-variance-authority') ||
+          // Pure utility libraries (don't depend on React)
+          if (id.includes('node_modules/clsx') || 
               id.includes('node_modules/tailwind-merge')) {
             return 'vendor-ui';
           }
