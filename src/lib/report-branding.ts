@@ -95,3 +95,4 @@ export async function uploadLogo(file: File): Promise<{ logoUrl: string; logoPat
 export async function deleteLogo(): Promise<void> {
   await apiClient.delete('/v1/settings/report-branding/logo');
 }
+

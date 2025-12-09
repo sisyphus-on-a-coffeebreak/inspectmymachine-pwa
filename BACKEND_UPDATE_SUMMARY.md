@@ -81,3 +81,4 @@ This will create the `report_branding` table.
 ---
 
 **Backend is now updated and ready for the frontend changes!**
+

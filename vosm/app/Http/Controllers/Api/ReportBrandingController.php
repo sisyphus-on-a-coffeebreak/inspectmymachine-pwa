@@ -368,3 +368,4 @@ class ReportBrandingController extends Controller
         ];
     }
 }
+

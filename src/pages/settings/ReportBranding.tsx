@@ -390,3 +390,4 @@ export const ReportBrandingPage: React.FC = () => {
     </div>
   );
 };
+

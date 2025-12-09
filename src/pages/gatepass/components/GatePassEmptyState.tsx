@@ -94,3 +94,4 @@ export const GatePassEmptyState: React.FC<GatePassEmptyStateProps> = ({
 };
 
 
+

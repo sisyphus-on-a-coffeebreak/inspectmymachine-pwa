@@ -168,3 +168,4 @@ export const SectionNavigator: React.FC<SectionNavigatorProps> = ({
     </div>
   );
 };
+

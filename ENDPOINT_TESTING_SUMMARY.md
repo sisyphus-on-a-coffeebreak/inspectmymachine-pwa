@@ -85,3 +85,4 @@ cd /Users/narnolia/code/voms-pwa
   - `vehicle_id`
   - `event_type` (install, remove, transfer)
   - Pagination: `page`, `per_page`
+

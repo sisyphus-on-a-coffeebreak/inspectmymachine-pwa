@@ -22,7 +22,8 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Start with loading false for faster initial render - auth check happens async
+  const [loading, setLoading] = useState(false);
 
   // Check if user is already authenticated on mount
   useEffect(() => {
@@ -82,7 +83,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // CSRF token initialization is handled automatically by apiClient on first request
     // No need to pre-initialize - it will happen when needed
-    checkAuth();
+    // Run auth check asynchronously without blocking initial render
+    setLoading(true);
+    checkAuth().finally(() => {
+      setLoading(false);
+    });
 
     return () => {
       axios.interceptors.response.eject(res);
