@@ -2,7 +2,7 @@
   "name": "VOMS - Vehicle Operations Management System",
   "short_name": "VOMS",
   "description": "Professional vehicle inspection and operations management",
-  "start_url": "/",
+  "start_url": "https://inspectmymachine.in/login",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",

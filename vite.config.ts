@@ -72,6 +72,10 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       devOptions: { enabled: false }, // no SW in dev
+      // Disable auto-injection of manifest link so we can control it manually
+      injectManifest: false,
+      // Use manifest.json instead of manifest.webmanifest
+      manifestFilename: "manifest.json",
 
       // Workbox (generateSW) — use RegExp + method for TS-friendly config
       workbox: {
@@ -113,7 +117,7 @@ export default defineConfig({
         // Required fields
         name: "VOMS - Vehicle Operations Management System",
         short_name: "VOMS",
-        start_url: "/",
+        start_url: "https://inspectmymachine.in/login",
         icons: [
           { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
           { src: "pwa-256x256.png", sizes: "256x256", type: "image/png" },
@@ -151,8 +155,8 @@ export default defineConfig({
           },
         ],
         
-        // Ensure manifest is accessible at standard path
-        filename: "manifest.webmanifest",
+        // Use manifest.json for PWABuilder compatibility
+        filename: "manifest.json",
         screenshots: [
           // WebP versions (preferred, smaller file size)
           {
