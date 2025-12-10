@@ -11,9 +11,10 @@
 /*.woff2      200
 /*.ico        200
 /*.json       200
+/manifest.json 200
+/manifest.webmanifest 200
 /sw.js        200
 /workbox-*.js 200
-/manifest.webmanifest 200
 
 # SPA routing - all other routes go to index.html
 /*    /index.html   200
