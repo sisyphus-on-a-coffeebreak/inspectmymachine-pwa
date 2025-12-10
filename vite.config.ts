@@ -299,22 +299,22 @@ export default defineConfig({
     sourcemap: process.env.NODE_ENV !== 'production',
     // Use esbuild for minification - better at handling circular dependencies
     minify: 'esbuild',
-    // esbuild minification options
+    // esbuild minification options - be less aggressive to avoid breaking module structure
     minifySyntax: true,
-    minifyIdentifiers: true,
+    minifyIdentifiers: false, // Keep identifiers to avoid breaking module references
     minifyWhitespace: true,
     cssCodeSplit: true, // Enable CSS code splitting by route/chunk
     cssMinify: 'lightningcss', // Use lightningcss for faster CSS minification (if available)
     // Ensure proper chunk ordering - React must be available before other chunks
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
-      // Use 'exports' to allow better tree-shaking and avoid circular dependency issues
-      preserveEntrySignatures: 'exports-only',
+      // Use 'strict' to preserve proper module boundaries and initialization order
+      preserveEntrySignatures: 'strict',
       output: {
         // Ensure proper module format to avoid initialization issues
         format: 'es',
-        // Prevent circular dependency issues
-        hoistTransitiveImports: false,
+        // Ensure proper dependency resolution
+        externalLiveBindings: false,
         // Chunk file naming - ensure proper loading order
         chunkFileNames: (chunkInfo) => {
           // Ensure vendor-react loads FIRST (all React code together)
@@ -330,21 +330,20 @@ export default defineConfig({
           }
           return 'assets/js/[name]-[hash].js';
         },
-        manualChunks: (id) => {
+        manualChunks: (id, { getModuleInfo }) => {
           // CRITICAL: Check for React dependencies FIRST, before any other chunking logic
           // This ensures React-dependent code never ends up in vendor-misc
           // IMPORTANT: Put ALL React code in ONE chunk to avoid initialization order issues
           if (id.includes('node_modules')) {
-            // ALL React packages and dependencies go into vendor-react
-            // This ensures React is fully loaded before any React-dependent code runs
-            if (
-              // Core React packages
-              id.includes('node_modules/react') || 
-              id.includes('node_modules/react-dom') ||
-              id.includes('react/jsx-runtime') ||
-              id.includes('react/jsx-dev-runtime') ||
-              id.includes('node_modules/scheduler') ||
-              id.includes('node_modules/use-sync-external-store') ||
+            // Check if this is a React-related module
+            const isReact = 
+              // Core React packages (exact matches first)
+              id.includes('node_modules/react/') || 
+              id.includes('node_modules/react-dom/') ||
+              id.includes('/react/jsx-runtime') ||
+              id.includes('/react/jsx-dev-runtime') ||
+              id.includes('node_modules/scheduler/') ||
+              id.includes('node_modules/use-sync-external-store/') ||
               // React UI libraries
               id.includes('node_modules/lucide-react') ||
               id.includes('node_modules/class-variance-authority') ||
@@ -359,12 +358,15 @@ export default defineConfig({
               id.includes('node_modules/react-i18next') ||
               // React state management
               id.includes('node_modules/react-redux') ||
-              id.includes('node_modules/@reduxjs/toolkit') ||
-              // Catch-all for any remaining React dependencies
-              (id.toLowerCase().includes('/react') || id.toLowerCase().includes('react-')) &&
-              !id.toLowerCase().includes('preact') && // Exclude preact
-              !id.toLowerCase().includes('reactivate') // Exclude false positives
-            ) {
+              id.includes('node_modules/@reduxjs/toolkit');
+            
+            // Also check for React in path (but exclude false positives)
+            const lowerId = id.toLowerCase();
+            const hasReactInPath = (lowerId.includes('/react') || lowerId.includes('react-')) &&
+              !lowerId.includes('preact') &&
+              !lowerId.includes('reactivate');
+            
+            if (isReact || hasReactInPath) {
               return 'vendor-react';
             }
           }
