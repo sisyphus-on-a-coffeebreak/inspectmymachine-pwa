@@ -4,6 +4,7 @@ import { Button } from './button';
 import { X } from 'lucide-react';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { zIndex } from '@/lib/z-index';
+import { useSmartKeyboard } from '@/hooks/useSmartKeyboard';
 
 export interface ModalProps {
   title?: string;
@@ -38,6 +39,9 @@ export function Modal({
   const showCloseButton = true;
   const modalRef = useFocusTrap<HTMLDivElement>(true);
   const overlayRef = React.useRef<HTMLDivElement>(null);
+  
+  // Enable smart keyboard handling for forms inside modals
+  useSmartKeyboard({ enabled: true, scrollOffset: 100 });
   
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -96,7 +100,7 @@ export function Modal({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '20px',
+          padding: 'clamp(16px, 4vw, 24px)', // Responsive padding: 16px mobile, 24px desktop
         }}
       >
         <div

@@ -10,6 +10,7 @@ import { useToast } from '@/providers/ToastProvider';
 import { useCreateComponent } from '@/lib/queries';
 import { apiClient } from '@/lib/apiClient';
 import { logger } from '@/lib/logger';
+import { useSmartKeyboard } from '@/hooks/useSmartKeyboard';
 
 interface Vehicle {
   id: string;
@@ -44,6 +45,9 @@ interface CreateComponentProps {
 }
 
 export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onCancel }) => {
+  // Enable smart keyboard handling for mobile
+  useSmartKeyboard({ enabled: true, scrollOffset: 100 });
+  
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { showToast } = useToast();
@@ -281,15 +285,6 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
             { label: 'Component Ledger', path: '/app/stockyard/components' },
             { label: 'Add Component' },
           ]}
-          actions={
-            <Button
-              onClick={() => navigate('/app/stockyard/components')}
-              variant="secondary"
-              icon={<ArrowLeft size={18} />}
-            >
-              Back
-            </Button>
-          }
         />
       )}
 
@@ -442,7 +437,14 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
       <form onSubmit={handleSubmit} style={{ ...cardStyles.card }}>
         <div style={{ display: 'grid', gap: spacing.lg }}>
           {/* Common Fields */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.md }}>
+          <div 
+            className="responsive-component-grid"
+            style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr', // Single column on mobile
+              gap: spacing.md
+            }}
+          >
             <div>
               <Label>
                 {componentType === 'spare_part' ? 'Part Number' : 'Serial Number'} *
@@ -533,7 +535,14 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
 
           {/* Type-Specific Fields */}
           {componentType === 'battery' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.md }}>
+            <div 
+              className="responsive-component-grid"
+              style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '1fr', // Single column on mobile
+                gap: spacing.md
+              }}
+            >
               <div>
                 <Label>Capacity *</Label>
                 <Input
@@ -576,7 +585,14 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
           )}
 
           {componentType === 'tyre' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.md }}>
+            <div 
+              className="responsive-component-grid"
+              style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '1fr', // Single column on mobile
+                gap: spacing.md
+              }}
+            >
               <div>
                 <Label>Size *</Label>
                 <Input
@@ -622,9 +638,11 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
                 <Label>Tread Depth (mm)</Label>
                 <Input
                   type="number"
+                  inputMode="decimal"
                   value={formData.tread_depth_mm}
                   onChange={(e) => setFormData({ ...formData, tread_depth_mm: e.target.value })}
                   placeholder="e.g., 8"
+                  style={{ fontSize: '16px' }} // 16px prevents iOS zoom
                 />
               </div>
             </div>
@@ -655,7 +673,14 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
           )}
 
           {/* Purchase & Warranty */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.md }}>
+          <div 
+            className="responsive-component-grid"
+            style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr', // Single column on mobile
+              gap: spacing.md
+            }}
+          >
             <div>
               <Label>
                 {componentSource === 'purchased' ? 'Purchase Date *' : 'Entry Date / Purchase Date'}
@@ -668,6 +693,7 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
                   setValidationErrors({ ...validationErrors, purchase_date: '' });
                 }}
                 style={{
+                  fontSize: '16px', // 16px prevents iOS zoom
                   borderColor: validationErrors.purchase_date ? colors.error[500] : undefined
                 }}
               />
@@ -688,6 +714,7 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
                 type="date"
                 value={formData.warranty_expires_at}
                 onChange={(e) => setFormData({ ...formData, warranty_expires_at: e.target.value })}
+                style={{ fontSize: '16px' }} // 16px prevents iOS zoom
               />
             </div>
             <div>
@@ -696,7 +723,9 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
               </Label>
               <Input
                 type="number"
+                inputMode="decimal"
                 step="0.01"
+                autoComplete="transaction-amount"
                 value={formData.purchase_cost}
                 onChange={(e) => {
                   setFormData({ ...formData, purchase_cost: e.target.value });
@@ -704,6 +733,7 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
                 }}
                 placeholder={componentSource === 'vehicle_entry' ? '0.00 (default)' : '0.00'}
                 style={{
+                  fontSize: '16px', // 16px prevents iOS zoom
                   borderColor: validationErrors.purchase_cost ? colors.error[500] : undefined
                 }}
               />
@@ -789,7 +819,7 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
                 padding: spacing.md,
                 borderRadius: borderRadius.md,
                 border: `1px solid ${colors.neutral[300]}`,
-                fontSize: typography.body.fontSize,
+                fontSize: '16px', // 16px prevents iOS zoom
                 fontFamily: typography.body.fontFamily,
                 resize: 'vertical',
               }}
@@ -822,6 +852,15 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
           </div>
         </div>
       </form>
+
+      {/* Responsive grid styles */}
+      <style>{`
+        @media (min-width: 768px) {
+          .responsive-component-grid {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

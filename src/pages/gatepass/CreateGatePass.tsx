@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { getDefaultPurpose, getDefaultValidityDates } from './config/defaults';
+import { useSmartKeyboard } from '@/hooks/useSmartKeyboard';
 
 type IntentType = 'visitor' | 'vehicle_outbound' | 'vehicle_inbound' | null;
 
@@ -58,6 +59,9 @@ interface FieldErrors {
 }
 
 export const CreateGatePass: React.FC = () => {
+  // Enable smart keyboard handling for mobile
+  useSmartKeyboard({ enabled: true, scrollOffset: 100 });
+  
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -480,7 +484,7 @@ export const CreateGatePass: React.FC = () => {
       maxWidth: '800px',
       margin: '0 auto',
       padding: spacing.xl,
-      minHeight: '100vh',
+      minHeight: '100dvh', // Use dynamic viewport height for mobile
       backgroundColor: colors.neutral[50],
     }}>
       <PageHeader
@@ -492,14 +496,6 @@ export const CreateGatePass: React.FC = () => {
           { label: 'Gate Pass', path: '/app/gate-pass', icon: '🚪' },
           { label: 'Create', icon: '➕' },
         ]}
-        actions={
-          <Button
-            variant="secondary"
-            onClick={() => navigate('/app/gate-pass')}
-          >
-            Cancel
-          </Button>
-        }
       />
 
       <form onSubmit={handleSubmit} style={{ marginTop: spacing.xl }}>
@@ -552,6 +548,8 @@ export const CreateGatePass: React.FC = () => {
               </label>
               <Input
                 type="tel"
+                inputMode="tel"
+                autoComplete="tel"
                 value={formData.visitor_phone || ''}
                 onChange={(e) => updateField('visitor_phone', formatMobileNumber(e.target.value))}
                 onBlur={() => handleBlur('visitor_phone')}
@@ -865,6 +863,8 @@ export const CreateGatePass: React.FC = () => {
               </label>
               <Input
                 type="tel"
+                inputMode="tel"
+                autoComplete="tel"
                 value={formData.driver_contact || ''}
                 onChange={(e) => updateField('driver_contact', formatMobileNumber(e.target.value))}
                 onBlur={() => handleBlur('driver_contact')}
@@ -944,7 +944,14 @@ export const CreateGatePass: React.FC = () => {
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.md }}>
+                <div 
+                  className="responsive-date-time-grid"
+                  style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: '1fr', // Single column on mobile by default
+                    gap: spacing.md
+                  }}
+                >
                   <div>
                     <label style={{ ...typography.label, display: 'block', marginBottom: spacing.xs }}>
                       Expected Return Date
@@ -953,7 +960,7 @@ export const CreateGatePass: React.FC = () => {
                       type="date"
                       value={formData.expected_return_date || ''}
                       onChange={(e) => updateField('expected_return_date', e.target.value)}
-                      style={{ width: '100%' }}
+                      style={{ width: '100%', fontSize: '16px' }} // 16px prevents iOS zoom
                     />
                   </div>
                   <div>
@@ -964,10 +971,17 @@ export const CreateGatePass: React.FC = () => {
                       type="time"
                       value={formData.expected_return_time || ''}
                       onChange={(e) => updateField('expected_return_time', e.target.value)}
-                      style={{ width: '100%' }}
+                      style={{ width: '100%', fontSize: '16px' }} // 16px prevents iOS zoom
                     />
                   </div>
                 </div>
+                <style>{`
+                  @media (min-width: 768px) {
+                    .responsive-date-time-grid {
+                      grid-template-columns: 1fr 1fr !important;
+                    }
+                  }
+                `}</style>
 
                 <div>
                   <label style={{ ...typography.label, display: 'block', marginBottom: spacing.xs }}>
@@ -1027,7 +1041,7 @@ export const CreateGatePass: React.FC = () => {
         </div>
 
         {/* Submit Button */}
-        <div style={{ display: 'flex', gap: spacing.md, justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: spacing.md, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <Button
             type="button"
             variant="secondary"

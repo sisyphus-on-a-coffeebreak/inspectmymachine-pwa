@@ -4,8 +4,11 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../providers/useAuth";
 import { colors, typography, spacing } from "../lib/theme";
 import { Sparkles, Lock, User as UserIcon, Eye, EyeOff, AlertCircle, LogIn } from "lucide-react";
+import { useSmartKeyboard } from "../hooks/useSmartKeyboard";
 
 export default function Login() {
+  // Enable smart keyboard handling for mobile
+  useSmartKeyboard({ enabled: true, scrollOffset: 100 });
   const [employeeId, setEmployeeId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -38,7 +41,7 @@ export default function Login() {
 
   return (
     <div style={{ 
-      minHeight: '100vh',
+      minHeight: '100dvh', // Use dynamic viewport height for mobile
       background: `linear-gradient(135deg, ${colors.neutral[50]} 0%, ${colors.neutral[100]} 100%)`,
       fontFamily: 'system-ui, -apple-system, sans-serif',
       display: 'flex',
@@ -222,6 +225,7 @@ export default function Login() {
                 <input
                   id="employeeId"
                   type="text"
+                  inputMode="text"
                   value={employeeId}
                   onChange={(e) => setEmployeeId(e.target.value.toUpperCase())}
                   placeholder="Enter your employee ID"
@@ -233,7 +237,7 @@ export default function Login() {
                     padding: `${parseInt(spacing.md) + 4}px ${parseInt(spacing.md) + 4}px ${parseInt(spacing.md) + 4}px ${parseInt(spacing.xl) * 2.75}px`,
                     border: `1.5px solid ${colors.neutral[300]}`,
                     borderRadius: '12px',
-                    fontSize: '15px',
+                    fontSize: '16px', // 16px prevents iOS zoom on focus
                     color: colors.neutral[900],
                     background: loading ? colors.neutral[50] : 'white',
                     cursor: loading ? 'not-allowed' : 'text',
@@ -285,6 +289,7 @@ export default function Login() {
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
+                  inputMode="text"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
@@ -296,7 +301,7 @@ export default function Login() {
                     padding: `${parseInt(spacing.md) + 4}px ${parseInt(spacing.xl) * 2.75}px ${parseInt(spacing.md) + 4}px ${parseInt(spacing.xl) * 2.75}px`,
                     border: `1.5px solid ${colors.neutral[300]}`,
                     borderRadius: '12px',
-                    fontSize: '15px',
+                    fontSize: '16px', // 16px prevents iOS zoom on focus
                     color: colors.neutral[900],
                     background: loading ? colors.neutral[50] : 'white',
                     cursor: loading ? 'not-allowed' : 'text',
@@ -328,10 +333,13 @@ export default function Login() {
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     padding: spacing.xs,
                     color: colors.neutral[400],
                     transition: 'color 0.2s ease',
-                    zIndex: 1
+                    zIndex: 1,
+                    minWidth: '44px', // Minimum touch target
+                    minHeight: '44px', // Minimum touch target
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.color = colors.neutral[700];

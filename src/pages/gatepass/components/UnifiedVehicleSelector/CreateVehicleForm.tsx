@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { Input } from '../../../../components/ui/input';
 import { Button } from '../../../../components/ui/button';
 import { colors, spacing, typography } from '../../../../lib/theme';
+import { useSmartKeyboard } from '../../../../hooks/useSmartKeyboard';
 
 interface NewVehiclePayload {
   registration_number: string;
@@ -28,6 +29,9 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
   loading = false,
   yardId = null,
 }) => {
+  // Enable smart keyboard handling for mobile
+  useSmartKeyboard({ enabled: true, scrollOffset: 100 });
+  
   const [newVehicleData, setNewVehicleData] = useState({
     make: '',
     model: '',
@@ -77,9 +81,10 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
       </div>
 
       <div
+        className="responsive-vehicle-form-grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          gridTemplateColumns: '1fr', // Single column on mobile
           gap: spacing.md,
           marginBottom: spacing.md,
         }}
@@ -90,6 +95,8 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
           </label>
           <Input
             type="text"
+            inputMode="text"
+            autoComplete="organization"
             value={newVehicleData.make}
             onChange={(e) =>
               setNewVehicleData((prev) => ({ ...prev, make: e.target.value }))
@@ -97,6 +104,7 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
             placeholder="e.g., Tata"
             required
             disabled={loading}
+            style={{ fontSize: '16px' }} // 16px prevents iOS zoom
           />
         </div>
         <div>
@@ -105,6 +113,8 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
           </label>
           <Input
             type="text"
+            inputMode="text"
+            autoComplete="off"
             value={newVehicleData.model}
             onChange={(e) =>
               setNewVehicleData((prev) => ({ ...prev, model: e.target.value }))
@@ -112,6 +122,7 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
             placeholder="e.g., Ace"
             required
             disabled={loading}
+            style={{ fontSize: '16px' }} // 16px prevents iOS zoom
           />
         </div>
       </div>
@@ -122,6 +133,8 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
         </label>
         <Input
           type="number"
+          inputMode="numeric"
+          autoComplete="off"
           value={newVehicleData.year}
           onChange={(e) =>
             setNewVehicleData((prev) => ({ ...prev, year: e.target.value }))
@@ -131,6 +144,7 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
           max={new Date().getFullYear() + 1}
           required
           disabled={loading}
+          style={{ fontSize: '16px' }} // 16px prevents iOS zoom
         />
       </div>
 
@@ -147,6 +161,15 @@ export const CreateVehicleForm: React.FC<CreateVehicleFormProps> = ({
           Cancel
         </Button>
       </div>
+
+      {/* Responsive grid styles */}
+      <style>{`
+        @media (min-width: 768px) {
+          .responsive-vehicle-form-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

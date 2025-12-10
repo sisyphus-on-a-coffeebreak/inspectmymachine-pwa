@@ -194,7 +194,7 @@ export default function AppLayout({
 
     const checkMobile = () => {
       const wasMobile = isMobile;
-      const nowMobile = window.innerWidth < 1024; // Mobile + Tablet (0-1023px)
+      const nowMobile = window.innerWidth < 1024; // Mobile + Tablet (0-1023px) - using standardized breakpoint
 
       setIsMobile(nowMobile);
 
@@ -302,11 +302,14 @@ export default function AppLayout({
           }
         }}
         onMouseEnter={(e) => {
-          if (!hasChildren) {
-            prefetchRoute(item.path);
-          }
-          if (!active) {
-            e.currentTarget.style.background = colors.neutral[100];
+          // Only on hover-capable devices
+          if (window.matchMedia('(hover: hover)').matches) {
+            if (!hasChildren) {
+              prefetchRoute(item.path);
+            }
+            if (!active) {
+              e.currentTarget.style.background = colors.neutral[100];
+            }
           }
         }}
         style={{
@@ -323,12 +326,30 @@ export default function AppLayout({
           transition: "background-color 0.2s ease, color 0.2s ease",
           marginBottom: spacing.xs,
           fontWeight: active ? 600 : 500,
-          position: "relative"
+          position: "relative",
+          minHeight: '44px', // Touch target minimum
+          touchAction: 'manipulation'
         }}
         onMouseLeave={(e) => {
-          if (!active) {
+          if (!active && window.matchMedia('(hover: hover)').matches) {
             e.currentTarget.style.background = "transparent";
           }
+        }}
+        onTouchStart={(e) => {
+          // Touch feedback
+          if (!active) {
+            e.currentTarget.style.background = colors.neutral[100];
+            e.currentTarget.style.transform = 'scale(0.98)';
+          }
+        }}
+        onTouchEnd={(e) => {
+          // Reset after touch
+          setTimeout(() => {
+            if (!active) {
+              e.currentTarget.style.background = "transparent";
+            }
+            e.currentTarget.style.transform = 'scale(1)';
+          }, 150);
         }}
       >
         <Icon style={{ width: "20px", height: "20px", flexShrink: 0, color: active ? colors.primary : colors.neutral[600] }} />
@@ -407,8 +428,12 @@ export default function AppLayout({
             borderRadius: "8px",
             display: "flex",
             alignItems: "center",
-            justifyContent: "center"
+            justifyContent: "center",
+            minWidth: '44px', // Touch target minimum
+            minHeight: '44px',
+            touchAction: 'manipulation'
           }}
+          aria-label={sidebarOpen ? "Close menu" : "Open menu"}
         >
           {sidebarOpen ? (
             <X style={{ width: "24px", height: "24px", color: colors.neutral[700] }} />
@@ -451,12 +476,29 @@ export default function AppLayout({
                 justifyContent: "center",
                 color: colors.neutral[700],
                 transition: "all 0.2s",
+                minWidth: '44px', // Touch target minimum
+                minHeight: '44px',
+                touchAction: 'manipulation'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = colors.neutral[100];
+                if (window.matchMedia('(hover: hover)').matches) {
+                  e.currentTarget.style.backgroundColor = colors.neutral[100];
+                }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
+                if (window.matchMedia('(hover: hover)').matches) {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }
+              }}
+              onTouchStart={(e) => {
+                e.currentTarget.style.backgroundColor = colors.neutral[100];
+                e.currentTarget.style.transform = 'scale(0.95)';
+              }}
+              onTouchEnd={(e) => {
+                setTimeout(() => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.transform = 'scale(1)';
+                }, 150);
               }}
               aria-label="Search"
             >

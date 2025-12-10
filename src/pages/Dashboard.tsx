@@ -262,7 +262,7 @@ export default function Dashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
             <h2 style={{ 
               ...typography.header,
-              fontSize: '32px',
+              fontSize: 'clamp(24px, 5vw, 32px)', // Responsive: 24px mobile, scales up to 32px
               color: colors.neutral[900],
               margin: 0,
               fontWeight: 700
@@ -274,7 +274,7 @@ export default function Dashboard() {
               background: `linear-gradient(135deg, ${colors.status.normal} 0%, ${colors.status.normal}80 100%)`,
               borderRadius: '20px',
               color: 'white',
-              fontSize: '12px',
+              fontSize: 'clamp(11px, 2vw, 12px)', // Responsive: 11px mobile, scales up to 12px
               fontWeight: 600
             }}>
               {new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric' })}
@@ -363,20 +363,34 @@ export default function Dashboard() {
             }}>
               📋 Task Board
             </h3>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
-              gap: spacing.lg
-            }}>
+            <div 
+              className="kanban-board-container"
+              style={{ 
+                display: 'flex',
+                overflowX: 'auto',
+                gap: spacing.lg,
+                paddingBottom: spacing.md,
+                WebkitOverflowScrolling: 'touch',
+                scrollSnapType: 'x mandatory'
+              }}
+            >
               {/* Completed Today Column */}
-              <div style={{
-                background: 'white',
-                borderRadius: '16px',
-                padding: spacing.lg,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                border: `1px solid ${colors.neutral[200]}`,
-                minHeight: '400px'
-              }}>
+              <div 
+                className="kanban-column"
+                style={{
+                  background: 'white',
+                  borderRadius: '16px',
+                  padding: spacing.lg,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                  border: `1px solid ${colors.neutral[200]}`,
+                  minHeight: '400px',
+                  // Mobile: fixed width for horizontal scroll
+                  minWidth: '280px',
+                  maxWidth: '280px',
+                  scrollSnapAlign: 'start',
+                  flexShrink: 0
+                }}
+              >
                 <div style={{ marginBottom: spacing.md }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
                     <CheckCircle style={{ width: '20px', height: '20px', color: colors.status.normal }} />
@@ -393,7 +407,7 @@ export default function Dashboard() {
                       padding: '2px 8px',
                       background: colors.status.normal + '20',
                       borderRadius: '12px',
-                      fontSize: '12px',
+                      fontSize: 'clamp(11px, 2vw, 12px)', // Responsive text size
                       color: colors.status.normal,
                       fontWeight: 600
                     }}>
@@ -407,30 +421,50 @@ export default function Dashboard() {
                       Loading...
                     </div>
                   ) : stats.kanban.completed_today && stats.kanban.completed_today.length > 0 ? (
-                    stats.kanban.completed_today.map((item) => (
+                    stats.kanban.completed_today.map((item: KanbanItem) => (
                       <div
                         key={item.id}
                         onClick={() => navigate(item.url)}
+                        className="kanban-card"
                         style={{
                           padding: spacing.md,
                           background: colors.neutral[50],
                           borderRadius: '12px',
                           border: `1px solid ${colors.neutral[200]}`,
                           cursor: 'pointer',
-                          transition: 'all 0.2s ease'
+                          transition: 'all 0.2s ease',
+                          minHeight: '44px', // Touch target minimum
+                          touchAction: 'manipulation' // Better touch response
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.background = colors.neutral[100];
-                          e.currentTarget.style.transform = 'translateX(4px)';
+                          // Only on hover-capable devices
+                          if (window.matchMedia('(hover: hover)').matches) {
+                            e.currentTarget.style.background = colors.neutral[100];
+                            e.currentTarget.style.transform = 'translateX(4px)';
+                          }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.background = colors.neutral[50];
-                          e.currentTarget.style.transform = 'translateX(0)';
+                          if (window.matchMedia('(hover: hover)').matches) {
+                            e.currentTarget.style.background = colors.neutral[50];
+                            e.currentTarget.style.transform = 'translateX(0)';
+                          }
+                        }}
+                        onTouchStart={(e) => {
+                          // Touch feedback
+                          e.currentTarget.style.background = colors.neutral[100];
+                          e.currentTarget.style.transform = 'scale(0.98)';
+                        }}
+                        onTouchEnd={(e) => {
+                          // Reset after touch
+                          setTimeout(() => {
+                            e.currentTarget.style.background = colors.neutral[50];
+                            e.currentTarget.style.transform = 'scale(1)';
+                          }, 150);
                         }}
                       >
                         <p style={{ 
                           ...typography.label,
-                          fontSize: '14px',
+                          fontSize: 'clamp(14px, 2.5vw, 16px)', // Responsive: minimum 14px for readability
                           color: colors.neutral[900],
                           margin: 0,
                           marginBottom: spacing.xs,
@@ -450,14 +484,14 @@ export default function Dashboard() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xs }}>
                           <span style={{ 
                             ...typography.bodySmall,
-                            fontSize: '11px',
+                            fontSize: 'clamp(12px, 2vw, 13px)', // Responsive: minimum 12px for readability
                             color: colors.neutral[500]
                           }}>
                             {item.assignee}
                           </span>
                           <span style={{ 
                             ...typography.bodySmall,
-                            fontSize: '11px',
+                            fontSize: 'clamp(12px, 2vw, 13px)', // Responsive: minimum 12px for readability
                             color: colors.neutral[500]
                           }}>
                             {item.time}
@@ -474,14 +508,22 @@ export default function Dashboard() {
               </div>
 
               {/* Pending Tasks Column */}
-              <div style={{
-                background: 'white',
-                borderRadius: '16px',
-                padding: spacing.lg,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                border: `1px solid ${colors.neutral[200]}`,
-                minHeight: '400px'
-              }}>
+              <div 
+                className="kanban-column"
+                style={{
+                  background: 'white',
+                  borderRadius: '16px',
+                  padding: spacing.lg,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                  border: `1px solid ${colors.neutral[200]}`,
+                  minHeight: '400px',
+                  // Mobile: fixed width for horizontal scroll
+                  minWidth: '280px',
+                  maxWidth: '280px',
+                  scrollSnapAlign: 'start',
+                  flexShrink: 0
+                }}
+              >
                 <div style={{ marginBottom: spacing.md }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
                     <Clock style={{ width: '20px', height: '20px', color: colors.status.warning }} />
@@ -498,7 +540,7 @@ export default function Dashboard() {
                       padding: '2px 8px',
                       background: colors.status.warning + '20',
                       borderRadius: '12px',
-                      fontSize: '12px',
+                      fontSize: 'clamp(11px, 2vw, 12px)', // Responsive text size
                       color: colors.status.warning,
                       fontWeight: 600
                     }}>
@@ -512,30 +554,50 @@ export default function Dashboard() {
                       Loading...
                     </div>
                   ) : stats.kanban.pending_tasks && stats.kanban.pending_tasks.length > 0 ? (
-                    stats.kanban.pending_tasks.map((item) => (
+                    stats.kanban.pending_tasks.map((item: KanbanItem) => (
                       <div
                         key={item.id}
                         onClick={() => navigate(item.url)}
+                        className="kanban-card"
                         style={{
                           padding: spacing.md,
                           background: colors.neutral[50],
                           borderRadius: '12px',
                           border: `1px solid ${colors.neutral[200]}`,
                           cursor: 'pointer',
-                          transition: 'all 0.2s ease'
+                          transition: 'all 0.2s ease',
+                          minHeight: '44px', // Touch target minimum
+                          touchAction: 'manipulation' // Better touch response
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.background = colors.neutral[100];
-                          e.currentTarget.style.transform = 'translateX(4px)';
+                          // Only on hover-capable devices
+                          if (window.matchMedia('(hover: hover)').matches) {
+                            e.currentTarget.style.background = colors.neutral[100];
+                            e.currentTarget.style.transform = 'translateX(4px)';
+                          }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.background = colors.neutral[50];
-                          e.currentTarget.style.transform = 'translateX(0)';
+                          if (window.matchMedia('(hover: hover)').matches) {
+                            e.currentTarget.style.background = colors.neutral[50];
+                            e.currentTarget.style.transform = 'translateX(0)';
+                          }
+                        }}
+                        onTouchStart={(e) => {
+                          // Touch feedback
+                          e.currentTarget.style.background = colors.neutral[100];
+                          e.currentTarget.style.transform = 'scale(0.98)';
+                        }}
+                        onTouchEnd={(e) => {
+                          // Reset after touch
+                          setTimeout(() => {
+                            e.currentTarget.style.background = colors.neutral[50];
+                            e.currentTarget.style.transform = 'scale(1)';
+                          }, 150);
                         }}
                       >
                         <p style={{ 
                           ...typography.label,
-                          fontSize: '14px',
+                          fontSize: 'clamp(14px, 2.5vw, 16px)', // Responsive: minimum 14px for readability
                           color: colors.neutral[900],
                           margin: 0,
                           marginBottom: spacing.xs,
@@ -555,14 +617,14 @@ export default function Dashboard() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xs }}>
                           <span style={{ 
                             ...typography.bodySmall,
-                            fontSize: '11px',
+                            fontSize: 'clamp(12px, 2vw, 13px)', // Responsive: minimum 12px for readability
                             color: colors.neutral[500]
                           }}>
                             {item.assignee}
                           </span>
                           <span style={{ 
                             ...typography.bodySmall,
-                            fontSize: '11px',
+                            fontSize: 'clamp(12px, 2vw, 13px)', // Responsive: minimum 12px for readability
                             color: colors.neutral[500]
                           }}>
                             {item.time}
@@ -579,14 +641,22 @@ export default function Dashboard() {
               </div>
 
               {/* Urgent Items Column */}
-              <div style={{
-                background: 'white',
-                borderRadius: '16px',
-                padding: spacing.lg,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                border: `1px solid ${colors.status.critical}`,
-                minHeight: '400px'
-              }}>
+              <div 
+                className="kanban-column"
+                style={{
+                  background: 'white',
+                  borderRadius: '16px',
+                  padding: spacing.lg,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                  border: `1px solid ${colors.status.critical}`,
+                  minHeight: '400px',
+                  // Mobile: fixed width for horizontal scroll
+                  minWidth: '280px',
+                  maxWidth: '280px',
+                  scrollSnapAlign: 'start',
+                  flexShrink: 0
+                }}
+              >
                 <div style={{ marginBottom: spacing.md }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
                     <AlertCircle style={{ width: '20px', height: '20px', color: colors.status.critical }} />
@@ -603,7 +673,7 @@ export default function Dashboard() {
                       padding: '2px 8px',
                       background: colors.status.critical + '20',
                       borderRadius: '12px',
-                      fontSize: '12px',
+                      fontSize: 'clamp(11px, 2vw, 12px)', // Responsive text size
                       color: colors.status.critical,
                       fontWeight: 600
                     }}>
@@ -617,30 +687,50 @@ export default function Dashboard() {
                       Loading...
                     </div>
                   ) : stats.kanban.urgent_items && stats.kanban.urgent_items.length > 0 ? (
-                    stats.kanban.urgent_items.map((item) => (
+                    stats.kanban.urgent_items.map((item: KanbanItem) => (
                       <div
                         key={item.id}
                         onClick={() => navigate(item.url)}
+                        className="kanban-card"
                         style={{
                           padding: spacing.md,
                           background: colors.status.critical + '10',
                           borderRadius: '12px',
                           border: `1px solid ${colors.status.critical}`,
                           cursor: 'pointer',
-                          transition: 'all 0.2s ease'
+                          transition: 'all 0.2s ease',
+                          minHeight: '44px', // Touch target minimum
+                          touchAction: 'manipulation' // Better touch response
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.background = colors.status.critical + '20';
-                          e.currentTarget.style.transform = 'translateX(4px)';
+                          // Only on hover-capable devices
+                          if (window.matchMedia('(hover: hover)').matches) {
+                            e.currentTarget.style.background = colors.status.critical + '20';
+                            e.currentTarget.style.transform = 'translateX(4px)';
+                          }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.background = colors.status.critical + '10';
-                          e.currentTarget.style.transform = 'translateX(0)';
+                          if (window.matchMedia('(hover: hover)').matches) {
+                            e.currentTarget.style.background = colors.status.critical + '10';
+                            e.currentTarget.style.transform = 'translateX(0)';
+                          }
+                        }}
+                        onTouchStart={(e) => {
+                          // Touch feedback
+                          e.currentTarget.style.background = colors.status.critical + '20';
+                          e.currentTarget.style.transform = 'scale(0.98)';
+                        }}
+                        onTouchEnd={(e) => {
+                          // Reset after touch
+                          setTimeout(() => {
+                            e.currentTarget.style.background = colors.status.critical + '10';
+                            e.currentTarget.style.transform = 'scale(1)';
+                          }, 150);
                         }}
                       >
                         <p style={{ 
                           ...typography.label,
-                          fontSize: '14px',
+                          fontSize: 'clamp(14px, 2.5vw, 16px)', // Responsive: minimum 14px for readability
                           color: colors.neutral[900],
                           margin: 0,
                           marginBottom: spacing.xs,
@@ -660,14 +750,14 @@ export default function Dashboard() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xs }}>
                           <span style={{ 
                             ...typography.bodySmall,
-                            fontSize: '11px',
+                            fontSize: 'clamp(12px, 2vw, 13px)', // Responsive: minimum 12px for readability
                             color: colors.neutral[500]
                           }}>
                             {item.assignee}
                           </span>
                           <span style={{ 
                             ...typography.bodySmall,
-                            fontSize: '11px',
+                            fontSize: 'clamp(12px, 2vw, 13px)', // Responsive: minimum 12px for readability
                             color: colors.status.critical,
                             fontWeight: 600
                           }}>
@@ -684,6 +774,40 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+            
+            {/* Responsive styles for kanban board */}
+            <style>{`
+              /* Mobile: Horizontal scroll (0-767px) */
+              @media (max-width: 767px) {
+                .kanban-board-container {
+                  display: flex !important;
+                  overflow-x: auto !important;
+                  scroll-snap-type: x mandatory;
+                  -webkit-overflow-scrolling: touch;
+                }
+                .kanban-column {
+                  min-width: 280px !important;
+                  max-width: 280px !important;
+                  scroll-snap-align: start;
+                  flex-shrink: 0;
+                }
+              }
+              
+              /* Tablet and Desktop: Grid layout (768px+) */
+              @media (min-width: 768px) {
+                .kanban-board-container {
+                  display: grid !important;
+                  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+                  overflow-x: visible !important;
+                  scroll-snap-type: none !important;
+                }
+                .kanban-column {
+                  min-width: auto !important;
+                  max-width: none !important;
+                  flex-shrink: 1;
+                }
+              }
+            `}</style>
           </div>
         )}
 
@@ -706,15 +830,19 @@ export default function Dashboard() {
             </h3>
           </div>
 
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
-            gap: spacing.lg
-          }}>
+          <div 
+            className="module-cards-grid"
+            style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr', // Single column on mobile
+              gap: spacing.lg
+            }}
+          >
             {/* Gate Pass Reports */}
             {(user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'guard' || user?.role === 'clerk') && (
               <div
                 onClick={() => navigate('/app/gate-pass/reports')}
+                className="module-card"
                 style={{
                   background: 'white',
                   padding: spacing.xl,
@@ -723,16 +851,33 @@ export default function Dashboard() {
                   border: `1px solid ${colors.neutral[200]}`,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
+                  minHeight: '44px', // Touch target minimum
+                  touchAction: 'manipulation'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
-                  e.currentTarget.style.borderColor = colors.primary;
+                  // Only on hover-capable devices
+                  if (window.matchMedia('(hover: hover)').matches) {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
+                    e.currentTarget.style.borderColor = colors.primary;
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
-                  e.currentTarget.style.borderColor = colors.neutral[200];
+                  if (window.matchMedia('(hover: hover)').matches) {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                    e.currentTarget.style.borderColor = colors.neutral[200];
+                  }
+                }}
+                onTouchStart={(e) => {
+                  e.currentTarget.style.transform = 'scale(0.98)';
+                  e.currentTarget.style.opacity = '0.9';
+                }}
+                onTouchEnd={(e) => {
+                  setTimeout(() => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.opacity = '1';
+                  }, 150);
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
@@ -767,6 +912,7 @@ export default function Dashboard() {
             {(user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'inspector') && (
               <div
                 onClick={() => navigate('/app/inspections/reports')}
+                className="module-card"
                 style={{
                   background: 'white',
                   padding: spacing.xl,
@@ -775,16 +921,33 @@ export default function Dashboard() {
                   border: `1px solid ${colors.neutral[200]}`,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
+                  minHeight: '44px', // Touch target minimum
+                  touchAction: 'manipulation'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
-                  e.currentTarget.style.borderColor = colors.primary;
+                  // Only on hover-capable devices
+                  if (window.matchMedia('(hover: hover)').matches) {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
+                    e.currentTarget.style.borderColor = colors.primary;
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
-                  e.currentTarget.style.borderColor = colors.neutral[200];
+                  if (window.matchMedia('(hover: hover)').matches) {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                    e.currentTarget.style.borderColor = colors.neutral[200];
+                  }
+                }}
+                onTouchStart={(e) => {
+                  e.currentTarget.style.transform = 'scale(0.98)';
+                  e.currentTarget.style.opacity = '0.9';
+                }}
+                onTouchEnd={(e) => {
+                  setTimeout(() => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.opacity = '1';
+                  }, 150);
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
@@ -819,6 +982,7 @@ export default function Dashboard() {
             {(user?.role === 'super_admin' || user?.role === 'admin') && (
               <div
                 onClick={() => navigate('/app/expenses/reports')}
+                className="module-card"
                 style={{
                   background: 'white',
                   padding: spacing.xl,
@@ -827,16 +991,33 @@ export default function Dashboard() {
                   border: `1px solid ${colors.neutral[200]}`,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
+                  minHeight: '44px', // Touch target minimum
+                  touchAction: 'manipulation'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
-                  e.currentTarget.style.borderColor = colors.primary;
+                  // Only on hover-capable devices
+                  if (window.matchMedia('(hover: hover)').matches) {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
+                    e.currentTarget.style.borderColor = colors.primary;
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
-                  e.currentTarget.style.borderColor = colors.neutral[200];
+                  if (window.matchMedia('(hover: hover)').matches) {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                    e.currentTarget.style.borderColor = colors.neutral[200];
+                  }
+                }}
+                onTouchStart={(e) => {
+                  e.currentTarget.style.transform = 'scale(0.98)';
+                  e.currentTarget.style.opacity = '0.9';
+                }}
+                onTouchEnd={(e) => {
+                  setTimeout(() => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.opacity = '1';
+                  }, 150);
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
@@ -871,6 +1052,7 @@ export default function Dashboard() {
             {(user?.role === 'super_admin' || user?.role === 'admin') && (
               <div
                 onClick={() => navigate('/app/stockyard')}
+                className="module-card"
                 style={{
                   background: 'white',
                   padding: spacing.xl,
@@ -879,16 +1061,33 @@ export default function Dashboard() {
                   border: `1px solid ${colors.neutral[200]}`,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
+                  minHeight: '44px', // Touch target minimum
+                  touchAction: 'manipulation'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
-                  e.currentTarget.style.borderColor = colors.primary;
+                  // Only on hover-capable devices
+                  if (window.matchMedia('(hover: hover)').matches) {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
+                    e.currentTarget.style.borderColor = colors.primary;
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
-                  e.currentTarget.style.borderColor = colors.neutral[200];
+                  if (window.matchMedia('(hover: hover)').matches) {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                    e.currentTarget.style.borderColor = colors.neutral[200];
+                  }
+                }}
+                onTouchStart={(e) => {
+                  e.currentTarget.style.transform = 'scale(0.98)';
+                  e.currentTarget.style.opacity = '0.9';
+                }}
+                onTouchEnd={(e) => {
+                  setTimeout(() => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.opacity = '1';
+                  }, 150);
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
@@ -923,6 +1122,7 @@ export default function Dashboard() {
             {(user?.role === 'super_admin' || user?.role === 'admin') && (
               <div
                 onClick={() => navigate('/app/admin/users/activity')}
+                className="module-card"
                 style={{
                   background: 'white',
                   padding: spacing.xl,
@@ -931,16 +1131,33 @@ export default function Dashboard() {
                   border: `1px solid ${colors.neutral[200]}`,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
+                  minHeight: '44px', // Touch target minimum
+                  touchAction: 'manipulation'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
-                  e.currentTarget.style.borderColor = colors.primary;
+                  // Only on hover-capable devices
+                  if (window.matchMedia('(hover: hover)').matches) {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
+                    e.currentTarget.style.borderColor = colors.primary;
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
-                  e.currentTarget.style.borderColor = colors.neutral[200];
+                  if (window.matchMedia('(hover: hover)').matches) {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                    e.currentTarget.style.borderColor = colors.neutral[200];
+                  }
+                }}
+                onTouchStart={(e) => {
+                  e.currentTarget.style.transform = 'scale(0.98)';
+                  e.currentTarget.style.opacity = '0.9';
+                }}
+                onTouchEnd={(e) => {
+                  setTimeout(() => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.opacity = '1';
+                  }, 150);
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
@@ -971,6 +1188,30 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+          
+          {/* Responsive styles for module cards */}
+          <style>{`
+            /* Mobile: Single column (0-767px) */
+            @media (max-width: 767px) {
+              .module-cards-grid {
+                grid-template-columns: 1fr !important;
+              }
+            }
+            
+            /* Tablet: 2 columns (768px-1023px) */
+            @media (min-width: 768px) and (max-width: 1023px) {
+              .module-cards-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+              }
+            }
+            
+            /* Desktop: 3+ columns (1024px+) */
+            @media (min-width: 1024px) {
+              .module-cards-grid {
+                grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)) !important;
+              }
+            }
+          `}</style>
         </div>
 
         {/* Recent Activity */}
@@ -1023,7 +1264,7 @@ export default function Dashboard() {
                 Loading recent activity...
               </div>
             ) : stats?.recent_activity && stats.recent_activity.length > 0 ? (
-              stats.recent_activity.map((activity, index) => (
+              stats.recent_activity.map((activity: { action: string; user: string; time: string; type: string }, index: number) => (
               <div key={index} style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1058,7 +1299,7 @@ export default function Dashboard() {
                     ...typography.bodySmall,
                     color: colors.neutral[600],
                     margin: 0,
-                    fontSize: '12px'
+                    fontSize: 'clamp(13px, 2.5vw, 14px)' // Responsive: minimum 13px for readability
                   }}>
                     by {activity.user} • {activity.time}
                   </p>

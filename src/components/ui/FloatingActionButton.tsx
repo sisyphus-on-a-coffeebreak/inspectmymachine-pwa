@@ -89,14 +89,31 @@ export function FloatingActionButton({ icon: Icon, label, actions }: FloatingAct
                     whiteSpace: 'nowrap',
                     transition: 'all 0.2s ease',
                     animation: `slideIn 0.2s ease ${index * 0.05}s both`,
+                    minHeight: '44px', // Touch target minimum
+                    touchAction: 'manipulation'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'scale(1.05)';
-                    e.currentTarget.style.boxShadow = shadows.xl;
+                    // Only on hover-capable devices
+                    if (window.matchMedia('(hover: hover)').matches) {
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                      e.currentTarget.style.boxShadow = shadows.xl;
+                    }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.boxShadow = shadows.lg;
+                    if (window.matchMedia('(hover: hover)').matches) {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = shadows.lg;
+                    }
+                  }}
+                  onTouchStart={(e) => {
+                    e.currentTarget.style.transform = 'scale(0.95)';
+                    e.currentTarget.style.opacity = '0.9';
+                  }}
+                  onTouchEnd={(e) => {
+                    setTimeout(() => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.opacity = '1';
+                    }, 150);
                   }}
                 >
                   <ActionIcon size={20} color={colors.primary} />
@@ -113,8 +130,8 @@ export function FloatingActionButton({ icon: Icon, label, actions }: FloatingAct
         <button
           onClick={() => setExpanded(!expanded)}
           style={{
-            width: '56px',
-            height: '56px',
+            width: '64px', // Larger on mobile for easier tapping
+            height: '64px',
             borderRadius: '50%',
             backgroundColor: colors.primary,
             color: 'white',
@@ -126,12 +143,26 @@ export function FloatingActionButton({ icon: Icon, label, actions }: FloatingAct
             boxShadow: shadows.xl,
             transition: 'all 0.2s ease',
             transform: expanded ? 'rotate(45deg)' : 'rotate(0deg)',
+            touchAction: 'manipulation'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.transform = expanded ? 'rotate(45deg) scale(1.1)' : 'scale(1.1)';
+            // Only on hover-capable devices
+            if (window.matchMedia('(hover: hover)').matches) {
+              e.currentTarget.style.transform = expanded ? 'rotate(45deg) scale(1.1)' : 'scale(1.1)';
+            }
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.transform = expanded ? 'rotate(45deg)' : 'rotate(0deg)';
+            if (window.matchMedia('(hover: hover)').matches) {
+              e.currentTarget.style.transform = expanded ? 'rotate(45deg)' : 'rotate(0deg)';
+            }
+          }}
+          onTouchStart={(e) => {
+            e.currentTarget.style.transform = expanded ? 'rotate(45deg) scale(0.95)' : 'scale(0.95)';
+          }}
+          onTouchEnd={(e) => {
+            setTimeout(() => {
+              e.currentTarget.style.transform = expanded ? 'rotate(45deg)' : 'rotate(0deg)';
+            }, 150);
           }}
           aria-label={expanded ? 'Close' : label}
         >
@@ -159,6 +190,14 @@ export function FloatingActionButton({ icon: Icon, label, actions }: FloatingAct
         @media (min-width: 768px) {
           .fab-container {
             display: none !important;
+          }
+        }
+        
+        /* Mobile: Larger FAB */
+        @media (max-width: 767px) {
+          .fab-container button[aria-label] {
+            width: 64px !important;
+            height: 64px !important;
           }
         }
       `}</style>

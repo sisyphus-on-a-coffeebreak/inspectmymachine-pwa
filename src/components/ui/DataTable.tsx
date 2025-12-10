@@ -201,6 +201,22 @@ function DataTableComponent<T extends Record<string, any>>({
           backgroundColor: isSelected ? colors.primary + '10' : 'white',
           border: `1px solid ${isSelected ? colors.primary : colors.neutral[200]}`,
           transition: 'all 0.2s ease',
+          minHeight: '44px', // Touch target minimum
+          touchAction: 'manipulation' // Better touch response
+        }}
+        onTouchStart={(e) => {
+          if (onRowClick) {
+            e.currentTarget.style.transform = 'scale(0.98)';
+            e.currentTarget.style.opacity = '0.9';
+          }
+        }}
+        onTouchEnd={(e) => {
+          if (onRowClick) {
+            setTimeout(() => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.opacity = '1';
+            }, 150);
+          }
         }}
       >
         {selectable && (
@@ -220,11 +236,12 @@ function DataTableComponent<T extends Record<string, any>>({
               }}
               aria-label={`Select row ${index + 1}`}
               style={{
-                width: '20px',
-                height: '20px',
+                width: '24px', // Larger for better touch target
+                height: '24px',
                 cursor: 'pointer',
-                minWidth: '20px',
-                minHeight: '20px',
+                minWidth: '24px',
+                minHeight: '24px',
+                touchAction: 'manipulation'
               }}
             />
           </div>
@@ -334,11 +351,12 @@ function DataTableComponent<T extends Record<string, any>>({
                       onChange={(e) => handleSelectAll(e.target.checked)}
                       aria-label="Select all rows"
                       style={{
-                        width: '20px',
-                        height: '20px',
+                        width: '24px', // Larger for better touch target
+                        height: '24px',
                         cursor: 'pointer',
-                        minWidth: '20px',
-                        minHeight: '20px',
+                        minWidth: '24px',
+                        minHeight: '24px',
+                        touchAction: 'manipulation'
                       }}
                     />
                   </div>
@@ -472,7 +490,10 @@ function DataTableComponent<T extends Record<string, any>>({
                         onChange={(e) => handleRowSelect(row, e.target.checked)}
                         aria-label={`Select row ${index + 1}`}
                         style={{
-                          width: '18px',
+                          width: '24px', // Larger for better touch target
+                          height: '24px',
+                          minWidth: '24px',
+                          minHeight: '24px',
                           height: '18px',
                           cursor: 'pointer',
                         }}
@@ -506,7 +527,7 @@ function DataTableComponent<T extends Record<string, any>>({
         </table>
       </div>
       <style>{`
-        /* Mobile: Show cards, hide table */
+        /* Mobile: Show cards, hide table (using standardized breakpoint: < 768px) */
         @media (max-width: 767px) {
           .data-table-mobile-view {
             display: block !important;
@@ -517,7 +538,7 @@ function DataTableComponent<T extends Record<string, any>>({
           }
         }
         
-        /* Desktop: Show table, hide cards */
+        /* Desktop: Show table, hide cards (using standardized breakpoint: >= 768px) */
         @media (min-width: 768px) {
           .data-table-mobile-view {
             display: none !important;
@@ -527,8 +548,17 @@ function DataTableComponent<T extends Record<string, any>>({
           }
         }
         
-        /* Mobile card hover effect */
+        /* Mobile card touch feedback */
         @media (max-width: 767px) {
+          .data-table-mobile-card:active {
+            transform: scale(0.98) !important;
+            opacity: 0.9;
+            background-color: ${colors.neutral[100]} !important;
+          }
+        }
+        
+        /* Desktop hover effect */
+        @media (min-width: 768px) {
           .data-table-mobile-card:hover {
             transform: translateY(-2px);
             box-shadow: ${shadows.md};

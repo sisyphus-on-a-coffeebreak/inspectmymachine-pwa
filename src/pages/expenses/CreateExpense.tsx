@@ -16,6 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Tooltip } from '../../components/ui/Tooltip';
 import { Modal } from '../../components/ui/Modal';
 import { OCRPanel } from '../../components/ui/OCRPanel';
+import { useSmartKeyboard } from '../../hooks/useSmartKeyboard';
 
 // 💰 Enhanced Expense Creation Form
 // Smart form with auto-categorization, GPS location, receipt capture
@@ -80,6 +81,9 @@ const PAYMENT_METHODS = [
 ];
 
 export const CreateExpense: React.FC = () => {
+  // Enable smart keyboard handling for mobile
+  useSmartKeyboard({ enabled: true, scrollOffset: 100 });
+  
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -798,7 +802,7 @@ export const CreateExpense: React.FC = () => {
       padding: spacing.xl,
       fontFamily: typography.body.fontFamily,
       backgroundColor: colors.neutral[50],
-      minHeight: '100vh'
+      minHeight: '100dvh' // Use dynamic viewport height for mobile
     }}>
       {/* Header */}
       <PageHeader
@@ -810,15 +814,6 @@ export const CreateExpense: React.FC = () => {
           { label: 'Expenses', path: '/app/expenses' },
           { label: isResubmitMode ? 'Resubmit' : 'Create' }
         ]}
-        actions={
-          <Button
-            variant="secondary"
-            onClick={() => navigate('/app/expenses')}
-            icon="🚪"
-          >
-            Back to Dashboard
-          </Button>
-        }
       />
 
       {/* Resubmit Mode Banner */}
@@ -1050,8 +1045,15 @@ export const CreateExpense: React.FC = () => {
               📋 Basic Information
             </h3>
             <div style={{ display: 'grid', gap: spacing.lg }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg }}>
-                <div>
+            <div 
+              className="responsive-form-grid"
+              style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '1fr', // Single column on mobile
+                gap: spacing.lg
+              }}
+            >
+              <div>
                   <Label>
                     Amount (₹) *
                     <Tooltip content="Enter the expense amount. This will be deducted from your advance balance.">
@@ -1061,6 +1063,8 @@ export const CreateExpense: React.FC = () => {
               <div style={{ position: 'relative' }}>
                 <Input
                   type="number"
+                  inputMode="decimal"
+                  autoComplete="transaction-amount"
                   value={formData.amount}
                   onChange={(e) => {
                     const value = e.target.value;
@@ -1089,6 +1093,7 @@ export const CreateExpense: React.FC = () => {
                   placeholder="Enter amount"
                   style={{ 
                     marginTop: spacing.xs,
+                    fontSize: '16px', // 16px prevents iOS zoom
                     borderColor: getFieldError('amount') ? colors.status.error : undefined,
                     backgroundColor: ocrFields.includes('amount') ? colors.status.warning + '20' : undefined
                   }}
@@ -1194,7 +1199,7 @@ export const CreateExpense: React.FC = () => {
                     paddingRight: ocrFields.includes('description') ? '100px' : spacing.sm,
                     border: `1px solid ${getFieldError('description') ? colors.status.error : '#D1D5DB'}`,
                     borderRadius: '8px',
-                    fontSize: '14px',
+                    fontSize: '16px', // 16px prevents iOS zoom
                     minHeight: '80px',
                     resize: 'vertical',
                     marginTop: spacing.xs,
@@ -1225,7 +1230,14 @@ export const CreateExpense: React.FC = () => {
           </div>
 
           {/* Date and Time */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg }}>
+          <div 
+            className="responsive-form-grid"
+            style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr', // Single column on mobile
+              gap: spacing.lg
+            }}
+          >
             <div>
               <Label>Date *</Label>
               <Input
@@ -1252,6 +1264,7 @@ export const CreateExpense: React.FC = () => {
                 }}
                 style={{ 
                   marginTop: spacing.xs,
+                  fontSize: '16px', // 16px prevents iOS zoom
                   borderColor: getFieldError('date') ? colors.status.error : undefined
                 }}
               />
@@ -1288,6 +1301,7 @@ export const CreateExpense: React.FC = () => {
                 }}
                 style={{ 
                   marginTop: spacing.xs,
+                  fontSize: '16px', // 16px prevents iOS zoom
                   borderColor: getFieldError('time') ? colors.status.error : undefined
                 }}
               />
@@ -1310,7 +1324,14 @@ export const CreateExpense: React.FC = () => {
               💳 Payment & Location
             </h3>
             <div style={{ display: 'grid', gap: spacing.lg }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg }}>
+              <div 
+                className="responsive-form-grid"
+                style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: '1fr', // Single column on mobile
+                  gap: spacing.lg
+                }}
+              >
                 <div>
                   <Label>Payment Method *</Label>
                   <select
@@ -1393,7 +1414,14 @@ export const CreateExpense: React.FC = () => {
               🔗 Project & Asset Linking
             </h3>
             <div style={{ display: 'grid', gap: spacing.lg }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg }}>
+              <div 
+                className="responsive-form-grid"
+                style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: '1fr', // Single column on mobile
+                  gap: spacing.lg
+                }}
+              >
             <div>
               <Label>Project (Optional)</Label>
               <select
@@ -1818,6 +1846,15 @@ export const CreateExpense: React.FC = () => {
           </div>
         </div>
       </form>
+
+      {/* Responsive grid styles */}
+      <style>{`
+        @media (min-width: 768px) {
+          .responsive-form-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+        }
+      `}</style>
 
       {/* Duplicate Detection Modal */}
       {showDuplicateModal && duplicateExpenses.length > 0 && (

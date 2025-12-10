@@ -243,14 +243,31 @@ export function BottomNav() {
                     width: '100%',
                   }}
                   onMouseEnter={(e) => {
-                    if (!active) {
+                    // Only on hover-capable devices
+                    if (window.matchMedia('(hover: hover)').matches && !active) {
                       e.currentTarget.style.backgroundColor = colors.neutral[50];
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (!active) {
+                    if (window.matchMedia('(hover: hover)').matches && !active) {
                       e.currentTarget.style.backgroundColor = 'transparent';
                     }
+                  }}
+                  onTouchStart={(e) => {
+                    // Touch feedback
+                    if (!active) {
+                      e.currentTarget.style.backgroundColor = colors.neutral[50];
+                      e.currentTarget.style.transform = 'scale(0.95)';
+                    }
+                  }}
+                  onTouchEnd={(e) => {
+                    // Reset after touch
+                    setTimeout(() => {
+                      if (!active) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }, 150);
                   }}
                 >
                   <Icon
@@ -298,7 +315,7 @@ export function BottomNav() {
       )}
       
       <style>{`
-        /* Hide on desktop using CSS */
+        /* Hide on desktop using CSS (using standardized breakpoint: >= 768px) */
         @media (min-width: 768px) {
           .bottom-nav-container {
             display: none !important;
