@@ -171,7 +171,8 @@ export default function AppLayout({
   const breadcrumbs = propBreadcrumbs || autoBreadcrumbs;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const scrollDirection = useScrollDirection(5);
+  // Removed auto-hide scroll behavior for better mobile UX
+  // const scrollDirection = useScrollDirection(5);
   
   // Initialize keyboard shortcuts
   useAppKeyboardShortcuts();
@@ -190,19 +191,19 @@ export default function AppLayout({
   // Detect mobile viewport with debouncing and proper state management
   useEffect(() => {
     let resizeTimer: NodeJS.Timeout;
-    
+
     const checkMobile = () => {
       const wasMobile = isMobile;
-      const nowMobile = window.innerWidth < 768;
-      
+      const nowMobile = window.innerWidth < 1024; // Mobile + Tablet (0-1023px)
+
       setIsMobile(nowMobile);
-      
+
       // Close mobile sidebar when switching to desktop
       if (wasMobile && !nowMobile && sidebarOpen) {
         setSidebarOpen(false);
       }
-      
-      // Reset collapsed state when switching to mobile (mobile doesn't use collapsed state)
+
+      // Reset collapsed state when switching to mobile/tablet (they don't use collapsed state)
       if (!wasMobile && nowMobile && isCollapsed) {
         setIsCollapsed(false);
       }
@@ -372,15 +373,15 @@ export default function AppLayout({
   };
 
   return (
-    <div style={{ 
-      minHeight: "100vh",
+    <div style={{
+      minHeight: "100dvh",
       background: `linear-gradient(135deg, ${colors.neutral[50]} 0%, ${colors.neutral[100]} 100%)`,
       fontFamily: "system-ui, -apple-system, sans-serif"
     }}>
       {/* Mobile Header - Only on mobile */}
       {showSidebar && isMobile && (
-        <header 
-          className={`app-layout-mobile-header ${scrollDirection === 'down' && isMobile ? 'header-hidden' : ''}`}
+        <header
+          className="app-layout-mobile-header"
           style={{
             background: "rgba(255, 255, 255, 0.95)",
             backdropFilter: "blur(10px)",
@@ -394,8 +395,6 @@ export default function AppLayout({
             paddingTop: `calc(${spacing.md} + env(safe-area-inset-top, 0px))`,
             paddingLeft: `calc(${spacing.lg} + env(safe-area-inset-left, 0px))`,
             paddingRight: `calc(${spacing.lg} + env(safe-area-inset-right, 0px))`,
-            transition: "transform 0.3s ease",
-            transform: scrollDirection === 'down' && isMobile ? "translateY(-100%)" : "translateY(0)",
           }}
         >
         <button
@@ -433,54 +432,84 @@ export default function AppLayout({
             VOMS
           </span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: spacing.sm, flex: 1, maxWidth: isMobile ? "100%" : "400px" }}>
-          <div style={{
-            position: "relative",
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            gap: spacing.xs,
-            padding: `${spacing.xs} ${spacing.sm}`,
-            backgroundColor: colors.neutral[50],
-            borderRadius: borderRadius.md,
-            border: `1px solid ${colors.neutral[200]}`,
-            transition: "all 0.2s",
-          }}
-          onFocus={(e) => {
-            e.currentTarget.style.borderColor = colors.primary;
-            e.currentTarget.style.backgroundColor = "white";
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.borderColor = colors.neutral[200];
-            e.currentTarget.style.backgroundColor = colors.neutral[50];
-          }}
-          >
-            <Search style={{ width: "18px", height: "18px", color: colors.neutral[500], flexShrink: 0 }} />
-            <input
-              type="text"
-              placeholder={isMobile ? "Search..." : "Search or press Cmd+K..."}
+        <div style={{ display: "flex", alignItems: "center", gap: spacing.sm, flex: 1, maxWidth: isMobile ? "auto" : "400px" }}>
+          {isMobile ? (
+            // Mobile: Simple search button
+            <button
               onClick={() => {
-                const { useCommandPalette } = require('../../hooks/useCommandPalette');
-                // Open command palette when clicking search input
-                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
-              }}
-              onFocus={() => {
-                // Open command palette on focus
+                // Open command palette when clicking search button
                 window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
               }}
               style={{
-                flex: 1,
-                border: "none",
-                outline: "none",
                 background: "transparent",
-                fontSize: "14px",
-                color: colors.neutral[900],
-                fontFamily: typography.body.fontFamily,
+                border: "none",
+                cursor: "pointer",
+                padding: spacing.sm,
+                borderRadius: borderRadius.md,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: colors.neutral[700],
+                transition: "all 0.2s",
               }}
-              readOnly
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = colors.neutral[100];
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+              }}
               aria-label="Search"
-            />
-            {!isMobile && (
+            >
+              <Search style={{ width: "24px", height: "24px" }} />
+            </button>
+          ) : (
+            // Desktop: Full search input with keyboard shortcut
+            <div style={{
+              position: "relative",
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              gap: spacing.xs,
+              padding: `${spacing.xs} ${spacing.sm}`,
+              backgroundColor: colors.neutral[50],
+              borderRadius: borderRadius.md,
+              border: `1px solid ${colors.neutral[200]}`,
+              transition: "all 0.2s",
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = colors.primary;
+              e.currentTarget.style.backgroundColor = "white";
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = colors.neutral[200];
+              e.currentTarget.style.backgroundColor = colors.neutral[50];
+            }}
+            >
+              <Search style={{ width: "18px", height: "18px", color: colors.neutral[500], flexShrink: 0 }} />
+              <input
+                type="text"
+                placeholder="Search or press Cmd+K..."
+                onClick={() => {
+                  const { useCommandPalette } = require('../../hooks/useCommandPalette');
+                  // Open command palette when clicking search input
+                  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+                }}
+                onFocus={() => {
+                  // Open command palette on focus
+                  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+                }}
+                style={{
+                  flex: 1,
+                  border: "none",
+                  outline: "none",
+                  background: "transparent",
+                  fontSize: "14px",
+                  color: colors.neutral[900],
+                  fontFamily: typography.body.fontFamily,
+                }}
+                readOnly
+                aria-label="Search"
+              />
               <div style={{
                 display: "flex",
                 alignItems: "center",
@@ -495,14 +524,14 @@ export default function AppLayout({
                 <span>⌘</span>
                 <span>K</span>
               </div>
-            )}
-          </div>
+            </div>
+          )}
           <NotificationBell />
         </div>
       </header>
       )}
 
-      <div style={{ display: "flex", minHeight: "calc(100vh - 64px)" }}>
+      <div style={{ display: "flex", minHeight: "calc(100dvh - 64px)" }}>
         {/* Sidebar - Responsive: Desktop only when showSidebar is true */}
         {showSidebar && (
           <>
@@ -515,7 +544,7 @@ export default function AppLayout({
                 position: "fixed",
                 left: 0,
                 top: 0,
-                height: "100vh",
+                height: "100dvh",
                 display: "flex",
                 flexDirection: "column",
                 zIndex: 50,
@@ -749,7 +778,7 @@ export default function AppLayout({
                 padding: spacing.lg,
                 position: "fixed",
                 top: "64px",
-                height: "calc(100vh - 64px)",
+                height: "calc(100dvh - 64px)",
                 overflowY: "auto",
                 zIndex: 50,
                 willChange: "transform"

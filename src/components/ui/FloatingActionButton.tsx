@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, X } from 'lucide-react';
 import { colors, spacing, typography, borderRadius, shadows } from '../../lib/theme';
+import { zIndex } from '../../lib/z-index';
 
 export interface FabAction {
   label: string;
@@ -50,9 +51,9 @@ export function FloatingActionButton({ icon: Icon, label, actions }: FloatingAct
         className="fab-container"
         style={{
           position: 'fixed',
-          bottom: '80px', // Above bottom nav
-          right: '16px',
-          zIndex: 100,
+          bottom: 'calc(64px + 16px + env(safe-area-inset-bottom, 0px))', // Bottom nav (64px) + gap (16px) + safe area
+          right: 'calc(16px + env(safe-area-inset-right, 0px))',
+          zIndex: zIndex.fab, // 1300 - Above bottom nav
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'flex-end',

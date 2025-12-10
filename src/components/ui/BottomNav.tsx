@@ -7,6 +7,7 @@ import { FloatingActionButton } from './FloatingActionButton';
 import { useAuth } from '../../providers/useAuth';
 import { navigationByRole, getMoreItemsForRole, type NavItem } from '../../lib/navigationConfig';
 import { useUnifiedApprovals } from '../../hooks/useUnifiedApprovals';
+import { zIndex } from '../../lib/z-index';
 
 export function BottomNav() {
   const location = useLocation();
@@ -92,8 +93,10 @@ export function BottomNav() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-around',
-          zIndex: 100,
+          zIndex: zIndex.bottomNav, // 1200
           paddingBottom: 'env(safe-area-inset-bottom, 0)',
+          paddingLeft: 'env(safe-area-inset-left, 0)',
+          paddingRight: 'env(safe-area-inset-right, 0)',
         }}
       >
         {config.items.map((item) => {

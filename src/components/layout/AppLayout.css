@@ -1,33 +1,33 @@
 /* AppLayout Responsive Styles */
 
-/* Mobile Header - visible on mobile only */
+/* Mobile Header - visible on mobile and tablet, hidden on desktop */
 .app-layout-mobile-header {
   display: flex;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .app-layout-mobile-header {
     display: none;
   }
 }
 
-/* Desktop Sidebar - hidden on mobile, visible on desktop only */
+/* Desktop Sidebar - hidden on mobile/tablet, visible on desktop (1024px+) only */
 .app-layout-desktop-sidebar {
   display: none !important;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .app-layout-desktop-sidebar {
     display: block !important;
   }
 }
 
-/* Mobile Sidebar - visible on mobile only */
+/* Mobile Sidebar - visible on mobile and tablet, hidden on desktop */
 .app-layout-mobile-sidebar {
   display: block;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .app-layout-mobile-sidebar {
     display: none !important;
   }
@@ -37,27 +37,36 @@
 .app-layout-main-content {
   margin-left: 0 !important;
   padding: 1.5rem;
-  min-height: calc(100vh - 64px);
+  min-height: calc(100dvh - 64px);
   transition: margin-left 0.3s ease, padding 0.3s ease;
 }
 
-/* Mobile: no sidebar margin */
+/* Mobile & Tablet: no sidebar margin, add bottom nav space */
 .app-layout-main-content[data-is-mobile="true"] {
   margin-left: 0 !important;
   padding-bottom: calc(1.5rem + 64px) !important; /* Account for bottom nav */
 }
 
-@media (min-width: 768px) {
+/* Tablet: Larger padding but still no sidebar */
+@media (min-width: 768px) and (max-width: 1023px) {
   .app-layout-main-content {
     padding: 2rem;
-    min-height: 100vh;
+    min-height: 100dvh;
   }
-  
+}
+
+/* Desktop (1024px+): Add sidebar margin */
+@media (min-width: 1024px) {
+  .app-layout-main-content {
+    padding: 2rem;
+    min-height: 100dvh;
+  }
+
   /* Desktop: sidebar margin */
   .app-layout-main-content[data-is-mobile="false"] {
     margin-left: 280px !important;
   }
-  
+
   /* When sidebar is collapsed on desktop */
   .app-layout-main-content[data-is-mobile="false"][data-sidebar-collapsed="true"] {
     margin-left: 64px !important;

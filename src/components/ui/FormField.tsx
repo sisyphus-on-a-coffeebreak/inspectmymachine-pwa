@@ -217,6 +217,7 @@ export const FormField: React.FC<FormFieldProps> = ({
             style={{
               ...inputStyle,
               paddingLeft: icon ? '48px' : spacing.md,
+              paddingRight: enableVoiceInput ? '56px' : inputStyle.paddingRight, // 44px button + 12px gap
             }}
             className={error ? 'form-error' : success ? 'form-success' : ''}
             aria-invalid={!!error}
@@ -234,7 +235,7 @@ export const FormField: React.FC<FormFieldProps> = ({
             autoComplete={autocompleteValue}
             style={{
               ...inputStyle,
-              paddingRight: enableVoiceInput ? '48px' : inputStyle.paddingRight,
+              paddingRight: enableVoiceInput ? '56px' : inputStyle.paddingRight, // 44px button + 12px gap
             }}
             onFocus={() => setFocused(true)}
             onBlur={(e) => {

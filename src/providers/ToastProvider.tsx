@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useHapticFeedback } from '../hooks/useHapticFeedback';
+import { zIndex } from '../lib/z-index';
 
 type ToastVariant = 'default' | 'success' | 'error' | 'warning';
 
@@ -110,7 +111,7 @@ export const ToastProvider: React.FC<React.PropsWithChildren> = ({ children }) =
           display: 'flex',
           flexDirection: 'column',
           gap: '12px',
-          zIndex: 1000,
+          zIndex: zIndex.toast, // 9500 - Above modals so errors are always visible
           maxWidth: '360px',
         }}
       >
