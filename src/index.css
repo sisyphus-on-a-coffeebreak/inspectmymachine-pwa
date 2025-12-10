@@ -137,3 +137,42 @@ button:disabled {
   color: #4b5563; /* neutral[600] - 7:1 contrast ratio for better visibility */
   opacity: 0.7; /* Slight opacity reduction while maintaining contrast */
 }
+
+/* Momentum scrolling for better mobile UX - apply to scrollable containers */
+[style*="overflow"], 
+[style*="overflow-x"], 
+[style*="overflow-y"],
+.overflow-auto,
+.overflow-x-auto,
+.overflow-y-auto,
+.overflow-scroll,
+.overflow-x-scroll,
+.overflow-y-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom tap highlights - remove default blue square */
+* {
+  -webkit-tap-highlight-color: transparent;
+  tap-highlight-color: transparent;
+}
+
+/* Larger focus indicators on mobile */
+@media (max-width: 768px) {
+  *:focus-visible {
+    outline: 4px solid #2563eb;
+    outline-offset: 2px;
+  }
+  
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [role="button"]:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 4px solid #2563eb;
+    outline-offset: 4px;
+    box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+  }
+}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { buttonStyles, colors, spacing, borderRadius } from '../../lib/theme';
+import { buttonStyles, spacing, borderRadius } from '../../lib/theme';
 import { useHapticFeedback } from '../../hooks/useHapticFeedback';
 
 interface ButtonProps {
@@ -64,13 +64,14 @@ export const Button: React.FC<ButtonProps> = ({
     fontWeight: 600,
     transition: 'all 0.2s ease',
     position: 'relative' as const,
-    overflow: 'hidden' as const
+    overflow: 'hidden' as const,
+    willChange: 'transform', // GPU acceleration
   };
 
   const handleClick = (e: React.MouseEvent) => {
     if (!disabled && !loading) {
       // Haptic feedback based on button variant
-      if (variant === 'critical' || variant === 'error') {
+      if (variant === 'critical' || variant === 'destructive') {
         hapticTrigger('error');
       } else if (variant === 'success') {
         hapticTrigger('success');
@@ -86,27 +87,30 @@ export const Button: React.FC<ButtonProps> = ({
     }
   };
 
-  const handleMouseEnter = (e: React.MouseEvent) => {
-    if (!disabled && !loading) {
+  // Only apply hover effects on hover-capable devices
+  const isHoverCapable = typeof window !== 'undefined' && window.matchMedia('(hover: hover)').matches;
+
+  const handleMouseEnter = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!disabled && !loading && isHoverCapable) {
       e.currentTarget.style.transform = 'scale(1.02)';
       e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
     }
   };
 
-  const handleMouseLeave = (e: React.MouseEvent) => {
-    if (!disabled && !loading) {
+  const handleMouseLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!disabled && !loading && isHoverCapable) {
       e.currentTarget.style.transform = 'scale(1)';
       e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
     }
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!disabled && !loading) {
       e.currentTarget.style.transform = 'scale(0.98)';
     }
   };
 
-  const handleMouseUp = (e: React.MouseEvent) => {
+  const handleMouseUp = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!disabled && !loading) {
       e.currentTarget.style.transform = 'scale(1.02)';
     }
@@ -213,16 +217,16 @@ export const IconButton: React.FC<Omit<ButtonProps, 'children' | 'icon'> & { ico
     <Button
       {...props}
       size={size}
-      style={{
-        ...buttonStyles[props.variant || 'primary'],
+      className={props.className}
+    >
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        fontSize: iconSizeMap[size],
         width: size === 'sm' ? '44px' : size === 'lg' ? '56px' : '48px',
         height: size === 'sm' ? '44px' : size === 'lg' ? '56px' : '48px',
-        padding: 0,
-        minWidth: '44px', // Ensure minimum touch target
-        minHeight: '44px' // Ensure minimum touch target
-      }}
-    >
-      <div style={{ fontSize: iconSizeMap[size] }}>
+      }}>
         {icon}
       </div>
     </Button>

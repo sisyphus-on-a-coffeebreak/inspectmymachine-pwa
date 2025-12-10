@@ -33,7 +33,12 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items, className = '' })
         padding: spacing.sm,
         backgroundColor: colors.neutral[50],
         borderRadius: '8px',
-        border: `1px solid ${colors.neutral[200]}`
+        border: `1px solid ${colors.neutral[200]}`,
+        overflowX: 'auto',
+        overflowY: 'hidden',
+        whiteSpace: 'nowrap',
+        WebkitOverflowScrolling: 'touch',
+        scrollbarWidth: 'thin',
       }}
       aria-label="Breadcrumb"
     >

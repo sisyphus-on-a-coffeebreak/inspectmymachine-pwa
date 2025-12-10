@@ -481,6 +481,7 @@ export const getButtonHoverStyles = () => ({
 export const formStyles = {
   input: {
     width: '100%',
+    maxWidth: '600px', // Max width for readability
     padding: spacing.md,
     border: `1px solid ${colors.neutral[300]}`,
     borderRadius: borderRadius.md,

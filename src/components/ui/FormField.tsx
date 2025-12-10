@@ -142,7 +142,7 @@ export const FormField: React.FC<FormFieldProps> = ({
     top: '50%',
     transform: 'translateY(-50%)',
     color: focused ? colors.primary : colors.neutral[500],
-    fontSize: '18px',
+    fontSize: '24px',
     zIndex: 1
   };
 
@@ -236,6 +236,11 @@ export const FormField: React.FC<FormFieldProps> = ({
             style={{
               ...inputStyle,
               paddingRight: enableVoiceInput ? '56px' : inputStyle.paddingRight, // 44px button + 12px gap
+              // Ensure native date/time pickers work on mobile
+              ...(type === 'date' || type === 'time' || type === 'datetime-local' ? {
+                touchAction: 'manipulation',
+                WebkitAppearance: 'none',
+              } : {}),
             }}
             onFocus={() => setFocused(true)}
             onBlur={(e) => {
@@ -281,7 +286,7 @@ export const PhoneField: React.FC<Omit<FormFieldProps, 'type' | 'mask' | 'valida
     {...props} 
     type="tel" 
     mask="phone"
-    icon={<Phone size={18} aria-hidden="true" />}
+    icon={<Phone size={24} aria-hidden="true" />}
     validationRules={[
       { type: 'phone', message: 'Please enter a valid 10-digit phone number' },
       ...(props.required ? [] : []), // Required is already handled by FormField
@@ -293,7 +298,7 @@ export const EmailField: React.FC<Omit<FormFieldProps, 'type' | 'validationRules
   <FormField 
     {...props} 
     type="email" 
-    icon={<Mail size={18} aria-hidden="true" />}
+    icon={<Mail size={24} aria-hidden="true" />}
     placeholder="user@company.com"
     validationRules={[
       { type: 'email', message: 'Please enter a valid email address' },
@@ -323,7 +328,7 @@ export const DateField: React.FC<Omit<FormFieldProps, 'type'>> = (props) => (
   <FormField 
     {...props} 
     type="date" 
-    icon={<Calendar size={18} aria-hidden="true" />}
+    icon={<Calendar size={24} aria-hidden="true" />}
   />
 );
 
@@ -331,7 +336,7 @@ export const TimeField: React.FC<Omit<FormFieldProps, 'type'>> = (props) => (
   <FormField 
     {...props} 
     type="time" 
-    icon={<Clock size={18} aria-hidden="true" />}
+    icon={<Clock size={24} aria-hidden="true" />}
   />
 );
 

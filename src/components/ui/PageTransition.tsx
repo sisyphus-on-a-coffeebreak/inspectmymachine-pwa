@@ -17,7 +17,7 @@ export interface PageTransitionProps {
 
 export const PageTransition: React.FC<PageTransitionProps> = ({
   children,
-  variant = 'fade',
+  variant = 'slide', // Default to slide for Android-style transitions
   duration = 300,
 }) => {
   const location = useLocation();
@@ -50,6 +50,7 @@ export const PageTransition: React.FC<PageTransitionProps> = ({
       transition: `opacity ${duration}ms ease-in-out, transform ${duration}ms ease-in-out`,
       opacity: isVisible ? 1 : 0,
       minHeight: '100%',
+      willChange: 'transform, opacity', // GPU acceleration
     };
 
     switch (variant) {
@@ -59,7 +60,7 @@ export const PageTransition: React.FC<PageTransitionProps> = ({
       case 'slide':
         return {
           ...baseStyle,
-          transform: isVisible ? 'translateX(0)' : 'translateX(20px)',
+          transform: isVisible ? 'translateX(0)' : 'translateX(100%)', // Full slide for Android-style
         };
       
       case 'fade-slide':
@@ -83,7 +84,7 @@ export const PageTransition: React.FC<PageTransitionProps> = ({
 /**
  * Hook to get page transition styles
  */
-export function usePageTransition(variant: 'fade' | 'slide' | 'fade-slide' = 'fade', duration: number = 300) {
+export function usePageTransition(variant: 'fade' | 'slide' | 'fade-slide' = 'slide', duration: number = 300) {
   const location = useLocation();
   const [isVisible, setIsVisible] = useState(true);
 
@@ -99,6 +100,7 @@ export function usePageTransition(variant: 'fade' | 'slide' | 'fade-slide' = 'fa
     const baseStyle: React.CSSProperties = {
       transition: `opacity ${duration}ms ease-in-out, transform ${duration}ms ease-in-out`,
       opacity: isVisible ? 1 : 0,
+      willChange: 'transform, opacity', // GPU acceleration
     };
 
     switch (variant) {
@@ -107,7 +109,7 @@ export function usePageTransition(variant: 'fade' | 'slide' | 'fade-slide' = 'fa
       case 'slide':
         return {
           ...baseStyle,
-          transform: isVisible ? 'translateX(0)' : 'translateX(20px)',
+          transform: isVisible ? 'translateX(0)' : 'translateX(100%)', // Full slide for Android-style
         };
       case 'fade-slide':
         return {

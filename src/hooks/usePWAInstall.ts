@@ -68,6 +68,14 @@ export function usePWAInstall(): PWAInstallState {
     deferredPrompt.prompt()
     const { outcome } = await deferredPrompt.userChoice
 
+    // Track prompt dismissal
+    if (outcome === "dismissed") {
+      localStorage.setItem("voms_pwa_prompt_dismissed", Date.now().toString())
+      // Track dismissal count
+      const dismissCount = parseInt(localStorage.getItem("voms_pwa_dismiss_count") || "0") + 1
+      localStorage.setItem("voms_pwa_dismiss_count", dismissCount.toString())
+    }
+
     if (outcome === "accepted") {
       setIsInstalled(true)
       localStorage.setItem("voms_pwa_installed", "true")

@@ -878,7 +878,11 @@ export default function AppLayout({
                 alignItems: "center",
                 gap: spacing.xs,
                 marginBottom: spacing.lg,
-                flexWrap: "wrap"
+                overflowX: "auto",
+                overflowY: "hidden",
+                whiteSpace: "nowrap",
+                WebkitOverflowScrolling: "touch",
+                scrollbarWidth: "thin",
               }}
             >
               {isMobile && breadcrumbs.length > 2 ? (
