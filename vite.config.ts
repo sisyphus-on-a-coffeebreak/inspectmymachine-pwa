@@ -122,6 +122,8 @@ export default defineConfig({
         orientation: "portrait-primary",
         categories: ["productivity", "business"],
         lang: "en",
+        // Ensure manifest is accessible at standard path
+        filename: "manifest.webmanifest",
         icons: [
           { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
           { src: "pwa-256x256.png", sizes: "256x256", type: "image/png" },
@@ -160,17 +162,17 @@ export default defineConfig({
           {
             name: "New Gate Pass",
             url: "/app/gate-pass/create-visitor",
-            icons: [{ src: "logo-96x96.png", sizes: "96x96", type: "image/png" }],
+            icons: [{ src: "pwa-96x96.png", sizes: "96x96", type: "image/png" }],
           },
           {
             name: "New Inspection",
             url: "/app/inspections/new",
-            icons: [{ src: "logo-96x96.png", sizes: "96x96", type: "image/png" }],
+            icons: [{ src: "pwa-96x96.png", sizes: "96x96", type: "image/png" }],
           },
           {
             name: "Log Expense",
             url: "/app/expenses/create",
-            icons: [{ src: "logo-96x96.png", sizes: "96x96", type: "image/png" }],
+            icons: [{ src: "pwa-96x96.png", sizes: "96x96", type: "image/png" }],
           },
         ],
       },
