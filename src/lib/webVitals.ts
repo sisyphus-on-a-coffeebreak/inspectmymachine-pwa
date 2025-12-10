@@ -24,26 +24,40 @@ function sendToAnalytics(metric: Metric) {
     console.log(`[Web Vitals] ${metric.name}:`, metric.value, metric.rating)
   }
 
+  // Check if already disabled (endpoint doesn't exist)
+  if (typeof window !== "undefined" && (window as any).__webVitalsDisabled) {
+    return
+  }
+
   // Only send to analytics if endpoint is available (check on first call)
   // Silently skip if endpoint doesn't exist to avoid console errors
   if (navigator.sendBeacon) {
     try {
-      navigator.sendBeacon("/api/v1/analytics/vitals", JSON.stringify(report))
+      const sent = navigator.sendBeacon("/api/v1/analytics/vitals", JSON.stringify(report))
+      if (!sent) {
+        // sendBeacon failed, disable future calls
+        if (typeof window !== "undefined") {
+          ;(window as any).__webVitalsDisabled = true
+        }
+      }
     } catch (e) {
-      // Silently fail - endpoint may not exist
+      // Silently fail - endpoint may not exist, disable future calls
+      if (typeof window !== "undefined") {
+        ;(window as any).__webVitalsDisabled = true
+      }
     }
   } else {
     fetch("/api/v1/analytics/vitals", {
       method: "POST",
       body: JSON.stringify(report),
       keepalive: true,
+      headers: {
+        'Content-Type': 'application/json',
+      },
     })
-      .catch(() => {
-        // Silently fail if analytics endpoint is not available
-      })
       .then((response) => {
         // Check if endpoint exists (405 = method not allowed, 404 = not found)
-        if (response && (response.status === 404 || response.status === 405)) {
+        if (!response.ok || response.status === 404 || response.status === 405) {
           // Endpoint doesn't exist, disable future calls
           if (typeof window !== "undefined") {
             ;(window as any).__webVitalsDisabled = true
@@ -52,6 +66,7 @@ function sendToAnalytics(metric: Metric) {
       })
       .catch(() => {
         // Network error or other issue - silently ignore
+        // Don't disable on network errors, only on 404/405
       })
   }
 }

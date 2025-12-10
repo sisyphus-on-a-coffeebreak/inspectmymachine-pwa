@@ -1,1 +1,19 @@
+# Exclude assets from SPA routing
+/assets/*    200
+/*.js        200
+/*.css       200
+/*.png       200
+/*.jpg       200
+/*.jpeg       200
+/*.svg       200
+/*.webp       200
+/*.woff       200
+/*.woff2      200
+/*.ico        200
+/*.json       200
+/sw.js        200
+/workbox-*.js 200
+/manifest.webmanifest 200
+
+# SPA routing - all other routes go to index.html
 /*    /index.html   200
