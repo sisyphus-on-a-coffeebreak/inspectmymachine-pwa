@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { colors, spacing, borderRadius, shadows } from '../../lib/theme';
 import { X } from 'lucide-react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { zIndex } from '../../lib/z-index';
 
 export interface BottomSheetProps {
   title?: string;
@@ -13,8 +14,9 @@ export interface BottomSheetProps {
 
 /**
  * BottomSheet Component
- * 
+ *
  * Native mobile-style bottom sheet that slides up from the bottom
+ * Supports touch swipe-to-dismiss gesture
  * Replaces Modal for mobile-first interactions
  */
 export function BottomSheet({
@@ -25,19 +27,54 @@ export function BottomSheet({
   className = '',
 }: BottomSheetProps) {
   const contentRef = useFocusTrap<HTMLDivElement>(isOpen);
-  
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const startY = useRef(0);
+  const currentY = useRef(0);
+
+  // Touch handlers for swipe-to-dismiss
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startY.current = e.touches[0].clientY;
+    currentY.current = e.touches[0].clientY;
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+
+    currentY.current = e.touches[0].clientY;
+    const deltaY = currentY.current - startY.current;
+
+    // Only allow dragging down (positive deltaY)
+    if (deltaY > 0) {
+      setDragY(deltaY);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+
+    // If dragged more than 100px, close the sheet
+    if (dragY > 100) {
+      onClose();
+    }
+
+    // Reset drag position
+    setDragY(0);
+  };
+
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
         onClose();
       }
     };
-    
+
     if (isOpen) {
       document.addEventListener('keydown', handleEscape);
       document.body.style.overflow = 'hidden';
     }
-    
+
     return () => {
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = '';
@@ -56,12 +93,12 @@ export function BottomSheet({
           position: 'fixed',
           inset: 0,
           backgroundColor: 'rgba(0, 0, 0, 0.45)',
-          zIndex: 9998,
+          zIndex: zIndex.bottomSheetBackdrop,
           animation: 'fadeIn 0.2s ease-out',
         }}
         aria-hidden="true"
       />
-      
+
       {/* Bottom Sheet */}
       <div
         ref={contentRef}
@@ -69,6 +106,9 @@ export function BottomSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? 'bottom-sheet-title' : undefined}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         style={{
           position: 'fixed',
           bottom: 0,
@@ -79,10 +119,12 @@ export function BottomSheet({
           borderTopLeftRadius: borderRadius.xl,
           borderTopRightRadius: borderRadius.xl,
           boxShadow: shadows.xl,
-          zIndex: 9999,
+          zIndex: zIndex.bottomSheet,
           display: 'flex',
           flexDirection: 'column',
-          animation: 'slideUp 0.3s ease-out',
+          animation: isDragging ? 'none' : 'slideUp 0.3s ease-out',
+          transform: `translateY(${dragY}px)`,
+          transition: isDragging ? 'none' : 'transform 0.3s ease',
           paddingBottom: 'env(safe-area-inset-bottom, 0)',
         }}
       >
@@ -93,25 +135,7 @@ export function BottomSheet({
             justifyContent: 'center',
             paddingTop: spacing.sm,
             paddingBottom: spacing.xs,
-            cursor: 'grab',
-          }}
-          onMouseDown={(e) => {
-            // Allow dragging to close (optional enhancement)
-            const startY = e.clientY;
-            const handleMouseMove = (moveEvent: MouseEvent) => {
-              const deltaY = moveEvent.clientY - startY;
-              if (deltaY > 100) {
-                onClose();
-                document.removeEventListener('mousemove', handleMouseMove);
-                document.removeEventListener('mouseup', handleMouseUp);
-              }
-            };
-            const handleMouseUp = () => {
-              document.removeEventListener('mousemove', handleMouseMove);
-              document.removeEventListener('mouseup', handleMouseUp);
-            };
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
+            cursor: isDragging ? 'grabbing' : 'grab',
           }}
         >
           <div
@@ -194,7 +218,7 @@ export function BottomSheet({
           {children}
         </div>
       </div>
-      
+
       <style>{`
         @keyframes fadeIn {
           from {
@@ -204,7 +228,7 @@ export function BottomSheet({
             opacity: 1;
           }
         }
-        
+
         @keyframes slideUp {
           from {
             transform: translateY(100%);
@@ -213,9 +237,20 @@ export function BottomSheet({
             transform: translateY(0);
           }
         }
-        
-        /* Desktop: Show as modal */
-        @media (min-width: 768px) {
+
+        /* Tablet: Wider bottom sheet but still bottom-anchored */
+        @media (min-width: 768px) and (max-width: 1023px) {
+          .bottom-sheet {
+            max-width: 600px;
+            margin: 0 auto;
+            left: 50%;
+            right: auto;
+            transform: translateX(-50%);
+          }
+        }
+
+        /* Desktop: Show as centered modal */
+        @media (min-width: 1024px) {
           .bottom-sheet {
             position: fixed;
             top: 50%;
@@ -228,7 +263,7 @@ export function BottomSheet({
             border-radius: ${borderRadius.lg};
             animation: fadeIn 0.2s ease-out;
           }
-          
+
           .bottom-sheet-backdrop {
             animation: fadeIn 0.2s ease-out;
           }
@@ -239,4 +274,3 @@ export function BottomSheet({
 }
 
 export default BottomSheet;
-

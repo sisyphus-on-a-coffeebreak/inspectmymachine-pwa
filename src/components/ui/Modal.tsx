@@ -3,6 +3,7 @@ import { colors, spacing, borderRadius, shadows, typography } from '@/lib/theme'
 import { Button } from './button';
 import { X } from 'lucide-react';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
+import { zIndex } from '@/lib/z-index';
 
 export interface ModalProps {
   title?: string;
@@ -74,10 +75,11 @@ export function Modal({
         left: 0,
         right: 0,
         bottom: 0,
-        zIndex: 9999,
+        zIndex: zIndex.modal,
         overflowY: 'auto',
         backgroundColor: 'rgba(0, 0, 0, 0.4)',
         backdropFilter: 'blur(4px)',
+        WebkitOverflowScrolling: 'touch', // Smooth momentum scrolling on iOS/Android
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {

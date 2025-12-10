@@ -3,6 +3,7 @@ import { offlineQueue, type QueueStats } from '../../lib/offlineQueue';
 import { colors, spacing, typography, borderRadius } from '../../lib/theme';
 import { WifiOff, Wifi, AlertCircle, X, RefreshCw } from 'lucide-react';
 import { Button } from './button';
+import { zIndex } from '../../lib/z-index';
 
 interface OfflineIndicatorProps {
   position?: 'top' | 'bottom';
@@ -78,7 +79,7 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
           position: 'fixed',
           [position]: spacing.md,
           right: spacing.md,
-          zIndex: 9999,
+          zIndex: zIndex.offlineIndicator, // 9600 - Above modals
           display: 'flex',
           flexDirection: 'column',
           gap: spacing.sm,

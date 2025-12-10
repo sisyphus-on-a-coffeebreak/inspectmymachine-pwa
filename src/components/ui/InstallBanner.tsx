@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { X, Download, Share } from "lucide-react"
 import { usePWAInstall } from "@/hooks/usePWAInstall"
 import { Button } from "./button"
+import { zIndex } from "@/lib/z-index"
 
 export function InstallBanner() {
   const { canInstall, isInstalled, isIOS, promptInstall, dismissPrompt } = usePWAInstall()
@@ -40,7 +41,13 @@ export function InstallBanner() {
   }
 
   return (
-    <div className="fixed bottom-20 left-4 right-4 md:left-auto md:right-4 md:w-80 bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-700 p-4 z-50 animate-slide-up">
+    <div
+      className="fixed left-4 right-4 md:left-auto md:right-4 md:w-80 bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-700 p-4 animate-slide-up"
+      style={{
+        bottom: 'calc(64px + 16px + env(safe-area-inset-bottom, 0px))', // Bottom nav (64px) + gap (16px) + safe area
+        zIndex: zIndex.installBanner, // 9650 - Above modals but below toasts
+      }}
+    >
       <button
         onClick={handleDismiss}
         className="absolute top-2 right-2 p-1 text-zinc-400 hover:text-zinc-600"
