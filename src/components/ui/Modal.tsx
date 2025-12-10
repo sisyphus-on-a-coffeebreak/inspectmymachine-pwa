@@ -92,7 +92,7 @@ export function Modal({
     >
       <div
         style={{
-          minHeight: '100vh',
+          minHeight: '100dvh',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -108,7 +108,7 @@ export function Modal({
             boxShadow: shadows.lg,
             width: '100%',
             ...sizeMap[size],
-            maxHeight: 'calc(100vh - 40px)',
+            maxHeight: 'calc(100dvh - 40px)',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
