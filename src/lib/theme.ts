@@ -175,10 +175,25 @@ export const shadows = {
 };
 
 export const breakpoints = {
-  mobile: '320px',
-  tablet: '768px',
-  desktop: '1024px',
-  wide: '1280px'
+  mobile: '320px',          // 0-479px: Mobile portrait
+  mobileLandscape: '480px', // 480-767px: Mobile landscape
+  tablet: '768px',          // 768-1023px: Tablet (both orientations)
+  desktop: '1024px',        // 1024-1279px: Desktop / Large tablet landscape
+  wide: '1280px',           // 1280px+: Wide desktop
+};
+
+// Media query helpers for consistent responsive design
+export const mediaQueries = {
+  mobile: `@media (max-width: 479px)`,
+  mobileLandscape: `@media (min-width: 480px) and (max-width: 767px)`,
+  tablet: `@media (min-width: 768px) and (max-width: 1023px)`,
+  desktop: `@media (min-width: 1024px)`,
+  wide: `@media (min-width: 1280px)`,
+
+  // Utility queries
+  upToTablet: `@media (max-width: 767px)`,     // Mobile (portrait + landscape)
+  tabletAndUp: `@media (min-width: 768px)`,    // Tablet and Desktop
+  desktopAndUp: `@media (min-width: 1024px)`,  // Desktop and Wide
 };
 
 // Focus ring utilities for accessibility (WCAG 2.1 AA compliant)
@@ -567,6 +582,7 @@ export default {
   borderRadius,
   shadows,
   breakpoints,
+  mediaQueries,
   getStatusColor,
   getStatusDot,
   buttonStyles,

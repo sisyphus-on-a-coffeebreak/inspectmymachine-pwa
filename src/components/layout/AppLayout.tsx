@@ -191,19 +191,19 @@ export default function AppLayout({
   // Detect mobile viewport with debouncing and proper state management
   useEffect(() => {
     let resizeTimer: NodeJS.Timeout;
-    
+
     const checkMobile = () => {
       const wasMobile = isMobile;
-      const nowMobile = window.innerWidth < 768;
-      
+      const nowMobile = window.innerWidth < 1024; // Mobile + Tablet (0-1023px)
+
       setIsMobile(nowMobile);
-      
+
       // Close mobile sidebar when switching to desktop
       if (wasMobile && !nowMobile && sidebarOpen) {
         setSidebarOpen(false);
       }
-      
-      // Reset collapsed state when switching to mobile (mobile doesn't use collapsed state)
+
+      // Reset collapsed state when switching to mobile/tablet (they don't use collapsed state)
       if (!wasMobile && nowMobile && isCollapsed) {
         setIsCollapsed(false);
       }

@@ -29,6 +29,8 @@ export function BottomSheet({
   const contentRef = useFocusTrap<HTMLDivElement>(isOpen);
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+  const [isTablet, setIsTablet] = useState(window.innerWidth >= 768 && window.innerWidth < 1024);
   const startY = useRef(0);
   const currentY = useRef(0);
 
@@ -63,6 +65,22 @@ export function BottomSheet({
     setDragY(0);
   };
 
+  // Handle responsive breakpoints
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const width = window.innerWidth;
+      setIsDesktop(width >= 1024);
+      setIsTablet(width >= 768 && width < 1024);
+    };
+
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+
+    return () => {
+      window.removeEventListener('resize', checkScreenSize);
+    };
+  }, []);
+
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
@@ -82,6 +100,20 @@ export function BottomSheet({
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  // Compute transform based on screen size and drag state
+  const getTransform = () => {
+    if (isDesktop) {
+      // Desktop: Centered modal (no drag support on desktop)
+      return 'translate(-50%, -50%)';
+    } else if (isTablet) {
+      // Tablet: Bottom sheet centered horizontally with drag support
+      return `translate(-50%, ${dragY}px)`;
+    } else {
+      // Mobile: Full-width bottom sheet with drag support
+      return `translateY(${dragY}px)`;
+    }
+  };
 
   return (
     <>
@@ -106,48 +138,53 @@ export function BottomSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? 'bottom-sheet-title' : undefined}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        onTouchStart={!isDesktop ? handleTouchStart : undefined}
+        onTouchMove={!isDesktop ? handleTouchMove : undefined}
+        onTouchEnd={!isDesktop ? handleTouchEnd : undefined}
         style={{
           position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          maxHeight: '90vh',
+          bottom: isDesktop ? 'auto' : 0,
+          top: isDesktop ? '50%' : 'auto',
+          left: isDesktop || isTablet ? '50%' : 0,
+          right: isDesktop || isTablet ? 'auto' : 0,
+          maxWidth: isDesktop ? '400px' : isTablet ? '600px' : 'none',
+          maxHeight: isDesktop ? '80vh' : '90vh',
           backgroundColor: 'white',
-          borderTopLeftRadius: borderRadius.xl,
-          borderTopRightRadius: borderRadius.xl,
+          borderRadius: isDesktop ? borderRadius.lg : 'auto',
+          borderTopLeftRadius: !isDesktop ? borderRadius.xl : 'auto',
+          borderTopRightRadius: !isDesktop ? borderRadius.xl : 'auto',
           boxShadow: shadows.xl,
           zIndex: zIndex.bottomSheet,
           display: 'flex',
           flexDirection: 'column',
-          animation: isDragging ? 'none' : 'slideUp 0.3s ease-out',
-          transform: `translateY(${dragY}px)`,
+          animation: isDragging ? 'none' : isDesktop ? 'fadeIn 0.2s ease-out' : 'slideUp 0.3s ease-out',
+          transform: getTransform(),
           transition: isDragging ? 'none' : 'transform 0.3s ease',
-          paddingBottom: 'env(safe-area-inset-bottom, 0)',
+          paddingBottom: isDesktop ? '0' : 'env(safe-area-inset-bottom, 0)',
         }}
       >
-        {/* Handle Bar */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            paddingTop: spacing.sm,
-            paddingBottom: spacing.xs,
-            cursor: isDragging ? 'grabbing' : 'grab',
-          }}
-        >
+        {/* Handle Bar - Only show on mobile/tablet */}
+        {!isDesktop && (
           <div
             style={{
-              width: '40px',
-              height: '4px',
-              backgroundColor: colors.neutral[300],
-              borderRadius: borderRadius.full,
+              display: 'flex',
+              justifyContent: 'center',
+              paddingTop: spacing.sm,
+              paddingBottom: spacing.xs,
+              cursor: isDragging ? 'grabbing' : 'grab',
             }}
-            aria-hidden="true"
-          />
-        </div>
+          >
+            <div
+              style={{
+                width: '40px',
+                height: '4px',
+                backgroundColor: colors.neutral[300],
+                borderRadius: borderRadius.full,
+              }}
+              aria-hidden="true"
+            />
+          </div>
+        )}
 
         {/* Header */}
         {(title || true) && (
@@ -235,37 +272,6 @@ export function BottomSheet({
           }
           to {
             transform: translateY(0);
-          }
-        }
-
-        /* Tablet: Wider bottom sheet but still bottom-anchored */
-        @media (min-width: 768px) and (max-width: 1023px) {
-          .bottom-sheet {
-            max-width: 600px;
-            margin: 0 auto;
-            left: 50%;
-            right: auto;
-            transform: translateX(-50%);
-          }
-        }
-
-        /* Desktop: Show as centered modal */
-        @media (min-width: 1024px) {
-          .bottom-sheet {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            bottom: auto;
-            right: auto;
-            transform: translate(-50%, -50%);
-            max-width: 400px;
-            max-height: 80vh;
-            border-radius: ${borderRadius.lg};
-            animation: fadeIn 0.2s ease-out;
-          }
-
-          .bottom-sheet-backdrop {
-            animation: fadeIn 0.2s ease-out;
           }
         }
       `}</style>
