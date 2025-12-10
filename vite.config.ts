@@ -28,9 +28,8 @@ function reactFirstPlugin(): Plugin {
         preloads.push({ full: match[0], href: match[1] });
       }
       
-      // Separate chunks by priority: core React first, then React libs, then others
-      const reactCorePreloads = preloads.filter(p => p.href.includes('vendor-react-core'));
-      const reactPreloads = preloads.filter(p => p.href.includes('vendor-react') && !p.href.includes('vendor-react-core'));
+      // Separate chunks by priority: vendor-react first, then others
+      const reactPreloads = preloads.filter(p => p.href.includes('vendor-react'));
       const otherPreloads = preloads.filter(p => !p.href.includes('vendor-react') && !p.href.includes('vendor-misc'));
       const vendorMiscPreloads = preloads.filter(p => p.href.includes('vendor-misc'));
       
@@ -39,9 +38,8 @@ function reactFirstPlugin(): Plugin {
         html = html.replace(p.full, '');
       });
       
-      // Insert in correct order: vendor-react-core first, then vendor-react, then others, then vendor-misc last
+      // Insert in correct order: vendor-react first, then others, then vendor-misc last
       const orderedPreloads = [
-        ...reactCorePreloads.map(p => p.full),
         ...reactPreloads.map(p => p.full),
         ...otherPreloads.map(p => p.full),
         ...vendorMiscPreloads.map(p => p.full)
@@ -319,11 +317,7 @@ export default defineConfig({
         hoistTransitiveImports: false,
         // Chunk file naming - ensure proper loading order
         chunkFileNames: (chunkInfo) => {
-          // Ensure vendor-react-core loads FIRST (core React)
-          if (chunkInfo.name === 'vendor-react-core') {
-            return 'assets/js/vendor/vendor-react-core-[hash].js';
-          }
-          // Then vendor-react (React-dependent libraries)
+          // Ensure vendor-react loads FIRST (all React code together)
           if (chunkInfo.name === 'vendor-react') {
             return 'assets/js/vendor/vendor-react-[hash].js';
           }
@@ -339,22 +333,18 @@ export default defineConfig({
         manualChunks: (id) => {
           // CRITICAL: Check for React dependencies FIRST, before any other chunking logic
           // This ensures React-dependent code never ends up in vendor-misc
-          // IMPORTANT: Order matters - check most specific first to avoid false positives
+          // IMPORTANT: Put ALL React code in ONE chunk to avoid initialization order issues
           if (id.includes('node_modules')) {
-            // Core React packages - MUST be first and most specific
+            // ALL React packages and dependencies go into vendor-react
+            // This ensures React is fully loaded before any React-dependent code runs
             if (
-              id.includes('node_modules/react/') || 
-              id.includes('node_modules/react-dom/') ||
+              // Core React packages
+              id.includes('node_modules/react') || 
+              id.includes('node_modules/react-dom') ||
               id.includes('react/jsx-runtime') ||
               id.includes('react/jsx-dev-runtime') ||
-              id.includes('node_modules/scheduler/') ||
-              id.includes('node_modules/use-sync-external-store/')
-            ) {
-              return 'vendor-react-core';
-            }
-            
-            // React-dependent libraries - check before catch-all
-            if (
+              id.includes('node_modules/scheduler') ||
+              id.includes('node_modules/use-sync-external-store') ||
               // React UI libraries
               id.includes('node_modules/lucide-react') ||
               id.includes('node_modules/class-variance-authority') ||
@@ -369,17 +359,11 @@ export default defineConfig({
               id.includes('node_modules/react-i18next') ||
               // React state management
               id.includes('node_modules/react-redux') ||
-              id.includes('node_modules/@reduxjs/toolkit')
-            ) {
-              return 'vendor-react';
-            }
-            
-            // Catch-all for any remaining React dependencies (less aggressive)
-            const lowerId = id.toLowerCase();
-            if (
-              (lowerId.includes('/react') || lowerId.includes('react-')) &&
-              !lowerId.includes('preact') && // Exclude preact
-              !lowerId.includes('reactivate') // Exclude false positives
+              id.includes('node_modules/@reduxjs/toolkit') ||
+              // Catch-all for any remaining React dependencies
+              (id.toLowerCase().includes('/react') || id.toLowerCase().includes('react-')) &&
+              !id.toLowerCase().includes('preact') && // Exclude preact
+              !id.toLowerCase().includes('reactivate') // Exclude false positives
             ) {
               return 'vendor-react';
             }
