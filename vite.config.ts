@@ -72,10 +72,12 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       devOptions: { enabled: false }, // no SW in dev
-      // Disable auto-injection of manifest link so we can control it manually
-      injectManifest: false,
-      // Use manifest.json instead of manifest.webmanifest
+      // Use manifest.json instead of manifest.webmanifest for PWABuilder compatibility
       manifestFilename: "manifest.json",
+      // Enable auto-injection of manifest link (vite-plugin-pwa will add it to index.html)
+      injectManifest: {
+        injectionPoint: undefined, // Use default injection point
+      },
 
       // Workbox (generateSW) — use RegExp + method for TS-friendly config
       workbox: {
