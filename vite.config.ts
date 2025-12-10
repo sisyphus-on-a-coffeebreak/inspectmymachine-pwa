@@ -297,24 +297,48 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: process.env.NODE_ENV !== 'production',
-    // Use esbuild for minification - better at handling circular dependencies
-    minify: 'esbuild',
-    // esbuild minification options - be less aggressive to avoid breaking module structure
-    minifySyntax: true,
-    minifyIdentifiers: false, // Keep identifiers to avoid breaking module references
-    minifyWhitespace: true,
+    // Use terser for more reliable minification with better circular dependency handling
+    minify: 'terser',
+    terserOptions: process.env.NODE_ENV === 'production' ? {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.info', 'console.debug'],
+        // Disable optimizations that might break circular dependencies
+        passes: 1, // Reduce passes to avoid breaking module structure
+        unsafe: false,
+        unsafe_comps: false,
+        unsafe_math: false,
+        unsafe_methods: false,
+        unsafe_proto: false,
+        unsafe_regexp: false,
+        unsafe_undefined: false,
+      },
+      mangle: {
+        // Keep module exports unmangled to preserve module boundaries
+        reserved: ['React', 'ReactDOM', 'createContext', 'useState', 'useEffect'],
+        properties: false,
+      },
+      format: {
+        comments: false,
+      },
+    } : undefined,
     cssCodeSplit: true, // Enable CSS code splitting by route/chunk
     cssMinify: 'lightningcss', // Use lightningcss for faster CSS minification (if available)
     // Ensure proper chunk ordering - React must be available before other chunks
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
-      // Use 'strict' to preserve proper module boundaries and initialization order
-      preserveEntrySignatures: 'strict',
+      // Use 'allow-extension' to allow better module resolution while preserving boundaries
+      preserveEntrySignatures: 'allow-extension',
       output: {
         // Ensure proper module format to avoid initialization issues
         format: 'es',
         // Ensure proper dependency resolution
-        externalLiveBindings: false,
+        externalLiveBindings: true,
+        // Preserve module structure
+        generatedCode: {
+          constBindings: true,
+        },
         // Chunk file naming - ensure proper loading order
         chunkFileNames: (chunkInfo) => {
           // Ensure vendor-react loads FIRST (all React code together)
