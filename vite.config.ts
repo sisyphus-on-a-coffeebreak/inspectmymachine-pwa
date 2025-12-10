@@ -110,26 +110,49 @@ export default defineConfig({
       },
 
       manifest: {
-        id: "/",
+        // Required fields
         name: "VOMS - Vehicle Operations Management System",
         short_name: "VOMS",
-        description: "Professional vehicle inspection and operations management",
         start_url: "/",
-        display: "standalone",
-        background_color: "#ffffff",
-        theme_color: "#2563eb",
-        scope: "/",
-        orientation: "portrait-primary",
-        categories: ["productivity", "business"],
-        lang: "en",
-        // Ensure manifest is accessible at standard path
-        filename: "manifest.webmanifest",
         icons: [
           { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
           { src: "pwa-256x256.png", sizes: "256x256", type: "image/png" },
           { src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
           { src: "pwa-512x512-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
+        
+        // Recommended fields
+        description: "Professional vehicle inspection and operations management",
+        background_color: "#ffffff",
+        theme_color: "#2563eb",
+        display: "standalone",
+        orientation: "portrait-primary",
+        id: "/",
+        
+        // Optional but useful fields
+        scope: "/",
+        lang: "en",
+        categories: ["productivity", "business"],
+        shortcuts: [
+          {
+            name: "New Gate Pass",
+            url: "/app/gate-pass/create-visitor",
+            icons: [{ src: "pwa-96x96.png", sizes: "96x96", type: "image/png" }],
+          },
+          {
+            name: "New Inspection",
+            url: "/app/inspections/new",
+            icons: [{ src: "pwa-96x96.png", sizes: "96x96", type: "image/png" }],
+          },
+          {
+            name: "Log Expense",
+            url: "/app/expenses/create",
+            icons: [{ src: "pwa-96x96.png", sizes: "96x96", type: "image/png" }],
+          },
+        ],
+        
+        // Ensure manifest is accessible at standard path
+        filename: "manifest.webmanifest",
         screenshots: [
           // WebP versions (preferred, smaller file size)
           {
@@ -156,23 +179,6 @@ export default defineConfig({
             sizes: "750x1334",
             type: "image/png",
             form_factor: "narrow",
-          },
-        ],
-        shortcuts: [
-          {
-            name: "New Gate Pass",
-            url: "/app/gate-pass/create-visitor",
-            icons: [{ src: "pwa-96x96.png", sizes: "96x96", type: "image/png" }],
-          },
-          {
-            name: "New Inspection",
-            url: "/app/inspections/new",
-            icons: [{ src: "pwa-96x96.png", sizes: "96x96", type: "image/png" }],
-          },
-          {
-            name: "Log Expense",
-            url: "/app/expenses/create",
-            icons: [{ src: "pwa-96x96.png", sizes: "96x96", type: "image/png" }],
           },
         ],
       },
