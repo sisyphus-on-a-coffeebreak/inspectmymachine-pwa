@@ -138,6 +138,7 @@ export default defineConfig({
         // Optional but useful fields
         scope: "/",
         lang: "en",
+        dir: "ltr",
         categories: ["productivity", "business"],
         shortcuts: [
           {
