@@ -8,7 +8,7 @@ export interface Vehicle {
   make: string;
   model: string;
   year?: number;
-  type?: string;
+  vehicle_type?: string; // Changed from 'type' to match backend
   current_location?: string;
   status?: 'available' | 'sold' | 'under_maintenance' | 'out';
 }
