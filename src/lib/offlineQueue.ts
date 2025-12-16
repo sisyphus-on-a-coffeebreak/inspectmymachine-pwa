@@ -327,7 +327,10 @@ class OfflineQueue {
     // Retry every 30 seconds when online
     this.retryInterval = window.setInterval(() => {
       if (this.isOnline) {
-        this.processQueue();
+        // Wrap in try-catch to prevent unhandled promise rejections
+        this.processQueue().catch(() => {
+          // Silently handle errors - IndexedDB operations are handled by idb-safe
+        });
       }
     }, 30000);
   }

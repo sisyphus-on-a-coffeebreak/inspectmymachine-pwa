@@ -43,9 +43,15 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
       }
     };
 
-    loadQueuedRequests();
+    loadQueuedRequests().catch(() => {
+      // Silently handle initial load errors
+    });
     // Use longer interval to reduce IndexedDB load
-    const interval = setInterval(loadQueuedRequests, 10000); // Update every 10 seconds
+    const interval = setInterval(() => {
+      loadQueuedRequests().catch(() => {
+        // Silently handle interval load errors
+      });
+    }, 10000); // Update every 10 seconds
 
     return () => {
       window.removeEventListener('online', handleOnline);

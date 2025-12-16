@@ -13,24 +13,54 @@
 import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from 'idb-keyval';
 
 // Global error handler for unhandled IndexedDB promise rejections
+// This must be set up immediately, before any other code runs
 if (typeof window !== 'undefined') {
   // Handle unhandled promise rejections from IndexedDB
-  window.addEventListener('unhandledrejection', (event) => {
+  const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
     const error = event.reason;
-    if (error && typeof error === 'object') {
-      const errorMessage = error.message || error.toString() || '';
-      if (
-        errorMessage.includes('UnknownError') ||
-        errorMessage.includes('Internal error') ||
-        errorMessage.includes('backing store') ||
-        errorMessage.includes('indexedDB')
-      ) {
-        // Suppress IndexedDB errors - they're handled by our wrapper
-        event.preventDefault();
-        return;
-      }
+    
+    // Check error message (string or object)
+    let errorMessage = '';
+    if (typeof error === 'string') {
+      errorMessage = error;
+    } else if (error && typeof error === 'object') {
+      errorMessage = error.message || error.name || String(error) || '';
     }
-  });
+    
+    // Also check error name for DOMException
+    const errorName = error?.name || '';
+    
+    // Check stack trace for IndexedDB references
+    const stack = error?.stack || '';
+    
+    // Suppress IndexedDB-related errors
+    const isIndexedDbError = 
+      errorMessage.includes('UnknownError') ||
+      errorMessage.includes('Internal error') ||
+      errorMessage.includes('backing store') ||
+      errorMessage.includes('indexedDB') ||
+      errorMessage.includes('IndexedDB') ||
+      errorMessage.includes('IDBDatabase') ||
+      errorMessage.includes('IDBTransaction') ||
+      errorName === 'UnknownError' ||
+      errorName === 'DOMException' ||
+      stack.includes('indexedDB') ||
+      stack.includes('IDBDatabase') ||
+      stack.includes('IDBTransaction');
+    
+    if (isIndexedDbError) {
+      // Suppress IndexedDB errors - they're handled by our wrapper
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+  };
+  
+  // Add listener with capture to catch early
+  window.addEventListener('unhandledrejection', handleUnhandledRejection, { capture: true });
+  
+  // Also add without capture as fallback
+  window.addEventListener('unhandledrejection', handleUnhandledRejection);
 }
 
 // Track if IndexedDB is available
