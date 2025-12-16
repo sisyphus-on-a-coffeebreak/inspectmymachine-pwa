@@ -24,10 +24,9 @@ import {
   listQueuedInspections, 
   subscribeQueuedInspectionCount 
 } from '../../../lib/inspection-queue';
-import { del } from 'idb-keyval';
+import { del, get, keys } from '../../../lib/idb-safe';
 import { syncQueuedInspections } from '../../../lib/inspection-submit';
 import { useToast } from '../../../providers/ToastProvider';
-import { get, keys } from 'idb-keyval';
 import type { InspectionDraftRecord } from '../../../lib/inspection-queue';
 import { fetchInspectionTemplate } from '../../../lib/inspection-templates';
 

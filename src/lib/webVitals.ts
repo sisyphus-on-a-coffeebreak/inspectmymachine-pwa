@@ -9,6 +9,62 @@ type VitalsReport = {
   id: string
 }
 
+// Check endpoint availability once on initialization
+let endpointCheckPromise: Promise<boolean> | null = null
+
+/**
+ * Check if the analytics endpoint is available
+ * This prevents making requests to a non-existent endpoint
+ */
+async function checkEndpointAvailability(): Promise<boolean> {
+  if (endpointCheckPromise) {
+    return endpointCheckPromise
+  }
+
+  endpointCheckPromise = (async () => {
+    try {
+      // Use OPTIONS request to check if endpoint exists (CORS preflight)
+      // If OPTIONS isn't supported, try a minimal POST request
+      let response: Response
+      
+      try {
+        response = await fetch("/api/v1/analytics/vitals", {
+          method: "OPTIONS",
+          cache: "no-store",
+        })
+      } catch {
+        // OPTIONS failed, try a minimal POST request
+        response = await fetch("/api/v1/analytics/vitals", {
+          method: "POST",
+          body: JSON.stringify({ test: true }),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          cache: "no-store",
+        })
+      }
+      
+      // 405 (Method Not Allowed) means the endpoint exists but method isn't supported
+      // 404 means it doesn't exist, 200/204/400 means it exists (400 is OK, means endpoint processed it)
+      const isAvailable = response.status !== 404
+      
+      if (!isAvailable) {
+        if (typeof window !== "undefined") {
+          ;(window as any).__webVitalsDisabled = true
+        }
+      }
+      
+      return isAvailable
+    } catch (error) {
+      // Network error - don't disable, might be temporary
+      // But don't make requests either until we can verify
+      return false
+    }
+  })()
+
+  return endpointCheckPromise
+}
+
 function sendToAnalytics(metric: Metric) {
   const report: VitalsReport = {
     name: metric.name,
@@ -29,22 +85,18 @@ function sendToAnalytics(metric: Metric) {
     return
   }
 
-  // Only send to analytics if endpoint is available (check on first call)
+  // Only send to analytics if endpoint is available
   // Silently skip if endpoint doesn't exist to avoid console errors
   if (navigator.sendBeacon) {
     try {
       const sent = navigator.sendBeacon("/api/v1/analytics/vitals", JSON.stringify(report))
       if (!sent) {
-        // sendBeacon failed, disable future calls
-        if (typeof window !== "undefined") {
-          ;(window as any).__webVitalsDisabled = true
-        }
+        // sendBeacon failed, but don't disable - might be temporary
+        return
       }
     } catch (e) {
-      // Silently fail - endpoint may not exist, disable future calls
-      if (typeof window !== "undefined") {
-        ;(window as any).__webVitalsDisabled = true
-      }
+      // Silently fail - might be temporary issue
+      return
     }
   } else {
     fetch("/api/v1/analytics/vitals", {
@@ -57,7 +109,7 @@ function sendToAnalytics(metric: Metric) {
     })
       .then((response) => {
         // Check if endpoint exists (405 = method not allowed, 404 = not found)
-        if (!response.ok || response.status === 404 || response.status === 405) {
+        if (response.status === 404 || response.status === 405) {
           // Endpoint doesn't exist, disable future calls
           if (typeof window !== "undefined") {
             ;(window as any).__webVitalsDisabled = true
@@ -71,9 +123,15 @@ function sendToAnalytics(metric: Metric) {
   }
 }
 
-export function initWebVitals() {
+export async function initWebVitals() {
   // Skip if disabled (endpoint doesn't exist)
   if (typeof window !== "undefined" && (window as any).__webVitalsDisabled) {
+    return
+  }
+
+  // Check endpoint availability before initializing
+  const isAvailable = await checkEndpointAvailability()
+  if (!isAvailable) {
     return
   }
 

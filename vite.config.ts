@@ -191,7 +191,8 @@ export default defineConfig({
       },
       includeAssets: [
         "favicon.svg",
-        "manifest.json",
+        // Note: manifest.json is NOT included here to avoid precache conflicts
+        // It's served fresh from the public folder and doesn't need caching
         "pwa-96x96.png",
         "pwa-192x192.png",
         "pwa-256x256.png",

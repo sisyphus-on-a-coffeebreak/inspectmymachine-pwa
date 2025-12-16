@@ -1,5 +1,5 @@
 // src/lib/upload-queue.ts
-import { set, get, del, keys } from "idb-keyval";
+import { set, get, del, keys } from "./idb-safe";
 
 export type QueuedItem = {
   id: string;
@@ -47,8 +47,13 @@ export function subscribeQueuedCount(cb: (count: number) => void) {
 
   async function emit() {
     if (cancelled) return;
-    const count = (await listQueued()).length;
-    cb(count);
+    try {
+      const count = (await listQueued()).length;
+      cb(count);
+    } catch (error) {
+      // Silently handle IndexedDB errors - notify with 0 count
+      cb(0);
+    }
   }
 
   // initial tick

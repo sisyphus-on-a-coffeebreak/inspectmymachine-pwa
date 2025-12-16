@@ -1,4 +1,4 @@
-import { get, set, del, keys } from 'idb-keyval';
+import { get, set, del, keys } from './idb-safe';
 import type { SerializedInspectionAnswers } from './inspection-serialization-types';
 
 const QUEUE_PREFIX = 'inspection-queue:';
@@ -115,8 +115,13 @@ export function subscribeQueuedInspectionCount(callback: (count: number) => void
 
   const emit = async () => {
     if (cancelled) return;
-    const queued = await listQueuedInspections();
-    callback(queued.length);
+    try {
+      const queued = await listQueuedInspections();
+      callback(queued.length);
+    } catch (error) {
+      // Silently handle IndexedDB errors - notify with 0 count
+      callback(0);
+    }
   };
 
   emit();

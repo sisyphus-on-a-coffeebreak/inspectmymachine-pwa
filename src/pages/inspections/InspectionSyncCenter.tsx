@@ -19,7 +19,7 @@ import {
   Clock,
   FileText
 } from 'lucide-react';
-import { get, set, del, keys } from 'idb-keyval';
+import { get, set, del, keys } from '../../lib/idb-safe';
 import { loadInspectionDraft, clearInspectionDraft } from '../../lib/inspection-queue';
 import type { InspectionDraftRecord } from '../../lib/inspection-queue';
 import { fetchInspectionTemplate } from '../../lib/inspection-templates';

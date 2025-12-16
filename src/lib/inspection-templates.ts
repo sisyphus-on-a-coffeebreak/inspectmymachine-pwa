@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import { get, set, del, keys } from 'idb-keyval';
+import { get, set, del, keys } from './idb-safe';
 import type { InspectionTemplate } from '@/types/inspection';
 
 const CACHE_PREFIX = 'inspection-template:';

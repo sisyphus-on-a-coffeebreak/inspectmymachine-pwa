@@ -6,7 +6,7 @@
  * Uses IndexedDB for persistent storage.
  */
 
-import { get, set, del, keys } from 'idb-keyval';
+import { get, set, del, keys } from './idb-safe';
 import { apiClient } from './apiClient';
 import { isNetworkError, isRetryableError } from './errorHandling';
 import type { ApiRequestConfig } from './apiClient';
@@ -273,8 +273,13 @@ class OfflineQueue {
   subscribe(listener: (stats: QueueStats) => void): () => void {
     this.listeners.add(listener);
     
-    // Immediately notify with current stats
-    this.getStats().then(stats => listener(stats));
+    // Immediately notify with current stats (with error handling)
+    this.getStats()
+      .then(stats => listener(stats))
+      .catch(() => {
+        // Silently handle errors - IndexedDB might be unavailable
+        listener({ total: 0, pending: 0, failed: 0 });
+      });
 
     // Return unsubscribe function
     return () => {
@@ -286,17 +291,29 @@ class OfflineQueue {
    * Notify all listeners of queue changes
    */
   private async notifyListeners(): Promise<void> {
-    const stats = await this.getStats();
-    this.listeners.forEach(listener => {
-      try {
-        listener(stats);
-      } catch (error) {
-        // Error in queue listener - handled gracefully
-        if (import.meta.env.DEV) {
-          logger.error('Error in queue listener', error, 'offlineQueue');
+    try {
+      const stats = await this.getStats();
+      this.listeners.forEach(listener => {
+        try {
+          listener(stats);
+        } catch (error) {
+          // Error in queue listener - handled gracefully
+          if (import.meta.env.DEV) {
+            logger.error('Error in queue listener', error, 'offlineQueue');
+          }
         }
-      }
-    });
+      });
+    } catch (error) {
+      // IndexedDB error - notify with empty stats
+      const emptyStats: QueueStats = { total: 0, pending: 0, failed: 0 };
+      this.listeners.forEach(listener => {
+        try {
+          listener(emptyStats);
+        } catch (listenerError) {
+          // Ignore listener errors
+        }
+      });
+    }
   }
 
   /**

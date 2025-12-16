@@ -1,4 +1,6 @@
 import "./i18n";
+// Import IndexedDB safe wrapper early to catch all errors
+import "./lib/idb-safe";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
@@ -22,8 +24,10 @@ if (import.meta.env.PROD) {
     });
   }
   
-  // Initialize web vitals in production
-  initWebVitals();
+  // Initialize web vitals in production (async, won't block render)
+  initWebVitals().catch(() => {
+    // Silently handle initialization errors
+  });
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

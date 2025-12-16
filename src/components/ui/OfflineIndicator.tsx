@@ -32,14 +32,20 @@ export const OfflineIndicator: React.FC<OfflineIndicatorProps> = ({
       setQueueStats(stats);
     });
 
-    // Load queued requests
+    // Load queued requests with error handling
     const loadQueuedRequests = async () => {
-      const requests = await offlineQueue.getAll();
-      setQueuedRequests(requests);
+      try {
+        const requests = await offlineQueue.getAll();
+        setQueuedRequests(requests);
+      } catch (error) {
+        // Silently handle errors - IndexedDB might be unavailable
+        // The queue stats subscription will still work
+      }
     };
 
     loadQueuedRequests();
-    const interval = setInterval(loadQueuedRequests, 5000); // Update every 5 seconds
+    // Use longer interval to reduce IndexedDB load
+    const interval = setInterval(loadQueuedRequests, 10000); // Update every 10 seconds
 
     return () => {
       window.removeEventListener('online', handleOnline);
