@@ -30,7 +30,9 @@ const ResponsiveGridComponent: React.FC<ResponsiveGridProps> = ({
     display: 'grid' as const,
     gap: gapMap[gap],
     gridTemplateColumns: `repeat(${columns.mobile || 1}, 1fr)`,
-    width: '100%'
+    width: '100%',
+    maxWidth: '100%',
+    boxSizing: 'border-box' as const
   }), [gapMap, gap, columns.mobile]);
 
   const mediaQueries = useMemo(() => `
