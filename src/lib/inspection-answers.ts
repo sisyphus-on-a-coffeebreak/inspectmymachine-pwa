@@ -186,7 +186,7 @@ export async function buildFormDataFromSerialized(
         });
       }
     }
-  });
+  }
 
   const payload = {
     template_id: templateId,
