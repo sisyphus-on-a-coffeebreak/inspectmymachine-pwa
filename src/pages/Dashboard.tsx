@@ -415,7 +415,7 @@ export default function Dashboard() {
                     </span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, maxHeight: '350px', overflowY: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
                   {loading ? (
                     <div style={{ textAlign: 'center', padding: spacing.lg, color: colors.neutral[600] }}>
                       Loading...
@@ -548,7 +548,7 @@ export default function Dashboard() {
                     </span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, maxHeight: '350px', overflowY: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
                   {loading ? (
                     <div style={{ textAlign: 'center', padding: spacing.lg, color: colors.neutral[600] }}>
                       Loading...
@@ -681,7 +681,7 @@ export default function Dashboard() {
                     </span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, maxHeight: '350px', overflowY: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
                   {loading ? (
                     <div style={{ textAlign: 'center', padding: spacing.lg, color: colors.neutral[600] }}>
                       Loading...

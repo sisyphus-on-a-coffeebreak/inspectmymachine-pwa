@@ -1,36 +1,37 @@
 /**
- * Mobile-First Overflow Prevention
- * 
- * Scoped styles to prevent horizontal overflow on mobile devices.
- * Only applied where necessary to avoid interfering with layout.
+ * Mobile-First Width Contract (INVARIANT 1)
+ *
+ * PREVENTS overflow rather than hiding it.
+ * Establishes viewport width as structural constraint.
  */
 
-/* Prevent horizontal overflow on body - minimal scope */
-html, body {
-  overflow-x: hidden;
+/* INVARIANT 1: Viewport Width Contract - root level enforcement */
+html, body, #root {
   width: 100%;
+  max-width: 100vw;
   box-sizing: border-box;
+  /* NO overflow-x: hidden - we PREVENT, not mask */
 }
 
-/* Box-sizing for all elements */
+/* Box-sizing inheritance - all children */
 *, *::before, *::after {
   box-sizing: border-box;
 }
 
-/* Prevent images from overflowing */
-img {
+/* Intrinsic sizing for media to prevent overflow */
+img, video, canvas, iframe, svg {
   max-width: 100%;
   height: auto;
 }
 
-/* Prevent tables from breaking layout */
+/* Tables respect viewport */
 table {
   width: 100%;
   max-width: 100%;
   table-layout: auto;
 }
 
-/* Ensure pre/code blocks wrap but allow horizontal scroll if needed */
+/* Code blocks: wrap first, scroll as last resort */
 pre, code {
   white-space: pre-wrap;
   word-wrap: break-word;
@@ -38,24 +39,16 @@ pre, code {
   overflow-x: auto;
 }
 
-/* Mobile-specific fixes - scoped to prevent interference */
-@media (max-width: 767px) {
-  /* Ensure text doesn't overflow - scoped to text elements */
-  p, span, h1, h2, h3, h4, h5, h6 {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    hyphens: auto;
-  }
-  
-  /* Prevent long URLs from breaking layout */
-  a {
-    word-break: break-all;
-    overflow-wrap: break-word;
-  }
-  
-  /* Scoped container fixes - only for main content containers */
-  .app-layout-main-content {
-    max-width: 100%;
-    overflow-x: hidden;
-  }
+/* Text content safety - prevent overflow from long words */
+p, span, h1, h2, h3, h4, h5, h6, a {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Main content container width constraint */
+.app-layout-main-content {
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  /* NO overflow-x: hidden */
 }

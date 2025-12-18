@@ -520,9 +520,12 @@ export const formStyles = {
   }
 };
 
-// Card styles
+// Card styles (INVARIANT 2: Safe by default)
 export const cardStyles = {
   base: {
+    width: '100%',
+    maxWidth: '100%',
+    boxSizing: 'border-box' as const,
     backgroundColor: 'white',
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
@@ -530,16 +533,55 @@ export const cardStyles = {
     border: `1px solid ${colors.neutral[200]}`,
     transition: 'all 0.2s ease'
   },
-  
+
   hover: {
     transform: 'translateY(-2px)',
     boxShadow: shadows.md
   },
-  
+
   selected: {
     borderColor: colors.primary,
     boxShadow: `0 0 0 3px ${colors.primary}20`
   }
+};
+
+// INVARIANT 2: Safe Grid Primitives - mobile-first, viewport-aware
+export const gridStyles = {
+  // Mobile-safe: single column by default, never uses fixed px minimums
+  mobileFirst: (isMobile: boolean) => ({
+    display: 'grid',
+    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))',
+    gap: spacing.lg,
+    width: '100%',
+    maxWidth: '100%'
+  }),
+
+  // Stat cards grid - respects viewport constraints
+  stats: (isMobile: boolean) => ({
+    display: 'grid',
+    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: spacing.lg,
+    width: '100%',
+    maxWidth: '100%'
+  }),
+
+  // Action cards grid - wider cells, mobile-safe
+  cards: (isMobile: boolean) => ({
+    display: 'grid',
+    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(min(350px, 100%), 1fr))',
+    gap: spacing.lg,
+    width: '100%',
+    maxWidth: '100%'
+  }),
+
+  // Dense grid for images/small items
+  dense: (isMobile: boolean) => ({
+    display: 'grid',
+    gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(150px, 1fr))',
+    gap: spacing.md,
+    width: '100%',
+    maxWidth: '100%'
+  })
 };
 
 // Status badge styles
@@ -589,5 +631,6 @@ export default {
   buttonStyles,
   formStyles,
   cardStyles,
+  gridStyles,
   statusBadgeStyles
 };

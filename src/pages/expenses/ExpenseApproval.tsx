@@ -11,6 +11,18 @@ import { Pagination } from '../../components/ui/Pagination';
 import { StatCard } from '../../components/ui/StatCard';
 import { useExpenseApprovals, useExpenseApprovalStats, useApproveExpense, useRejectExpense } from '../../lib/queries';
 
+// Mobile detection hook (INVARIANT 2)
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  return isMobile;
+};
+
 // ✅ Expense Approval Workflow
 // Admin approval system for employee expenses
 // Handles approval requests, reviews, and notifications
@@ -52,6 +64,7 @@ interface ApprovalStats {
 export const ExpenseApproval: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const isMobile = useIsMobile(); // Mobile detection
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [selectedExpenses, setSelectedExpenses] = useState<string[]>([]);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -339,10 +352,13 @@ export const ExpenseApproval: React.FC = () => {
 
       {/* Statistics */}
       {stats && (
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-          gap: spacing.lg 
+        <div style={{
+          display: 'grid',
+          // INVARIANT 2: mobile-safe stats grid
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: spacing.lg,
+          width: '100%',
+          maxWidth: '100%'
         }}>
           <StatCard
             label="Pending"
@@ -428,10 +444,13 @@ export const ExpenseApproval: React.FC = () => {
       </div>
 
       {/* Expense List */}
-      <div style={{ 
-        display: 'grid', 
+      <div style={{
+        display: 'grid',
         gap: spacing.lg,
-        gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))'
+        // INVARIANT 2: mobile-safe cards grid - single column on mobile
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(min(400px, 100%), 1fr))',
+        width: '100%',
+        maxWidth: '100%'
       }}>
         {expenses.map((expense) => (
           <div
