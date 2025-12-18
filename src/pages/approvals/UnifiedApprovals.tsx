@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUnifiedApprovals, useBulkApproval, type ApprovalType, type UnifiedApproval } from '../../hooks/useUnifiedApprovals';
 import { useAuth } from '../../providers/useAuth';
 import { useToast } from '../../providers/ToastProvider';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -20,15 +21,7 @@ export const UnifiedApprovals: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const { bulkApprove, bulkReject } = useBulkApproval();
-
-  // Mobile detection (INVARIANT 2: responsive primitives)
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  const isMobile = useIsMobile();
 
   // Get initial tab from URL or default to 'all'
   const initialTab = (searchParams.get('tab') as ApprovalType | 'all') || 'all';

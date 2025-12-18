@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { apiClient } from '../../lib/apiClient';
 import { useToast } from '../../providers/ToastProvider';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { ReceiptPreview } from '../../components/ui/ReceiptPreview';
@@ -10,18 +11,6 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Pagination } from '../../components/ui/Pagination';
 import { StatCard } from '../../components/ui/StatCard';
 import { useExpenseApprovals, useExpenseApprovalStats, useApproveExpense, useRejectExpense } from '../../lib/queries';
-
-// Mobile detection hook (INVARIANT 2)
-const useIsMobile = () => {
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-  return isMobile;
-};
 
 // ✅ Expense Approval Workflow
 // Admin approval system for employee expenses
@@ -64,7 +53,7 @@ interface ApprovalStats {
 export const ExpenseApproval: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const isMobile = useIsMobile(); // Mobile detection
+  const isMobile = useIsMobile();
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [selectedExpenses, setSelectedExpenses] = useState<string[]>([]);
   const [rejectionReason, setRejectionReason] = useState('');
