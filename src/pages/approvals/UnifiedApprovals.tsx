@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUnifiedApprovals, useBulkApproval, type ApprovalType, type UnifiedApproval } from '../../hooks/useUnifiedApprovals';
 import { useAuth } from '../../providers/useAuth';
 import { useToast } from '../../providers/ToastProvider';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -20,6 +21,7 @@ export const UnifiedApprovals: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const { bulkApprove, bulkReject } = useBulkApproval();
+  const isMobile = useIsMobile();
 
   // Get initial tab from URL or default to 'all'
   const initialTab = (searchParams.get('tab') as ApprovalType | 'all') || 'all';
@@ -243,7 +245,7 @@ export const UnifiedApprovals: React.FC = () => {
           alignItems: 'center',
         }}
       >
-        <div style={{ flex: 1, minWidth: '200px' }}>
+        <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
           <Input
             type="text"
             placeholder="Search approvals..."
@@ -326,7 +328,10 @@ export const UnifiedApprovals: React.FC = () => {
           style={{
             display: 'grid',
             gap: spacing.md,
-            gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+            // INVARIANT 2: mobile-safe grid - single column on mobile
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(min(400px, 100%), 1fr))',
+            width: '100%',
+            maxWidth: '100%'
           }}
         >
           {approvals.map((approval) => (

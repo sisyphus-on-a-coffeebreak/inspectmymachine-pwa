@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../lib/apiClient';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
@@ -33,6 +34,7 @@ export const PassTemplates: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { confirm, ConfirmComponent } = useConfirm();
+  const isMobile = useIsMobile();
   const [templates, setTemplates] = useState<PassTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -420,7 +422,14 @@ export const PassTemplates: React.FC = () => {
       )}
 
       {/* Templates Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: spacing.lg }}>
+      <div style={{
+        display: 'grid',
+        // INVARIANT 2: mobile-safe grid
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(min(350px, 100%), 1fr))',
+        gap: spacing.lg,
+        width: '100%',
+        maxWidth: '100%'
+      }}>
         {templates.map((template) => (
           <div
             key={template.id}

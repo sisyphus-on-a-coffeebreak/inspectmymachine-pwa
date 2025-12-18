@@ -947,19 +947,19 @@ export default function AppLayout({
         )}
 
         {/* Main Content */}
-        <main 
+        <main
           id="main-content"
           tabIndex={-1}
-          className="app-layout-main-content" 
+          className="app-layout-main-content"
           data-sidebar-collapsed={isCollapsed}
           data-is-mobile={isMobile}
           style={{
           flex: 1,
           minHeight: 0,
-          maxWidth: "1400px",
+          maxWidth: "100%",
           width: "100%",
           overflowY: "auto",
-          overflowX: "hidden",
+          // INVARIANT 1: NO overflow-x hidden - we prevent, not mask
           WebkitOverflowScrolling: "touch",
           // Responsive margin: no margin on mobile, sidebar margin on desktop
           marginLeft: showSidebar && !isMobile ? (isCollapsed ? "64px" : "280px") : "0",
