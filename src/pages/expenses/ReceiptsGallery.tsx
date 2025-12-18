@@ -91,8 +91,12 @@ export const ReceiptsGallery: React.FC = () => {
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-        gap: spacing.lg
+        /* INVARIANT 2: Safe grid - 2 cols on mobile, 4 cols on desktop */
+        gridTemplateColumns: window.innerWidth < 768 ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+        gap: spacing.lg,
+        width: '100%',
+        maxWidth: '100%',
+        boxSizing: 'border-box'
       }}>
         {items.map((it) => (
           <div key={it.id} style={{

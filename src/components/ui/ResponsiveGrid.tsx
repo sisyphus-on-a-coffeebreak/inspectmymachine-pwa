@@ -1,6 +1,32 @@
 import React, { useMemo } from 'react';
 import { spacing, breakpoints } from '../../lib/theme';
 
+/**
+ * ResponsiveGrid - Mobile-First Grid Layout Primitive
+ *
+ * ARCHITECTURAL INVARIANT:
+ * This component enforces mobile-safe grid layouts by construction.
+ * - Always single-column on mobile by default (no overflow possible)
+ * - Progressively enhances to multi-column on larger screens
+ * - Never uses minmax() with fixed pixel minimums
+ * - Cannot be misconfigured to cause mobile overflow
+ *
+ * DO NOT bypass this component with raw CSS grid unless you have
+ * explicit architectural approval and mobile testing.
+ *
+ * @example
+ * // Standard card grid
+ * <CardGrid gap="md">
+ *   <Card>...</Card>
+ *   <Card>...</Card>
+ * </CardGrid>
+ *
+ * @example
+ * // Custom column counts
+ * <ResponsiveGrid columns={{ mobile: 1, tablet: 2, desktop: 4 }}>
+ *   <Item />
+ * </ResponsiveGrid>
+ */
 interface ResponsiveGridProps {
   children: React.ReactNode;
   columns?: {

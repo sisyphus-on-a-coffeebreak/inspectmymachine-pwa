@@ -186,10 +186,16 @@ export const BuyerReadinessBoard: React.FC = () => {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: selectedStage === 'all' ? 'repeat(auto-fit, minmax(280px, 1fr))' : '1fr',
+          /* INVARIANT 2: Safe grid - 1 col on mobile, dynamic on desktop */
+          gridTemplateColumns: selectedStage === 'all'
+            ? (window.innerWidth < 768 ? '1fr' : 'repeat(3, 1fr)')
+            : '1fr',
           gap: spacing.lg,
-          overflowX: 'auto',
+          /* INVARIANT 1: NO overflow-x masking - fixed grid prevents overflow */
           paddingBottom: spacing.md,
+          width: '100%',
+          maxWidth: '100%',
+          boxSizing: 'border-box'
         }}
       >
         {(selectedStage === 'all' ? stages : [selectedStage]).map((stage) => {

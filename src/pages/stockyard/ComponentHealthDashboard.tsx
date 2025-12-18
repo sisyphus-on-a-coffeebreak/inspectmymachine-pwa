@@ -253,7 +253,16 @@ export const ComponentHealthDashboard: React.FC = () => {
 
       {/* Summary Statistics */}
       {dashboardData && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md, marginBottom: spacing.lg }}>
+        <div style={{
+          display: 'grid',
+          /* INVARIANT 2: Safe grid - 1 col on mobile, 4 cols on desktop */
+          gridTemplateColumns: window.innerWidth < 768 ? '1fr' : 'repeat(4, 1fr)',
+          gap: spacing.md,
+          marginBottom: spacing.lg,
+          width: '100%',
+          maxWidth: '100%',
+          boxSizing: 'border-box'
+        }}>
           <div style={{ ...cardStyles.card, textAlign: 'center' }}>
             <Package size={32} color={colors.primary} style={{ marginBottom: spacing.sm }} />
             <div style={{ ...typography.caption, color: colors.neutral[600], marginBottom: spacing.xs }}>Total Components</div>

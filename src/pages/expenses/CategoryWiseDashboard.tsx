@@ -376,9 +376,13 @@ export const CategoryWiseDashboard: React.FC = () => {
       {/* Summary Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        /* INVARIANT 2: Safe grid - 1 col on mobile, 4 cols on desktop */
+        gridTemplateColumns: window.innerWidth < 768 ? '1fr' : 'repeat(4, 1fr)',
         gap: spacing.lg,
         marginBottom: spacing.xl,
+        width: '100%',
+        maxWidth: '100%',
+        boxSizing: 'border-box'
       }}>
         <div style={{
           ...cardStyles.base,
