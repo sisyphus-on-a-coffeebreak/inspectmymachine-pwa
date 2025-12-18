@@ -440,7 +440,6 @@ export const ExpenseApproval: React.FC = () => {
         gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(min(400px, 100%), 1fr))',
         width: '100%',
         maxWidth: '100%'
->>>>>>> b2e1f3ce02d4ac974ef39180d7e2b05492961b37
       }}>
         {expenses.map((expense) => (
           <div
