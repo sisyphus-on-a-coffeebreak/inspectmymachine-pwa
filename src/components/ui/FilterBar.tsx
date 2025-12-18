@@ -51,6 +51,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
       flexDirection: 'column',
       gap: spacing.md,
       padding: spacing.md,
+      width: '100%',
+      maxWidth: '100%',
+      boxSizing: 'border-box',
     }}>
       {/* Filter Controls Row */}
       <div style={{
@@ -60,7 +63,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         alignItems: 'center',
       }}>
       {search && (
-        <div style={{ position: 'relative', flex: '1', minWidth: '200px' }}>
+        <div style={{ position: 'relative', flex: '1', minWidth: '0', width: '100%' }}>
           <Search
             size={18}
             style={{

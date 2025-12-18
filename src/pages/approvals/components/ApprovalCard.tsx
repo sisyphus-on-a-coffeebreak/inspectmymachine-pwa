@@ -3,6 +3,7 @@ import type { UnifiedApproval } from '../../../hooks/useUnifiedApprovals';
 import { Button } from '../../../components/ui/button';
 import { colors, spacing, typography } from '../../../lib/theme';
 import { formatDistanceToNow } from 'date-fns';
+import { useMobileViewport } from '../../../lib/mobileUtils';
 
 interface ApprovalCardProps {
   approval: UnifiedApproval;
@@ -30,6 +31,7 @@ export function ApprovalCard({
   onReject,
   onView,
 }: ApprovalCardProps) {
+  const isMobile = useMobileViewport();
   const config = typeConfig[approval.type];
 
   return (
@@ -43,6 +45,9 @@ export function ApprovalCard({
         borderLeft: `4px solid ${config.color}`,
         transition: 'all 0.2s ease',
         cursor: 'pointer',
+        width: '100%',
+        maxWidth: '100%',
+        boxSizing: 'border-box',
       }}
       onClick={onView}
     >
@@ -113,6 +118,7 @@ export function ApprovalCard({
       <div
         style={{
           display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
           gap: spacing.sm,
           marginTop: spacing.md,
           paddingTop: spacing.md,
@@ -120,15 +126,15 @@ export function ApprovalCard({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <Button variant="secondary" size="small" onClick={onView}>
+        <Button variant="secondary" size="small" onClick={onView} style={{ width: isMobile ? '100%' : 'auto' }}>
           View
         </Button>
         {approval.actions.canApprove && (
           <>
-            <Button variant="primary" size="small" onClick={onApprove}>
+            <Button variant="primary" size="small" onClick={onApprove} style={{ width: isMobile ? '100%' : 'auto' }}>
               Approve
             </Button>
-            <Button variant="secondary" size="small" onClick={onReject}>
+            <Button variant="secondary" size="small" onClick={onReject} style={{ width: isMobile ? '100%' : 'auto' }}>
               Reject
             </Button>
           </>

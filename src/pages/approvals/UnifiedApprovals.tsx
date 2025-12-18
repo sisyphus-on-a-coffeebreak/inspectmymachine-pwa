@@ -13,6 +13,7 @@ import { ApprovalDetailModal } from './components/ApprovalDetailModal';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
+import { useMobileViewport } from '../../lib/mobileUtils';
 
 export const UnifiedApprovals: React.FC = () => {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export const UnifiedApprovals: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const { bulkApprove, bulkReject } = useBulkApproval();
+  const isMobile = useMobileViewport();
 
   // Get initial tab from URL or default to 'all'
   const initialTab = (searchParams.get('tab') as ApprovalType | 'all') || 'all';
@@ -193,10 +195,12 @@ export const UnifiedApprovals: React.FC = () => {
       style={{
         maxWidth: '1400px',
         margin: '0 auto',
-        padding: spacing.xl,
+        padding: isMobile ? spacing.md : spacing.xl,
         fontFamily: 'system-ui, -apple-system, sans-serif',
         backgroundColor: colors.neutral[50],
         minHeight: '100vh',
+        width: '100%',
+        boxSizing: 'border-box',
       }}
     >
       <PageHeader
@@ -217,6 +221,10 @@ export const UnifiedApprovals: React.FC = () => {
           padding: spacing.md,
           marginBottom: spacing.lg,
           boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+          width: '100%',
+          maxWidth: '100%',
+          boxSizing: 'border-box',
+          overflowX: 'hidden',
         }}
       >
         <SegmentedControl
@@ -226,6 +234,7 @@ export const UnifiedApprovals: React.FC = () => {
           }))}
           value={activeTab}
           onChange={(value) => handleTabChange(value as ApprovalType | 'all')}
+          fullWidth={isMobile}
         />
       </div>
 
@@ -243,7 +252,7 @@ export const UnifiedApprovals: React.FC = () => {
           alignItems: 'center',
         }}
       >
-        <div style={{ flex: 1, minWidth: '200px' }}>
+        <div style={{ flex: 1, minWidth: '0', width: '100%' }}>
           <Input
             type="text"
             placeholder="Search approvals..."
@@ -277,10 +286,14 @@ export const UnifiedApprovals: React.FC = () => {
             marginBottom: spacing.lg,
             boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
             display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
             justifyContent: 'space-between',
-            alignItems: 'center',
+            alignItems: isMobile ? 'stretch' : 'center',
             flexWrap: 'wrap',
             gap: spacing.md,
+            width: '100%',
+            maxWidth: '100%',
+            boxSizing: 'border-box',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
@@ -295,13 +308,19 @@ export const UnifiedApprovals: React.FC = () => {
             </span>
           </div>
           {selectedIds.size > 0 && (
-            <div style={{ display: 'flex', gap: spacing.sm }}>
-              <Button variant="primary" onClick={handleBulkApprove}>
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: isMobile ? 'column' : 'row',
+              gap: spacing.sm,
+              width: isMobile ? '100%' : 'auto',
+            }}>
+              <Button variant="primary" onClick={handleBulkApprove} style={{ width: isMobile ? '100%' : 'auto' }}>
                 Approve Selected ({selectedIds.size})
               </Button>
               <Button
                 variant="secondary"
                 onClick={() => setShowRejectModal(true)}
+                style={{ width: isMobile ? '100%' : 'auto' }}
               >
                 Reject Selected ({selectedIds.size})
               </Button>
@@ -326,7 +345,7 @@ export const UnifiedApprovals: React.FC = () => {
           style={{
             display: 'grid',
             gap: spacing.md,
-            gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(400px, 1fr))',
           }}
         >
           {approvals.map((approval) => (

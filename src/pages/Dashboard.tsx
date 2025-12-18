@@ -26,6 +26,7 @@ import {
   saveWidgetLayout 
 } from "../lib/widgetRegistry";
 import type { WidgetConfig } from "../types/widgets";
+import { useMobileViewport } from "../lib/mobileUtils";
 // Import widgets to register them
 import "../components/dashboard/widgets";
 
@@ -181,6 +182,7 @@ interface DashboardStats {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useMobileViewport();
   // Use React Query for dashboard stats
   const { data: stats, isLoading: loading } = useDashboardStats();
   
@@ -415,7 +417,12 @@ export default function Dashboard() {
                     </span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, maxHeight: '350px', overflowY: 'auto' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: spacing.sm, 
+                  ...(isMobile ? {} : { maxHeight: '350px', overflowY: 'auto', WebkitOverflowScrolling: 'touch' })
+                }}>
                   {loading ? (
                     <div style={{ textAlign: 'center', padding: spacing.lg, color: colors.neutral[600] }}>
                       Loading...
@@ -548,7 +555,12 @@ export default function Dashboard() {
                     </span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, maxHeight: '350px', overflowY: 'auto' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: spacing.sm, 
+                  ...(isMobile ? {} : { maxHeight: '350px', overflowY: 'auto', WebkitOverflowScrolling: 'touch' })
+                }}>
                   {loading ? (
                     <div style={{ textAlign: 'center', padding: spacing.lg, color: colors.neutral[600] }}>
                       Loading...
@@ -681,7 +693,12 @@ export default function Dashboard() {
                     </span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, maxHeight: '350px', overflowY: 'auto' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: spacing.sm, 
+                  ...(isMobile ? {} : { maxHeight: '350px', overflowY: 'auto', WebkitOverflowScrolling: 'touch' })
+                }}>
                   {loading ? (
                     <div style={{ textAlign: 'center', padding: spacing.lg, color: colors.neutral[600] }}>
                       Loading...

@@ -642,6 +642,9 @@ export const RtoDetailsManager: React.FC<RtoDetailsManagerProps> = ({
           borderBottom: `2px solid ${colors.neutral[200]}`,
           flexShrink: 0,
           overflowX: 'auto',
+          overflowY: 'hidden',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'thin',
           paddingBottom: spacing.xs,
         }}>
           {tabs.map((tab) => {

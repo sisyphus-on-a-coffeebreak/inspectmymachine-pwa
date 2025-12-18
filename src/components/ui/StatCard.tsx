@@ -70,6 +70,9 @@ export const StatCard: React.FC<StatCardProps> = ({
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
+        width: '100%',
+        maxWidth: '100%',
+        boxSizing: 'border-box',
         ...(isClickable ? {
           background: 'transparent',
           border: cardStyles.base.border,

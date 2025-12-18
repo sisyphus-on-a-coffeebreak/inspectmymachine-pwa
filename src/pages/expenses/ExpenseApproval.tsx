@@ -10,6 +10,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Pagination } from '../../components/ui/Pagination';
 import { StatCard } from '../../components/ui/StatCard';
 import { useExpenseApprovals, useExpenseApprovalStats, useApproveExpense, useRejectExpense } from '../../lib/queries';
+import { useMobileViewport } from '../../lib/mobileUtils';
 
 // ✅ Expense Approval Workflow
 // Admin approval system for employee expenses
@@ -52,6 +53,7 @@ interface ApprovalStats {
 export const ExpenseApproval: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const isMobile = useMobileViewport();
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [selectedExpenses, setSelectedExpenses] = useState<string[]>([]);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -431,7 +433,7 @@ export const ExpenseApproval: React.FC = () => {
       <div style={{ 
         display: 'grid', 
         gap: spacing.lg,
-        gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))'
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(400px, 1fr))',
       }}>
         {expenses.map((expense) => (
           <div

@@ -45,7 +45,7 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
     return (
       <div
         style={{
-          ...cardStyles.card,
+          ...cardStyles.base,
           cursor: 'pointer',
           border: `2px solid ${colors.primary}`,
           backgroundColor: colors.primary + '05',
@@ -98,13 +98,16 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
 
   // Full variant
   return (
-    <div
-      style={{
-        ...cardStyles.card,
-        cursor: 'pointer',
-        transition: 'all 0.2s',
-        border: `2px solid ${colors.neutral[200]}`,
-      }}
+      <div
+        style={{
+          ...cardStyles.base,
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+          border: `2px solid ${colors.neutral[200]}`,
+          width: '100%',
+          maxWidth: '100%',
+          boxSizing: 'border-box',
+        }}
       onClick={onClick}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = colors.primary;

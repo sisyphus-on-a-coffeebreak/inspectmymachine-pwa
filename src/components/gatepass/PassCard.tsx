@@ -132,6 +132,9 @@ export const PassCard: React.FC<PassCardProps> = ({ pass, onClick, compact = fal
         transition: 'all 0.2s ease',
         borderLeft: `4px solid ${typeColor}`,
         position: 'relative',
+        width: '100%',
+        maxWidth: '100%',
+        boxSizing: 'border-box',
         ...(isClickable ? {
           ':hover': {
             transform: 'translateY(-2px)',
