@@ -9,6 +9,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { logger } from '../../lib/logger';
 import { getReportBranding, type ReportBranding } from '../../lib/report-branding';
+import { API_ORIGIN } from '../../lib/apiConfig';
 
 interface ReportSection {
   id: string;
@@ -421,11 +422,7 @@ export const DraggableReportBuilder: React.FC<DraggableReportBuilderProps> = ({
         if (!includePhotos) return null;
         
         // Helper functions to extract media items (same logic as InspectionDetails)
-        const API_ORIGIN_RAW = import.meta.env.VITE_API_ORIGIN ||
-          (import.meta.env.PROD ? "https://api.inspectmymachine.in/api" : "http://localhost:8000");
-        const STORAGE_ORIGIN = API_ORIGIN_RAW.endsWith('/api')
-          ? API_ORIGIN_RAW.replace(/\/api$/, '')
-          : API_ORIGIN_RAW;
+        const STORAGE_ORIGIN = API_ORIGIN;
         
         const buildMediaUrl = (pathOrUrl?: string | null): string | null => {
           if (!pathOrUrl) return null;

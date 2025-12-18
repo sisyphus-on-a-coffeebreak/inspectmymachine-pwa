@@ -7,6 +7,8 @@
  * - JSON
  */
 
+import { getApiUrl } from './apiConfig';
+
 // Export format values as const - this provides runtime values
 export const ExportFormatValues = ['csv', 'excel', 'json'] as const;
 
@@ -198,11 +200,8 @@ export async function exportFromAPI(
   await (apiClient as any).ensureCsrfToken?.();
   const csrfToken = (apiClient as any).getCsrfToken?.();
 
-  const apiOrigin = import.meta.env.VITE_API_ORIGIN || 'http://localhost:8000';
-  const apiBase = apiOrigin.endsWith('/api') ? apiOrigin : `${apiOrigin}/api`;
-
   try {
-    const response = await axios.get(`${apiBase}${endpoint}`, {
+    const response = await axios.get(getApiUrl(endpoint), {
       params: {
         ...params,
         format: format === 'excel' ? 'xlsx' : format, // Backend might use 'xlsx' instead of 'excel'

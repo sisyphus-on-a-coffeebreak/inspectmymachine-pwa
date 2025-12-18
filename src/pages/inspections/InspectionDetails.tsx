@@ -26,11 +26,9 @@ import { ActionMenu, type ActionMenuItem } from '../../components/ui/ActionMenu'
 import { CollapsibleSection } from '../../components/ui/CollapsibleSection';
 import { MapPin, FileText, Download, Trash2, Settings } from 'lucide-react';
 
-const API_ORIGIN_RAW = import.meta.env.VITE_API_ORIGIN ||
-  (import.meta.env.PROD ? "https://api.inspectmymachine.in/api" : "http://localhost:8000");
-const STORAGE_ORIGIN = API_ORIGIN_RAW.endsWith('/api')
-  ? API_ORIGIN_RAW.replace(/\/api$/, '')
-  : API_ORIGIN_RAW;
+import { API_ORIGIN } from '../../lib/apiConfig';
+
+const STORAGE_ORIGIN = API_ORIGIN;
 
 type MediaType = 'image' | 'video';
 

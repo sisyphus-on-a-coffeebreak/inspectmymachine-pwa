@@ -92,12 +92,12 @@ export const ExpenseReports: React.FC = () => {
       const days = dateRangeDays[dateRange] || 30;
 
       // Fetch summary data
-      const summaryResponse = await apiClient.get('/expense-reports/summary', {
+      const summaryResponse = await apiClient.get('/v1/expense-reports/summary', {
         params: { date_range: days }
       });
 
       // Fetch analytics data
-      const analyticsResponse = await apiClient.get('/expense-reports/analytics', {
+      const analyticsResponse = await apiClient.get('/v1/expense-reports/analytics', {
         params: { date_range: days }
       });
 
@@ -191,7 +191,7 @@ export const ExpenseReports: React.FC = () => {
 
   const exportToCSV = async () => {
     try {
-      const response = await apiClient.get('/expense-reports/export', {
+      const response = await apiClient.get('/v1/expense-reports/export', {
         params: { 
           date_range: dateRange,
           format: 'csv'

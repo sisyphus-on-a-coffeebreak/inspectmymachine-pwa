@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { API_BASE_URL } from './apiConfig';
 
 export type CapabilityAction = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'validate' | 'review' | 'reassign' | 'export';
 export type CapabilityModule = 'gate_pass' | 'inspection' | 'expense' | 'user_management' | 'reports';
@@ -53,8 +54,7 @@ export interface UsersResponse {
   current_page?: number;
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE || 
-  (import.meta.env.PROD ? 'https://api.inspectmymachine.in/api' : 'http://localhost:8000/api');
+const API_BASE = API_BASE_URL;
 
 /**
  * Get all users

@@ -78,7 +78,7 @@ export const CashflowAnalysisDashboard: React.FC = () => {
   const fetchCashflowData = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/api/expenses/cashflow-analysis', {
+      const response = await apiClient.get('/v1/expenses/cashflow-analysis', {
         params: { period: selectedPeriod }
       });
       setCashflowData(response.data);
@@ -92,7 +92,7 @@ export const CashflowAnalysisDashboard: React.FC = () => {
 
   const fetchInvestmentAnalysis = useCallback(async () => {
     try {
-      const response = await apiClient.get('/api/expenses/investment-analysis', {
+      const response = await apiClient.get('/v1/expenses/investment-analysis', {
         params: { period: selectedPeriod }
       });
       setInvestmentAnalysis(response.data);
@@ -104,7 +104,7 @@ export const CashflowAnalysisDashboard: React.FC = () => {
 
   const fetchCostEfficiency = useCallback(async () => {
     try {
-      const response = await apiClient.get('/api/expenses/cost-efficiency', {
+      const response = await apiClient.get('/v1/expenses/cost-efficiency', {
         params: { period: selectedPeriod }
       });
       setCostEfficiency(response.data);

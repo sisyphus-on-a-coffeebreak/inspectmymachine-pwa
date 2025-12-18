@@ -1,5 +1,6 @@
 import { onCLS, onFCP, onINP, onLCP, onTTFB } from "web-vitals"
 import type { Metric } from "web-vitals"
+import { getApiUrl } from "./apiConfig"
 
 type VitalsReport = {
   name: string
@@ -28,19 +29,21 @@ async function checkEndpointAvailability(): Promise<boolean> {
       let response: Response
       
       try {
-        response = await fetch("/api/v1/analytics/vitals", {
+        response = await fetch(getApiUrl("/v1/analytics/vitals"), {
           method: "OPTIONS",
           cache: "no-store",
+          credentials: "include",
         })
       } catch {
         // OPTIONS failed, try a minimal POST request
-        response = await fetch("/api/v1/analytics/vitals", {
+        response = await fetch(getApiUrl("/v1/analytics/vitals"), {
           method: "POST",
           body: JSON.stringify({ test: true }),
           headers: {
             'Content-Type': 'application/json',
           },
           cache: "no-store",
+          credentials: "include",
         })
       }
       
@@ -87,9 +90,13 @@ function sendToAnalytics(metric: Metric) {
 
   // Only send to analytics if endpoint is available
   // Silently skip if endpoint doesn't exist to avoid console errors
+  const analyticsUrl = getApiUrl("/v1/analytics/vitals");
+  
   if (navigator.sendBeacon) {
     try {
-      const sent = navigator.sendBeacon("/api/v1/analytics/vitals", JSON.stringify(report))
+      // sendBeacon requires Blob for JSON
+      const blob = new Blob([JSON.stringify(report)], { type: 'application/json' });
+      const sent = navigator.sendBeacon(analyticsUrl, blob);
       if (!sent) {
         // sendBeacon failed, but don't disable - might be temporary
         return
@@ -99,10 +106,11 @@ function sendToAnalytics(metric: Metric) {
       return
     }
   } else {
-    fetch("/api/v1/analytics/vitals", {
+    fetch(analyticsUrl, {
       method: "POST",
       body: JSON.stringify(report),
       keepalive: true,
+      credentials: "include",
       headers: {
         'Content-Type': 'application/json',
       },

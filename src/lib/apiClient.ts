@@ -13,10 +13,10 @@ import type { AxiosRequestConfig } from 'axios';
 import { withBackoff } from './retry';
 import { offlineQueue } from './offlineQueue';
 import { isNetworkError } from './errorHandling';
+import { API_BASE_URL, API_ORIGIN } from './apiConfig';
 
-const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 
-  (import.meta.env.PROD ? "https://api.inspectmymachine.in/api" : "http://localhost:8000/api");
-const BASE_URL = (import.meta.env.VITE_API_BASE || API_ORIGIN).replace(/\/$/, "");
+// Use centralized API base URL
+const BASE_URL = API_BASE_URL;
 
 // In development, allow disabling CSRF to avoid connection errors when server is down
 const ENABLE_CSRF = import.meta.env.VITE_ENABLE_CSRF !== 'false';

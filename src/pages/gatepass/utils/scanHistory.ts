@@ -65,3 +65,5 @@ export function clearScanHistory(): void {
 
 
 
+
+

@@ -71,7 +71,7 @@ export const ProjectManagementDashboard: React.FC = () => {
   const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/api/projects/management', {
+      const response = await apiClient.get('/v1/projects/management', {
         params: { period: selectedPeriod, status: filterStatus }
       });
       setProjects(response.data);
@@ -85,7 +85,7 @@ export const ProjectManagementDashboard: React.FC = () => {
 
   const fetchProjectExpenses = useCallback(async (projectId: string) => {
     try {
-      const response = await apiClient.get(`/api/projects/${projectId}/expenses`, {
+      const response = await apiClient.get(`/v1/projects/${projectId}/expenses`, {
         params: { period: selectedPeriod }
       });
       setProjectExpenses(response.data);
@@ -97,7 +97,7 @@ export const ProjectManagementDashboard: React.FC = () => {
 
   const fetchProjectPhases = useCallback(async (projectId: string) => {
     try {
-      const response = await apiClient.get(`/api/projects/${projectId}/phases`);
+      const response = await apiClient.get(`/v1/projects/${projectId}/phases`);
       setProjectPhases(response.data);
     } catch (error) {
       // Show empty state instead of mock data

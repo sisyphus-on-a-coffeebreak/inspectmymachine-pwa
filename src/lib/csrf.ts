@@ -1,15 +1,11 @@
 import axios from 'axios';
-
-const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 
-  (import.meta.env.PROD ? "https://api.inspectmymachine.in/api" : "http://localhost:8000");
+import { API_ORIGIN } from './apiConfig';
 
 // CSRF Token Utility for Laravel Sanctum
 export const ensureCsrfToken = async (): Promise<string> => {
   try {
     // Fetch CSRF cookie - use full URL (not relative, since it's outside /api)
-    const csrfUrl = API_ORIGIN.endsWith('/api') 
-      ? `${API_ORIGIN.replace(/\/api$/, '')}/sanctum/csrf-cookie`
-      : `${API_ORIGIN}/sanctum/csrf-cookie`;
+    const csrfUrl = `${API_ORIGIN}/sanctum/csrf-cookie`;
     await axios.get(csrfUrl, {
       withCredentials: true,
       baseURL: '', // Override baseURL to use full URL

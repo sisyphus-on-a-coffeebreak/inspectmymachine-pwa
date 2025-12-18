@@ -5,6 +5,7 @@ import { Modal } from '../ui/Modal';
 import { ImageViewer } from '../ui/ImageViewer';
 import { logger } from '../../lib/logger';
 import { apiClient } from '../../lib/apiClient';
+import { API_ORIGIN } from '../../lib/apiConfig';
 
 interface MediaFile {
   id: string;
@@ -340,10 +341,8 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
           // Already relative, use as-is
           fullUrl = fullUrl.startsWith('/') ? fullUrl : `/${fullUrl}`;
         } else {
-          // Production: construct full URL
-          const apiOriginRaw = import.meta.env.VITE_API_ORIGIN || "https://api.inspectmymachine.in/api";
-          const apiOrigin = apiOriginRaw.endsWith('/api') ? apiOriginRaw.replace(/\/api$/, '') : apiOriginRaw;
-          fullUrl = `${apiOrigin}${fullUrl.startsWith('/') ? fullUrl : `/${fullUrl}`}`;
+          // Production: construct full URL using centralized config
+          fullUrl = `${API_ORIGIN}${fullUrl.startsWith('/') ? fullUrl : `/${fullUrl}`}`;
         }
       }
       

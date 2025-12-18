@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Pusher from 'pusher-js';
+import { API_ORIGIN } from '../lib/apiConfig';
 
 export interface ReverbWebSocketMessage {
   type: string;
@@ -97,7 +98,7 @@ export function useReverbWebSocket(options: UseReverbWebSocketOptions = {}): Use
                 return;
               }
               // Private/presence channels need authentication
-              const authUrl = `${import.meta.env.VITE_API_ORIGIN || 'http://localhost:8000'}/broadcasting/auth`;
+              const authUrl = `${API_ORIGIN}/broadcasting/auth`;
               fetch(authUrl, {
                 method: 'POST',
                 headers: {

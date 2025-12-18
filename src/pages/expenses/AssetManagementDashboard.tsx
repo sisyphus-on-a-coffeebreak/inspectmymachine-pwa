@@ -67,7 +67,7 @@ export const AssetManagementDashboard: React.FC = () => {
   const fetchAssets = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/api/assets/management', {
+      const response = await apiClient.get('/v1/assets/management', {
         params: { period: selectedPeriod, type: filterType }
       });
       setAssets(response.data);
@@ -81,7 +81,7 @@ export const AssetManagementDashboard: React.FC = () => {
 
   const fetchAssetExpenses = useCallback(async (assetId: string) => {
     try {
-      const response = await apiClient.get(`/api/assets/${assetId}/expenses`, {
+      const response = await apiClient.get(`/v1/assets/${assetId}/expenses`, {
         params: { period: selectedPeriod }
       });
       setAssetExpenses(response.data);
@@ -93,7 +93,7 @@ export const AssetManagementDashboard: React.FC = () => {
 
   const fetchAssetPerformance = useCallback(async () => {
     try {
-      const response = await apiClient.get('/api/assets/performance', {
+      const response = await apiClient.get('/v1/assets/performance', {
         params: { period: selectedPeriod }
       });
       setAssetPerformance(response.data);

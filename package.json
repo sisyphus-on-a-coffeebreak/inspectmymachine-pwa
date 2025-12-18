@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:full": "./scripts/start-dev.sh",
     "build": "vite build",
     "build:production": "NODE_ENV=production vite build",
     "preview": "vite preview",

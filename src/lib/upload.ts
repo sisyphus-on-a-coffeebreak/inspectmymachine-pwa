@@ -1,14 +1,7 @@
 // src/lib/upload.ts
 import { useAuth } from "@/providers/useAuth";
 import { ensureCsrfToken } from "./csrf";
-
-const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000/api";
-
-function join(apiBase: string, path: string) {
-  if (/^https?:\/\//i.test(path)) return path;
-  if (!apiBase) return path.startsWith("/") ? path : `/${path}`;
-  return `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`;
-}
+import { getApiUrl } from "./apiConfig";
 
 // Helper to get CSRF token from cookie
 function getCsrfToken(): string | null {
@@ -35,11 +28,6 @@ interface UploadError {
 export function useUploader() {
   const { fetchJson } = useAuth();
 
-  function requireApiBase(): string {
-    const base = API_BASE.trim().replace(/\/+$/g, "");
-    if (!base) throw new Error("API base not configured. Set VITE_API_BASE in .env");
-    return base;
-  }
 
   async function uploadImage(file: File, prefix?: string): Promise<UploadResult> {
     const fd = new FormData();
@@ -60,14 +48,6 @@ export function useUploader() {
     onProgress?: (pct: number) => void
   ): Promise<UploadResult> {
     return new Promise(async (resolve, reject) => {
-      let base: string;
-      try {
-        base = requireApiBase();
-      } catch (e) {
-        reject(e);
-        return;
-      }
-
       // Ensure CSRF token is available
       try {
         await ensureCsrfToken();
@@ -76,7 +56,7 @@ export function useUploader() {
         console.warn('CSRF token initialization failed, continuing anyway:', csrfError);
       }
 
-      const url = join(base, "/v1/files/upload");
+      const url = getApiUrl("/v1/files/upload");
       const xhr = new XMLHttpRequest();
       xhr.open("POST", url);
       xhr.setRequestHeader("Accept", "application/json");

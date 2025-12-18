@@ -7,6 +7,7 @@ import { StatsGrid } from '../../components/ui/ResponsiveGrid';
 import { useToast } from '../../providers/ToastProvider';
 import { LineChart, BarChart } from '../../components/ui/charts';
 import { ExportButton } from '../../components/ui/ExportButton';
+import { getApiUrl } from '../../lib/apiConfig';
 
 // 📊 Gate Pass Reports & Analytics
 // Comprehensive reporting dashboard for gate pass analytics
@@ -59,7 +60,7 @@ export const GatePassReports: React.FC = () => {
       setLoading(true);
 
       // Fetch comprehensive statistics
-      const statsResponse = await apiClient.get('/gate-pass-reports/summary', {
+      const statsResponse = await apiClient.get('/v1/gate-pass-reports/summary', {
         params: { 
           date_range: dateRange,
           yard_id: selectedYard !== 'all' ? selectedYard : undefined
@@ -67,7 +68,7 @@ export const GatePassReports: React.FC = () => {
       });
 
       // Fetch trend data
-      const trendsResponse = await apiClient.get('/gate-pass-reports/analytics', {
+      const trendsResponse = await apiClient.get('/v1/gate-pass-reports/analytics', {
         params: { 
           date_range: dateRange,
           yard_id: selectedYard !== 'all' ? selectedYard : undefined
@@ -75,7 +76,7 @@ export const GatePassReports: React.FC = () => {
       });
 
       // Fetch popular times
-      const timesResponse = await apiClient.get('/gate-pass-reports/dashboard', {
+      const timesResponse = await apiClient.get('/v1/gate-pass-reports/dashboard', {
         params: { 
           date_range: dateRange,
           yard_id: selectedYard !== 'all' ? selectedYard : undefined
@@ -83,7 +84,7 @@ export const GatePassReports: React.FC = () => {
       });
 
       // Fetch yard statistics
-      const yardsResponse = await apiClient.get('/gate-pass-reports/yards');
+      const yardsResponse = await apiClient.get('/v1/gate-pass-reports/yards');
 
       setStats(statsResponse.data);
       // Transform daily_trends from backend format to frontend format
@@ -125,9 +126,7 @@ export const GatePassReports: React.FC = () => {
       await (client as any).ensureCsrfToken?.();
       const csrfToken = (client as any).getCsrfToken?.();
       
-      const apiOrigin = import.meta.env.VITE_API_ORIGIN || 'http://localhost:8000';
-      const apiBase = apiOrigin.endsWith('/api') ? apiOrigin : `${apiOrigin}/api`;
-      const response = await axios.get(`${apiBase}/gate-pass-reports/export`, {
+      const response = await axios.get(getApiUrl('/v1/gate-pass-reports/export'), {
         params: { 
           date_range: dateRange,
           yard_id: selectedYard !== 'all' ? selectedYard : undefined,
@@ -165,9 +164,7 @@ export const GatePassReports: React.FC = () => {
       await (client as any).ensureCsrfToken?.();
       const csrfToken = (client as any).getCsrfToken?.();
       
-      const apiOrigin = import.meta.env.VITE_API_ORIGIN || 'http://localhost:8000';
-      const apiBase = apiOrigin.endsWith('/api') ? apiOrigin : `${apiOrigin}/api`;
-      const response = await axios.get(`${apiBase}/gate-pass-reports/export`, {
+      const response = await axios.get(getApiUrl('/v1/gate-pass-reports/export'), {
         params: { 
           date_range: dateRange,
           yard_id: selectedYard !== 'all' ? selectedYard : undefined,
@@ -283,7 +280,7 @@ export const GatePassReports: React.FC = () => {
         
         <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
           <ExportButton
-            apiEndpoint="/gate-pass-reports/export"
+            apiEndpoint="/v1/gate-pass-reports/export"
             apiParams={{
               date_range: dateRange,
               yard_id: selectedYard !== 'all' ? selectedYard : undefined,

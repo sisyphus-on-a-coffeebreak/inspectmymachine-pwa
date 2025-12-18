@@ -5,14 +5,11 @@ import type { AxiosError } from "axios";
 import { apiClient, normalizeError } from "../lib/apiClient";
 import { AuthContext } from "./AuthContext";
 import type { User, AuthContextType, ApiErrorResponse } from "./authTypes";
+import { API_BASE_URL } from "../lib/apiConfig";
 
-const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 
-  (import.meta.env.PROD ? "https://api.inspectmymachine.in/api" : "http://localhost:8000/api");
-const API_BASE = (import.meta.env.VITE_API_BASE || API_ORIGIN).replace(/\/$/, "");
-
-// Configure axios defaults
+// Configure axios defaults - use centralized API base URL
 axios.defaults.withCredentials = true;
-axios.defaults.baseURL = API_BASE;
+axios.defaults.baseURL = API_BASE_URL;
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 axios.defaults.headers.common['Accept'] = 'application/json';
 
