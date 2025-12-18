@@ -1,34 +1,6 @@
 @import './lib/animations.css';
 @import './lib/mobileOverflowFix.css';
 
-/* Root layout constraints - prevent body scroll */
-/* Root layout constraints - prevent body scroll */
-html, body {
-  height: 100%;
-  overflow: hidden;
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-}
-
-#root {
-  height: 100%;
-  overflow: hidden;
-  width: 100%;
-}
-
-/* Ensure app container fills viewport */
-#root > div {
-  height: 100%;
-  overflow: hidden;
-  width: 100%;
-}
-
 /* Import VOMS Design System */
 @tailwind base;
 @tailwind components;
@@ -142,19 +114,6 @@ select:focus {
   select:focus {
     position: relative;
     z-index: 1;
-  }
-  
-  /* Adjust viewport when keyboard is visible */
-  .keyboard-visible {
-    height: 100vh;
-    height: 100dvh; /* Dynamic viewport height */
-    overflow: hidden;
-  }
-  
-  /* Prevent body scroll when keyboard is visible */
-  body.keyboard-visible {
-    position: fixed;
-    width: 100%;
   }
 }
 

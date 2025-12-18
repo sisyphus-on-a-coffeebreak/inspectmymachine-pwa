@@ -230,6 +230,38 @@ export default function AppLayout({
     };
   }, [isMobile, sidebarOpen, isCollapsed]);
 
+  // Scoped body scroll lock - ONLY when mobile sidebar drawer is open
+  useEffect(() => {
+    if (isMobile && sidebarOpen) {
+      // Lock body scroll when drawer is open
+      const originalOverflow = document.body.style.overflow;
+      const originalPosition = document.body.style.position;
+      const originalWidth = document.body.style.width;
+      const originalTop = document.body.style.top;
+      
+      // Store current scroll position to prevent jump
+      const scrollY = window.scrollY;
+      
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${scrollY}px`;
+      
+      return () => {
+        // Restore body scroll immediately when drawer closes
+        document.body.style.overflow = originalOverflow;
+        document.body.style.position = originalPosition;
+        document.body.style.width = originalWidth;
+        document.body.style.top = originalTop;
+        
+        // Restore scroll position
+        if (originalPosition !== 'fixed') {
+          window.scrollTo(0, scrollY);
+        }
+      };
+    }
+  }, [isMobile, sidebarOpen]);
+
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
   };
@@ -350,7 +382,7 @@ export default function AppLayout({
           }, 150);
         }}
       >
-        {createElement(IconComponent, { style: { width: "20px", height: "20px", flexShrink: 0, color: active ? colors.primary : colors.neutral[600] } } as { style?: React.CSSProperties })}
+        {createElement(IconComponent as React.ComponentType<{ style?: React.CSSProperties }>, { style: { width: "20px", height: "20px", flexShrink: 0, color: active ? colors.primary : colors.neutral[600] } })}
         {!isCollapsed && (
           <>
             <span style={{ flex: 1, fontSize: "14px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -396,7 +428,6 @@ export default function AppLayout({
       height: "100dvh",
       display: "flex",
       flexDirection: "column",
-      overflow: "hidden",
       background: `linear-gradient(135deg, ${colors.neutral[50]} 0%, ${colors.neutral[100]} 100%)`,
       fontFamily: "system-ui, -apple-system, sans-serif"
     }}>

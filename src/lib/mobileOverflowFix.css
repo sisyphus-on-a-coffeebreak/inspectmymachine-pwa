@@ -1,28 +1,20 @@
 /**
  * Mobile-First Overflow Prevention
  * 
- * Global styles to prevent horizontal overflow on mobile devices.
- * Applied to all pages and components.
+ * Scoped styles to prevent horizontal overflow on mobile devices.
+ * Only applied where necessary to avoid interfering with layout.
  */
 
-/* Prevent horizontal overflow on body */
+/* Prevent horizontal overflow on body - minimal scope */
 html, body {
   overflow-x: hidden;
   width: 100%;
-  max-width: 100vw;
   box-sizing: border-box;
 }
 
+/* Box-sizing for all elements */
 *, *::before, *::after {
   box-sizing: border-box;
-}
-
-/* Ensure all containers respect viewport width */
-.container,
-.container-fluid,
-[class*="container"] {
-  max-width: 100%;
-  overflow-x: hidden;
 }
 
 /* Prevent images from overflowing */
@@ -38,7 +30,7 @@ table {
   table-layout: auto;
 }
 
-/* Ensure pre/code blocks wrap */
+/* Ensure pre/code blocks wrap but allow horizontal scroll if needed */
 pre, code {
   white-space: pre-wrap;
   word-wrap: break-word;
@@ -46,34 +38,10 @@ pre, code {
   overflow-x: auto;
 }
 
-/* Mobile-specific fixes */
+/* Mobile-specific fixes - scoped to prevent interference */
 @media (max-width: 767px) {
-  /* Prevent any element from exceeding viewport */
-  * {
-    max-width: 100vw;
-  }
-  
-  /* Override fixed max-widths on mobile */
-  [style*="max-width: 1400px"],
-  [style*="max-width: 1200px"],
-  [style*="max-width: 800px"],
-  [style*="max-width: 600px"] {
-    max-width: 100% !important;
-    width: 100% !important;
-  }
-  
-  /* Ensure flex containers don't overflow */
-  [style*="display: flex"] {
-    min-width: 0;
-  }
-  
-  /* Prevent grid from overflowing */
-  [style*="display: grid"] {
-    min-width: 0;
-  }
-  
-  /* Ensure text doesn't overflow */
-  p, span, div, h1, h2, h3, h4, h5, h6 {
+  /* Ensure text doesn't overflow - scoped to text elements */
+  p, span, h1, h2, h3, h4, h5, h6 {
     word-wrap: break-word;
     overflow-wrap: break-word;
     hyphens: auto;
@@ -85,12 +53,9 @@ pre, code {
     overflow-wrap: break-word;
   }
   
-  /* Ensure containers with fixed widths are responsive */
-  div[style*="width: '800px'"],
-  div[style*="width: '600px'"],
-  div[style*="width: 800px"],
-  div[style*="width: 600px"] {
-    width: 100% !important;
-    max-width: 100% !important;
+  /* Scoped container fixes - only for main content containers */
+  .app-layout-main-content {
+    max-width: 100%;
+    overflow-x: hidden;
   }
 }
