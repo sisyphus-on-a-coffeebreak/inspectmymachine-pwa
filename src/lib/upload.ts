@@ -2,6 +2,7 @@
 import { useAuth } from "@/providers/useAuth";
 import { ensureCsrfToken } from "./csrf";
 import { getApiUrl } from "./apiConfig";
+import { compressImage, shouldCompress } from "./imageCompression";
 
 // Helper to get CSRF token from cookie
 function getCsrfToken(): string | null {
@@ -30,8 +31,13 @@ export function useUploader() {
 
 
   async function uploadImage(file: File, prefix?: string): Promise<UploadResult> {
+    // Compress image before upload if applicable
+    const fileToUpload = shouldCompress(file) 
+      ? await compressImage(file)
+      : file;
+    
     const fd = new FormData();
-    fd.append("file", file, file.name || "photo");
+    fd.append("file", fileToUpload, fileToUpload.name || "photo");
     const clean = (prefix ?? "").replace(/^\/+/, "");
     if (clean) fd.append("prefix", clean);
     
@@ -42,20 +48,25 @@ export function useUploader() {
     });
   }
 
-  function uploadImageWithProgress(
+  async function uploadImageWithProgress(
     file: File,
     prefix?: string,
     onProgress?: (pct: number) => void
   ): Promise<UploadResult> {
-    return new Promise(async (resolve, reject) => {
-      // Ensure CSRF token is available
-      try {
-        await ensureCsrfToken();
-      } catch (csrfError) {
-        // If CSRF fails, try to continue anyway (backend might have it excluded)
-        console.warn('CSRF token initialization failed, continuing anyway:', csrfError);
-      }
+    // Compress image before upload if applicable
+    const fileToUpload = shouldCompress(file) 
+      ? await compressImage(file)
+      : file;
+    
+    // Ensure CSRF token is available
+    try {
+      await ensureCsrfToken();
+    } catch (csrfError) {
+      // If CSRF fails, try to continue anyway (backend might have it excluded)
+      console.warn('CSRF token initialization failed, continuing anyway:', csrfError);
+    }
 
+    return new Promise<UploadResult>((resolve, reject) => {
       const url = getApiUrl("/v1/files/upload");
       const xhr = new XMLHttpRequest();
       xhr.open("POST", url);
@@ -110,7 +121,7 @@ export function useUploader() {
       };
 
       const fd = new FormData();
-      fd.append("file", file, file.name || "photo");
+      fd.append("file", fileToUpload, fileToUpload.name || "photo");
       const clean = (prefix ?? "").replace(/^\/+/, "");
       if (clean) fd.append("prefix", clean);
 

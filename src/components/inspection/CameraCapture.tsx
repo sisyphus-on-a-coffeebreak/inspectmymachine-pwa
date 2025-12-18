@@ -7,6 +7,7 @@ import type { Photo } from '../ui/SortablePhotoGrid';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { logger } from '../../lib/logger';
 import { reorderInspectionPhotos } from '../../lib/inspectionPhotoReorder';
+import { compressImages, compressImage, shouldCompress } from '../../lib/imageCompression';
 
 interface CameraCaptureProps {
   value?: any[];
@@ -410,14 +411,26 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
       return;
     }
     
-    canvas.toBlob((blob) => {
+    canvas.toBlob(async (blob) => {
       if (blob) {
-        const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
-        const newFiles = [...value, file];
-        onChange(newFiles);
-        
-        // Provide feedback
-        // Photo captured successfully
+        try {
+          // Create file from blob
+          const capturedFile = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
+          
+          // Compress the captured photo before adding to list
+          const compressedFile = shouldCompress(capturedFile)
+            ? await compressImage(capturedFile)
+            : capturedFile;
+          
+          const newFiles = [...value, compressedFile];
+          onChange(newFiles);
+          
+          // Provide feedback
+          // Photo captured and compressed successfully
+        } catch (error) {
+          handleError('Failed to process captured photo. Please try again.');
+          console.error('Photo compression error:', error);
+        }
       } else {
         handleError('Failed to save photo. Please try again.');
       }
@@ -564,13 +577,40 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
     }
   }, [isCapturing, isVideoReady]);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    const newFiles = [...value, ...files];
-    onChange(newFiles);
-    // Reset input so same file can be selected again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    if (files.length === 0) return;
+    
+    try {
+      // Separate images and other files
+      const imageFiles: File[] = [];
+      const otherFiles: File[] = [];
+      
+      files.forEach(file => {
+        if (shouldCompress(file)) {
+          imageFiles.push(file);
+        } else {
+          otherFiles.push(file);
+        }
+      });
+      
+      // Compress images
+      const compressedImages = imageFiles.length > 0 
+        ? await compressImages(imageFiles)
+        : [];
+      
+      // Combine compressed images with other files
+      const processedFiles = [...compressedImages, ...otherFiles];
+      const newFiles = [...value, ...processedFiles];
+      onChange(newFiles);
+      
+      // Reset input so same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      handleError('Failed to process files. Please try again.');
+      console.error('File processing error:', error);
     }
   };
 

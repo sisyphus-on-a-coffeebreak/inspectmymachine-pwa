@@ -67,7 +67,7 @@ export async function submitInspection({
     mode,
   };
 
-  const { formData, totalBytes } = buildFormDataFromSerialized(prepared, formDataOptions);
+  const { formData, totalBytes } = await buildFormDataFromSerialized(prepared, formDataOptions);
 
     const upload = async () => {
       onProgress?.({ phase: 'preparing', mode, message: 'Preparing inspection payload…' });
@@ -89,7 +89,8 @@ export async function submitInspection({
       const csrfToken = (client as any).getCsrfToken?.();
       
       try {
-        const response = await axios.post('/v1/inspections', formData, {
+        const { getApiUrl } = await import('./apiConfig');
+        const response = await axios.post(getApiUrl('/v1/inspections'), formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
             ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
@@ -184,7 +185,7 @@ export async function syncQueuedInspections({ onItem }: SyncQueuedInspectionsOpt
   for (const item of items) {
     onItem?.({ id: item.id, phase: 'preparing', mode: item.mode, message: 'Retrying inspection…' });
 
-    const { formData, totalBytes } = buildFormDataFromSerialized(item.answers, {
+    const { formData, totalBytes } = await buildFormDataFromSerialized(item.answers, {
       templateId: item.templateId,
       vehicleId: item.vehicleId,
       metadata: item.metadata,
@@ -192,9 +193,10 @@ export async function syncQueuedInspections({ onItem }: SyncQueuedInspectionsOpt
     });
 
     try {
+      const { getApiUrl } = await import('./apiConfig');
       await withBackoff(
         () =>
-          axios.post('/v1/inspections', formData, {
+          axios.post(getApiUrl('/v1/inspections'), formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
             onUploadProgress: (event) => {
               const total = typeof event.total === 'number' && event.total > 0 ? event.total : totalBytes || undefined;

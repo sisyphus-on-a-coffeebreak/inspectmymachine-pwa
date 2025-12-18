@@ -1,4 +1,5 @@
 import type { SerializedInspectionAnswers, SerializedAnswerEntry, SerializedFileData } from './inspection-serialization-types';
+import { compressImage, shouldCompress } from './imageCompression';
 
 const encoder = new TextEncoder();
 
@@ -102,10 +103,10 @@ export interface BuildFormDataResult {
   attachmentCount: number;
 }
 
-export function buildFormDataFromSerialized(
+export async function buildFormDataFromSerialized(
   serialized: SerializedInspectionAnswers,
   { templateId, vehicleId, metadata = {}, mode = 'final' }: BuildFormDataOptions,
-): BuildFormDataResult {
+): Promise<BuildFormDataResult> {
   const formData = new FormData();
   let totalBytes = 0;
   let attachmentCount = 0;
@@ -113,13 +114,27 @@ export function buildFormDataFromSerialized(
   const answerPayload: Array<{ question_id: string; kind: SerializedAnswerEntry['kind']; value: SerializableAnswerValue }>
     = [];
 
-  Object.entries(serialized.answers).forEach(([questionId, entry]) => {
+  // Process all entries, compressing images as needed
+  for (const [questionId, entry] of Object.entries(serialized.answers)) {
     switch (entry.kind) {
       case 'media': {
         const fileNames: string[] = [];
-        entry.files.forEach((fileData, index) => {
-          const file = fromSerializedFileData(fileData);
-          const inferredName = file.name || `${FILE_NAME_FALLBACK}-${questionId}-${index + 1}`;
+        // Compress images in parallel
+        const compressionPromises = entry.files.map(async (fileData, index) => {
+          let file = fromSerializedFileData(fileData);
+          // Compress if it's an image that should be compressed
+          if (shouldCompress(file)) {
+            file = await compressImage(file);
+          }
+          return { file, index };
+        });
+        
+        const compressedFiles = await Promise.all(compressionPromises);
+        
+        // Sort by original index and add to FormData
+        compressedFiles.sort((a, b) => a.index - b.index);
+        compressedFiles.forEach(({ file }, arrayIndex) => {
+          const inferredName = file.name || `${FILE_NAME_FALLBACK}-${questionId}-${arrayIndex + 1}`;
           formData.append(`media[${questionId}][]`, file, inferredName);
           totalBytes += file.size;
           attachmentCount += 1;
