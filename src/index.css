@@ -1,6 +1,34 @@
 @import './lib/animations.css';
 @import './lib/mobileOverflowFix.css';
 
+/* Root layout constraints - prevent body scroll */
+/* Root layout constraints - prevent body scroll */
+html, body {
+  height: 100%;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
+  width: 100%;
+}
+
+/* Ensure app container fills viewport */
+#root > div {
+  height: 100%;
+  overflow: hidden;
+  width: 100%;
+}
+
 /* Import VOMS Design System */
 @tailwind base;
 @tailwind components;

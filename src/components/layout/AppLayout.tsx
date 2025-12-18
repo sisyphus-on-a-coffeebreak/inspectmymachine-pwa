@@ -1,8 +1,7 @@
-import { ReactNode, useState, useEffect } from "react";
+import { type ReactNode, useState, useEffect, createElement } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../providers/useAuth";
 import { colors, typography, spacing, borderRadius } from "../../lib/theme";
-import { useScrollDirection } from "../../hooks/useScrollDirection";
 import "./AppLayout.css";
 import {
   Home,
@@ -17,7 +16,6 @@ import {
   ChevronRight,
   ChevronLeft,
   Settings,
-  Bell,
   AlertTriangle,
   Search,
   CheckCircle
@@ -276,14 +274,14 @@ export default function AppLayout({
   );
 
   // Prefetching for faster navigation
-  const { prefetchRoute, handleLinkHover } = usePrefetch({
+  const { prefetchRoute } = usePrefetch({
     enabled: true,
     prefetchOnHover: true,
     prefetchDelay: 100,
   });
 
   const renderNavItem = (item: NavItem, level = 0) => {
-    const Icon = item.icon;
+    const IconComponent = item.icon;
     const active = isActive(item.path);
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedItems.has(item.id);
@@ -352,7 +350,7 @@ export default function AppLayout({
           }, 150);
         }}
       >
-        <Icon style={{ width: "20px", height: "20px", flexShrink: 0, color: active ? colors.primary : colors.neutral[600] }} />
+        {createElement(IconComponent, { style: { width: "20px", height: "20px", flexShrink: 0, color: active ? colors.primary : colors.neutral[600] } } as { style?: React.CSSProperties })}
         {!isCollapsed && (
           <>
             <span style={{ flex: 1, fontSize: "14px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -395,7 +393,10 @@ export default function AppLayout({
 
   return (
     <div style={{
-      minHeight: "100dvh",
+      height: "100dvh",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
       background: `linear-gradient(135deg, ${colors.neutral[50]} 0%, ${colors.neutral[100]} 100%)`,
       fontFamily: "system-ui, -apple-system, sans-serif"
     }}>
@@ -410,6 +411,8 @@ export default function AppLayout({
             position: "sticky",
             top: 0,
             zIndex: 100,
+            flexShrink: 0,
+            display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             padding: `${spacing.md} ${spacing.lg}`,
@@ -532,7 +535,6 @@ export default function AppLayout({
                 type="text"
                 placeholder="Search or press Cmd+K..."
                 onClick={() => {
-                  const { useCommandPalette } = require('../../hooks/useCommandPalette');
                   // Open command palette when clicking search input
                   window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
                 }}
@@ -573,7 +575,12 @@ export default function AppLayout({
       </header>
       )}
 
-      <div style={{ display: "flex", minHeight: "calc(100dvh - 64px)" }}>
+      <div style={{ 
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        overflow: "hidden"
+      }}>
         {/* Sidebar - Responsive: Desktop only when showSidebar is true */}
         {showSidebar && (
           <>
@@ -590,7 +597,8 @@ export default function AppLayout({
                 display: "flex",
                 flexDirection: "column",
                 zIndex: 50,
-                transition: "width 0.3s ease"
+                transition: "width 0.3s ease",
+                overflow: "hidden"
               }}>
               {/* Scrollable Content Area - Only menu items scroll */}
               <div style={{
@@ -599,7 +607,8 @@ export default function AppLayout({
                 overflowY: "auto",
                 overflowX: "hidden",
                 padding: spacing.lg,
-                paddingBottom: spacing.md
+                paddingBottom: spacing.md,
+                WebkitOverflowScrolling: "touch"
               }}>
                 {/* Logo */}
                 <div style={{ marginBottom: spacing.xl }}>
@@ -817,30 +826,42 @@ export default function AppLayout({
                 width: "280px",
                 background: "white",
                 borderRight: `1px solid ${colors.neutral[200]}`,
-                padding: spacing.lg,
                 position: "fixed",
                 top: "64px",
                 height: "calc(100dvh - 64px)",
-                overflowY: "auto",
+                display: "flex",
+                flexDirection: "column",
                 zIndex: 50,
-                willChange: "transform"
+                willChange: "transform",
+                overflow: "hidden"
               }}>
-              {/* Navigation */}
-              <nav style={{ marginBottom: spacing.xl }}>
-                {accessibleNavItems.map(item => renderNavItem(item))}
-              </nav>
+              {/* Scrollable Content Area */}
+              <div style={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: "auto",
+                overflowX: "hidden",
+                padding: spacing.lg,
+                WebkitOverflowScrolling: "touch"
+              }}>
+                {/* Navigation */}
+                <nav style={{ marginBottom: spacing.xl }}>
+                  {accessibleNavItems.map(item => renderNavItem(item))}
+                </nav>
 
-              {/* Recently Viewed */}
-              <div style={{ marginBottom: spacing.lg }}>
-                <RecentlyViewed />
+                {/* Recently Viewed */}
+                <div style={{ marginBottom: spacing.lg }}>
+                  <RecentlyViewed />
+                </div>
               </div>
 
-              {/* User Section */}
+              {/* User Section - Fixed at bottom */}
               <div style={{
                 padding: spacing.lg,
                 background: colors.neutral[50],
                 borderRadius: "12px",
-                marginTop: spacing.xl
+                flexShrink: 0,
+                borderTop: `1px solid ${colors.neutral[200]}`
               }}>
                 <div style={{
                   display: "flex",
@@ -903,12 +924,16 @@ export default function AppLayout({
           data-is-mobile={isMobile}
           style={{
           flex: 1,
+          minHeight: 0,
           maxWidth: "1400px",
           width: "100%",
+          overflowY: "auto",
+          overflowX: "hidden",
+          WebkitOverflowScrolling: "touch",
           // Responsive margin: no margin on mobile, sidebar margin on desktop
           marginLeft: showSidebar && !isMobile ? (isCollapsed ? "64px" : "280px") : "0",
-          padding: isMobile ? spacing.lg : spacing.xl, // 1.5rem on mobile, 2rem on desktop
-          paddingBottom: isMobile ? "calc(1.5rem + 64px)" : spacing.xl, // Account for bottom nav on mobile
+          padding: isMobile ? spacing.lg : spacing.xl,
+          paddingBottom: isMobile ? "calc(1.5rem + 64px)" : spacing.xl,
           transition: "margin-left 0.3s ease, padding 0.3s ease"
         }}>
           {/* Breadcrumbs */}

@@ -85,17 +85,33 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: `${spacing.sm} ${spacing.md}`,
+          minHeight: '44px', // Touch target minimum
           backgroundColor: colors.neutral[50],
           border: `1px solid ${colors.neutral[200]}`,
           borderRadius: '8px',
           cursor: 'pointer',
           transition: 'background-color 0.2s',
+          touchAction: 'manipulation',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = colors.neutral[100];
+          if (window.matchMedia('(hover: hover)').matches) {
+            e.currentTarget.style.backgroundColor = colors.neutral[100];
+          }
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = colors.neutral[50];
+          if (window.matchMedia('(hover: hover)').matches) {
+            e.currentTarget.style.backgroundColor = colors.neutral[50];
+          }
+        }}
+        onTouchStart={(e) => {
+          e.currentTarget.style.backgroundColor = colors.neutral[100];
+          e.currentTarget.style.transform = 'scale(0.98)';
+        }}
+        onTouchEnd={(e) => {
+          setTimeout(() => {
+            e.currentTarget.style.backgroundColor = colors.neutral[50];
+            e.currentTarget.style.transform = 'scale(1)';
+          }, 150);
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>

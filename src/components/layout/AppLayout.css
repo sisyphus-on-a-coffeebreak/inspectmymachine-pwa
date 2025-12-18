@@ -37,7 +37,8 @@
 .app-layout-main-content {
   margin-left: 0 !important;
   padding: 1.5rem;
-  min-height: calc(100dvh - 64px);
+  min-height: 0 !important; /* Critical: allow flex child to shrink */
+  height: 100%; /* Fill parent flex container */
   transition: margin-left 0.3s ease, padding 0.3s ease;
 }
 
@@ -51,7 +52,8 @@
 @media (min-width: 768px) and (max-width: 1023px) {
   .app-layout-main-content {
     padding: 2rem;
-    min-height: 100dvh;
+    min-height: 0 !important; /* Critical: allow flex child to shrink */
+    height: 100%;
   }
 }
 
@@ -59,7 +61,8 @@
 @media (min-width: 1024px) {
   .app-layout-main-content {
     padding: 2rem;
-    min-height: 100dvh;
+    min-height: 0 !important; /* Critical: allow flex child to shrink */
+    height: 100%;
   }
 
   /* Desktop: sidebar margin */
