@@ -22,6 +22,8 @@ import { InspectionCaptureStatusBar } from '../../components/inspection/Inspecti
 import { InspectionCaptureForm } from '../../components/inspection/InspectionCaptureForm';
 import { logger } from '../../lib/logger';
 import TemplateSelectionPage from './TemplateSelectionPage';
+import { DraftSelectionModal } from '../../components/inspection/DraftSelectionModal';
+import type { DraftMetadata } from '../../lib/inspectionDrafts';
 
 export const InspectionCapture: React.FC = () => {
   const navigate = useNavigate();
@@ -77,12 +79,33 @@ export const InspectionCapture: React.FC = () => {
     loadTemplate();
   }, [loadTemplate]);
 
+  const [showDraftSelection, setShowDraftSelection] = React.useState(false);
+  const [availableDrafts, setAvailableDrafts] = React.useState<DraftMetadata[]>([]);
+
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       if (!templateId) return;
       
+      // Check for drafts (both backend and local)
+      try {
+        const { fetchAllDrafts } = await import('../../lib/inspectionDrafts');
+        const drafts = await fetchAllDrafts({ templateId, vehicleId });
+        
+        if (cancelled) return;
+
+        if (drafts.length > 0) {
+          // Multiple drafts - show selection modal
+          setAvailableDrafts(drafts);
+          setShowDraftSelection(true);
+          return;
+        }
+      } catch (error) {
+        console.warn('Failed to check for drafts:', error);
+      }
+
+      // Single or no draft - load directly
       const record = await loadInspectionDraft(templateId, vehicleId);
       if (cancelled) return;
 
@@ -146,13 +169,48 @@ export const InspectionCapture: React.FC = () => {
   const handleSaveDraft = useCallback(async (answers: Record<string, unknown>) => {
     if (!templateId) return;
     
+    // Save draft immediately (non-blocking, doesn't wait for media uploads)
     const serialized = serializeAnswers(answers);
     await saveInspectionDraft(templateId, vehicleId, serialized);
     setDraftSavedAt(Date.now());
+    setSubmissionBanner('Draft saved.');
 
+    // Start background media uploads (non-blocking)
     const online = typeof navigator === 'undefined' || navigator.onLine;
-
-    if (!online) {
+    if (online) {
+      // Upload media in background - don't wait for it
+      import('../../lib/inspectionMediaUpload').then(({ startBackgroundMediaUpload }) => {
+        startBackgroundMediaUpload({
+          templateId,
+          vehicleId,
+          answers,
+          onProgress: (states) => {
+            // Optional: Show upload progress in UI
+            const uploading = states.filter(s => s.status === 'uploading').length;
+            const completed = states.filter(s => s.status === 'completed').length;
+            const failed = states.filter(s => s.status === 'failed').length;
+            
+            if (uploading > 0) {
+              setSubmissionBanner(`Draft saved. Uploading ${uploading} media file${uploading > 1 ? 's' : ''}...`);
+            } else if (failed > 0) {
+              setSubmissionBanner(`Draft saved. ${failed} upload${failed > 1 ? 's' : ''} failed - will retry.`);
+            } else if (completed === states.length) {
+              setSubmissionBanner('Draft saved. All media uploaded.');
+            }
+          },
+          onComplete: () => {
+            setSubmissionBanner('Draft saved. All media uploaded.');
+          },
+          onError: (error) => {
+            console.warn('Background media upload error:', error);
+            // Don't show error to user - uploads will retry on final submit
+          },
+        }).catch((error) => {
+          console.warn('Failed to start background media upload:', error);
+          // Non-critical - uploads will happen on final submit
+        });
+      });
+    } else {
       await queueInspectionSubmission({
         templateId,
         vehicleId,
@@ -162,8 +220,6 @@ export const InspectionCapture: React.FC = () => {
         queueId: `draft:${templateId}:${vehicleId ?? 'default'}`,
       });
       setSubmissionBanner('Draft saved offline. We will sync it automatically when you reconnect.');
-    } else {
-      setSubmissionBanner('Draft saved.');
     }
   }, [templateId, vehicleId, template?.name]);
 
@@ -326,6 +382,41 @@ export const InspectionCapture: React.FC = () => {
           </button>
         }
       />
+
+      {/* Draft Selection Modal */}
+      {showDraftSelection && availableDrafts.length > 0 && (
+        <DraftSelectionModal
+          drafts={availableDrafts}
+          templateName={template.name}
+          vehicleName={vehicleId ? undefined : undefined} // TODO: Fetch vehicle name if needed
+          onResume={async (draft) => {
+            try {
+              const { resumeDraft } = await import('../../lib/inspectionDrafts');
+              const { answers, draftRecord } = await resumeDraft(draft);
+              setInitialAnswers(answers);
+              if (draftRecord) {
+                setDraftSavedAt(draftRecord.updatedAt);
+              }
+              setShowDraftSelection(false);
+            } catch (error) {
+              logger.error('Failed to resume draft', error, 'InspectionCapture');
+              setSubmissionBanner('Failed to load draft. Starting fresh inspection.');
+              setShowDraftSelection(false);
+            }
+          }}
+          onStartNew={() => {
+            setInitialAnswers({});
+            setDraftSavedAt(null);
+            setShowDraftSelection(false);
+          }}
+          onClose={() => {
+            // If user closes without selecting, start new
+            setInitialAnswers({});
+            setDraftSavedAt(null);
+            setShowDraftSelection(false);
+          }}
+        />
+      )}
 
       <InspectionCaptureStatusBar
         template={template}

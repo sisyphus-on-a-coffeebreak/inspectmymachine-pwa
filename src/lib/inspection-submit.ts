@@ -60,10 +60,24 @@ export async function submitInspection({
 }: SubmitInspectionOptions): Promise<SubmitInspectionResult> {
   const prepared = serializedAnswers ?? serializeAnswers(answers ?? {});
 
+  // Load draft to get uploaded media keys if available
+  let uploadedMedia: Record<string, string[]> | undefined;
+  try {
+    const { loadInspectionDraft } = await import('./inspection-queue');
+    const draft = await loadInspectionDraft(templateId, vehicleId);
+    uploadedMedia = draft?.metadata?.uploadedMedia as Record<string, string[]> | undefined;
+  } catch (error) {
+    // Draft not found or error loading - continue without pre-uploaded keys
+    console.warn('Could not load draft for uploaded media keys:', error);
+  }
+
   const formDataOptions: BuildFormDataOptions = {
     templateId,
     vehicleId,
-    metadata,
+    metadata: {
+      ...metadata,
+      uploadedMedia, // Pass uploaded keys to buildFormDataFromSerialized
+    },
     mode,
   };
 

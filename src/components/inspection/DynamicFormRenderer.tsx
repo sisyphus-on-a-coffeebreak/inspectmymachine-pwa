@@ -12,6 +12,7 @@ import { SectionNavigator } from './SectionNavigator';
 import { AutoSaveIndicator } from './AutoSaveIndicator';
 import { useDebounce } from '../../hooks/useDebounce';
 import { CheckCircle2 } from 'lucide-react';
+import { useMobileViewport, getResponsiveContainerStyles, getTouchButtonStyles } from '../../lib/mobileUtils';
 
 interface Question {
   id: string;
@@ -407,8 +408,14 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
 
     if (!isVisible) return null;
 
+    const isMobile = useMobileViewport();
+
     return (
-      <div key={question.id} style={{ marginBottom: spacing.lg }}>
+      <div key={question.id} style={{ 
+        marginBottom: isMobile ? spacing.xl : spacing.lg,
+        paddingBottom: isMobile ? spacing.md : spacing.sm,
+        borderBottom: isMobile ? `1px solid ${colors.neutral[100]}` : 'none',
+      }}>
         <label style={{
           ...typography.label,
           color: colors.neutral[900],
@@ -416,9 +423,10 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
           display: 'flex',
           alignItems: 'center',
           gap: spacing.xs,
+          fontSize: isMobile ? 'clamp(14px, 3.5vw, 16px)' : typography.label.fontSize,
         }}>
           {isAnswered && (
-            <CheckCircle2 size={16} color={colors.success} style={{ flexShrink: 0 }} />
+            <CheckCircle2 size={isMobile ? 18 : 16} color={colors.success} style={{ flexShrink: 0 }} />
           )}
           <span style={{ flex: 1 }}>
             {question.question_text}
@@ -453,13 +461,17 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   };
 
   const renderQuestionInput = (question: Question, value: any, error: string) => {
+    const isMobile = useMobileViewport();
     const inputStyle = {
       width: '100%',
-      padding: spacing.md,
+      padding: isMobile ? spacing.lg : spacing.md,
+      minHeight: isMobile ? '44px' : 'auto',
       borderRadius: '8px',
       border: `1px solid ${error ? colors.status.critical : colors.neutral[300]}`,
       ...typography.body,
-      color: colors.neutral[900]
+      fontSize: isMobile ? 'clamp(16px, 4vw, 18px)' : typography.body.fontSize,
+      color: colors.neutral[900],
+      touchAction: 'manipulation',
     };
 
     switch (question.question_type) {
@@ -768,13 +780,15 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     }
   };
 
+  const isMobile = useMobileViewport();
+
   return (
     <div style={{ 
-      maxWidth: '800px', 
-      margin: '0 auto', 
-      padding: spacing.xl,
-      // Mobile optimizations - using CSS classes instead of inline styles
-      // Mobile styles will be handled by CSS classes
+      ...getResponsiveContainerStyles({
+        maxWidth: '800px',
+        padding: spacing.lg,
+        mobilePadding: spacing.md,
+      }),
     }}>
       {/* Progress Bar */}
       <InspectionProgressBar
@@ -789,31 +803,36 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       <div style={{ 
         marginBottom: spacing.xl,
         display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
+        alignItems: isMobile ? 'stretch' : 'flex-start',
         gap: spacing.md,
       }}>
         <div style={{ flex: 1 }}>
           <h2 style={{
             ...typography.header,
             color: colors.neutral[900],
-            marginBottom: spacing.sm
+            marginBottom: spacing.sm,
+            fontSize: isMobile ? 'clamp(20px, 5vw, 24px)' : typography.header.fontSize,
           }}>
             {currentSectionData.name}
           </h2>
           <p style={{
             ...typography.body,
-            color: colors.neutral[600]
+            color: colors.neutral[600],
+            fontSize: isMobile ? 'clamp(14px, 3.5vw, 16px)' : typography.body.fontSize,
           }}>
             Please complete all required fields in this section.
           </p>
         </div>
-        <SectionNavigator
-          sections={template.sections}
-          currentIndex={currentSection}
-          onNavigate={handleSectionNavigate}
-          completionStatus={progress.sectionCompletion}
-        />
+        {!isMobile && (
+          <SectionNavigator
+            sections={template.sections}
+            currentIndex={currentSection}
+            onNavigate={handleSectionNavigate}
+            completionStatus={progress.sectionCompletion}
+          />
+        )}
       </div>
 
 
@@ -840,20 +859,39 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       {/* Navigation */}
       <div style={{
         display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'stretch',
+        gap: spacing.md,
         paddingTop: spacing.lg,
-        borderTop: `1px solid ${colors.neutral[200]}`
+        borderTop: `1px solid ${colors.neutral[200]}`,
+        position: isMobile ? 'sticky' : 'static',
+        bottom: 0,
+        backgroundColor: 'white',
+        zIndex: 10,
+        ...(isMobile && {
+          paddingBottom: spacing.md,
+          marginLeft: `-${spacing.md}`,
+          marginRight: `-${spacing.md}`,
+          paddingLeft: spacing.md,
+          paddingRight: spacing.md,
+        }),
       }}>
         <Button
           variant="secondary"
           onClick={handlePrevious}
           disabled={currentSection === 0}
+          style={isMobile ? getTouchButtonStyles() : undefined}
         >
           Previous
         </Button>
 
-        <div style={{ display: 'flex', gap: spacing.sm }}>
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: spacing.sm,
+          width: isMobile ? '100%' : 'auto',
+        }}>
           <Button
             variant="secondary"
             onClick={() => {
@@ -867,6 +905,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                   setAutoSaveStatus('error');
                 });
             }}
+            style={isMobile ? { ...getTouchButtonStyles(), width: '100%' } : undefined}
           >
             Save Draft
           </Button>
@@ -875,6 +914,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             variant="primary"
             onClick={handleNext}
             disabled={submitting}
+            style={isMobile ? { ...getTouchButtonStyles(), width: '100%' } : undefined}
           >
             {currentSection === totalSections - 1 ? 'Submit Inspection' : 'Next Section'}
           </Button>

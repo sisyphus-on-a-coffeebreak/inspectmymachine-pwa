@@ -162,13 +162,30 @@ export const TemplateSelectionPage: React.FC = () => {
   }, [recentTemplates, templatesWithMetadata]);
 
   const handleSelectTemplate = useCallback(
-    (templateId: string) => {
+    async (templateId: string) => {
       const template = templatesWithMetadata.find((t) => t.id === templateId);
       if (template) {
         addRecentTemplate(templateId, template.name || 'Unnamed Template', vehicleId);
       }
 
-      // Navigate to capture form
+      // Check for existing drafts before navigating
+      try {
+        const { fetchAllDrafts } = await import('../../lib/inspectionDrafts');
+        const drafts = await fetchAllDrafts({ templateId, vehicleId });
+        
+        if (drafts.length > 0) {
+          // Show draft selection modal
+          const { DraftSelectionModal } = await import('../../components/inspection/DraftSelectionModal');
+          // We'll handle this via state and render the modal
+          // For now, navigate to capture which will handle draft selection
+          // TODO: Show modal here
+        }
+      } catch (error) {
+        console.warn('Failed to check for drafts:', error);
+        // Continue with navigation even if draft check fails
+      }
+
+      // Navigate to capture form (it will handle draft selection)
       if (vehicleId) {
         navigate(`/app/inspections/${templateId}/${vehicleId}/capture`);
       } else {

@@ -114,31 +114,52 @@ export async function buildFormDataFromSerialized(
   const answerPayload: Array<{ question_id: string; kind: SerializedAnswerEntry['kind']; value: SerializableAnswerValue }>
     = [];
 
+  // Check for pre-uploaded media keys in metadata
+  const uploadedMedia = metadata.uploadedMedia as Record<string, string[]> | undefined;
+
   // Process all entries, compressing images as needed
   for (const [questionId, entry] of Object.entries(serialized.answers)) {
     switch (entry.kind) {
       case 'media': {
         const fileNames: string[] = [];
-        // Compress images in parallel
+        
+        // Check if we have pre-uploaded keys for this question
+        const preUploadedKeys = uploadedMedia?.[questionId];
+        
+        // Process all files, checking for pre-uploaded keys
         const compressionPromises = entry.files.map(async (fileData, index) => {
+          // If we have a pre-uploaded key for this index, use it (no compression/upload needed)
+          if (preUploadedKeys && preUploadedKeys[index]) {
+            return { file: null, index, uploadedKey: preUploadedKeys[index], fileName: preUploadedKeys[index] };
+          }
+          
+          // File needs to be uploaded - compress if needed
           let file = fromSerializedFileData(fileData);
           // Compress if it's an image that should be compressed
           if (shouldCompress(file)) {
             file = await compressImage(file);
           }
-          return { file, index };
+          const inferredName = file.name || `${FILE_NAME_FALLBACK}-${questionId}-${index + 1}`;
+          return { file, index, uploadedKey: null, fileName: inferredName };
         });
         
-        const compressedFiles = await Promise.all(compressionPromises);
+        const processedFiles = await Promise.all(compressionPromises);
         
-        // Sort by original index and add to FormData
-        compressedFiles.sort((a, b) => a.index - b.index);
-        compressedFiles.forEach(({ file }, arrayIndex) => {
-          const inferredName = file.name || `${FILE_NAME_FALLBACK}-${questionId}-${arrayIndex + 1}`;
-          formData.append(`media[${questionId}][]`, file, inferredName);
-          totalBytes += file.size;
-          attachmentCount += 1;
-          fileNames.push(inferredName);
+        // Sort by original index to maintain order
+        processedFiles.sort((a, b) => a.index - b.index);
+        
+        // Add files to FormData and build fileNames array in correct order
+        processedFiles.forEach(({ file, index, uploadedKey, fileName }) => {
+          if (uploadedKey) {
+            // Use pre-uploaded key - no FormData append needed
+            fileNames.push(uploadedKey);
+          } else if (file) {
+            // Upload file now - add to FormData
+            formData.append(`media[${questionId}][]`, file, fileName);
+            totalBytes += file.size;
+            attachmentCount += 1;
+            fileNames.push(fileName);
+          }
         });
 
         answerPayload.push({

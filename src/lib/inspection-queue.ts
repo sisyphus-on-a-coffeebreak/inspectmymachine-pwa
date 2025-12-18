@@ -32,6 +32,8 @@ export interface InspectionDraftRecord {
   metadata?: {
     templateVersion?: number;
     conflictResolved?: boolean;
+    // Track uploaded media keys: questionId -> [fileKey1, fileKey2, ...]
+    uploadedMedia?: Record<string, string[]>;
     [key: string]: any;
   };
 }
@@ -147,18 +149,41 @@ export function subscribeQueuedInspectionCount(callback: (count: number) => void
   };
 }
 
-export async function saveInspectionDraft(templateId: string, vehicleId: string | undefined, answers: SerializedInspectionAnswers) {
+export async function saveInspectionDraft(
+  templateId: string, 
+  vehicleId: string | undefined, 
+  answers: SerializedInspectionAnswers,
+  metadata?: InspectionDraftRecord['metadata']
+) {
   // Reject mock template IDs
   if (templateId && templateId.toLowerCase().includes('mock')) {
     throw new Error('Cannot save draft with mock template ID. Please use a real template.');
   }
 
   const key = buildDraftKey(templateId, vehicleId);
+  
+  // Load existing draft to preserve metadata if not provided
+  let existingDraft: InspectionDraftRecord | null = null;
+  try {
+    existingDraft = await loadInspectionDraft(templateId, vehicleId);
+  } catch {
+    // Draft doesn't exist yet, that's fine
+  }
+  
+  // Merge metadata: new metadata takes precedence, but preserve uploadedMedia from existing
+  const mergedMetadata: InspectionDraftRecord['metadata'] = {
+    ...existingDraft?.metadata,
+    ...metadata,
+    // Preserve uploadedMedia from existing draft if not explicitly provided
+    uploadedMedia: metadata?.uploadedMedia || existingDraft?.metadata?.uploadedMedia,
+  };
+  
   const record: InspectionDraftRecord = {
     templateId,
     vehicleId,
     updatedAt: Date.now(),
     answers,
+    metadata: mergedMetadata,
   };
   await set(key, record);
 }

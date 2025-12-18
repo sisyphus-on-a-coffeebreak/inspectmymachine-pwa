@@ -1,4 +1,5 @@
 @import './lib/animations.css';
+@import './lib/mobileOverflowFix.css';
 
 /* Import VOMS Design System */
 @tailwind base;
