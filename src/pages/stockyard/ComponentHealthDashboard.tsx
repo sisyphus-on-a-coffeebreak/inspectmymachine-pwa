@@ -297,7 +297,7 @@ export const ComponentHealthDashboard: React.FC = () => {
               {dashboardData.summary.overdue_maintenance_count}
             </div>
           </div>
-        </div>
+        </WideGrid>
       )}
 
       {/* View Tabs */}
