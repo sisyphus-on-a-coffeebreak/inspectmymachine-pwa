@@ -4,6 +4,7 @@ import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { CompactGrid } from '../../components/ui/ResponsiveGrid';
 
 type ReceiptItem = {
   id: string;
@@ -89,15 +90,7 @@ export const ReceiptsGallery: React.FC = () => {
         </div>
       </div>
 
-      <div style={{
-        display: 'grid',
-        /* INVARIANT 2: Safe grid - 2 cols on mobile, 4 cols on desktop */
-        gridTemplateColumns: window.innerWidth < 768 ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-        gap: spacing.lg,
-        width: '100%',
-        maxWidth: '100%',
-        boxSizing: 'border-box'
-      }}>
+      <CompactGrid gap="lg">
         {items.map((it) => (
           <div key={it.id} style={{
             backgroundColor: 'white',
@@ -147,7 +140,7 @@ export const ReceiptsGallery: React.FC = () => {
             </div>
           </div>
         ))}
-      </div>
+      </CompactGrid>
 
       {items.length === 0 && (
         <EmptyState

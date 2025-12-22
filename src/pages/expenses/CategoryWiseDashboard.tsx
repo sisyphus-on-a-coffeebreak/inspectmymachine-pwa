@@ -11,6 +11,7 @@ import { useExpenses } from '../../lib/queries';
 import { colors, typography, spacing, cardStyles, borderRadius } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { WideGrid } from '../../components/ui/ResponsiveGrid';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingError } from '../../components/ui/LoadingError';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
@@ -374,16 +375,7 @@ export const CategoryWiseDashboard: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <div style={{
-        display: 'grid',
-        /* INVARIANT 2: Safe grid - 1 col on mobile, 4 cols on desktop */
-        gridTemplateColumns: window.innerWidth < 768 ? '1fr' : 'repeat(4, 1fr)',
-        gap: spacing.lg,
-        marginBottom: spacing.xl,
-        width: '100%',
-        maxWidth: '100%',
-        boxSizing: 'border-box'
-      }}>
+      <WideGrid style={{ marginBottom: spacing.xl }}>
         <div style={{
           ...cardStyles.base,
           padding: spacing.lg,
@@ -439,7 +431,7 @@ export const CategoryWiseDashboard: React.FC = () => {
             {formatCurrency(totalCount > 0 ? totalAmount / totalCount : 0)}
           </div>
         </div>
-      </div>
+      </WideGrid>
 
       {/* Overview View */}
       {viewMode === 'overview' && (

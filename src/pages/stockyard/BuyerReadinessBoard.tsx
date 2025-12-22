@@ -12,6 +12,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { NetworkError } from '../../components/ui/NetworkError';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { colors, spacing, typography, cardStyles, borderRadius } from '../../lib/theme';
+import { CardGrid } from '../../components/ui/ResponsiveGrid';
 import { useBuyerReadinessRecords, useUpdateBuyerReadinessStage } from '../../lib/queries';
 import { useToast } from '../../providers/ToastProvider';
 import { ShoppingBag, Camera, Sparkles, FileText, CheckCircle2, Car, Image, DollarSign, ExternalLink } from 'lucide-react';
@@ -183,21 +184,8 @@ export const BuyerReadinessBoard: React.FC = () => {
       </div>
 
       {/* Kanban Board */}
-      <div
-        style={{
-          display: 'grid',
-          /* INVARIANT 2: Safe grid - 1 col on mobile, dynamic on desktop */
-          gridTemplateColumns: selectedStage === 'all'
-            ? (window.innerWidth < 768 ? '1fr' : 'repeat(3, 1fr)')
-            : '1fr',
-          gap: spacing.lg,
-          /* INVARIANT 1: NO overflow-x masking - fixed grid prevents overflow */
-          paddingBottom: spacing.md,
-          width: '100%',
-          maxWidth: '100%',
-          boxSizing: 'border-box'
-        }}
-      >
+      {selectedStage === 'all' ? (
+        <CardGrid style={{ paddingBottom: spacing.md }}>
         {(selectedStage === 'all' ? stages : [selectedStage]).map((stage) => {
           const config = stageConfig[stage];
           const Icon = config.icon;
