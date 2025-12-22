@@ -142,4 +142,43 @@ export const WideGrid: React.FC<Omit<ResponsiveGridProps, 'columns'>> = (props) 
   />
 );
 
+// Compact grid - 2 columns mobile, 4 desktop (for small cards/thumbnails)
+export const CompactGrid: React.FC<Omit<ResponsiveGridProps, 'columns'>> = (props) => (
+  <ResponsiveGrid
+    {...props}
+    columns={{ mobile: 2, mobileLandscape: 3, tablet: 3, desktop: 4, wide: 6 }}
+    gap="sm"
+  />
+);
+
+// Dense grid - 3 columns mobile, 6 desktop (for tiny thumbnails/chips)
+export const DenseGrid: React.FC<Omit<ResponsiveGridProps, 'columns'>> = (props) => (
+  <ResponsiveGrid
+    {...props}
+    columns={{ mobile: 3, mobileLandscape: 4, tablet: 4, desktop: 6, wide: 6 }}
+    gap="sm"
+  />
+);
+
+/**
+ * LLM-PROOF GUARD:
+ *
+ * THIS IS THE ONLY FILE WHERE gridTemplateColumns MAY BE DEFINED.
+ *
+ * Pages and other components MUST import and use one of the exports above:
+ * - CardGrid (1/1/2/3/4 cols)
+ * - StatsGrid (1/2/2/3/4 cols)
+ * - ActionGrid (1/1/2/3/3 cols)
+ * - WideGrid (1/2/2/4/4 cols)
+ * - CompactGrid (2/3/3/4/6 cols)
+ * - DenseGrid (3/4/4/6/6 cols)
+ *
+ * If none of these fit your use case:
+ * 1. Add a new named export HERE with semantic naming
+ * 2. Do NOT define gridTemplateColumns in pages
+ * 3. Do NOT use window.innerWidth or inline breakpoint logic
+ *
+ * Bypassing this primitive violates architectural invariants.
+ */
+
 export default ResponsiveGrid;
