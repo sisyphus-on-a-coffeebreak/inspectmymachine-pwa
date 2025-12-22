@@ -390,13 +390,14 @@ export const GatePassDashboard: React.FC = () => {
         />
         <div style={{
           display: 'grid',
-          // INVARIANT 2: mobile-safe stats grid
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(250px, 1fr))',
+          // INVARIANT 2: Safe grid - 1 col mobile, 4 cols desktop (no minmax)
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
           gap: spacing.md,
           marginTop: spacing.lg,
           marginBottom: spacing.lg,
           width: '100%',
-          maxWidth: '100%'
+          maxWidth: '100%',
+          boxSizing: 'border-box'
         }}>
           {Array.from({ length: 4 }).map((_, i) => (
             <SkeletonCard key={`stats-skeleton-${i}`} />

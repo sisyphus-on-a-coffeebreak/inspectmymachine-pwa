@@ -636,7 +636,10 @@ export default function AppLayout({
                 flex: 1,
                 minHeight: 0,
                 overflowY: "auto",
-                overflowX: "hidden",
+                // INVARIANT 1: NO overflow-x masking - content must fit by design
+                width: '100%',
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 padding: spacing.lg,
                 paddingBottom: spacing.md,
                 WebkitOverflowScrolling: "touch"
@@ -871,7 +874,10 @@ export default function AppLayout({
                 flex: 1,
                 minHeight: 0,
                 overflowY: "auto",
-                overflowX: "hidden",
+                // INVARIANT 1: NO overflow-x masking - content must fit by design
+                width: '100%',
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 padding: spacing.lg,
                 WebkitOverflowScrolling: "touch"
               }}>

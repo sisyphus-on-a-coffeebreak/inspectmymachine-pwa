@@ -23,6 +23,8 @@ import { Pagination } from '../../components/ui/Pagination';
 import { PullToRefreshWrapper } from '../../components/ui/PullToRefreshWrapper';
 import { AnomalyAlert } from '../../components/ui/AnomalyAlert';
 import { colors, typography, spacing, cardStyles, borderRadius } from '../../lib/theme';
+import { StatsGrid } from '../../components/ui/ResponsiveGrid';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import {
   AlertTriangle,
   CheckCircle,
@@ -302,11 +304,9 @@ export const AlertDashboard: React.FC = () => {
 
       {/* Statistics */}
       {stats && (
-        <div
+        <StatsGrid
+          gap="md"
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: spacing.md,
             marginTop: spacing.lg,
             marginBottom: spacing.lg,
           }}
@@ -335,7 +335,7 @@ export const AlertDashboard: React.FC = () => {
             icon={<XCircle size={24} />}
             color={colors.error[600]}
           />
-        </div>
+        </StatsGrid>
       )}
 
       {/* Filters */}
