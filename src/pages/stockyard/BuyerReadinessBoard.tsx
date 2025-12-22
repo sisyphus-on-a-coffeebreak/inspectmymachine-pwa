@@ -184,8 +184,7 @@ export const BuyerReadinessBoard: React.FC = () => {
       </div>
 
       {/* Kanban Board */}
-      {selectedStage === 'all' ? (
-        <CardGrid style={{ paddingBottom: spacing.md }}>
+      <CardGrid style={{ paddingBottom: spacing.md }}>
         {(selectedStage === 'all' ? stages : [selectedStage]).map((stage) => {
           const config = stageConfig[stage];
           const Icon = config.icon;
@@ -366,7 +365,7 @@ export const BuyerReadinessBoard: React.FC = () => {
             </div>
           );
         })}
-      </div>
+      </CardGrid>
 
       {records.length === 0 && (
         <EmptyState
