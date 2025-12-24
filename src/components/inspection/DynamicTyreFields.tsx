@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../ui/button';
+import { WideGrid } from '../ui/ResponsiveGrid';
 
 interface TyreField {
   id: string;
@@ -141,12 +142,7 @@ export const DynamicTyreFields: React.FC<DynamicTyreFieldsProps> = ({
             </div>
 
             {/* Tyre Details Grid */}
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-              gap: spacing.md,
-              marginBottom: spacing.md
-            }}>
+            <WideGrid gap="md" style={{ marginBottom: spacing.md }}>
               {/* Position */}
               <div>
                 <label style={{ ...typography.label, color: colors.neutral[700], marginBottom: spacing.xs, display: 'block' }}>
@@ -302,7 +298,7 @@ export const DynamicTyreFields: React.FC<DynamicTyreFieldsProps> = ({
                   }}
                 />
               </div>
-            </div>
+            </WideGrid>
 
             {/* Damage Types */}
             <div style={{ marginBottom: spacing.md }}>

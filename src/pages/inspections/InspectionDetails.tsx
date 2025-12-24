@@ -23,6 +23,7 @@ import { logger } from '../../lib/logger';
 import { ShareButton } from '../../components/ui/ShareButton';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { ActionMenu, type ActionMenuItem } from '../../components/ui/ActionMenu';
+import { CompactGrid, CardGrid } from '../../components/ui/ResponsiveGrid';
 import { CollapsibleSection } from '../../components/ui/CollapsibleSection';
 import { MapPin, FileText, Download, Trash2, Settings } from 'lucide-react';
 
@@ -489,13 +490,7 @@ const getMediaUrl = useCallback((item: AnswerMediaItem): string => {
       // If we have media items, render them
       if (mediaItems.length > 0) {
         return (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-              gap: spacing.sm,
-            }}
-          >
+          <CompactGrid gap="sm">
             {mediaItems.map((item) => (
               <div
                 key={item.id}
@@ -624,7 +619,7 @@ const getMediaUrl = useCallback((item: AnswerMediaItem): string => {
                 </div>
               </div>
             ))}
-          </div>
+          </CompactGrid>
         );
       }
       
@@ -1077,7 +1072,7 @@ const getMediaUrl = useCallback((item: AnswerMediaItem): string => {
           </div>
         </div>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.lg }}>
+        <CardGrid gap="lg">
           <div>
             <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
               Vehicle Information
@@ -1144,7 +1139,7 @@ const getMediaUrl = useCallback((item: AnswerMediaItem): string => {
               )}
             </div>
           </div>
-        </div>
+        </CardGrid>
         
         {inspection.has_critical_issues && (
           <div style={{
@@ -1504,7 +1499,7 @@ const getMediaUrl = useCallback((item: AnswerMediaItem): string => {
 
       {/* Related Items */}
       {inspection.vehicle_id && (
-        <div id="related-items-section" style={{ marginTop: spacing.lg, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: spacing.lg }}>
+        <CardGrid id="related-items-section" gap="lg" style={{ marginTop: spacing.lg }}>
           {/* Related Inspections Panel */}
           {relatedInspections.length > 0 && (
             <RelatedItems
@@ -1542,7 +1537,7 @@ const getMediaUrl = useCallback((item: AnswerMediaItem): string => {
             ]}
             variant="compact"
           />
-        </div>
+        </CardGrid>
       )}
 
       {/* Template Conflict Resolution Modal */}

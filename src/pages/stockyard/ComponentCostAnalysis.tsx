@@ -187,7 +187,7 @@ export const ComponentCostAnalysis: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.md, marginBottom: spacing.lg }}>
+      <CardGrid gap="md" style={{ marginBottom: spacing.lg }}>
         <div style={{ ...cardStyles.card, textAlign: 'center' }}>
           <DollarSign size={32} color={colors.primary} style={{ marginBottom: spacing.sm }} />
           <div style={{ ...typography.caption, color: colors.neutral[600], marginBottom: spacing.xs }}>Total Maintenance Cost</div>
@@ -213,7 +213,7 @@ export const ComponentCostAnalysis: React.FC = () => {
             </div>
           );
         })}
-      </div>
+      </CardGrid>
 
       {/* Monthly Trend Chart */}
       {costData?.monthly_trend && costData.monthly_trend.length > 0 && (

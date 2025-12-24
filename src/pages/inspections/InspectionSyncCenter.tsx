@@ -314,7 +314,7 @@ export const InspectionSyncCenter: React.FC = () => {
       </div>
 
       {/* Summary Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md, marginBottom: spacing.xl }}>
+      <WideGrid gap="md" style={{ marginBottom: spacing.xl }}>
         <StatusCard
           title="Total Drafts"
           message={`${drafts.length} draft${drafts.length !== 1 ? 's' : ''} found`}
@@ -330,7 +330,7 @@ export const InspectionSyncCenter: React.FC = () => {
           message={`${drafts.filter(d => !d.conflict?.hasConflict).length} draft${drafts.filter(d => !d.conflict?.hasConflict).length !== 1 ? 's' : ''} ready`}
           variant="success"
         />
-      </div>
+      </WideGrid>
 
       {/* Drafts List */}
       {loading ? (

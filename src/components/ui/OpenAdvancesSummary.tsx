@@ -10,6 +10,7 @@ import { colors, typography, spacing, cardStyles, borderRadius } from '../../lib
 import { Button } from './button';
 import { EmptyState } from './EmptyState';
 import { AdvanceUtilizationBar } from './AdvanceUtilizationBar';
+import { StatsGrid } from './ResponsiveGrid';
 
 export interface Advance {
   id: string;
@@ -228,16 +229,16 @@ export const OpenAdvancesSummary: React.FC<OpenAdvancesSummaryProps> = ({
 
       {/* Summary Stats */}
       {advances.length > 0 && (
-        <div style={{
-          marginTop: spacing.xl,
-          padding: spacing.lg,
-          backgroundColor: colors.neutral[50],
-          borderRadius: borderRadius.md,
-          border: `1px solid ${colors.neutral[200]}`,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-          gap: spacing.md
-        }}>
+        <StatsGrid
+          gap="md"
+          style={{
+            marginTop: spacing.xl,
+            padding: spacing.lg,
+            backgroundColor: colors.neutral[50],
+            borderRadius: borderRadius.md,
+            border: `1px solid ${colors.neutral[200]}`
+          }}
+        >
           <div>
             <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
               Total Advances
@@ -262,7 +263,7 @@ export const OpenAdvancesSummary: React.FC<OpenAdvancesSummaryProps> = ({
               {formatCurrency(totalRemaining)}
             </div>
           </div>
-        </div>
+        </StatsGrid>
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../ui/button';
 import { ShareButton } from '../ui/ShareButton';
+import { WideGrid, StatsGrid, CompactGrid } from '../ui/ResponsiveGrid';
 
 interface InspectionData {
   id: string;
@@ -176,11 +177,7 @@ export const InspectionReport: React.FC<InspectionReportProps> = ({
         }}>
           🚗 Vehicle Information
         </h2>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: spacing.md
-        }}>
+        <WideGrid gap="md">
           <div>
             <label style={{ ...typography.label, color: colors.neutral[600] }}>Registration</label>
             <p style={{ ...typography.body, color: colors.neutral[900] }}>
@@ -211,7 +208,7 @@ export const InspectionReport: React.FC<InspectionReportProps> = ({
               {inspection.vehicle?.engine_number || 'N/A'}
             </p>
           </div>
-        </div>
+        </WideGrid>
       </div>
 
       {/* Inspection Summary */}
@@ -228,11 +225,7 @@ export const InspectionReport: React.FC<InspectionReportProps> = ({
         }}>
           📊 Inspection Summary
         </h2>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-          gap: spacing.md
-        }}>
+        <StatsGrid gap="md">
           <div style={{ textAlign: 'center' }}>
             <div style={{
               ...typography.header,
@@ -285,7 +278,7 @@ export const InspectionReport: React.FC<InspectionReportProps> = ({
               Photo Evidence
             </div>
           </div>
-        </div>
+        </StatsGrid>
       </div>
 
       {/* Critical Findings */}
@@ -351,11 +344,7 @@ export const InspectionReport: React.FC<InspectionReportProps> = ({
         }}>
           👤 Inspector Information
         </h2>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: spacing.md
-        }}>
+        <WideGrid gap="md">
           <div>
             <label style={{ ...typography.label, color: colors.neutral[600] }}>Inspector</label>
             <p style={{ ...typography.body, color: colors.neutral[900] }}>
@@ -382,7 +371,7 @@ export const InspectionReport: React.FC<InspectionReportProps> = ({
               </p>
             </div>
           )}
-        </div>
+        </WideGrid>
       </div>
 
       {/* Notes */}

@@ -451,11 +451,7 @@ export const CashflowAnalysisDashboard: React.FC = () => {
                     </div>
                   </div>
                   
-                  <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                    gap: spacing.md
-                  }}>
+                  <CompactGrid gap="md">
                     <div>
                       <div style={{ 
                         ...typography.bodySmall,
@@ -489,7 +485,7 @@ export const CashflowAnalysisDashboard: React.FC = () => {
                         ₹{month.expenses.toLocaleString('en-IN')}
                       </div>
                     </div>
-                  </div>
+                  </CompactGrid>
                 </div>
               ))}
             </div>
@@ -537,12 +533,7 @@ export const CashflowAnalysisDashboard: React.FC = () => {
                       {asset.asset_name}
                     </h4>
                     
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                      gap: spacing.md,
-                      marginBottom: spacing.sm
-                    }}>
+                    <CompactGrid gap="md" style={{ marginBottom: spacing.sm }}>
                       <div>
                         <div style={{ 
                           ...typography.bodySmall,
@@ -610,7 +601,7 @@ export const CashflowAnalysisDashboard: React.FC = () => {
                           {asset.roi_percentage.toFixed(1)}%
                         </div>
                       </div>
-                    </div>
+                    </CompactGrid>
                   </div>
                   
                   <div style={{ 
@@ -684,12 +675,7 @@ export const CashflowAnalysisDashboard: React.FC = () => {
                       {investment.asset_name}
                     </h4>
                     
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                      gap: spacing.md,
-                      marginBottom: spacing.sm
-                    }}>
+                    <CompactGrid gap="md" style={{ marginBottom: spacing.sm }}>
                       <div>
                         <div style={{ 
                           ...typography.bodySmall,
@@ -757,7 +743,7 @@ export const CashflowAnalysisDashboard: React.FC = () => {
                           {investment.roi_percentage.toFixed(1)}%
                         </div>
                       </div>
-                    </div>
+                    </CompactGrid>
 
                     <div style={{ 
                       ...typography.bodySmall,

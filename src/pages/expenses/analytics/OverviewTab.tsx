@@ -10,6 +10,7 @@ import { useExpenses } from '../../../lib/queries';
 import { StatCard } from '../../../components/ui/StatCard';
 import { colors, spacing } from '../../../lib/theme';
 import { EmptyState } from '../../../components/ui/EmptyState';
+import { WideGrid } from '../../../components/ui/ResponsiveGrid';
 
 export function OverviewTab() {
   const { filters } = useAnalytics();
@@ -89,14 +90,7 @@ export function OverviewTab() {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: spacing.lg,
-          marginBottom: spacing.xl,
-        }}
-      >
+      <WideGrid gap="lg" style={{ marginBottom: spacing.xl }}>
         <StatCard
           label="Total Expenses"
           value={formatCurrency(stats.total)}
@@ -127,7 +121,7 @@ export function OverviewTab() {
           value={formatCurrency(stats.average)}
           color={colors.neutral[600]}
         />
-      </div>
+      </WideGrid>
 
       <div
         style={{
@@ -147,6 +141,7 @@ export function OverviewTab() {
     </div>
   );
 }
+
 
 
 

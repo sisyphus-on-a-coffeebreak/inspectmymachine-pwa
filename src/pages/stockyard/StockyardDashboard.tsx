@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { StatCard } from '../../components/ui/StatCard';
-import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
+import { ActionGrid, StatsGrid, CompactGrid } from '../../components/ui/ResponsiveGrid';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -241,7 +241,7 @@ export const StockyardDashboard: React.FC = () => {
             View All
           </Button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: spacing.md }}>
+        <CompactGrid gap="md">
           <StatCard
             label="Total Components"
             value={allComponents?.total || 0}
@@ -275,7 +275,7 @@ export const StockyardDashboard: React.FC = () => {
             color={colors.success[600]}
             loading={loading}
           />
-        </div>
+        </CompactGrid>
       </CollapsibleSection>
 
       {/* Recent Movements & Yard Occupancy Row */}

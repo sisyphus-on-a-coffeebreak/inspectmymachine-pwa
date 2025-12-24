@@ -14,6 +14,7 @@ import { RelatedItems } from '../../components/ui/RelatedItems';
 import { ExpenseTimeline, type TimelineEvent } from '../../components/ui/ExpenseTimeline';
 import { AnomalyAlert } from '../../components/ui/AnomalyAlert';
 import { useExpenses } from '../../lib/queries';
+import { CardGrid } from '../../components/ui/ResponsiveGrid';
 
 /**
  * Expense Details Page
@@ -411,7 +412,7 @@ export const ExpenseDetails: React.FC = () => {
         <h2 style={{ ...typography.header, marginBottom: spacing.lg, color: colors.neutral[900] }}>
           Expense Details
         </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.lg }}>
+        <CardGrid gap="lg">
           <div>
             <dt style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>Amount</dt>
             <dd style={{ ...typography.header, color: colors.primary, margin: 0, fontSize: '1.5rem' }}>
@@ -486,7 +487,7 @@ export const ExpenseDetails: React.FC = () => {
               <dd style={{ ...typography.body, margin: 0 }}>{expense.asset_name}</dd>
             </div>
           )}
-        </div>
+        </CardGrid>
         {expense.description && (
           <div style={{ marginTop: spacing.lg, paddingTop: spacing.lg, borderTop: `1px solid ${colors.neutral[200]}` }}>
             <dt style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>Description</dt>
@@ -595,7 +596,7 @@ export const ExpenseDetails: React.FC = () => {
         </div>
       )}
 
-      <div style={{ marginTop: spacing.lg, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: spacing.lg }}>
+      <CardGrid gap="lg" style={{ marginTop: spacing.lg }}>
 
       {/* Auto-linked Items Panel */}
       {expense?.links && expense.links.length > 0 && (
@@ -761,7 +762,7 @@ export const ExpenseDetails: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
+      </CardGrid>
 
       {/* Action Buttons at Bottom - Only actual actions */}
       <div style={{ 

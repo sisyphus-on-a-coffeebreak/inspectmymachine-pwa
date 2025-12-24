@@ -468,12 +468,7 @@ export const ProjectManagementDashboard: React.FC = () => {
                       </span>
                     </div>
                     
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                      gap: spacing.md,
-                      marginBottom: spacing.sm
-                    }}>
+                    <WideGrid gap="md" style={{ marginBottom: spacing.sm }}>
                       <div>
                         <div style={{ 
                           ...typography.bodySmall,
@@ -541,7 +536,7 @@ export const ProjectManagementDashboard: React.FC = () => {
                           {project.completion_percentage}%
                         </div>
                       </div>
-                    </div>
+                    </WideGrid>
 
                     <div style={{ 
                       display: 'flex', 

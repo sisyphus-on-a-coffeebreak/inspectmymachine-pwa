@@ -19,6 +19,7 @@ import { Search, FileText, Clock, CheckCircle2, AlertCircle, Download, Filter, E
 import type { InspectionTemplate } from '@/types/inspection';
 import { getRecentTemplates, addRecentTemplate } from '../../lib/templateHistory';
 import type { RecentTemplate } from '../../lib/templateHistory';
+import { CardGrid } from '../ui/ResponsiveGrid';
 
 interface TemplatePickerProps {
   vehicleId?: string;
@@ -370,13 +371,7 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({
           }
         />
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-            gap: spacing.lg,
-          }}
-        >
+        <CardGrid gap="lg">
           {filteredTemplates.map((template) => (
             <div
               key={template.id}
@@ -467,7 +462,7 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({
               </div>
             </div>
           ))}
-        </div>
+        </CardGrid>
       )}
 
       {/* Template Preview Modal */}

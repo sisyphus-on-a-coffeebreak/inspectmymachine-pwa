@@ -13,6 +13,7 @@ import { Button } from '../../components/ui/button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { LedgerBalanceCard } from '../../components/ui/LedgerBalanceCard';
 import { LoadingError } from '../../components/ui/LoadingError';
+import { CardGrid } from '../../components/ui/ResponsiveGrid';
 
 export const LedgerReconciliation: React.FC = () => {
   const navigate = useNavigate();
@@ -117,7 +118,7 @@ export const LedgerReconciliation: React.FC = () => {
           Reconciliation Summary
         </h3>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.lg }}>
+        <CardGrid gap="lg">
           {/* Opening Balance */}
           <div style={{
             padding: spacing.lg,
@@ -193,7 +194,7 @@ export const LedgerReconciliation: React.FC = () => {
               {formatCurrency(reconciliation.net_balance || 0)}
             </div>
           </div>
-        </div>
+        </CardGrid>
 
         {/* Balance Verification */}
         <div style={{

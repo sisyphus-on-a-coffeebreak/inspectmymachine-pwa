@@ -13,7 +13,6 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useIsMobile } from '../../hooks/useIsMobile';
 import { colors, typography, spacing, cardStyles, borderRadius } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -27,6 +26,7 @@ import { Search, FileText, Clock, AlertCircle, X } from 'lucide-react';
 import type { InspectionTemplate } from '@/types/inspection';
 import type { RecentTemplate } from '../../lib/templateHistory';
 import { TemplateCard } from '../../components/inspection/TemplateCard';
+import { CardGrid } from '../../components/ui/ResponsiveGrid';
 
 interface TemplateWithMetadata extends InspectionTemplate {
   questionCount: number;
@@ -37,7 +37,6 @@ interface TemplateWithMetadata extends InspectionTemplate {
 export const TemplateSelectionPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const isMobile = useIsMobile();
   const vehicleId = searchParams.get('vehicleId') || undefined;
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -286,16 +285,7 @@ export const TemplateSelectionPage: React.FC = () => {
             <Clock size={20} color={colors.primary} />
             Recent Templates
           </h3>
-          <div
-            style={{
-              display: 'grid',
-              // INVARIANT 2: mobile-safe grid
-              gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))',
-              width: '100%',
-              maxWidth: '100%',
-              gap: spacing.md,
-            }}
-          >
+          <CardGrid gap="md">
             {recentTemplatesForDisplay.map(({ template, usedAt }) => (
               <TemplateCard
                 key={template.id}
@@ -305,7 +295,7 @@ export const TemplateSelectionPage: React.FC = () => {
                 onClick={() => handleSelectTemplate(template.id)}
               />
             ))}
-          </div>
+          </CardGrid>
         </div>
       )}
 
@@ -367,16 +357,7 @@ export const TemplateSelectionPage: React.FC = () => {
             }
           />
         ) : (
-          <div
-            style={{
-              display: 'grid',
-              // INVARIANT 2: mobile-safe grid
-              gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))',
-              width: '100%',
-              maxWidth: '100%',
-              gap: spacing.lg,
-            }}
-          >
+          <CardGrid gap="lg">
             {sortedTemplates.map((template) => (
               <TemplateCard
                 key={template.id}
@@ -386,7 +367,7 @@ export const TemplateSelectionPage: React.FC = () => {
                 onClick={() => handleSelectTemplate(template.id)}
               />
             ))}
-          </div>
+          </CardGrid>
         )}
       </div>
     </div>

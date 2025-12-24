@@ -81,15 +81,11 @@ export const InspectionDashboard: React.FC = () => {
           icon="🔍"
         />
         <div style={{ marginBottom: spacing.xl }}>
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-            gap: spacing.lg 
-          }}>
+          <WideGrid gap="lg">
             {Array.from({ length: 4 }).map((_, i) => (
               <SkeletonCard key={`stats-${i}`} />
             ))}
-          </div>
+          </WideGrid>
         </div>
         <SkeletonLoader variant="card" />
       </div>
@@ -345,12 +341,7 @@ export const InspectionDashboard: React.FC = () => {
 
       {/* Charts Section */}
       {(dailyTrends.length > 0 || vehicleTypeBreakdown.length > 0) && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: spacing.lg,
-          marginBottom: spacing.xl
-        }}>
+        <CardGrid gap="lg" style={{ marginBottom: spacing.xl }}>
           {/* Daily Trends Chart */}
           {dailyTrends.length > 0 && (
             <div style={{
@@ -411,7 +402,7 @@ export const InspectionDashboard: React.FC = () => {
               />
             </div>
           )}
-        </div>
+        </CardGrid>
       )}
 
       {/* Quick Actions */}

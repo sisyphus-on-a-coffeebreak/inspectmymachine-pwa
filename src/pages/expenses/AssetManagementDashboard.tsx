@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
-import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
+import { ActionGrid, StatsGrid, WideGrid } from '../../components/ui/ResponsiveGrid';
 
 // 🏗️ Asset Management Dashboard
 // Asset-wise expense tracking and ROI analysis
@@ -470,12 +470,7 @@ export const AssetManagementDashboard: React.FC = () => {
                     )}
                   </div>
                   
-                  <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                    gap: spacing.md,
-                    marginBottom: spacing.sm
-                  }}>
+                  <WideGrid gap="md" style={{ marginBottom: spacing.sm }}>
                     <div>
                       <div style={{ 
                         ...typography.bodySmall,
@@ -543,7 +538,7 @@ export const AssetManagementDashboard: React.FC = () => {
                         {asset.utilization_rate}%
                       </div>
                     </div>
-                  </div>
+                  </WideGrid>
 
                   <div style={{ 
                     display: 'flex', 

@@ -11,6 +11,7 @@ import { apiClient } from '../../lib/apiClient';
 import { Users, CheckSquare, Square, Settings, Power, Shield } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queries';
+import { CardGrid } from '../../components/ui/ResponsiveGrid';
 
 const modules: CapabilityModule[] = ['gate_pass', 'inspection', 'expense', 'user_management', 'reports'];
 const actions: CapabilityAction[] = ['create', 'read', 'update', 'delete', 'approve', 'validate', 'review', 'reassign', 'export'];
@@ -340,7 +341,7 @@ export const BulkUserOperations: React.FC = () => {
         {users && users.length === 0 ? (
           <EmptyState icon="👥" title="No Users" description="No users found in the system." />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: spacing.md }}>
+          <CardGrid gap="md">
             {users?.map(user => (
               <label
                 key={user.id}
@@ -374,7 +375,7 @@ export const BulkUserOperations: React.FC = () => {
                 </div>
               </label>
             ))}
-          </div>
+          </CardGrid>
         )}
       </div>
 

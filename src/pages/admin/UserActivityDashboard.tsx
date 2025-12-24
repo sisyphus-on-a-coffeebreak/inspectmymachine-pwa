@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { NetworkError } from '../../components/ui/NetworkError';
 import { Activity, Clock, Users, Shield, Filter, Calendar } from 'lucide-react';
+import { CardGrid } from '../../components/ui/ResponsiveGrid';
 
 export const UserActivityDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -111,7 +112,7 @@ export const UserActivityDashboard: React.FC = () => {
 
       {/* Statistics Cards */}
       {statistics && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.lg, marginTop: spacing.lg }}>
+        <CardGrid gap="lg" style={{ marginTop: spacing.lg }}>
           <div style={{ ...cardStyles.card }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.sm }}>
               <Users size={24} color={colors.primary} />
@@ -150,7 +151,7 @@ export const UserActivityDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </CardGrid>
       )}
 
       {/* Tabs */}

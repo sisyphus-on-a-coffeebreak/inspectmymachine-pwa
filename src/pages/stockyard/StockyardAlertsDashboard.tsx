@@ -14,6 +14,7 @@ import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { colors, spacing, typography, cardStyles, borderRadius } from '../../lib/theme';
 import { useStockyardAlerts, useAcknowledgeStockyardAlert } from '../../lib/queries';
 import { useToast } from '../../providers/ToastProvider';
+import { WideGrid } from '../../components/ui/ResponsiveGrid';
 import {
   AlertTriangle,
   Bell,
@@ -161,14 +162,7 @@ export const StockyardAlertsDashboard: React.FC = () => {
       />
 
       {/* Alert Summary */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: spacing.md,
-          marginBottom: spacing.lg,
-        }}
-      >
+      <WideGrid gap="md" style={{ marginBottom: spacing.lg }}>
         <div style={{ ...cardStyles.card, textAlign: 'center', borderLeft: `4px solid ${colors.primary}` }}>
           <div style={{ ...typography.header, fontSize: '2rem', marginBottom: spacing.xs }}>
             {alertsList.length}

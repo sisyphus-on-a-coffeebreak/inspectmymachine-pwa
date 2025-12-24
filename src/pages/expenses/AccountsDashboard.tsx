@@ -6,6 +6,7 @@ import { useConfirm } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/button';
 import { StatusCard } from '../../components/ui/StatusCard';
 import { colors, spacing, typography, borderRadius } from '../../lib/theme';
+import { CardGrid, WideGrid } from '../../components/ui/ResponsiveGrid';
 import { 
   Edit2, 
   History, 
@@ -315,7 +316,7 @@ export const AccountsDashboard: React.FC = () => {
       {vehicleKPIs.length > 0 && (
         <div style={{ marginBottom: spacing.xl }}>
           <h2 style={{ ...typography.h2, marginBottom: spacing.md }}>Vehicle-Centric KPIs</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: spacing.md }}>
+          <CardGrid gap="md">
             {vehicleKPIs.map((kpi) => (
               <div
                 key={kpi.registration_number}
@@ -350,7 +351,7 @@ export const AccountsDashboard: React.FC = () => {
                 </div>
               </div>
             ))}
-          </div>
+          </CardGrid>
         </div>
       )}
 
@@ -362,7 +363,7 @@ export const AccountsDashboard: React.FC = () => {
         border: `1px solid ${colors.neutral[200]}`,
         marginBottom: spacing.lg,
       }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md }}>
+        <WideGrid gap="md">
           <div>
             <label style={{ ...typography.label, display: 'block', marginBottom: spacing.xs }}>Search</label>
             <div style={{ position: 'relative' }}>
@@ -450,7 +451,7 @@ export const AccountsDashboard: React.FC = () => {
               }}
             />
           </div>
-        </div>
+        </WideGrid>
       </div>
 
       {/* Expenses Table */}

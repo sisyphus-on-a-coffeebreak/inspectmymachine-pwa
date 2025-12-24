@@ -345,7 +345,7 @@ export const ComponentLedger: React.FC = () => {
                         )}
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md, marginTop: spacing.md }}>
+                      <WideGrid gap="md" style={{ marginTop: spacing.md }}>
                         <div>
                           <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
                             {component.type === 'spare_part' ? 'Part Number' : 'Serial Number'}
@@ -424,7 +424,7 @@ export const ComponentLedger: React.FC = () => {
                             </div>
                           </div>
                         )}
-                      </div>
+                      </WideGrid>
                     </div>
                   </div>
                 </div>

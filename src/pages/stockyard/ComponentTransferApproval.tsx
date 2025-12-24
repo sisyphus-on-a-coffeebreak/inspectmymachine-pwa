@@ -254,7 +254,7 @@ export const ComponentTransferApproval: React.FC = () => {
                 </div>
 
                 {/* Transfer Details */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md }}>
+                <WideGrid gap="md">
                   {transfer.from_vehicle && (
                     <div>
                       <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>

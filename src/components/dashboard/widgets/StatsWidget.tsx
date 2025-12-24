@@ -9,6 +9,7 @@ import type { WidgetProps } from '../../../types/widgets';
 import { StatCard } from '../../ui/StatCard';
 import { CheckCircle, Clock, AlertCircle, TrendingUp } from 'lucide-react';
 import { colors, spacing } from '../../../lib/theme';
+import { StatsGrid } from '../../ui/ResponsiveGrid';
 
 export const StatsWidget: React.FC<WidgetProps> = ({ config, data }) => {
   const stats = data?.stats;
@@ -22,11 +23,7 @@ export const StatsWidget: React.FC<WidgetProps> = ({ config, data }) => {
   }
 
   return (
-    <div style={{ 
-      display: 'grid', 
-      gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
-      gap: spacing.md 
-    }}>
+    <StatsGrid gap="md">
       <StatCard
         label="Completed Today"
         value={stats?.overall?.completed_today ?? 0}
@@ -51,7 +48,7 @@ export const StatsWidget: React.FC<WidgetProps> = ({ config, data }) => {
         icon={<TrendingUp size={20} />}
         color={colors.primary}
       />
-    </div>
+    </StatsGrid>
   );
 };
 

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
-import { StatsGrid } from '../../components/ui/ResponsiveGrid';
+import { StatsGrid, CardGrid } from '../../components/ui/ResponsiveGrid';
 import { useToast } from '../../providers/ToastProvider';
 import { LineChart, BarChart } from '../../components/ui/charts';
 import { ExportButton } from '../../components/ui/ExportButton';
@@ -483,12 +483,7 @@ export const GatePassReports: React.FC = () => {
       </StatsGrid>
 
       {/* Charts Section */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
-        gap: spacing.xl, 
-        marginBottom: spacing.xl 
-      }}>
+      <CardGrid gap="xl" style={{ marginBottom: spacing.xl }}>
         {/* Trends Chart */}
         {trends.length > 0 && (
           <div style={{
@@ -555,7 +550,7 @@ export const GatePassReports: React.FC = () => {
             />
           </div>
         )}
-      </div>
+      </CardGrid>
 
       {/* Yard Statistics */}
       <div style={{
@@ -572,7 +567,7 @@ export const GatePassReports: React.FC = () => {
         }}>
           🏭 Yard Statistics
         </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: spacing.lg }}>
+        <CardGrid gap="lg">
           {yardStats.map((yard) => (
             <div key={yard.yard_id} style={{
               padding: spacing.lg,
@@ -597,7 +592,7 @@ export const GatePassReports: React.FC = () => {
               </div>
             </div>
           ))}
-        </div>
+        </CardGrid>
       </div>
     </div>
   );

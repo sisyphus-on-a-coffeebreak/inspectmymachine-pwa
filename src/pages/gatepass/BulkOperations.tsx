@@ -551,7 +551,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
           </h3>
           
           <div style={{ display: 'grid', gap: spacing.lg }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.lg }}>
+            <WideGrid gap="lg">
               <div>
                 <label style={{ ...typography.label, marginBottom: spacing.xs, display: 'block' }}>
                   Date Range
@@ -605,7 +605,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
                   <option value="pdf">PDF</option>
                 </select>
               </div>
-            </div>
+            </WideGrid>
             
             <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'flex-end' }}>
               <Button
@@ -638,7 +638,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
             📋 Bulk Templates
           </h3>
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: spacing.lg }}>
+          <CardGrid gap="lg">
             {bulkTemplates.map((template) => (
               <div
                 key={template.id}
@@ -677,7 +677,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
                 </div>
               </div>
             ))}
-          </div>
+          </CardGrid>
         </div>
       )}
 

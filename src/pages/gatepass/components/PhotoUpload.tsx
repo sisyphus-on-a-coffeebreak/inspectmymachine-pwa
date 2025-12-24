@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useToast } from '../../../providers/ToastProvider';
 import { colors, spacing, borderRadius, shadows } from '../../../lib/theme';
+import { DenseGrid } from '../../../components/ui/ResponsiveGrid';
 
 // 📸 PhotoUpload Component
 // Handles photo uploads with preview - works on mobile camera and desktop file picker
@@ -164,12 +165,7 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
 
       {/* Photo Previews */}
       {previews.length > 0 && (
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-          gap: spacing.md,
-          marginTop: spacing.md
-        }}>
+        <DenseGrid gap="md" style={{ marginTop: spacing.md }}>
           {previews.map((preview, index) => {
             const isUploading = uploading[index];
             const progress = uploadProgress[index] || 0;
@@ -254,7 +250,7 @@ export const PhotoUpload: React.FC<PhotoUploadProps> = ({
               </div>
             );
           })}
-        </div>
+        </DenseGrid>
       )}
     </div>
   );

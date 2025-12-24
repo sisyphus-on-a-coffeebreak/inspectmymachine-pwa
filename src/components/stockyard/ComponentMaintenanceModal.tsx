@@ -7,6 +7,7 @@ import { colors, spacing, typography, borderRadius } from '@/lib/theme';
 import { Wrench, Calendar, DollarSign, User } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
 import { useToast } from '@/providers/ToastProvider';
+import { WideGrid } from '@/components/ui/ResponsiveGrid';
 
 interface ComponentMaintenanceModalProps {
   component: {
@@ -239,7 +240,7 @@ export const ComponentMaintenanceModal: React.FC<ComponentMaintenanceModalProps>
         </div>
 
         {/* Dates and Cost */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md }}>
+        <WideGrid gap="md">
           <div>
             <Label>
               Performed Date <span style={{ color: colors.error[500] }}>*</span>
@@ -279,7 +280,7 @@ export const ComponentMaintenanceModal: React.FC<ComponentMaintenanceModalProps>
               placeholder="0.00"
             />
           </div>
-        </div>
+        </WideGrid>
 
         {/* Vendor */}
         <div>

@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { logger } from '../../lib/logger';
 import { reorderInspectionPhotos } from '../../lib/inspectionPhotoReorder';
 import { compressImages, compressImage, shouldCompress } from '../../lib/imageCompression';
+import { CompactGrid } from '../ui/ResponsiveGrid';
 
 interface CameraCaptureProps {
   value?: any[];
@@ -878,7 +879,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
             disabled={disabled}
           />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: spacing.sm }}>
+          <CompactGrid gap="sm">
             {value.map((file, index) => {
               const fileObj = file instanceof File ? file : (file as any);
               const isVideo = fileObj.type?.startsWith('video/') || fileObj.name?.match(/\.(mp4|webm|mov|avi)$/i);
@@ -956,7 +957,7 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({
                 </div>
               );
             })}
-          </div>
+          </CompactGrid>
         )
       )}
 

@@ -5,7 +5,7 @@ import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { Label } from '../../components/ui/label';
 import { Input } from '../../components/ui/input';
-import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
+import { ActionGrid, StatsGrid, WideGrid } from '../../components/ui/ResponsiveGrid';
 import { LoadingError } from '../../components/ui/LoadingError';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pagination } from '../../components/ui/Pagination';
@@ -444,7 +444,7 @@ export const ExpenseHistory: React.FC = () => {
           </div>
 
           {/* Filter Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.lg }}>
+          <WideGrid gap="lg">
             <div>
               <Label>Status</Label>
               <select
@@ -530,7 +530,7 @@ export const ExpenseHistory: React.FC = () => {
                 <option value="status">Status</option>
               </select>
             </div>
-          </div>
+          </WideGrid>
         </div>
       </div>
 

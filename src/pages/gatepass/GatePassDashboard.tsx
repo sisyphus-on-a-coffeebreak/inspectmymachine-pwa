@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGatePasses } from '@/hooks/useGatePasses';
 import { useQueryClient } from '@tanstack/react-query';
-import { useIsMobile } from '@/hooks/useIsMobile';
 import type { GatePassFilters, GatePassStatus, GatePass } from './gatePassTypes';
 import { colors, typography, spacing, cardStyles, borderRadius } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
@@ -39,7 +38,6 @@ export const GatePassDashboard: React.FC = () => {
   const { showToast } = useToast();
   const { confirm, ConfirmComponent } = useConfirm();
   const queryClient = useQueryClient();
-  const isMobile = useIsMobile();
   const { role, isGuard, isClerk, isSupervisor, isAdmin } = useUserRole();
   
   // URL-based filter management
@@ -388,21 +386,11 @@ export const GatePassDashboard: React.FC = () => {
             { label: 'Gate Pass', icon: '🚪' }
           ]}
         />
-        <div style={{
-          display: 'grid',
-          // INVARIANT 2: Safe grid - 1 col mobile, 4 cols desktop (no minmax)
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
-          gap: spacing.md,
-          marginTop: spacing.lg,
-          marginBottom: spacing.lg,
-          width: '100%',
-          maxWidth: '100%',
-          boxSizing: 'border-box'
-        }}>
+        <StatsGrid gap="md" style={{ marginTop: spacing.lg, marginBottom: spacing.lg }}>
           {Array.from({ length: 4 }).map((_, i) => (
             <SkeletonCard key={`stats-skeleton-${i}`} />
           ))}
-        </div>
+        </StatsGrid>
         <div style={{ marginTop: spacing.lg }}>
           {Array.from({ length: 5 }).map((_, i) => (
             <SkeletonCard key={`list-skeleton-${i}`} />

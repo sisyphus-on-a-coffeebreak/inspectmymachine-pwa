@@ -263,7 +263,7 @@ export const EditComponent: React.FC = () => {
       <form onSubmit={handleSubmit} style={{ ...cardStyles.card, marginTop: spacing.lg }}>
         <div style={{ display: 'grid', gap: spacing.lg }}>
           {/* Common Fields */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.md }}>
+          <CardGrid gap="md">
             <div>
               <Label>
                 {componentType === 'spare_part' ? 'Part Number' : 'Serial Number'} *
@@ -342,7 +342,7 @@ export const EditComponent: React.FC = () => {
 
           {/* Type-Specific Fields */}
           {componentType === 'battery' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.md }}>
+            <CardGrid gap="md">
               <div>
                 <Label>Capacity *</Label>
                 <Input
@@ -379,7 +379,7 @@ export const EditComponent: React.FC = () => {
           )}
 
           {componentType === 'tyre' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.md }}>
+            <CardGrid gap="md">
               <div>
                 <Label>Size *</Label>
                 <Input
@@ -455,7 +455,7 @@ export const EditComponent: React.FC = () => {
           )}
 
           {/* Purchase & Warranty */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.md }}>
+          <CardGrid gap="md">
             <div>
               <Label>Purchase Date *</Label>
               <Input

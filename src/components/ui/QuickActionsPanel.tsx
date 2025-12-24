@@ -5,9 +5,10 @@
  * Displays contextual actions based on user role
  */
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { colors, typography, spacing, borderRadius, cardStyles } from '../../lib/theme';
+import { ActionGrid, CompactGrid } from './ResponsiveGrid';
 import { 
   Plus, 
   Search, 
@@ -57,22 +58,7 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
   compact = false,
   contextData,
 }) => {
-  const [isMobile, setIsMobile] = useState(false);
-  const [isTablet, setIsTablet] = useState(false);
-  const desktopColumns = Math.min(columns, 4);
-  
-  // Responsive detection
-  useEffect(() => {
-    const checkScreenSize = () => {
-      const width = window.innerWidth;
-      setIsMobile(width < 768);
-      setIsTablet(width >= 768 && width < 1024);
-    };
-    
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
+  const GridComponent = compact ? CompactGrid : ActionGrid;
   
   return (
     <div
@@ -95,17 +81,8 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
           {title}
         </h3>
       )}
-      <div
-        style={{
-          display: 'grid',
-          // Responsive grid: 2 columns on mobile, 3 on tablet, configured on desktop
-          gridTemplateColumns: compact 
-            ? `repeat(auto-fit, minmax(120px, 1fr))` 
-            : `repeat(2, 1fr)`,
-          gap: compact ? spacing.sm : spacing.md,
-        }}
-        className="quick-actions-grid"
-        data-columns={desktopColumns}
+      <GridComponent
+        gap={compact ? 'sm' : 'md'}
       >
         {actions.map((action) => (
           <button
@@ -176,31 +153,8 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
             )}
           </button>
         ))}
-      </div>
+      </GridComponent>
       <style>{`
-        /* Responsive Quick Actions Grid */
-        .quick-actions-grid {
-          grid-template-columns: repeat(2, 1fr) !important;
-        }
-        
-        @media (min-width: 768px) {
-          .quick-actions-grid {
-            grid-template-columns: repeat(3, 1fr) !important;
-          }
-        }
-        
-        @media (min-width: 1024px) {
-          .quick-actions-grid[data-columns="2"] {
-            grid-template-columns: repeat(2, 1fr) !important;
-          }
-          .quick-actions-grid[data-columns="3"] {
-            grid-template-columns: repeat(3, 1fr) !important;
-          }
-          .quick-actions-grid[data-columns="4"] {
-            grid-template-columns: repeat(4, 1fr) !important;
-          }
-        }
-        
         /* Mobile optimizations */
         @media (max-width: 767px) {
           .quick-actions-panel button {

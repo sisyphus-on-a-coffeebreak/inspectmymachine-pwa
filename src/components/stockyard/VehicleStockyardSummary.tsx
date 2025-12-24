@@ -8,9 +8,10 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { colors, spacing, typography, cardStyles, borderRadius } from '../../lib/theme';
 import { Button } from '../ui/button';
-import { Car, Calendar, MapPin, AlertTriangle, CheckCircle2, FileText } from 'lucide-react';
+import { Car, Calendar, MapPin, AlertTriangle, CheckCircle2, FileText, ShoppingBag } from 'lucide-react';
 import { useDaysSinceEntry, useStockyardAlerts } from '../../lib/queries';
 import { DaysSinceEntryWidget } from './DaysSinceEntryWidget';
+import { ActionGrid } from '../ui/ResponsiveGrid';
 
 interface VehicleStockyardSummaryProps {
   vehicleId: string;
@@ -120,7 +121,7 @@ export const VehicleStockyardSummary: React.FC<VehicleStockyardSummaryProps> = (
         <div style={{ ...typography.header, fontSize: '18px', marginBottom: spacing.md }}>
           Stockyard Actions
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md }}>
+        <ActionGrid gap="md">
           <Button
             variant="secondary"
             onClick={() => navigate(`/app/stockyard/vehicles/${vehicleId}/timeline`)}
@@ -147,7 +148,7 @@ export const VehicleStockyardSummary: React.FC<VehicleStockyardSummaryProps> = (
               View Request
             </Button>
           )}
-        </div>
+        </ActionGrid>
       </div>
     </div>
   );

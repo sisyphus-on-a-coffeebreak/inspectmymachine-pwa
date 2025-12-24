@@ -749,7 +749,7 @@ export const InspectionStudio: React.FC = () => {
       {/* Preset Bundles */}
       <div style={{ marginBottom: spacing.xl }}>
         <h2 style={{ ...typography.h2, marginBottom: spacing.md }}>Preset Bundles</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: spacing.md }}>
+        <CardGrid gap="md">
           {Object.entries(PRESET_BUNDLES).map(([key, bundle]) => (
             <div
               key={key}
@@ -775,7 +775,7 @@ export const InspectionStudio: React.FC = () => {
               <p style={{ ...typography.caption, color: colors.neutral[600] }}>{bundle.description}</p>
             </div>
           ))}
-        </div>
+        </CardGrid>
       </div>
 
       {/* Template List */}

@@ -168,14 +168,7 @@ export const ProfitabilityDashboard: React.FC = () => {
       </div>
 
       {/* Key Metrics */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-          gap: spacing.md,
-          marginBottom: spacing.lg,
-        }}
-      >
+      <CardGrid gap="md" style={{ marginBottom: spacing.lg }}>
         <MetricCard
           label="Expected Sale Price"
           value={formatCurrency(forecast.expected_sale_price)}

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
-import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
+import { ActionGrid, StatsGrid, CompactGrid } from '../../components/ui/ResponsiveGrid';
 import { useToast } from '../../providers/ToastProvider';
 
 // 👥 Visitor Management
@@ -527,12 +527,7 @@ export const VisitorManagement: React.FC = () => {
                 </div>
               </div>
               
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
-                gap: spacing.sm,
-                marginBottom: spacing.md
-              }}>
+              <CompactGrid gap="sm" style={{ marginBottom: spacing.md }}>
                 <div>
                   <span style={{ color: colors.neutral[600], fontSize: '14px' }}>Total Visits:</span>
                   <span style={{ fontWeight: 600, marginLeft: spacing.xs }}>{visitor.total_visits}</span>
@@ -553,7 +548,7 @@ export const VisitorManagement: React.FC = () => {
                   <span style={{ color: colors.neutral[600], fontSize: '14px' }}>Avg Duration:</span>
                   <span style={{ fontWeight: 600, marginLeft: spacing.xs }}>{visitor.average_duration}</span>
                 </div>
-              </div>
+              </CompactGrid>
               
               {visitor.notes && (
                 <div style={{ 

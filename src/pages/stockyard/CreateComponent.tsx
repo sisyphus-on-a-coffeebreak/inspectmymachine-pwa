@@ -11,6 +11,7 @@ import { useCreateComponent } from '@/lib/queries';
 import { apiClient } from '@/lib/apiClient';
 import { logger } from '@/lib/logger';
 import { useSmartKeyboard } from '@/hooks/useSmartKeyboard';
+import { CardGrid } from '@/components/ui/ResponsiveGrid';
 
 interface Vehicle {
   id: string;
@@ -437,14 +438,7 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
       <form onSubmit={handleSubmit} style={{ ...cardStyles.card }}>
         <div style={{ display: 'grid', gap: spacing.lg }}>
           {/* Common Fields */}
-          <div 
-            className="responsive-component-grid"
-            style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr', // Single column on mobile
-              gap: spacing.md
-            }}
-          >
+          <CardGrid gap="md">
             <div>
               <Label>
                 {componentType === 'spare_part' ? 'Part Number' : 'Serial Number'} *
@@ -531,18 +525,11 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
                 </div>
               )}
             </div>
-          </div>
+          </CardGrid>
 
           {/* Type-Specific Fields */}
           {componentType === 'battery' && (
-            <div 
-              className="responsive-component-grid"
-              style={{ 
-                display: 'grid', 
-                gridTemplateColumns: '1fr', // Single column on mobile
-                gap: spacing.md
-              }}
-            >
+            <CardGrid gap="md">
               <div>
                 <Label>Capacity *</Label>
                 <Input
@@ -581,18 +568,11 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
                   </div>
                 )}
               </div>
-            </div>
+            </CardGrid>
           )}
 
           {componentType === 'tyre' && (
-            <div 
-              className="responsive-component-grid"
-              style={{ 
-                display: 'grid', 
-                gridTemplateColumns: '1fr', // Single column on mobile
-                gap: spacing.md
-              }}
-            >
+            <CardGrid gap="md">
               <div>
                 <Label>Size *</Label>
                 <Input
@@ -673,14 +653,7 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
           )}
 
           {/* Purchase & Warranty */}
-          <div 
-            className="responsive-component-grid"
-            style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr', // Single column on mobile
-              gap: spacing.md
-            }}
-          >
+          <CardGrid gap="md">
             <div>
               <Label>
                 {componentSource === 'purchased' ? 'Purchase Date *' : 'Entry Date / Purchase Date'}
@@ -748,7 +721,7 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
                 </div>
               )}
             </div>
-          </div>
+          </CardGrid>
 
           {/* Vehicle Assignment */}
           <div>
@@ -852,15 +825,6 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
           </div>
         </div>
       </form>
-
-      {/* Responsive grid styles */}
-      <style>{`
-        @media (min-width: 768px) {
-          .responsive-component-grid {
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
-          }
-        }
-      `}</style>
     </div>
   );
 };

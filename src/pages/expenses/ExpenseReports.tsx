@@ -4,7 +4,7 @@ import { apiClient } from '../../lib/apiClient';
 import { useToast } from '../../providers/ToastProvider';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
-import { StatsGrid } from '../../components/ui/ResponsiveGrid';
+import { StatsGrid, CardGrid } from '../../components/ui/ResponsiveGrid';
 
 // 📊 Expense Reports & Analytics
 // Comprehensive reporting dashboard for expense analytics
@@ -508,11 +508,7 @@ export const ExpenseReports: React.FC = () => {
             }}>
               📊 Category Breakdown
             </h3>
-            <div style={{ 
-              display: 'grid', 
-              gap: spacing.md,
-              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))'
-            }}>
+            <CardGrid gap="md">
               {categoryBreakdown.map((category) => (
                 <div
                   key={category.category}
@@ -587,7 +583,7 @@ export const ExpenseReports: React.FC = () => {
                   </div>
                 </div>
               ))}
-            </div>
+            </CardGrid>
           </div>
 
           {/* Payment Method Breakdown */}
@@ -607,11 +603,7 @@ export const ExpenseReports: React.FC = () => {
             }}>
               💳 Payment Method Breakdown
             </h3>
-            <div style={{ 
-              display: 'grid', 
-              gap: spacing.md,
-              gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))'
-            }}>
+            <CardGrid gap="md">
               {paymentMethodBreakdown.map((method) => (
                 <div
                   key={method.payment_method}
@@ -678,11 +670,7 @@ export const ExpenseReports: React.FC = () => {
             }}>
               👥 Top Spenders
             </h3>
-            <div style={{ 
-              display: 'grid', 
-              gap: spacing.md,
-              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))'
-            }}>
+            <CardGrid gap="md">
               {topSpenders.map((spender, index) => (
                 <div
                   key={spender.employee_id}
@@ -731,7 +719,7 @@ export const ExpenseReports: React.FC = () => {
                   </div>
                 </div>
               ))}
-            </div>
+            </CardGrid>
           </div>
 
           {/* Project Expenses */}
@@ -751,11 +739,7 @@ export const ExpenseReports: React.FC = () => {
             }}>
               🏗️ Project Expenses
             </h3>
-            <div style={{ 
-              display: 'grid', 
-              gap: spacing.md,
-              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))'
-            }}>
+            <CardGrid gap="md">
               {projectExpenses.map((project) => (
                 <div
                   key={project.project_code}
@@ -804,7 +788,7 @@ export const ExpenseReports: React.FC = () => {
                   </div>
                 </div>
               ))}
-            </div>
+            </CardGrid>
           </div>
 
           {/* Asset Expenses */}
@@ -824,11 +808,7 @@ export const ExpenseReports: React.FC = () => {
             }}>
               🏭 Asset Expenses
             </h3>
-            <div style={{ 
-              display: 'grid', 
-              gap: spacing.md,
-              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))'
-            }}>
+            <CardGrid gap="md">
               {assetExpenses.map((asset) => (
                 <div
                   key={asset.asset_name}

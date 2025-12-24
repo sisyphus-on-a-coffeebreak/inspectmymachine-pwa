@@ -6,6 +6,7 @@ import { ImageViewer } from '../ui/ImageViewer';
 import { logger } from '../../lib/logger';
 import { apiClient } from '../../lib/apiClient';
 import { API_ORIGIN } from '../../lib/apiConfig';
+import { CardGrid } from '../ui/ResponsiveGrid';
 
 interface MediaFile {
   id: string;
@@ -642,14 +643,14 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
             <div style={typography.body}>No images or videos found in this inspection.</div>
           </div>
         ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-            gap: spacing.md,
-            maxHeight: '60vh',
-            overflowY: 'auto',
-            padding: spacing.sm,
-          }}>
+          <CardGrid
+            gap="md"
+            style={{
+              maxHeight: '60vh',
+              overflowY: 'auto',
+              padding: spacing.sm,
+            }}
+          >
             {allImages.map((image, idx) => (
               <div
                 key={image.id}
@@ -812,7 +813,7 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
                 </div>
               </div>
             ))}
-          </div>
+          </CardGrid>
         )}
       </div>
 

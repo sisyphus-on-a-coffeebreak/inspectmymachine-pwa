@@ -18,6 +18,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { LedgerBalanceCard } from '../../components/ui/LedgerBalanceCard';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { WideGrid } from '../../components/ui/ResponsiveGrid';
 import { LoadingError } from '../../components/ui/LoadingError';
 import { LedgerTimeline } from '../../components/ui/LedgerTimeline';
 import { IssueAdvanceModal } from '../../components/ui/IssueAdvanceModal';
@@ -216,7 +217,7 @@ export const EmployeeLedger: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <div style={{ marginBottom: spacing.xl, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.lg }}>
+      <WideGrid gap="lg" style={{ marginBottom: spacing.xl }}>
         <div style={{
           ...cardStyles.base,
           padding: spacing.lg,
@@ -280,7 +281,7 @@ export const EmployeeLedger: React.FC = () => {
             {summary.transactionCount}
           </div>
         </div>
-      </div>
+      </WideGrid>
 
       {/* Filters */}
       <div style={{
@@ -291,7 +292,7 @@ export const EmployeeLedger: React.FC = () => {
         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
         border: '1px solid rgba(0,0,0,0.05)'
       }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.lg }}>
+        <WideGrid gap="lg">
           <div>
             <Label>Search</Label>
             <Input
@@ -342,7 +343,7 @@ export const EmployeeLedger: React.FC = () => {
               style={{ marginTop: spacing.xs }}
             />
           </div>
-        </div>
+        </WideGrid>
       </div>
 
       {/* Transactions List */}

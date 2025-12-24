@@ -309,14 +309,7 @@ export const YardMap: React.FC = () => {
       />
 
       {/* Stats Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: spacing.md,
-          marginBottom: spacing.lg,
-        }}
-      >
+      <WideGrid gap="md" style={{ marginBottom: spacing.lg }}>
         <div style={{ ...cardStyles.card, textAlign: 'center' }}>
           <div style={{ ...typography.header, fontSize: '2rem', marginBottom: spacing.xs }}>
             {stats.total}
@@ -428,13 +421,7 @@ export const YardMap: React.FC = () => {
 
       {/* Yard Map Grid */}
       <div style={{ ...cardStyles.card }}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-            gap: spacing.md,
-          }}
-        >
+        <WideGrid gap="md">
           {filteredSlots.map((slot) => {
             const config = statusConfig[slot.status];
             const Icon = config.icon;

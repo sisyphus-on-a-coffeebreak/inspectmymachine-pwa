@@ -17,6 +17,7 @@ import { Tooltip } from '../../components/ui/Tooltip';
 import { Modal } from '../../components/ui/Modal';
 import { OCRPanel } from '../../components/ui/OCRPanel';
 import { useSmartKeyboard } from '../../hooks/useSmartKeyboard';
+import { CompactGrid, DenseGrid } from '../../components/ui/ResponsiveGrid';
 
 // 💰 Enhanced Expense Creation Form
 // Smart form with auto-categorization, GPS location, receipt capture
@@ -938,7 +939,7 @@ export const CreateExpense: React.FC = () => {
         </div>
 
         {/* Templates always visible - no toggle */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: spacing.sm }}>
+        <CompactGrid gap="sm">
           {templates.length === 0 && !templatesState.error && templatesState.status !== 'loading' && (
             <div style={{
               padding: spacing.md,
@@ -993,7 +994,7 @@ export const CreateExpense: React.FC = () => {
               </div>
             );
           })}
-        </div>
+        </CompactGrid>
 
         {getAnyFieldError('template_id', 'template') && (
           <div style={{ color: colors.status.error, fontSize: '12px', marginTop: spacing.xs }}>
@@ -1659,12 +1660,7 @@ export const CreateExpense: React.FC = () => {
             )}
             {/* Inline Receipt Thumbnails - Always visible, no separate preview step */}
             {formData.receipts.length > 0 && (
-              <div style={{
-                marginTop: spacing.sm,
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
-                gap: spacing.sm,
-              }}>
+              <DenseGrid gap="sm" style={{ marginTop: spacing.sm }}>
                 {formData.receipts.map((receipt, idx) => (
                   <div
                     key={receipt.key}
@@ -1735,7 +1731,7 @@ export const CreateExpense: React.FC = () => {
                     </button>
                   </div>
                 ))}
-              </div>
+              </DenseGrid>
             )}
             {getAnyFieldError('receipt_keys', 'receipts') && (
               <div style={{ color: colors.status.error, fontSize: '12px', marginTop: spacing.xs }}>

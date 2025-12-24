@@ -19,6 +19,7 @@ import { useStockyardRequests, useDaysSinceEntry, useChecklist, useStockyardDocu
 import { DaysSinceEntryWidget } from '../../components/stockyard/DaysSinceEntryWidget';
 import { ComponentRecordingModal } from '../../components/stockyard/ComponentRecordingModal';
 import type { ComponentCustodyEvent } from '../../lib/stockyard';
+import { WideGrid, CardGrid } from '../../components/ui/ResponsiveGrid';
 
 export const StockyardRequestDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -394,7 +395,7 @@ export const StockyardRequestDetails: React.FC = () => {
         <div style={{ minHeight: '120px' }}>
           {/* Overview Tab */}
           {activeActionTab === 'overview' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md }}>
+            <WideGrid gap="md">
               {request.scan_in_at && request.vehicle_id && request.type === 'ENTRY' && (
                 <Button
                   variant="primary"
@@ -460,7 +461,7 @@ export const StockyardRequestDetails: React.FC = () => {
 
           {/* Checklists Tab */}
           {activeActionTab === 'checklists' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md }}>
+            <WideGrid gap="md">
               {request.scan_in_at && (
                 <Button
                   variant="secondary"
@@ -496,7 +497,7 @@ export const StockyardRequestDetails: React.FC = () => {
 
           {/* Documents Tab */}
           {activeActionTab === 'documents' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md }}>
+            <WideGrid gap="md">
               <Button
                 variant="secondary"
                 onClick={() => navigate(`/app/stockyard/requests/${id}/documents`)}
@@ -545,7 +546,7 @@ export const StockyardRequestDetails: React.FC = () => {
 
           {/* Analytics Tab */}
           {activeActionTab === 'analytics' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md }}>
+            <WideGrid gap="md">
               {request.vehicle_id && (
                 <>
                   <Button
@@ -839,7 +840,7 @@ export const StockyardRequestDetails: React.FC = () => {
 
       {/* Related Items */}
       {request && request.vehicle_id && (
-        <div style={{ marginTop: spacing.lg, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: spacing.lg }}>
+        <CardGrid gap="lg" style={{ marginTop: spacing.lg }}>
           {/* Related Stockyard Requests Panel */}
           {relatedRequests.length > 0 && (
             <RelatedItems

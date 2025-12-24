@@ -303,7 +303,7 @@ export const ComponentDetails: React.FC = () => {
           </span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.lg }}>
+        <CardGrid gap="lg">
           {/* Common Fields */}
           <div>
             <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>Brand</div>
@@ -395,6 +395,7 @@ export const ComponentDetails: React.FC = () => {
               </div>
             </div>
           )}
+        </CardGrid>
 
           {/* Notes */}
           {component.notes && (

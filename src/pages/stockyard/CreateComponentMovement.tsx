@@ -301,7 +301,7 @@ export const CreateComponentMovement: React.FC = () => {
           Choose whether the component is entering or leaving the stockyard
         </p>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: spacing.md }}>
+      <CardGrid gap="md">
         <button
           type="button"
           onClick={() => setFormData({ ...formData, movement_type: 'ENTRY' })}
@@ -499,7 +499,7 @@ export const CreateComponentMovement: React.FC = () => {
           background: 'white',
         }}>
           {browseComponents.length > 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: spacing.md, padding: spacing.md }}>
+            <CardGrid gap="md" style={{ padding: spacing.md }}>
               {browseComponents.map((component: Component) => {
                 const Icon = getComponentIcon(component.type);
                 const iconColor = getComponentColor(component.type);
