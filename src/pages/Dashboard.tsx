@@ -814,9 +814,13 @@ export default function Dashboard() {
               @media (min-width: 768px) {
                 .kanban-board-container {
                   display: grid !important;
-                  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+                  /* INVARIANT 2: Safe grid - uses repeat() without fixed px minmax */
+                  grid-template-columns: repeat(3, 1fr) !important;
                   overflow-x: visible !important;
                   scroll-snap-type: none !important;
+                  width: 100%;
+                  max-width: 100%;
+                  box-sizing: border-box;
                 }
                 .kanban-column {
                   min-width: auto !important;
@@ -1225,7 +1229,8 @@ export default function Dashboard() {
             /* Desktop: 3+ columns (1024px+) */
             @media (min-width: 1024px) {
               .module-cards-grid {
-                grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)) !important;
+                /* INVARIANT 2: Safe grid - uses repeat() without fixed px minmax */
+                grid-template-columns: repeat(3, 1fr) !important;
               }
             }
           `}</style>

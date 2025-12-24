@@ -561,9 +561,23 @@ export const cardStyles = {
   }
 };
 
-// INVARIANT 2: Safe Grid Primitives - mobile-first, viewport-aware
+/**
+ * @deprecated UNSAFE - DO NOT USE DIRECTLY
+ * These gridStyles use minmax patterns that can break on mobile.
+ *
+ * Instead, use ResponsiveGrid components from @/components/ui/ResponsiveGrid:
+ * - <ResponsiveGrid> for custom column counts
+ * - <CardGrid> for card layouts (1/1/2/3/4 columns)
+ * - <StatsGrid> for stats (1/2/2/3/4 columns)
+ * - <ActionGrid> for actions (1/1/2/3/3 columns)
+ *
+ * If you must use raw grid styles, use the safe alternatives below.
+ */
 export const gridStyles = {
-  // Mobile-safe: single column by default, never uses fixed px minimums
+  /**
+   * @deprecated Use <ResponsiveGrid> or <CardGrid> instead
+   * This pattern uses minmax(300px, 1fr) which breaks on narrow viewports
+   */
   mobileFirst: (isMobile: boolean) => ({
     display: 'grid',
     gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))',
@@ -572,7 +586,10 @@ export const gridStyles = {
     maxWidth: '100%'
   }),
 
-  // Stat cards grid - respects viewport constraints
+  /**
+   * @deprecated Use <StatsGrid> instead
+   * This pattern uses minmax(200px, 1fr) which breaks on narrow viewports
+   */
   stats: (isMobile: boolean) => ({
     display: 'grid',
     gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -581,7 +598,10 @@ export const gridStyles = {
     maxWidth: '100%'
   }),
 
-  // Action cards grid - wider cells, mobile-safe
+  /**
+   * @deprecated Use <CardGrid> instead
+   * This pattern can still break on some viewports
+   */
   cards: (isMobile: boolean) => ({
     display: 'grid',
     gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(min(350px, 100%), 1fr))',
@@ -590,13 +610,59 @@ export const gridStyles = {
     maxWidth: '100%'
   }),
 
-  // Dense grid for images/small items
+  /**
+   * @deprecated Use <ResponsiveGrid columns={{ mobile: 2, tablet: 3, desktop: 4 }}> instead
+   * This pattern uses minmax(150px, 1fr) which breaks on narrow viewports
+   */
   dense: (isMobile: boolean) => ({
     display: 'grid',
     gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(150px, 1fr))',
     gap: spacing.md,
     width: '100%',
     maxWidth: '100%'
+  })
+};
+
+/**
+ * SAFE GRID STYLES - Use these if you cannot use ResponsiveGrid components
+ * These styles NEVER use minmax with fixed pixel minimums
+ */
+export const safeGridStyles = {
+  /**
+   * Single column on mobile, responsive columns on larger screens
+   * Safe because it never creates overflow
+   */
+  mobileFirst: (isMobile: boolean, columns: number = 3) => ({
+    display: 'grid',
+    gridTemplateColumns: isMobile ? '1fr' : `repeat(${columns}, 1fr)`,
+    gap: spacing.lg,
+    width: '100%',
+    maxWidth: '100%',
+    boxSizing: 'border-box' as const
+  }),
+
+  /**
+   * Two columns on mobile, more on tablet/desktop
+   */
+  twoColumn: (isMobile: boolean, desktopColumns: number = 4) => ({
+    display: 'grid',
+    gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : `repeat(${desktopColumns}, 1fr)`,
+    gap: isMobile ? spacing.md : spacing.lg,
+    width: '100%',
+    maxWidth: '100%',
+    boxSizing: 'border-box' as const
+  }),
+
+  /**
+   * Stacked list layout - always single column
+   */
+  list: () => ({
+    display: 'grid',
+    gridTemplateColumns: '1fr',
+    gap: spacing.md,
+    width: '100%',
+    maxWidth: '100%',
+    boxSizing: 'border-box' as const
   })
 };
 
@@ -647,6 +713,7 @@ export default {
   buttonStyles,
   formStyles,
   cardStyles,
-  gridStyles,
+  gridStyles, // @deprecated - use safeGridStyles or ResponsiveGrid components
+  safeGridStyles,
   statusBadgeStyles
 };

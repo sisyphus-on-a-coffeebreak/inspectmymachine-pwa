@@ -75,7 +75,7 @@ export function getResponsiveContainerStyles(options?: {
     maxWidth: options?.maxWidth || '100%',
     padding: options?.mobilePadding || options?.padding || mobileSpacing.padding.md,
     boxSizing: 'border-box',
-    overflowX: 'hidden', // Prevent horizontal overflow
+    // INVARIANT 1: NO overflow-x masking - we prevent overflow, not hide it
     ...(isTabletOrLarger() && {
       padding: options?.padding || mobileSpacing.padding.lg,
       maxWidth: options?.maxWidth || '1280px',
@@ -163,7 +163,10 @@ export function getScrollableContainerStyles(options?: {
 }): React.CSSProperties {
   return {
     overflowY: 'auto',
-    overflowX: 'hidden',
+    // INVARIANT 1: Content must not overflow horizontally - fix the cause, not symptom
+    width: '100%',
+    maxWidth: '100%',
+    boxSizing: 'border-box',
     WebkitOverflowScrolling: 'touch',
     maxHeight: isMobileViewport()
       ? options?.mobileMaxHeight || 'calc(100dvh - 200px)'

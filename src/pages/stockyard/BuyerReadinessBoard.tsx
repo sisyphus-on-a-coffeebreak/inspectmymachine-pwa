@@ -12,6 +12,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { NetworkError } from '../../components/ui/NetworkError';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { colors, spacing, typography, cardStyles, borderRadius } from '../../lib/theme';
+import { CardGrid } from '../../components/ui/ResponsiveGrid';
 import { useBuyerReadinessRecords, useUpdateBuyerReadinessStage } from '../../lib/queries';
 import { useToast } from '../../providers/ToastProvider';
 import { ShoppingBag, Camera, Sparkles, FileText, CheckCircle2, Car, Image, DollarSign, ExternalLink } from 'lucide-react';
@@ -183,15 +184,7 @@ export const BuyerReadinessBoard: React.FC = () => {
       </div>
 
       {/* Kanban Board */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: selectedStage === 'all' ? 'repeat(auto-fit, minmax(280px, 1fr))' : '1fr',
-          gap: spacing.lg,
-          overflowX: 'auto',
-          paddingBottom: spacing.md,
-        }}
-      >
+      <CardGrid style={{ paddingBottom: spacing.md }}>
         {(selectedStage === 'all' ? stages : [selectedStage]).map((stage) => {
           const config = stageConfig[stage];
           const Icon = config.icon;
@@ -372,7 +365,7 @@ export const BuyerReadinessBoard: React.FC = () => {
             </div>
           );
         })}
-      </div>
+      </CardGrid>
 
       {records.length === 0 && (
         <EmptyState

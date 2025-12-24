@@ -10,6 +10,7 @@ import { ReceiptPreview } from '../../components/ui/ReceiptPreview';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Pagination } from '../../components/ui/Pagination';
 import { StatCard } from '../../components/ui/StatCard';
+import { WideGrid, CardGrid } from '../../components/ui/ResponsiveGrid';
 import { useExpenseApprovals, useExpenseApprovalStats, useApproveExpense, useRejectExpense } from '../../lib/queries';
 
 // ✅ Expense Approval Workflow
@@ -341,14 +342,7 @@ export const ExpenseApproval: React.FC = () => {
 
       {/* Statistics */}
       {stats && (
-        <div style={{
-          display: 'grid',
-          // INVARIANT 2: mobile-safe stats grid
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: spacing.lg,
-          width: '100%',
-          maxWidth: '100%'
-        }}>
+        <WideGrid gap="lg">
           <StatCard
             label="Pending"
             value={stats.pending}
@@ -374,7 +368,7 @@ export const ExpenseApproval: React.FC = () => {
             value={formatCurrency(stats.average_amount)}
             color={colors.primary}
           />
-        </div>
+        </WideGrid>
       )}
 
       {/* Filters and Actions */}
@@ -433,14 +427,7 @@ export const ExpenseApproval: React.FC = () => {
       </div>
 
       {/* Expense List */}
-      <div style={{
-        display: 'grid',
-        gap: spacing.lg,
-        // INVARIANT 2: mobile-safe cards grid - single column on mobile
-        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(min(400px, 100%), 1fr))',
-        width: '100%',
-        maxWidth: '100%'
-      }}>
+      <CardGrid gap="lg">
         {expenses.map((expense) => (
           <div
             key={expense.id}
@@ -660,7 +647,7 @@ export const ExpenseApproval: React.FC = () => {
             )}
           </div>
         ))}
-      </div>
+      </CardGrid>
 
       {expenses.length === 0 && (
         <div style={{ 
