@@ -395,7 +395,6 @@ export const ComponentDetails: React.FC = () => {
               </div>
             </div>
           )}
-        </CardGrid>
 
           {/* Notes */}
           {component.notes && (
@@ -404,7 +403,7 @@ export const ComponentDetails: React.FC = () => {
               <div style={{ ...typography.body, whiteSpace: 'pre-wrap' }}>{component.notes}</div>
             </div>
           )}
-        </div>
+        </CardGrid>
       </div>
 
       {/* Maintenance History */}
