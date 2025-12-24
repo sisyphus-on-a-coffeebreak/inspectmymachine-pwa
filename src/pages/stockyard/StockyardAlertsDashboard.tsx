@@ -193,7 +193,7 @@ export const StockyardAlertsDashboard: React.FC = () => {
           </div>
           <div style={{ ...typography.bodySmall, color: colors.neutral[600] }}>Critical</div>
         </div>
-      </div>
+      </WideGrid>
 
       {/* Filters */}
       <div style={{ ...cardStyles.card, marginBottom: spacing.lg }}>

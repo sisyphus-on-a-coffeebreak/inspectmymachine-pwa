@@ -334,7 +334,7 @@ export const YardMap: React.FC = () => {
           </div>
           <div style={{ ...typography.bodySmall, color: colors.neutral[600] }}>Reserved</div>
         </div>
-      </div>
+      </WideGrid>
 
       {/* Yard Selector and Filters */}
       <div style={{ ...cardStyles.card, marginBottom: spacing.lg }}>
@@ -519,7 +519,7 @@ export const YardMap: React.FC = () => {
               </div>
             );
           })}
-        </div>
+        </WideGrid>
 
         {filteredSlots.length === 0 && (
           <div style={{ textAlign: 'center', padding: spacing.xxl }}>

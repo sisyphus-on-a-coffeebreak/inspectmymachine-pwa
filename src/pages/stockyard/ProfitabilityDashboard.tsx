@@ -193,7 +193,7 @@ export const ProfitabilityDashboard: React.FC = () => {
           icon={Car}
           color={colors.primary}
         />
-      </div>
+      </CardGrid>
 
       {/* Profitability Analysis */}
       <div style={{ ...cardStyles.card, marginBottom: spacing.lg }}>

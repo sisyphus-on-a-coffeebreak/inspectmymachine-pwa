@@ -301,7 +301,7 @@ export const ComponentTransferApproval: React.FC = () => {
                       {formatDistanceToNow(new Date(transfer.requested_at), { addSuffix: true })}
                     </div>
                   </div>
-                </div>
+                </WideGrid>
 
                 {/* Reason */}
                 {transfer.reason && (

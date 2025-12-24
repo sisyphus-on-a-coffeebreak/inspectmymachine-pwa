@@ -456,7 +456,7 @@ export const StockyardRequestDetails: React.FC = () => {
                   View Timeline
                 </Button>
               )}
-            </div>
+            </WideGrid>
           )}
 
           {/* Checklists Tab */}
@@ -492,7 +492,7 @@ export const StockyardRequestDetails: React.FC = () => {
                   Checklists will be available after the vehicle is scanned in.
                 </div>
               )}
-            </div>
+            </WideGrid>
           )}
 
           {/* Documents Tab */}
@@ -541,7 +541,7 @@ export const StockyardRequestDetails: React.FC = () => {
                   </div>
                 </div>
               )}
-            </div>
+            </WideGrid>
           )}
 
           {/* Analytics Tab */}
@@ -587,7 +587,7 @@ export const StockyardRequestDetails: React.FC = () => {
                   Transporter Bids ({transporterBids?.length || 0})
                 </Button>
               )}
-            </div>
+            </WideGrid>
           )}
         </div>
       </div>
@@ -883,7 +883,7 @@ export const StockyardRequestDetails: React.FC = () => {
             ]}
             variant="compact"
           />
-        </div>
+        </CardGrid>
       )}
 
       {ConfirmComponent}

@@ -625,7 +625,7 @@ export const CreateComponent: React.FC<CreateComponentProps> = ({ onSuccess, onC
                   style={{ fontSize: '16px' }} // 16px prevents iOS zoom
                 />
               </div>
-            </div>
+            </CardGrid>
           )}
 
           {componentType === 'spare_part' && (

@@ -338,7 +338,7 @@ export const EditComponent: React.FC = () => {
                 </div>
               )}
             </div>
-          </div>
+          </CardGrid>
 
           {/* Type-Specific Fields */}
           {componentType === 'battery' && (
@@ -375,7 +375,7 @@ export const EditComponent: React.FC = () => {
                   </div>
                 )}
               </div>
-            </div>
+            </CardGrid>
           )}
 
           {componentType === 'tyre' && (
@@ -427,31 +427,33 @@ export const EditComponent: React.FC = () => {
                   placeholder="e.g., 8"
                 />
               </div>
-            </div>
+            </CardGrid>
           )}
 
           {componentType === 'spare_part' && (
-            <div>
-              <Label>Category *</Label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: `${spacing.sm}px ${spacing.md}px`,
-                  borderRadius: borderRadius.md,
-                  border: `1px solid ${colors.neutral[300]}`,
-                  fontSize: typography.body.fontSize,
-                  fontFamily: typography.body.fontFamily,
-                }}
-              >
-                {SPARE_PART_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CardGrid gap="md">
+              <div>
+                <Label>Category *</Label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: `${spacing.sm}px ${spacing.md}px`,
+                    borderRadius: borderRadius.md,
+                    border: `1px solid ${colors.neutral[300]}`,
+                    fontSize: typography.body.fontSize,
+                    fontFamily: typography.body.fontFamily,
+                  }}
+                >
+                  {SPARE_PART_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </CardGrid>
           )}
 
           {/* Purchase & Warranty */}
@@ -498,7 +500,7 @@ export const EditComponent: React.FC = () => {
                 </div>
               )}
             </div>
-          </div>
+          </CardGrid>
 
           {/* Vehicle Assignment */}
           <div>

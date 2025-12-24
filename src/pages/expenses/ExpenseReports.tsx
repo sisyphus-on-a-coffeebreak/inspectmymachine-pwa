@@ -645,7 +645,7 @@ export const ExpenseReports: React.FC = () => {
                   </div>
                 </div>
               ))}
-            </div>
+            </CardGrid>
           </div>
         </>
       )}
@@ -858,7 +858,7 @@ export const ExpenseReports: React.FC = () => {
                   </div>
                 </div>
               ))}
-            </div>
+            </CardGrid>
           </div>
         </>
       )}
