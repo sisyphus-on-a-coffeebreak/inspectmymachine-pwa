@@ -532,9 +532,6 @@ export const cardStyles = {
     boxShadow: shadows.sm,
     border: `1px solid ${colors.neutral[200]}`,
     transition: 'all 0.2s ease',
-    width: '100%',
-    maxWidth: '100%',
-    boxSizing: 'border-box' as const,
   },
   
   // Alias for backward compatibility

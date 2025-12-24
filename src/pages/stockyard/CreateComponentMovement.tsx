@@ -374,7 +374,7 @@ export const CreateComponentMovement: React.FC = () => {
             </div>
           </div>
         </button>
-      </div>
+      </CardGrid>
     </div>
   );
 
@@ -546,7 +546,7 @@ export const CreateComponentMovement: React.FC = () => {
                   </div>
                 );
               })}
-            </div>
+            </CardGrid>
           ) : (
             <div style={{ padding: spacing.xl, textAlign: 'center', color: colors.neutral[600] }}>
               No components found
