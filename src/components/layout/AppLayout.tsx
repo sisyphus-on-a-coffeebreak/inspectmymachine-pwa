@@ -624,7 +624,7 @@ export default function AppLayout({
                 position: "fixed",
                 left: 0,
                 top: 0,
-                height: "100dvh",
+                bottom: 0,
                 display: "flex",
                 flexDirection: "column",
                 zIndex: 50,
@@ -862,7 +862,7 @@ export default function AppLayout({
                 borderRight: `1px solid ${colors.neutral[200]}`,
                 position: "fixed",
                 top: "64px",
-                height: "calc(100dvh - 64px)",
+                bottom: 0,
                 display: "flex",
                 flexDirection: "column",
                 zIndex: 50,
@@ -1111,4 +1111,3 @@ export default function AppLayout({
     </div>
   );
 }
-
