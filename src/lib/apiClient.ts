@@ -45,6 +45,47 @@ axios.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+/**
+ * Permission error event for global handling
+ */
+export interface PermissionErrorEvent {
+  url: string;
+  method: string;
+  requiredCapability?: string;
+  message: string;
+}
+
+// Custom event for permission errors
+const PERMISSION_ERROR_EVENT = 'voms:permission-error';
+
+/**
+ * Dispatch a permission error event that can be listened to globally
+ */
+function dispatchPermissionError(detail: PermissionErrorEvent): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(PERMISSION_ERROR_EVENT, { detail }));
+  }
+}
+
+/**
+ * Subscribe to permission error events
+ * @returns Unsubscribe function
+ */
+export function onPermissionError(
+  callback: (event: PermissionErrorEvent) => void
+): () => void {
+  const handler = (e: Event) => {
+    callback((e as CustomEvent<PermissionErrorEvent>).detail);
+  };
+  
+  if (typeof window !== 'undefined') {
+    window.addEventListener(PERMISSION_ERROR_EVENT, handler);
+    return () => window.removeEventListener(PERMISSION_ERROR_EVENT, handler);
+  }
+  
+  return () => {};
+}
+
 // Add response interceptor to handle expected failures silently
 // Note: Browser network errors in the console cannot be fully suppressed as they come
 // from the browser's XHR/fetch API. However, we can minimize them.
@@ -64,6 +105,23 @@ axios.interceptors.response.use(
       // Store a flag on the error to indicate it should be suppressed
       (error as AxiosError & { __suppressLog?: boolean }).__suppressLog = true;
     }
+    
+    // Handle 403 permission errors - dispatch global event
+    if (axios.isAxiosError(error) && error.response?.status === 403) {
+      const responseData = error.response.data as {
+        error?: string;
+        message?: string;
+        required_capability?: string;
+      } | undefined;
+      
+      dispatchPermissionError({
+        url: error.config?.url || '',
+        method: error.config?.method?.toUpperCase() || 'GET',
+        requiredCapability: responseData?.required_capability,
+        message: responseData?.message || "You don't have permission to perform this action.",
+      });
+    }
+    
     return Promise.reject(error);
   }
 );

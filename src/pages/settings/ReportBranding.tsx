@@ -50,6 +50,7 @@ export const ReportBrandingPage: React.FC = () => {
     updatedAt: null,
   });
 
+
   // Load branding settings
   useEffect(() => {
     const loadBranding = async () => {
@@ -203,6 +204,10 @@ export const ReportBrandingPage: React.FC = () => {
               onUpload={handleLogoUpload}
               onRemove={handleLogoRemove}
             />
+            {/* Debug info */}
+            <div style={{ marginTop: spacing.sm, padding: spacing.sm, backgroundColor: colors.neutral[100], borderRadius: borderRadius.sm, fontSize: '12px', fontFamily: 'monospace' }}>
+              Debug: branding.logoUrl = {branding.logoUrl || 'null'}
+            </div>
           </div>
 
           {/* Company Details Section */}
@@ -390,6 +395,10 @@ export const ReportBrandingPage: React.FC = () => {
     </div>
   );
 };
+
+
+
+
 
 
 

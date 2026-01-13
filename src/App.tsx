@@ -49,6 +49,7 @@ const AlertDashboard = lazy(() => import('./pages/alerts/AlertDashboard').then(m
 const NotificationsPage = lazy(() => import('./pages/notifications/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
 const NotificationPreferences = lazy(() => import('./pages/notifications/NotificationPreferences').then(m => ({ default: m.NotificationPreferences })));
 const ReportBranding = lazy(() => import('./pages/settings/ReportBranding').then(m => ({ default: m.ReportBrandingPage })));
+const SessionManagement = lazy(() => import('./pages/settings/SessionManagement').then(m => ({ default: m.SessionManagement })));
 const ExpenseDetails = lazy(() => import('./pages/expenses/ExpenseDetails').then(m => ({ default: m.ExpenseDetails })));
 const CreateExpense = lazy(() => import('./pages/expenses/CreateExpense').then(m => ({ default: m.CreateExpense })));
 const ExpenseHistory = lazy(() => import('./pages/expenses/ExpenseHistory').then(m => ({ default: m.ExpenseHistory })));
@@ -79,6 +80,14 @@ const GatePassDashboard = lazy(() => import('./pages/gatepass/GatePassDashboard'
 const EmployeeExpenseDashboard = lazy(() => import('./pages/expenses/EmployeeExpenseDashboard').then(module => ({ default: module.EmployeeExpenseDashboard })));
 const StockyardDashboard = lazy(() => import('./pages/stockyard/StockyardDashboard').then(module => ({ default: module.StockyardDashboard })));
 const UserManagement = lazy(() => import('./pages/admin/UserManagement'));
+const PermissionTemplates = lazy(() => import('./pages/admin/PermissionTemplates'));
+const PermissionTesting = lazy(() => import('./pages/admin/PermissionTesting'));
+const DataMaskingRules = lazy(() => import('./pages/admin/DataMaskingRules'));
+const SecurityDashboard = lazy(() => import('./pages/admin/SecurityDashboard').then(m => ({ default: m.SecurityDashboard })));
+const ActivityLogs = lazy(() => import('./pages/admin/ActivityLogs').then(m => ({ default: m.ActivityLogs })));
+const PermissionChangeLogs = lazy(() => import('./pages/admin/PermissionChangeLogs').then(m => ({ default: m.PermissionChangeLogs })));
+const AuditReports = lazy(() => import('./pages/admin/AuditReports').then(m => ({ default: m.AuditReports })));
+const ComplianceDashboard = lazy(() => import('./pages/admin/ComplianceDashboard').then(m => ({ default: m.ComplianceDashboard })));
 
 // Suspense wrapper component
 function LazyPage({ children }: { children: React.ReactNode }) {
@@ -324,6 +333,10 @@ export default function App() {
         path="/app/settings/report-branding"
         element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><ReportBranding /></LazyPage></RequireRole></AuthenticatedLayout>}
       />
+      <Route
+        path="/app/settings/sessions"
+        element={<AuthenticatedLayout><LazyPage><SessionManagement /></LazyPage></AuthenticatedLayout>}
+      />
 
       {/* 🎯 Stockyard Module */}
       <Route
@@ -431,6 +444,38 @@ export default function App() {
       <Route
         path="/app/admin/users"
         element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><UserManagement /></LazyPage></RequireRole></AuthenticatedLayout>}
+      />
+      <Route
+        path="/app/admin/permission-templates"
+        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><PermissionTemplates /></LazyPage></RequireRole></AuthenticatedLayout>}
+      />
+      <Route
+        path="/app/admin/permission-testing"
+        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><PermissionTesting /></LazyPage></RequireRole></AuthenticatedLayout>}
+      />
+      <Route
+        path="/app/admin/data-masking-rules"
+        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><DataMaskingRules /></LazyPage></RequireRole></AuthenticatedLayout>}
+      />
+      <Route
+        path="/app/admin/security"
+        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><SecurityDashboard /></LazyPage></RequireRole></AuthenticatedLayout>}
+      />
+      <Route
+        path="/app/admin/activity-logs"
+        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><ActivityLogs /></LazyPage></RequireRole></AuthenticatedLayout>}
+      />
+      <Route
+        path="/app/admin/permission-logs"
+        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><PermissionChangeLogs /></LazyPage></RequireRole></AuthenticatedLayout>}
+      />
+      <Route
+        path="/app/admin/audit-reports"
+        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><AuditReports /></LazyPage></RequireRole></AuthenticatedLayout>}
+      />
+      <Route
+        path="/app/admin/compliance"
+        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><ComplianceDashboard /></LazyPage></RequireRole></AuthenticatedLayout>}
       />
 
       {/* 404 Catch-all */}

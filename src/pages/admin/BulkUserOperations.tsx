@@ -6,6 +6,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { NetworkError } from '../../components/ui/NetworkError';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useToast } from '../../providers/ToastProvider';
 import { apiClient } from '../../lib/apiClient';
 import { Users, CheckSquare, Square, Settings, Power, Shield } from 'lucide-react';
@@ -51,6 +52,7 @@ export const BulkUserOperations: React.FC = () => {
   const queryClient = useQueryClient();
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'capabilities' | 'status' | 'role'>('capabilities');
+  const [confirmDeactivate, setConfirmDeactivate] = useState<string[] | null>(null);
   
   // Capabilities state
   const [selectedCapabilities, setSelectedCapabilities] = useState<UserCapabilities>({});
@@ -209,7 +211,15 @@ export const BulkUserOperations: React.FC = () => {
     if (activate) {
       bulkActivate.mutate(selectedUsers);
     } else {
-      bulkDeactivate.mutate(selectedUsers);
+      // Require confirmation for deactivation
+      setConfirmDeactivate(selectedUsers);
+    }
+  };
+
+  const confirmBulkDeactivate = () => {
+    if (confirmDeactivate) {
+      bulkDeactivate.mutate(confirmDeactivate);
+      setConfirmDeactivate(null);
     }
   };
 
@@ -536,6 +546,17 @@ export const BulkUserOperations: React.FC = () => {
           </Button>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDeactivate !== null}
+        onClose={() => setConfirmDeactivate(null)}
+        onConfirm={confirmBulkDeactivate}
+        title="Deactivate Users"
+        description={`Are you sure you want to deactivate ${confirmDeactivate?.length || 0} user(s)? Deactivated users will not be able to access the system.`}
+        confirmText="Deactivate Users"
+        confirmVariant="warning"
+        requireTyping={false}
+      />
     </div>
   );
 };

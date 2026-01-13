@@ -20,6 +20,85 @@ export interface UserFriendlyError {
   showRetry: boolean;
   showGoBack: boolean;
   statusCode?: number;
+  requiredCapability?: string;
+}
+
+/**
+ * Permission error response from backend
+ */
+interface PermissionErrorResponse {
+  error?: string;
+  message?: string;
+  required_capability?: string;
+}
+
+/**
+ * Map of capability names to human-readable descriptions
+ */
+const CAPABILITY_LABELS: Record<string, string> = {
+  // User Management
+  'user_management.create': 'create users',
+  'user_management.read': 'view users',
+  'user_management.update': 'edit users',
+  'user_management.delete': 'delete users',
+  
+  // Gate Pass
+  'gate_pass.create': 'create gate passes',
+  'gate_pass.read': 'view gate passes',
+  'gate_pass.update': 'edit gate passes',
+  'gate_pass.delete': 'delete gate passes',
+  'gate_pass.approve': 'approve gate passes',
+  'gate_pass.validate': 'validate gate passes',
+  
+  // Expense
+  'expense.create': 'create expenses',
+  'expense.read': 'view expenses',
+  'expense.update': 'edit expenses',
+  'expense.delete': 'delete expenses',
+  'expense.approve': 'approve expenses',
+  'expense.reassign': 'reassign expenses',
+  
+  // Inspection
+  'inspection.create': 'create inspections',
+  'inspection.read': 'view inspections',
+  'inspection.update': 'edit inspections',
+  'inspection.delete': 'delete inspections',
+  'inspection.approve': 'approve inspections',
+  'inspection.review': 'review inspections',
+  
+  // Reports
+  'reports.read': 'view reports',
+  'reports.export': 'export reports',
+  
+  // Permission Templates
+  'permission_templates.create': 'create permission templates',
+  'permission_templates.read': 'view permission templates',
+  'permission_templates.update': 'edit permission templates',
+  'permission_templates.delete': 'delete permission templates',
+  
+  // Data Masking
+  'data_masking.create': 'create masking rules',
+  'data_masking.read': 'view masking rules',
+  'data_masking.update': 'edit masking rules',
+  'data_masking.delete': 'delete masking rules',
+};
+
+/**
+ * Get human-readable description for a capability
+ */
+function getCapabilityLabel(capability: string): string {
+  if (CAPABILITY_LABELS[capability]) {
+    return CAPABILITY_LABELS[capability];
+  }
+  
+  // Generate label from capability string (e.g., "module.action" → "action module")
+  const [module, action] = capability.split('.');
+  if (module && action) {
+    const moduleName = module.replace(/_/g, ' ');
+    return `${action} ${moduleName}`;
+  }
+  
+  return capability;
 }
 
 /**
@@ -42,15 +121,32 @@ export function getUserFriendlyError(error: unknown, context?: string): UserFrie
   }
   
   if (status === 403) {
+    // Extract required_capability from backend response
+    const errorData = apiError.data as PermissionErrorResponse | undefined;
+    const requiredCapability = errorData?.required_capability;
+    const backendMessage = errorData?.message;
+    
+    // Build user-friendly message
+    let message: string;
+    if (requiredCapability) {
+      const capabilityLabel = getCapabilityLabel(requiredCapability);
+      message = `You don't have permission to ${capabilityLabel}. Please contact your administrator if you need access.`;
+    } else if (backendMessage) {
+      message = backendMessage;
+    } else if (context) {
+      message = `You don't have permission to ${context}.`;
+    } else {
+      message = "You don't have permission to access this resource.";
+    }
+    
     return {
       title: 'Access Denied',
-      message: context 
-        ? `You don't have permission to ${context}.`
-        : "You don't have permission to access this resource.",
+      message,
       severity: 'warning',
       showRetry: false,
       showGoBack: true,
       statusCode: 403,
+      requiredCapability,
     };
   }
   
@@ -238,5 +334,43 @@ export function getErrorMessage(error: unknown, resource?: string): string {
 export function getErrorTitle(error: unknown): string {
   const friendlyError = getUserFriendlyError(error);
   return friendlyError.title;
+}
+
+/**
+ * Check if error is a permission/authorization error (403)
+ */
+export function isPermissionError(error: unknown): boolean {
+  const apiError = normalizeError(error);
+  return apiError.status === 403;
+}
+
+/**
+ * Get required capability from a permission error
+ * Returns undefined if not a permission error or no capability specified
+ */
+export function getRequiredCapability(error: unknown): string | undefined {
+  const apiError = normalizeError(error);
+  if (apiError.status !== 403) {
+    return undefined;
+  }
+  
+  const errorData = apiError.data as PermissionErrorResponse | undefined;
+  return errorData?.required_capability;
+}
+
+/**
+ * Get permission error toast with detailed capability information
+ */
+export function getPermissionErrorToast(error: unknown, action?: string) {
+  const friendlyError = getUserFriendlyError(error, action);
+  const requiredCapability = getRequiredCapability(error);
+  
+  return {
+    title: friendlyError.title,
+    description: friendlyError.message,
+    variant: 'warning' as const,
+    duration: 6000,
+    requiredCapability,
+  };
 }
 

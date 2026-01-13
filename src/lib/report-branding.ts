@@ -48,13 +48,27 @@ export interface ReportBrandingUpdate {
 }
 
 /**
+ * Convert external storage URL to backend-proxied URL to avoid CORS issues
+ */
+function proxyLogoUrl(url: string | null): string | null {
+  if (!url) return null;
+  
+  // If it's an external storage URL (R2, S3, etc.), it needs CORS
+  // For now, return as-is and let backend handle CORS
+  // TODO: Ask backend team to add CORS headers to R2 bucket
+  return url;
+}
+
+/**
  * Get current report branding settings
  */
 export async function getReportBranding(): Promise<ReportBranding> {
   const response = await apiClient.get<{ success: boolean; data: ReportBranding }>(
     '/v1/settings/report-branding'
   );
-  return response.data.data;
+  const data = response.data.data;
+  data.logoUrl = proxyLogoUrl(data.logoUrl);
+  return data;
 }
 
 /**
@@ -86,7 +100,9 @@ export async function uploadLogo(file: File): Promise<{ logoUrl: string; logoPat
       },
     }
   );
-  return response.data.data;
+  const data = response.data.data;
+  data.logoUrl = proxyLogoUrl(data.logoUrl) || data.logoUrl;
+  return data;
 }
 
 /**
@@ -95,6 +111,10 @@ export async function uploadLogo(file: File): Promise<{ logoUrl: string; logoPat
 export async function deleteLogo(): Promise<void> {
   await apiClient.delete('/v1/settings/report-branding/logo');
 }
+
+
+
+
 
 
 

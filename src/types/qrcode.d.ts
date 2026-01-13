@@ -24,3 +24,7 @@ declare module 'qrcode' {
 
 
 
+
+
+
+

@@ -41,19 +41,25 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
         }}
       >
         {/* Logo */}
-        {branding.showLogoInHeader && branding.logoUrl && (
+        {branding.showLogoInHeader && branding.logoUrl ? (
           <div style={{ flex: '0 0 auto' }}>
             <img
               src={branding.logoUrl}
               alt="Company logo"
+              crossOrigin="anonymous"
               style={{
                 maxWidth: '150px',
                 maxHeight: '50px',
                 objectFit: 'contain',
               }}
+              onError={() => console.warn('Logo failed to load - CORS issue. Ask backend team to add CORS headers to R2 bucket.')}
             />
           </div>
-        )}
+        ) : branding.showLogoInHeader ? (
+          <div style={{ flex: '0 0 auto', fontSize: '10px', color: colors.neutral[400] }}>
+            (No logo uploaded)
+          </div>
+        ) : null}
 
         {/* Company Info */}
         <div style={{ flex: '1', textAlign: 'right', marginLeft: spacing.md }}>
@@ -257,6 +263,10 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
 
   return previewContent;
 };
+
+
+
+
 
 
 

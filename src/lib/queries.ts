@@ -129,6 +129,22 @@ export const queryKeys = {
       statistics: () => [...queryKeys.users.activity.all(), 'statistics'] as const,
       permissionChanges: (filters?: Record<string, unknown>) => [...queryKeys.users.activity.all(), 'permission-changes', filters] as const,
     },
+    enhancedCapabilities: (userId: number) => [...queryKeys.users.all, userId, 'enhanced-capabilities'] as const,
+  },
+  
+  // Permissions
+  permissions: {
+    all: ['permissions'] as const,
+    templates: {
+      all: () => [...queryKeys.permissions.all, 'templates'] as const,
+      list: () => [...queryKeys.permissions.templates.all(), 'list'] as const,
+      detail: (id: number) => [...queryKeys.permissions.templates.all(), id] as const,
+    },
+    maskingRules: {
+      all: () => [...queryKeys.permissions.all, 'masking-rules'] as const,
+      list: () => [...queryKeys.permissions.maskingRules.all(), 'list'] as const,
+      byModule: (module: string) => [...queryKeys.permissions.maskingRules.all(), 'module', module] as const,
+    },
   },
   
   // Alerts

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { colors, spacing, borderRadius, shadows, typography } from '../../lib/theme';
 import { Button } from '../ui/button';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
@@ -21,6 +21,11 @@ export const LogoUploader: React.FC<LogoUploaderProps> = ({
   const [preview, setPreview] = useState<string | null>(currentLogoUrl);
   const [dragActive, setDragActive] = useState(false);
 
+  // Sync preview with currentLogoUrl prop changes
+  useEffect(() => {
+    setPreview(currentLogoUrl);
+  }, [currentLogoUrl]);
+
   const handleFileSelect = async (file: File) => {
     // Validate file type
     const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'];
@@ -35,10 +40,11 @@ export const LogoUploader: React.FC<LogoUploaderProps> = ({
       return;
     }
 
-    // Create preview
+    // Create preview (temporarily show local file)
     const reader = new FileReader();
     reader.onload = (e) => {
-      setPreview(e.target?.result as string);
+      const blobUrl = e.target?.result as string;
+      setPreview(blobUrl);
     };
     reader.readAsDataURL(file);
 
@@ -46,8 +52,9 @@ export const LogoUploader: React.FC<LogoUploaderProps> = ({
     try {
       setUploading(true);
       await onUpload(file);
+      // After successful upload, parent updates currentLogoUrl which triggers useEffect to update preview
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('Failed to upload logo:', error);
       setPreview(currentLogoUrl);
       alert('Failed to upload logo. Please try again.');
     } finally {
@@ -124,12 +131,14 @@ export const LogoUploader: React.FC<LogoUploaderProps> = ({
           <img
             src={preview}
             alt="Company logo"
+            crossOrigin="anonymous"
             style={{
               maxWidth: '300px',
               maxHeight: '100px',
               objectFit: 'contain',
               display: 'block',
             }}
+            onError={() => console.warn('Logo failed to load - CORS issue. Ask backend team to add CORS headers to R2 bucket.')}
           />
           {!disabled && (
             <button
@@ -211,6 +220,10 @@ export const LogoUploader: React.FC<LogoUploaderProps> = ({
     </div>
   );
 };
+
+
+
+
 
 
 

@@ -6,6 +6,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { NetworkError } from '../../components/ui/NetworkError';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useToast } from '../../providers/ToastProvider';
 import { Grid, Filter, Download, Check, X, UserCog } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -52,6 +53,11 @@ export const CapabilityMatrix: React.FC = () => {
   const queryClient = useQueryClient();
   const [filterRole, setFilterRole] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [confirmCapabilityRemoval, setConfirmCapabilityRemoval] = useState<{
+    user: User;
+    module: CapabilityModule;
+    action: CapabilityAction;
+  } | null>(null);
 
   // Fetch all users
   const { data: usersData, isLoading, error, refetch } = useQuery({
@@ -123,9 +129,18 @@ export const CapabilityMatrix: React.FC = () => {
 
   const toggleCapability = async (user: User, module: CapabilityModule, action: CapabilityAction) => {
     const current = user.capabilities?.[module] || [];
+    const isRemoving = current.includes(action);
+    
+    // High-risk actions require confirmation when removing
+    const highRiskActions: CapabilityAction[] = ['delete', 'approve'];
+    if (isRemoving && highRiskActions.includes(action)) {
+      setConfirmCapabilityRemoval({ user, module, action });
+      return;
+    }
+    
     const newCapabilities: UserCapabilities = { ...user.capabilities };
     
-    if (current.includes(action)) {
+    if (isRemoving) {
       newCapabilities[module] = current.filter(a => a !== action);
     } else {
       newCapabilities[module] = [...current, action];
@@ -137,6 +152,24 @@ export const CapabilityMatrix: React.FC = () => {
     }
     
     await updateMutation.mutateAsync({ userId: user.id.toString(), capabilities: newCapabilities });
+  };
+
+  const confirmRemoveCapability = async () => {
+    if (!confirmCapabilityRemoval) return;
+    
+    const { user, module, action } = confirmCapabilityRemoval;
+    const current = user.capabilities?.[module] || [];
+    const newCapabilities: UserCapabilities = { ...user.capabilities };
+    
+    newCapabilities[module] = current.filter(a => a !== action);
+    
+    // Remove empty arrays
+    if (newCapabilities[module]?.length === 0) {
+      delete newCapabilities[module];
+    }
+    
+    await updateMutation.mutateAsync({ userId: user.id.toString(), capabilities: newCapabilities });
+    setConfirmCapabilityRemoval(null);
   };
 
   const exportToCSV = () => {
@@ -367,6 +400,17 @@ export const CapabilityMatrix: React.FC = () => {
           <strong>Action abbreviations:</strong> C=Create, R=Read, U=Update, D=Delete, A=Approve, V=Validate, Rv=Review, Ra=Reassign, E=Export
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmCapabilityRemoval !== null}
+        onClose={() => setConfirmCapabilityRemoval(null)}
+        onConfirm={confirmRemoveCapability}
+        title="Remove Capability"
+        description={`Are you sure you want to remove ${actionFullLabels[confirmCapabilityRemoval?.action || 'delete']} capability for ${moduleLabels[confirmCapabilityRemoval?.module || 'gate_pass']} from ${confirmCapabilityRemoval?.user.name}? This is a high-risk permission change.`}
+        confirmText="Remove Capability"
+        confirmVariant="warning"
+        requireTyping={false}
+      />
     </div>
   );
 };
