@@ -464,6 +464,20 @@ function hasRoleCapability(
       user_management: [],
       reports: ['read'],
     },
+    yard_incharge: {
+      gate_pass: ['create', 'read', 'approve', 'validate'],
+      inspection: ['read', 'approve', 'review'],
+      expense: ['read'],
+      user_management: [],
+      reports: ['read'],
+    },
+    executive: {
+      gate_pass: ['create', 'read', 'validate'],
+      inspection: ['read'],
+      expense: ['create', 'read'],
+      user_management: [],
+      reports: [],
+    },
     inspector: {
       gate_pass: ['read'],
       inspection: ['create', 'read', 'update'],
