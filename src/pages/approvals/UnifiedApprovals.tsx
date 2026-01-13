@@ -22,6 +22,7 @@ export const UnifiedApprovals: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const { bulkApprove, bulkReject } = useBulkApproval();
+  const isMobile = useIsMobile();
 
   // Get initial tab from URL or default to 'all'
   const initialTab = (searchParams.get('tab') as ApprovalType | 'all') || 'all';
