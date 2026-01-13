@@ -29,6 +29,7 @@ export type GatePassType = 'visitor' | 'vehicle_inbound' | 'vehicle_outbound';
 export type GatePassStatus = 
   | 'draft' 
   | 'pending' 
+  | 'pending_approval'
   | 'active' 
   | 'inside' 
   | 'completed' 
@@ -128,6 +129,13 @@ export interface GatePass {
   return_photos?: string[];
   exit_odometer?: number;
   return_odometer?: number;
+  
+  // Approval tracking
+  approval_status?: 'pending' | 'approved' | 'rejected';
+  approved_by?: number;
+  approver?: User;
+  approved_at?: string;
+  rejection_reason?: string;
   
   // Metadata
   notes?: string;

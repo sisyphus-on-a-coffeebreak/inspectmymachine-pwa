@@ -2,14 +2,16 @@
  * useUserRole Hook
  * 
  * Provides role-based utilities for gate pass dashboard
- * Wraps useAuth() with role-specific helpers
+ * Wraps useAuth() with capability-based helpers
+ * Single source of truth: derives all permissions from lib/users.ts hasCapability()
  */
 
 import { useMemo } from 'react';
 import { useAuth } from '@/providers/useAuth';
+import { hasCapability } from '@/lib/users';
 import type { User } from '@/providers/authTypes';
 
-export type GatePassRole = 'clerk' | 'guard' | 'supervisor' | 'admin' | 'super_admin' | 'inspector';
+export type GatePassRole = 'clerk' | 'guard' | 'supervisor' | 'admin' | 'super_admin' | 'inspector' | 'executive' | 'yard_incharge';
 
 export interface RolePermissions {
   canCreatePasses: boolean;
@@ -22,9 +24,10 @@ export interface RolePermissions {
 
 /**
  * Get role-based permissions for gate pass operations
+ * Derives all permissions from hasCapability() - single source of truth
  */
-function getRolePermissions(role: GatePassRole | undefined): RolePermissions {
-  if (!role) {
+function getRolePermissions(user: User | null): RolePermissions {
+  if (!user) {
     // Default to most restrictive
     return {
       canCreatePasses: false,
@@ -36,58 +39,14 @@ function getRolePermissions(role: GatePassRole | undefined): RolePermissions {
     };
   }
 
-  const permissions: Record<GatePassRole, RolePermissions> = {
-    clerk: {
-      canCreatePasses: true,
-      canApprovePasses: false,
-      canValidatePasses: false,
-      canViewReports: false,
-      canBulkOperations: false,
-      canManageTemplates: false,
-    },
-    guard: {
-      canCreatePasses: false,
-      canApprovePasses: false,
-      canValidatePasses: true,
-      canViewReports: false,
-      canBulkOperations: false,
-      canManageTemplates: false,
-    },
-    supervisor: {
-      canCreatePasses: false,
-      canApprovePasses: true,
-      canValidatePasses: true,
-      canViewReports: true,
-      canBulkOperations: false,
-      canManageTemplates: false,
-    },
-    admin: {
-      canCreatePasses: true,
-      canApprovePasses: true,
-      canValidatePasses: true,
-      canViewReports: true,
-      canBulkOperations: true,
-      canManageTemplates: true,
-    },
-    super_admin: {
-      canCreatePasses: true,
-      canApprovePasses: true,
-      canValidatePasses: true,
-      canViewReports: true,
-      canBulkOperations: true,
-      canManageTemplates: true,
-    },
-    inspector: {
-      canCreatePasses: false,
-      canApprovePasses: false,
-      canValidatePasses: false,
-      canViewReports: false,
-      canBulkOperations: false,
-      canManageTemplates: false,
-    },
+  return {
+    canCreatePasses: hasCapability(user, 'gate_pass', 'create'),
+    canApprovePasses: hasCapability(user, 'gate_pass', 'approve'),
+    canValidatePasses: hasCapability(user, 'gate_pass', 'validate'),
+    canViewReports: hasCapability(user, 'reports', 'read'),
+    canBulkOperations: hasCapability(user, 'gate_pass', 'delete'), // Admins can bulk delete
+    canManageTemplates: hasCapability(user, 'gate_pass', 'update'), // Admins can manage templates
   };
-
-  return permissions[role];
 }
 
 export function useUserRole() {
@@ -98,12 +57,15 @@ export function useUserRole() {
   }, [user?.role]);
 
   const permissions = useMemo(() => {
-    return getRolePermissions(role);
-  }, [role]);
+    return getRolePermissions(user);
+  }, [user]);
 
+  // Convenience flags for backward compatibility
   const isGuard = role === 'guard';
   const isClerk = role === 'clerk';
   const isSupervisor = role === 'supervisor';
+  const isYardIncharge = role === 'yard_incharge';
+  const isExecutive = role === 'executive';
   const isAdmin = role === 'admin' || role === 'super_admin';
   const isSuperAdmin = role === 'super_admin';
 
@@ -114,14 +76,9 @@ export function useUserRole() {
     isGuard,
     isClerk,
     isSupervisor,
+    isYardIncharge,
+    isExecutive,
     isAdmin,
     isSuperAdmin,
   };
 }
-
-
-
-
-
-
-

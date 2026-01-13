@@ -20,6 +20,8 @@ import { NetworkError } from '@/components/ui/NetworkError';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
 import { useConfirm } from '@/components/ui/Modal';
 import { ShareButton } from '@/components/ui/ShareButton';
+import { useUserRole } from './hooks/useUserRole';
+import { apiClient } from '@/lib/apiClient';
 import {
   isVisitorPass,
   isOutboundVehicle,
@@ -34,6 +36,7 @@ export const GatePassDetails: React.FC = () => {
   const navigate = useNavigate();
   const { confirm, ConfirmComponent } = useConfirm();
   const { showToast } = useToast();
+  const { permissions } = useUserRole();
   
   // Fetch pass using unified hook
   const { data: pass, isLoading, error, refetch } = useGatePass(id);
@@ -45,6 +48,12 @@ export const GatePassDetails: React.FC = () => {
   const [qrLoading, setQrLoading] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  
+  // Approval panel state
+  const [showApprovalPanel, setShowApprovalPanel] = useState(false);
+  const [approvalNotes, setApprovalNotes] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [isApproving, setIsApproving] = useState(false);
 
   // Track in recently viewed
   useEffect(() => {
@@ -394,6 +403,73 @@ export const GatePassDetails: React.FC = () => {
       refetch();
     } catch {
       // Error handled by hook
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!pass || !id) return;
+
+    try {
+      setIsApproving(true);
+      await apiClient.post(`/gate-pass-approval/approve/${id}`, {
+        notes: approvalNotes || 'Approved'
+      });
+
+      showToast({
+        title: 'Success',
+        description: 'Pass approved successfully',
+        variant: 'success',
+      });
+
+      setShowApprovalPanel(false);
+      setApprovalNotes('');
+      refetch();
+    } catch (error: any) {
+      showToast({
+        title: 'Error',
+        description: error?.message || 'Failed to approve pass',
+        variant: 'error',
+      });
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!pass || !id) return;
+
+    if (!rejectionReason.trim()) {
+      showToast({
+        title: 'Validation Error',
+        description: 'Please provide a rejection reason',
+        variant: 'error',
+      });
+      return;
+    }
+
+    try {
+      setIsApproving(true);
+      await apiClient.post(`/gate-pass-approval/reject/${id}`, {
+        reason: rejectionReason
+      });
+
+      showToast({
+        title: 'Pass Rejected',
+        description: 'Pass has been rejected',
+        variant: 'success',
+      });
+
+      setShowApprovalPanel(false);
+      setRejectionReason('');
+      refetch();
+    } catch (error: any) {
+      showToast({
+        title: 'Error',
+        description: error?.message || 'Failed to reject pass',
+        variant: 'error',
+      });
+    } finally {
+      setIsApproving(false);
     }
   };
 
@@ -942,6 +1018,126 @@ export const GatePassDetails: React.FC = () => {
               Download PNG
             </Button>
           </div>
+
+          {/* Inline Approval Panel */}
+          {permissions.canApprovePasses && pass.status === 'pending_approval' && (
+            <div style={{
+              padding: spacing.lg,
+              backgroundColor: colors.warning[50],
+              border: `2px solid ${colors.warning[200]}`,
+              borderRadius: borderRadius.md,
+              marginBottom: spacing.md,
+            }}>
+              <h3 style={{
+                ...typography.subheader,
+                color: colors.warning[700],
+                marginBottom: spacing.md,
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.sm,
+              }}>
+                ⚠️ Approval Required
+              </h3>
+
+              {!showApprovalPanel ? (
+                <div style={{ display: 'flex', gap: spacing.sm }}>
+                  <Button
+                    variant="primary"
+                    onClick={() => setShowApprovalPanel(true)}
+                    size="lg"
+                    style={{ flex: 1 }}
+                  >
+                    Review & Approve
+                  </Button>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ marginBottom: spacing.md }}>
+                    <label style={{
+                      ...typography.label,
+                      display: 'block',
+                      marginBottom: spacing.xs,
+                      color: colors.neutral[700],
+                    }}>
+                      Approval Notes (Optional)
+                    </label>
+                    <textarea
+                      value={approvalNotes}
+                      onChange={(e) => setApprovalNotes(e.target.value)}
+                      placeholder="Add any notes or comments..."
+                      style={{
+                        width: '100%',
+                        minHeight: '60px',
+                        padding: spacing.sm,
+                        border: `1px solid ${colors.neutral[300]}`,
+                        borderRadius: borderRadius.sm,
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                        resize: 'vertical',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: spacing.md }}>
+                    <label style={{
+                      ...typography.label,
+                      display: 'block',
+                      marginBottom: spacing.xs,
+                      color: colors.error[700],
+                    }}>
+                      Rejection Reason (Required if rejecting)
+                    </label>
+                    <textarea
+                      value={rejectionReason}
+                      onChange={(e) => setRejectionReason(e.target.value)}
+                      placeholder="Provide a reason for rejection..."
+                      style={{
+                        width: '100%',
+                        minHeight: '60px',
+                        padding: spacing.sm,
+                        border: `1px solid ${colors.neutral[300]}`,
+                        borderRadius: borderRadius.sm,
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                        resize: 'vertical',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: spacing.sm }}>
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setShowApprovalPanel(false);
+                        setApprovalNotes('');
+                        setRejectionReason('');
+                      }}
+                      disabled={isApproving}
+                      style={{ flex: 1 }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={handleReject}
+                      disabled={isApproving || !rejectionReason.trim()}
+                      style={{ flex: 1, backgroundColor: colors.error[500], color: 'white' }}
+                    >
+                      {isApproving ? 'Processing...' : 'Reject'}
+                    </Button>
+                    <Button
+                      variant="primary"
+                      onClick={handleApprove}
+                      disabled={isApproving}
+                      style={{ flex: 1 }}
+                    >
+                      {isApproving ? 'Processing...' : 'Approve'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Record Entry */}
           {(pass.status === 'active' || pass.status === 'pending') && !isExpired(pass) && (

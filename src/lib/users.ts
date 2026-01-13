@@ -1,6 +1,9 @@
 import { apiClient } from './apiClient';
 import { API_BASE_URL } from './apiConfig';
+import type { EnhancedCapability } from './permissions/types';
+import { hasCapability as hasEnhancedCapability } from './permissions/evaluator';
 
+// Re-export types for backward compatibility
 export type CapabilityAction = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'validate' | 'review' | 'reassign' | 'export';
 export type CapabilityModule = 'gate_pass' | 'inspection' | 'expense' | 'user_management' | 'reports';
 
@@ -10,6 +13,8 @@ export interface UserCapabilities {
   expense?: CapabilityAction[];
   user_management?: CapabilityAction[];
   reports?: CapabilityAction[];
+  // Enhanced capabilities with granularity support
+  enhanced_capabilities?: EnhancedCapability[];
 }
 
 export interface User {
@@ -17,8 +22,9 @@ export interface User {
   employee_id: string;
   name: string;
   email: string;
-  role: 'super_admin' | 'admin' | 'inspector' | 'supervisor' | 'guard' | 'clerk';
+  role: 'super_admin' | 'admin' | 'inspector' | 'supervisor' | 'guard' | 'clerk' | 'executive' | 'yard_incharge';
   capabilities?: UserCapabilities; // Capability matrix (module-level + CRUD flags)
+  enhanced_capabilities?: EnhancedCapability[]; // Enhanced capabilities with granularity
   yard_id: string | null;
   is_active: boolean;
   last_login_at: string | null;
@@ -47,8 +53,26 @@ export interface UpdateUserPayload {
   is_active?: boolean;
 }
 
+export interface GetUsersParams {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  role?: string;
+  status?: 'active' | 'inactive';
+}
+
 export interface UsersResponse {
   data: User[];
+  meta?: {
+    current_page: number;
+    per_page: number;
+    total: number;
+    last_page: number;
+  };
+  links?: {
+    next: string | null;
+    prev: string | null;
+  };
   total?: number;
   per_page?: number;
   current_page?: number;
@@ -57,22 +81,94 @@ export interface UsersResponse {
 const API_BASE = API_BASE_URL;
 
 /**
- * Get all users
+ * Get all users with pagination support
  */
-export async function getUsers(): Promise<User[]> {
+export async function getUsers(params?: GetUsersParams): Promise<UsersResponse> {
   try {
     const response = await apiClient.get<UsersResponse | User[]>('/v1/users', {
       skipRetry: true,
+      params: params ? {
+        page: params.page,
+        per_page: params.per_page,
+        search: params.search,
+        role: params.role,
+        status: params.status,
+      } : undefined,
     });
     
+    // Handle array response (backward compatibility)
     if (Array.isArray(response.data)) {
-      return response.data;
+      return {
+        data: response.data,
+        meta: {
+          current_page: 1,
+          per_page: response.data.length,
+          total: response.data.length,
+          last_page: 1,
+        },
+        links: {
+          next: null,
+          prev: null,
+        },
+      };
     }
-    return (response.data as UsersResponse).data || [];
+    
+    // Handle paginated response
+    const data = response.data as UsersResponse;
+    
+    // If meta is missing but we have legacy fields, construct meta
+    if (!data.meta && (data.total !== undefined || data.current_page !== undefined)) {
+      return {
+        ...data,
+        meta: {
+          current_page: data.current_page || 1,
+          per_page: data.per_page || data.data.length,
+          total: data.total || data.data.length,
+          last_page: data.per_page && data.total 
+            ? Math.ceil(data.total / data.per_page) 
+            : 1,
+        },
+        links: data.links || {
+          next: null,
+          prev: null,
+        },
+      };
+    }
+    
+    // Ensure meta exists
+    if (!data.meta) {
+      return {
+        ...data,
+        meta: {
+          current_page: 1,
+          per_page: data.data.length,
+          total: data.data.length,
+          last_page: 1,
+        },
+        links: {
+          next: null,
+          prev: null,
+        },
+      };
+    }
+    
+    return data;
   } catch (error: any) {
     if (error?.status === 404) {
-      // Endpoint doesn't exist yet, return empty array
-      return [];
+      // Endpoint doesn't exist yet, return empty response
+      return {
+        data: [],
+        meta: {
+          current_page: 1,
+          per_page: 50,
+          total: 0,
+          last_page: 1,
+        },
+        links: {
+          next: null,
+          prev: null,
+        },
+      };
     }
     throw new Error(error?.message || 'Failed to fetch users');
   }
@@ -155,12 +251,14 @@ export async function resetUserPassword(id: number, newPassword: string): Promis
  */
 export function getAvailableRoles(): Array<{ value: User['role']; label: string; description: string }> {
   return [
-    { value: 'super_admin', label: 'Super Admin', description: 'Full system access' },
-    { value: 'admin', label: 'Admin', description: 'Administrative access' },
-    { value: 'supervisor', label: 'Supervisor', description: 'Can approve passes and expenses' },
-    { value: 'inspector', label: 'Inspector', description: 'Can perform vehicle inspections' },
-    { value: 'guard', label: 'Guard', description: 'Can validate gate passes' },
-    { value: 'clerk', label: 'Clerk', description: 'Basic operations' },
+    { value: 'super_admin', label: 'Super Admin', description: 'Full system access with all capabilities' },
+    { value: 'admin', label: 'Admin', description: 'Administrative access - create, approve, and validate passes' },
+    { value: 'yard_incharge', label: 'Yard In-charge', description: 'Create, approve, and validate gate passes' },
+    { value: 'supervisor', label: 'Supervisor', description: 'Approve and validate passes and expenses' },
+    { value: 'executive', label: 'Executive', description: 'Create and validate gate passes (submit for approval)' },
+    { value: 'inspector', label: 'Inspector', description: 'Perform vehicle inspections' },
+    { value: 'guard', label: 'Guard', description: 'Validate gate passes at entry/exit' },
+    { value: 'clerk', label: 'Clerk', description: 'Create passes and expenses (submit for approval)' },
   ];
 }
 
@@ -179,20 +277,21 @@ export async function getUserPermissions(id: number): Promise<{ user_id: number;
 
 /**
  * Check if user has capability
+ * 
+ * This function now uses the enhanced permission evaluator which supports:
+ * - Basic capabilities (backward compatible)
+ * - Enhanced capabilities with granularity (scope, conditions, time, context)
+ * 
+ * For granular permission checks with context, use checkPermission from './permissions/evaluator'
+ * 
+ * @param user - The user to check
+ * @param module - The module to check
+ * @param action - The action to check
+ * @returns true if user has the capability
  */
 export function hasCapability(user: User | null, module: CapabilityModule, action: CapabilityAction): boolean {
-  if (!user) return false;
-  
-  // Super admin has all capabilities
-  if (user.role === 'super_admin') return true;
-  
-  // Check capability matrix
-  if (user.capabilities && user.capabilities[module]) {
-    return user.capabilities[module]!.includes(action);
-  }
-  
-  // Fallback to role-based check (backward compatibility)
-  return hasRoleCapability(user.role, module, action);
+  // Use enhanced evaluator which handles both basic and enhanced capabilities
+  return hasEnhancedCapability(user, module, action);
 }
 
 /**
@@ -214,12 +313,26 @@ function hasRoleCapability(role: User['role'], module: CapabilityModule, action:
       user_management: ['read', 'update'],
       reports: ['read', 'export'],
     },
+    yard_incharge: {
+      gate_pass: ['create', 'read', 'approve', 'validate'],
+      inspection: ['read', 'approve', 'review'],
+      expense: ['read'],
+      user_management: [],
+      reports: ['read'],
+    },
     supervisor: {
       gate_pass: ['read', 'approve', 'validate'],
       inspection: ['read', 'approve', 'review'],
       expense: ['read', 'approve'],
       user_management: [],
       reports: ['read'],
+    },
+    executive: {
+      gate_pass: ['create', 'read', 'validate'],
+      inspection: ['read'],
+      expense: ['create', 'read'],
+      user_management: [],
+      reports: [],
     },
     inspector: {
       gate_pass: ['read'],
@@ -247,4 +360,8 @@ function hasRoleCapability(role: User['role'], module: CapabilityModule, action:
   const capabilities = roleCapabilities[role];
   return capabilities[module]?.includes(action) ?? false;
 }
+
+// Export enhanced permission system
+export { checkPermission, checkPermissions } from './permissions/evaluator';
+export * from './permissions/types';
 

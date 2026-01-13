@@ -204,12 +204,43 @@ export const PassCard: React.FC<PassCardProps> = ({ pass, onClick, compact = fal
             </div>
           </div>
         </div>
-        <Badge
-          variant={statusVariant}
-          size={compact ? 'sm' : 'md'}
-        >
-          {statusLabel}
-        </Badge>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xs, alignItems: 'flex-end' }}>
+          <Badge
+            variant={statusVariant}
+            size={compact ? 'sm' : 'md'}
+          >
+            {statusLabel}
+          </Badge>
+          
+          {/* Approval Status Badge */}
+          {pass.status === 'pending_approval' && (
+            <Badge
+              variant="warning"
+              size="sm"
+              style={{ fontSize: '10px' }}
+            >
+              ⏳ Pending Approval
+            </Badge>
+          )}
+          {pass.approval_status === 'approved' && (
+            <Badge
+              variant="success"
+              size="sm"
+              style={{ fontSize: '10px' }}
+            >
+              ✓ Approved
+            </Badge>
+          )}
+          {pass.approval_status === 'rejected' && (
+            <Badge
+              variant="error"
+              size="sm"
+              style={{ fontSize: '10px' }}
+            >
+              ✗ Rejected
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* Purpose */}

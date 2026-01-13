@@ -38,7 +38,7 @@ export const GatePassDashboard: React.FC = () => {
   const { showToast } = useToast();
   const { confirm, ConfirmComponent } = useConfirm();
   const queryClient = useQueryClient();
-  const { role, isGuard, isClerk, isSupervisor, isAdmin } = useUserRole();
+  const { role, isGuard, isClerk, isSupervisor, isAdmin, permissions } = useUserRole();
   
   // URL-based filter management
   const { filters, setFilter, clearFilters, hasActiveFilters, activeFilterCount } = useGatePassFilters();
@@ -463,8 +463,8 @@ export const GatePassDashboard: React.FC = () => {
         }
       />
 
-      {/* Policy Links - Only show for non-guard roles */}
-      {!isGuard && (
+      {/* Policy Links - Only show for roles with create capability */}
+      {permissions.canCreatePasses && (
         <PolicyLinks
           title="Gate Pass Policy & Compliance"
           links={[
@@ -491,10 +491,12 @@ export const GatePassDashboard: React.FC = () => {
         />
       )}
 
-      {/* Role-Based Dashboard Content */}
-      {isGuard ? (
+      {/* Capability-Based Dashboard Content */}
+      {permissions.canValidatePasses && !permissions.canCreatePasses ? (
+        // Guard: validate only
         <GuardDashboardContent />
-      ) : isClerk ? (
+      ) : permissions.canCreatePasses && !permissions.canApprovePasses ? (
+        // Executive/Clerk: create + validate (submit for approval)
         <StaffDashboardContent
           onCreateVisitor={() => navigate('/app/gate-pass/create?type=visitor')}
           onCreateOutbound={() => navigate('/app/gate-pass/create?type=outbound')}
@@ -502,7 +504,8 @@ export const GatePassDashboard: React.FC = () => {
           stats={statsData}
           loading={loading}
         />
-      ) : isSupervisor ? (
+      ) : permissions.canApprovePasses ? (
+        // Supervisor/Yard In-charge/Admin: approve + validate (and maybe create)
         <SupervisorDashboardContent
           onCreateVisitor={() => navigate('/app/gate-pass/create?type=visitor')}
           onCreateOutbound={() => navigate('/app/gate-pass/create?type=outbound')}

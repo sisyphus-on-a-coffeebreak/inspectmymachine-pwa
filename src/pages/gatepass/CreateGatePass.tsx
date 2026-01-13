@@ -23,6 +23,8 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { getDefaultPurpose, getDefaultValidityDates } from './config/defaults';
 import { useSmartKeyboard } from '@/hooks/useSmartKeyboard';
+import { useUserRole } from './hooks/useUserRole';
+import { apiClient } from '@/lib/apiClient';
 
 type IntentType = 'visitor' | 'vehicle_outbound' | 'vehicle_inbound' | null;
 
@@ -68,6 +70,10 @@ export const CreateGatePass: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const createPass = useCreateGatePass();
+  const { permissions } = useUserRole();
+  
+  // Track submission type for "Create & Approve" feature
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Step 1: Intent selection (defaults to visitor if no param)
   const [selectedIntent, setSelectedIntent] = useState<IntentType>('visitor');
@@ -335,7 +341,7 @@ export const CreateGatePass: React.FC = () => {
     return isValid;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, autoApprove: boolean = false) => {
     e.preventDefault();
 
     if (!user) {
@@ -433,10 +439,37 @@ export const CreateGatePass: React.FC = () => {
     }
 
     try {
+      setIsSubmitting(true);
       const newPass = await createPass.mutateAsync(payload);
+      
+      // If autoApprove is requested and user has approval capability, approve it immediately
+      if (autoApprove && permissions.canApprovePasses) {
+        try {
+          await apiClient.post(`/gate-pass-approval/approve/${newPass.id}`, {
+            notes: 'Auto-approved during creation'
+          });
+          
+          showToast({
+            title: 'Success',
+            description: 'Pass created and approved successfully',
+            variant: 'success',
+          });
+        } catch (approvalError) {
+          console.error('[CreateGatePass] Auto-approval failed:', approvalError);
+          // Still navigate to the pass, but show warning
+          showToast({
+            title: 'Pass Created',
+            description: 'Pass was created but auto-approval failed. You can approve it manually.',
+            variant: 'warning',
+          });
+        }
+      }
+      
       navigate(`/app/gate-pass/${newPass.id}`);
     } catch {
       // Error is handled by the mutation hook
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1040,22 +1073,46 @@ export const CreateGatePass: React.FC = () => {
           />
         </div>
 
-        {/* Submit Button */}
+        {/* Submit Button(s) */}
         <div style={{ display: 'flex', gap: spacing.md, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <Button
             type="button"
             variant="secondary"
             onClick={() => navigate('/app/gate-pass')}
+            disabled={isSubmitting}
           >
             Cancel
           </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={createPass.isPending}
-          >
-            {createPass.isPending ? 'Creating...' : 'Create Pass'}
-          </Button>
+          
+          {/* Show two buttons for users who can approve (yard in-charge, admins) */}
+          {permissions.canApprovePasses ? (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={(e) => handleSubmit(e, false)}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Creating...' : 'Create Only'}
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={(e) => handleSubmit(e, true)}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Processing...' : 'Create & Approve'}
+              </Button>
+            </>
+          ) : (
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit for Approval'}
+            </Button>
+          )}
         </div>
       </form>
     </div>
