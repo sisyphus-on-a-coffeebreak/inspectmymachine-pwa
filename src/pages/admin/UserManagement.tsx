@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useAuth } from '@/providers/useAuth';
 import { useToast } from '@/providers/ToastProvider';
+import { queryKeys } from '@/lib/queries';
 import {
   getUsers,
   createUser,
@@ -15,12 +17,26 @@ import {
   type UserCapabilities,
   type CapabilityModule,
   type CapabilityAction,
+  type UsersResponse,
+  type GetUsersParams,
 } from '@/lib/users';
+import { EnhancedCapabilityEditor } from '@/components/permissions/EnhancedCapabilityEditor';
+import type { EnhancedCapability } from '@/lib/permissions/types';
+import {
+  useEnhancedCapabilities,
+  useAddEnhancedCapability,
+  useUpdateEnhancedCapability,
+  useRemoveEnhancedCapability,
+} from '@/lib/permissions/queries';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingError } from '@/components/ui/LoadingError';
 import { SkeletonTable } from '@/components/ui/SkeletonLoader';
+import { Modal } from '@/components/ui/Modal';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Pagination } from '@/components/ui/Pagination';
+import { PermissionGate, useHasCapability } from '@/components/ui/PermissionGate';
 import { colors, typography, spacing, cardStyles, borderRadius, shadows } from '@/lib/theme';
 import { UserCog, Search, Plus, Edit2, Trash2, Key, Users as UsersIcon, Filter } from 'lucide-react';
 
@@ -28,7 +44,12 @@ export default function UserManagement() {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const { showToast } = useToast();
+  
+  // Permission checks for UI visibility
+  const canUpdateUsers = useHasCapability('user_management', 'update');
+  const canDeleteUsers = useHasCapability('user_management', 'delete');
   const [users, setUsers] = useState<User[]>([]);
+  const [usersResponse, setUsersResponse] = useState<UsersResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -39,6 +60,8 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(50);
 
   // Form states
   const [formData, setFormData] = useState<CreateUserPayload>({
@@ -52,38 +75,96 @@ export default function UserManagement() {
     is_active: true,
   });
   const [showCapabilityMatrix, setShowCapabilityMatrix] = useState(false);
+  const [capabilityTab, setCapabilityTab] = useState<'basic' | 'enhanced'>('basic');
+  const [enhancedCapabilities, setEnhancedCapabilities] = useState<EnhancedCapability[]>([]);
+  
+  // Enhanced capabilities hooks - only load when editing
+  const { data: userEnhancedCapabilities } = useEnhancedCapabilities(
+    selectedUser?.id || 0,
+    { enabled: !!selectedUser && showEditModal }
+  );
+  
+  // Update enhanced capabilities when user data loads
+  useEffect(() => {
+    if (userEnhancedCapabilities && showEditModal) {
+      setEnhancedCapabilities(userEnhancedCapabilities);
+    }
+  }, [userEnhancedCapabilities, showEditModal]);
+  
+  const addEnhancedCapability = useAddEnhancedCapability();
+  const updateEnhancedCapability = useUpdateEnhancedCapability();
+  const removeEnhancedCapability = useRemoveEnhancedCapability();
 
   const [passwordData, setPasswordData] = useState({ password: '', confirmPassword: '' });
 
   const roles = getAvailableRoles();
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
+  // Use React Query for better caching and pagination support
+  const { data: usersQueryData, isLoading: queryLoading, error: queryError, refetch } = useQuery({
+    queryKey: queryKeys.users.list({ page, per_page: perPage, search: searchTerm, role: filterRole, status: filterStatus }),
+    queryFn: async () => {
+      const params: GetUsersParams = {
+        page,
+        per_page: perPage,
+        search: searchTerm || undefined,
+        role: filterRole !== 'all' ? filterRole : undefined,
+        status: filterStatus !== 'all' ? filterStatus : undefined,
+      };
+      return await getUsers(params);
+    },
+    placeholderData: keepPreviousData, // Keep old data while loading new page
+    staleTime: 30000, // 30 seconds
+  });
 
-  const loadUsers = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getUsers();
-      setUsers(data);
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to load users');
+  // Update local state from query data
+  useEffect(() => {
+    if (usersQueryData) {
+      setUsersResponse(usersQueryData);
+      setUsers(usersQueryData.data);
+      setLoading(false);
+    }
+  }, [usersQueryData]);
+
+  useEffect(() => {
+    setLoading(queryLoading);
+  }, [queryLoading]);
+
+  useEffect(() => {
+    if (queryError) {
+      const error = queryError instanceof Error ? queryError : new Error('Failed to load users');
       setError(error);
       showToast({
         title: 'Error',
         description: error.message,
         variant: 'error',
       });
-    } finally {
-      setLoading(false);
     }
+  }, [queryError, showToast]);
+
+  const loadUsers = async () => {
+    await refetch();
   };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createUser(formData);
+      const newUser = await createUser(formData);
+      
+      // Save enhanced capabilities if any
+      if (enhancedCapabilities.length > 0 && newUser.id) {
+        for (const cap of enhancedCapabilities) {
+          try {
+            await addEnhancedCapability.mutateAsync({
+              userId: newUser.id,
+              capability: cap,
+            });
+          } catch (capErr) {
+            console.error('Failed to add enhanced capability:', capErr);
+            // Continue with other capabilities
+          }
+        }
+      }
+      
       showToast({
         title: 'Success',
         description: 'User created successfully',
@@ -115,6 +196,77 @@ export default function UserManagement() {
         is_active: formData.is_active,
       };
       await updateUser(selectedUser.id, payload);
+      
+      // Sync enhanced capabilities
+      // Get current enhanced capabilities from API
+      const currentCaps = userEnhancedCapabilities || [];
+      
+      // Find capabilities to add (in new list but not in current)
+      const toAdd = enhancedCapabilities.filter(
+        newCap => !currentCaps.some(
+          currCap => currCap.module === newCap.module && currCap.action === newCap.action
+        )
+      );
+      
+      // Find capabilities to remove (in current but not in new)
+      const toRemove = currentCaps.filter(
+        currCap => !enhancedCapabilities.some(
+          newCap => newCap.module === currCap.module && newCap.action === currCap.action
+        )
+      );
+      
+      // Find capabilities to update (in both but different)
+      const toUpdate = enhancedCapabilities.filter(newCap => {
+        const currCap = currentCaps.find(
+          c => c.module === newCap.module && c.action === newCap.action
+        );
+        return currCap && JSON.stringify(currCap) !== JSON.stringify(newCap);
+      });
+      
+      // Add new capabilities
+      for (const cap of toAdd) {
+        try {
+          await addEnhancedCapability.mutateAsync({
+            userId: selectedUser.id,
+            capability: cap,
+          });
+        } catch (capErr) {
+          console.error('Failed to add enhanced capability:', capErr);
+        }
+      }
+      
+      // Update existing capabilities
+      for (const cap of toUpdate) {
+        const existingCap = currentCaps.find(
+          c => c.module === cap.module && c.action === cap.action
+        );
+        if (existingCap && existingCap.id) {
+          try {
+            await updateEnhancedCapability.mutateAsync({
+              userId: selectedUser.id,
+              capabilityId: existingCap.id,
+              updates: cap,
+            });
+          } catch (capErr) {
+            console.error('Failed to update enhanced capability:', capErr);
+          }
+        }
+      }
+      
+      // Remove deleted capabilities
+      for (const cap of toRemove) {
+        if (cap.id) {
+          try {
+            await removeEnhancedCapability.mutateAsync({
+              userId: selectedUser.id,
+              capabilityId: cap.id,
+            });
+          } catch (capErr) {
+            console.error('Failed to remove enhanced capability:', capErr);
+          }
+        }
+      }
+      
       showToast({
         title: 'Success',
         description: 'User updated successfully',
@@ -122,11 +274,36 @@ export default function UserManagement() {
       });
       setShowEditModal(false);
       resetForm();
-      loadUsers();
+      loadUsers(); // Reload current page
     } catch (err) {
       showToast({
         title: 'Error',
         description: err instanceof Error ? err.message : 'Failed to update user',
+        variant: 'error',
+      });
+    }
+  };
+
+  const handleDeleteUser = async (userId: number, userName: string) => {
+    setConfirmDelete({ userId, userName });
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!confirmDelete) return;
+    
+    try {
+      await deleteUser(confirmDelete.userId);
+      showToast({
+        title: 'User deleted',
+        description: `${confirmDelete.userName} has been removed`,
+        variant: 'success',
+      });
+      setConfirmDelete(null);
+      loadUsers(); // Reload current page
+    } catch (error) {
+      showToast({
+        title: 'Error',
+        description: 'Failed to delete user',
         variant: 'error',
       });
     }
@@ -212,6 +389,9 @@ export default function UserManagement() {
       yard_id: user.yard_id,
       is_active: user.is_active,
     });
+    // Load enhanced capabilities from user data or set empty array
+    setEnhancedCapabilities(user.enhanced_capabilities || []);
+    setCapabilityTab('basic');
     setShowEditModal(true);
   };
 
@@ -262,37 +442,9 @@ export default function UserManagement() {
     return roleColors[role] || roleColors.clerk;
   };
 
-  const filteredUsers = users.filter((user) => {
-    const searchLower = searchTerm.toLowerCase();
-    
-    // Enhanced search: employee_id, name, email, role, and capabilities
-    const matchesSearch = searchTerm === '' || (
-      user.employee_id.toLowerCase().includes(searchLower) ||
-      user.name.toLowerCase().includes(searchLower) ||
-      user.email.toLowerCase().includes(searchLower) ||
-      user.role.toLowerCase().includes(searchLower) ||
-      // Search in role label
-      (roles.find((r) => r.value === user.role)?.label || '').toLowerCase().includes(searchLower) ||
-      // Search in capabilities (capabilities is an object with module keys, each containing an array of actions)
-      (user.capabilities && Object.keys(user.capabilities).some((module) => {
-        const moduleCaps = user.capabilities?.[module as CapabilityModule];
-        if (!moduleCaps || !Array.isArray(moduleCaps)) return false;
-        // Search by module name
-        if (module.toLowerCase().includes(searchLower)) return true;
-        // Search by action names in the array
-        return moduleCaps.some((action) => 
-          action.toLowerCase().includes(searchLower)
-        );
-      }))
-    );
-    
-    const matchesRole = filterRole === 'all' || user.role === filterRole;
-    const matchesStatus =
-      filterStatus === 'all' ||
-      (filterStatus === 'active' && user.is_active) ||
-      (filterStatus === 'inactive' && !user.is_active);
-    return matchesSearch && matchesRole && matchesStatus;
-  });
+  // Users are now filtered on the backend via pagination params
+  // No client-side filtering needed
+  const filteredUsers = users;
 
   if (loading) {
     return (
@@ -327,16 +479,18 @@ export default function UserManagement() {
             { label: 'User Management' }
           ]}
           actions={
-            <Button
-              variant="primary"
-              onClick={() => {
-                resetForm();
-                setShowCreateModal(true);
-              }}
-              icon={<Plus size={20} />}
-            >
-              Create User
-            </Button>
+            <PermissionGate module="user_management" action="create">
+              <Button
+                variant="primary"
+                onClick={() => {
+                  resetForm();
+                  setShowCreateModal(true);
+                }}
+                icon={<Plus size={20} />}
+              >
+                Create User
+              </Button>
+            </PermissionGate>
           }
         />
 
@@ -367,7 +521,10 @@ export default function UserManagement() {
                 type="text"
                 placeholder="Search by name, email, employee ID, role, or capability..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPage(1); // Reset to first page when searching
+                }}
                 aria-label="Search users by name, email, employee ID, role, or capability"
                 style={{
                   width: '100%',
@@ -403,7 +560,10 @@ export default function UserManagement() {
                 <Filter size={18} color={colors.neutral[600]} />
                 <select
                   value={filterRole}
-                  onChange={(e) => setFilterRole(e.target.value)}
+                  onChange={(e) => {
+                    setFilterRole(e.target.value);
+                    setPage(1); // Reset to first page when filtering
+                  }}
                   style={{
                     padding: `${spacing.sm} ${spacing.md}`,
                     border: `1px solid ${colors.neutral[300]}`,
@@ -426,7 +586,10 @@ export default function UserManagement() {
 
               <select
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setPage(1); // Reset to first page when filtering
+                }}
                 style={{
                   padding: `${spacing.sm} ${spacing.md}`,
                   border: `1px solid ${colors.neutral[300]}`,
@@ -452,7 +615,10 @@ export default function UserManagement() {
                 fontSize: '14px'
               }}>
                 <UsersIcon size={16} />
-                <span>{filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''}</span>
+                <span>
+                  {usersResponse?.meta?.total || filteredUsers.length} user
+                  {(usersResponse?.meta?.total || filteredUsers.length) !== 1 ? 's' : ''}
+                </span>
               </div>
             </div>
           </div>
@@ -598,65 +764,72 @@ export default function UserManagement() {
                       </td>
                       <td style={{ padding: spacing.md, textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'flex-end' }}>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEditModal(user);
-                            }}
-                            aria-label={`Edit user ${user.name}`}
-                            style={{
-                              padding: spacing.sm,
-                              border: 'none',
-                              backgroundColor: 'transparent',
-                              color: colors.primary,
-                              cursor: 'pointer',
-                              borderRadius: borderRadius.sm,
-                              display: 'flex',
-                              alignItems: 'center',
-                              transition: 'all 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = colors.neutral[100];
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                            }}
-                            title="Edit"
-                          >
-                            <Edit2 size={18} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openPasswordModal(user);
-                            }}
-                            aria-label={`Reset password for ${user.name}`}
-                            style={{
-                              padding: spacing.sm,
-                              border: 'none',
-                              backgroundColor: 'transparent',
-                              color: colors.warning,
-                              cursor: 'pointer',
-                              borderRadius: borderRadius.sm,
-                              display: 'flex',
-                              alignItems: 'center',
-                              transition: 'all 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = colors.neutral[100];
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                            }}
-                            title="Reset Password"
-                          >
-                            <Key size={18} />
-                          </button>
-                          {currentUser?.id !== user.id && (
+                          {/* Edit User Button - requires update permission */}
+                          {canUpdateUsers && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openDeleteModal(user);
+                                openEditModal(user);
+                              }}
+                              aria-label={`Edit user ${user.name}`}
+                              style={{
+                                padding: spacing.sm,
+                                border: 'none',
+                                backgroundColor: 'transparent',
+                                color: colors.primary,
+                                cursor: 'pointer',
+                                borderRadius: borderRadius.sm,
+                                display: 'flex',
+                                alignItems: 'center',
+                                transition: 'all 0.2s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = colors.neutral[100];
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                              }}
+                              title="Edit"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                          )}
+                          {/* Reset Password Button - requires update permission */}
+                          {canUpdateUsers && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openPasswordModal(user);
+                              }}
+                              aria-label={`Reset password for ${user.name}`}
+                              style={{
+                                padding: spacing.sm,
+                                border: 'none',
+                                backgroundColor: 'transparent',
+                                color: colors.warning,
+                                cursor: 'pointer',
+                                borderRadius: borderRadius.sm,
+                                display: 'flex',
+                                alignItems: 'center',
+                                transition: 'all 0.2s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = colors.neutral[100];
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                              }}
+                              title="Reset Password"
+                            >
+                              <Key size={18} />
+                            </button>
+                          )}
+                          {/* Delete User Button - requires delete permission and can't delete self */}
+                          {canDeleteUsers && currentUser?.id !== user.id && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteUser(user.id, user.name);
                               }}
                               aria-label={`Delete user ${user.name}`}
                               style={{
@@ -688,12 +861,29 @@ export default function UserManagement() {
                 </tbody>
               </table>
             </div>
+            {usersResponse?.meta && (
+              <Pagination
+                currentPage={usersResponse.meta.current_page}
+                totalPages={usersResponse.meta.last_page}
+                totalItems={usersResponse.meta.total}
+                perPage={perPage}
+                onPageChange={(newPage) => {
+                  setPage(newPage);
+                  // Scroll to top when page changes
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                onPerPageChange={(newPerPage) => {
+                  setPerPage(newPerPage);
+                  setPage(1); // Reset to first page when changing per page
+                }}
+              />
+            )}
           </div>
         )}
 
         {/* Modals */}
         {showCreateModal && (
-          <Modal
+          <SimpleModal
             title="Create User"
             onClose={() => {
               setShowCreateModal(false);
@@ -795,7 +985,7 @@ export default function UserManagement() {
               {/* Capability Matrix */}
               <div style={{ marginTop: spacing.md }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-                  <label style={{ ...typography.label }}>Capability Matrix</label>
+                  <label style={{ ...typography.label }}>Permissions</label>
                   <button
                     type="button"
                     onClick={() => setShowCapabilityMatrix(!showCapabilityMatrix)}
@@ -813,10 +1003,58 @@ export default function UserManagement() {
                   </button>
                 </div>
                 {showCapabilityMatrix && (
-                  <CapabilityMatrixEditor
-                    capabilities={formData.capabilities}
-                    onChange={(capabilities) => setFormData({ ...formData, capabilities })}
-                  />
+                  <div>
+                    {/* Tabs */}
+                    <div style={{ display: 'flex', gap: spacing.xs, marginBottom: spacing.md, borderBottom: `1px solid ${colors.neutral[200]}` }}>
+                      <button
+                        type="button"
+                        onClick={() => setCapabilityTab('basic')}
+                        style={{
+                          padding: `${spacing.sm} ${spacing.md}`,
+                          border: 'none',
+                          borderBottom: `2px solid ${capabilityTab === 'basic' ? colors.primary : 'transparent'}`,
+                          backgroundColor: 'transparent',
+                          color: capabilityTab === 'basic' ? colors.primary : colors.neutral[600],
+                          cursor: 'pointer',
+                          fontWeight: capabilityTab === 'basic' ? 600 : 400,
+                          ...typography.body,
+                        }}
+                      >
+                        Basic Capabilities
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCapabilityTab('enhanced')}
+                        style={{
+                          padding: `${spacing.sm} ${spacing.md}`,
+                          border: 'none',
+                          borderBottom: `2px solid ${capabilityTab === 'enhanced' ? colors.primary : 'transparent'}`,
+                          backgroundColor: 'transparent',
+                          color: capabilityTab === 'enhanced' ? colors.primary : colors.neutral[600],
+                          cursor: 'pointer',
+                          fontWeight: capabilityTab === 'enhanced' ? 600 : 400,
+                          ...typography.body,
+                        }}
+                      >
+                        Enhanced Capabilities
+                      </button>
+                    </div>
+                    
+                    {/* Tab Content */}
+                    {capabilityTab === 'basic' ? (
+                      <CapabilityMatrixEditor
+                        capabilities={formData.capabilities}
+                        onChange={(capabilities) => setFormData({ ...formData, capabilities })}
+                      />
+                    ) : (
+                      <EnhancedCapabilityEditor
+                        capabilities={enhancedCapabilities}
+                        onChange={(caps) => {
+                          setEnhancedCapabilities(caps);
+                        }}
+                      />
+                    )}
+                  </div>
                 )}
               </div>
               
@@ -849,11 +1087,11 @@ export default function UserManagement() {
                 </Button>
               </div>
             </form>
-          </Modal>
+          </SimpleModal>
         )}
 
         {showEditModal && selectedUser && (
-          <Modal
+          <SimpleModal
             title="Edit User"
             onClose={() => {
               setShowEditModal(false);
@@ -942,7 +1180,7 @@ export default function UserManagement() {
               {/* Capability Matrix */}
               <div style={{ marginTop: spacing.md }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-                  <label style={{ ...typography.label }}>Capability Matrix</label>
+                  <label style={{ ...typography.label }}>Permissions</label>
                   <button
                     type="button"
                     onClick={() => setShowCapabilityMatrix(!showCapabilityMatrix)}
@@ -960,10 +1198,58 @@ export default function UserManagement() {
                   </button>
                 </div>
                 {showCapabilityMatrix && (
-                  <CapabilityMatrixEditor
-                    capabilities={formData.capabilities}
-                    onChange={(capabilities) => setFormData({ ...formData, capabilities })}
-                  />
+                  <div>
+                    {/* Tabs */}
+                    <div style={{ display: 'flex', gap: spacing.xs, marginBottom: spacing.md, borderBottom: `1px solid ${colors.neutral[200]}` }}>
+                      <button
+                        type="button"
+                        onClick={() => setCapabilityTab('basic')}
+                        style={{
+                          padding: `${spacing.sm} ${spacing.md}`,
+                          border: 'none',
+                          borderBottom: `2px solid ${capabilityTab === 'basic' ? colors.primary : 'transparent'}`,
+                          backgroundColor: 'transparent',
+                          color: capabilityTab === 'basic' ? colors.primary : colors.neutral[600],
+                          cursor: 'pointer',
+                          fontWeight: capabilityTab === 'basic' ? 600 : 400,
+                          ...typography.body,
+                        }}
+                      >
+                        Basic Capabilities
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCapabilityTab('enhanced')}
+                        style={{
+                          padding: `${spacing.sm} ${spacing.md}`,
+                          border: 'none',
+                          borderBottom: `2px solid ${capabilityTab === 'enhanced' ? colors.primary : 'transparent'}`,
+                          backgroundColor: 'transparent',
+                          color: capabilityTab === 'enhanced' ? colors.primary : colors.neutral[600],
+                          cursor: 'pointer',
+                          fontWeight: capabilityTab === 'enhanced' ? 600 : 400,
+                          ...typography.body,
+                        }}
+                      >
+                        Enhanced Capabilities
+                      </button>
+                    </div>
+                    
+                    {/* Tab Content */}
+                    {capabilityTab === 'basic' ? (
+                      <CapabilityMatrixEditor
+                        capabilities={formData.capabilities}
+                        onChange={(capabilities) => setFormData({ ...formData, capabilities })}
+                      />
+                    ) : (
+                      <EnhancedCapabilityEditor
+                        capabilities={enhancedCapabilities}
+                        onChange={(caps) => {
+                          setEnhancedCapabilities(caps);
+                        }}
+                      />
+                    )}
+                  </div>
                 )}
               </div>
               
@@ -997,11 +1283,11 @@ export default function UserManagement() {
                 </Button>
               </div>
             </form>
-          </Modal>
+          </SimpleModal>
         )}
 
         {showDeleteModal && selectedUser && (
-          <Modal
+          <SimpleModal
             title="Delete User"
             onClose={() => {
               setShowDeleteModal(false);
@@ -1033,11 +1319,23 @@ export default function UserManagement() {
                 </Button>
               </div>
             </div>
-          </Modal>
+          </SimpleModal>
         )}
 
+        <ConfirmDialog
+          isOpen={confirmDelete !== null}
+          onClose={() => setConfirmDelete(null)}
+          onConfirm={confirmDeleteUser}
+          title="Delete User"
+          description={`Are you sure you want to delete ${confirmDelete?.userName}? This action cannot be undone.`}
+          confirmText="Delete User"
+          confirmVariant="critical"
+          requireTyping={true}
+          confirmationText="DELETE"
+        />
+
         {showPasswordModal && selectedUser && (
-          <Modal
+          <SimpleModal
             title="Reset Password"
             onClose={() => {
               setShowPasswordModal(false);
@@ -1097,7 +1395,7 @@ export default function UserManagement() {
                 </Button>
               </div>
             </form>
-          </Modal>
+          </SimpleModal>
         )}
       </div>
     </div>
@@ -1224,8 +1522,8 @@ function CapabilityMatrixEditor({
   );
 }
 
-// Modal Component
-function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+// Simple Modal Component (local to this file)
+function SimpleModal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   return (
     <div style={{
       position: 'fixed',
