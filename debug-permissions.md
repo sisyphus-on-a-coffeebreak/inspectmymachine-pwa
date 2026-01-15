@@ -7,15 +7,32 @@
 3. **Run these commands:**
 
 ```javascript
-// 1. Check if you're logged in and what your role is
-const authStore = JSON.parse(localStorage.getItem('auth') || '{}');
-console.log('User:', authStore.user);
-console.log('Role:', authStore.user?.role);
+// 1. Fetch the authenticated user (cookie-based auth; no localStorage auth)
+const guessApiBase = () => {
+  const preconnect = document.querySelector('link[rel="preconnect"]')?.getAttribute('href');
+  if (preconnect) {
+    return `${preconnect.replace(/\/$/, '')}/api`;
+  }
+  return `${location.origin}/api`;
+};
 
-// 2. Check capabilities object
-console.log('Capabilities:', authStore.user?.capabilities);
+const apiBase = guessApiBase();
+fetch(`${apiBase}/user`, { credentials: 'include' })
+  .then(async (res) => {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  })
+  .then((payload) => {
+    const user = payload.user || payload;
+    console.log('User:', user);
+    console.log('Role:', user?.role);
+    console.log('Capabilities:', user?.capabilities);
+  })
+  .catch((err) => {
+    console.error('❌ Failed to fetch /user. Check API base URL or session.', err);
+  });
 
-// 3. Import and test hasCapability directly (in React DevTools Console)
+// 2. (Optional) Import and test hasCapability directly (in React DevTools Console)
 // Go to Components tab → find CreateGatePass component → check props
 ```
 
@@ -37,11 +54,10 @@ Capabilities: { gate_pass: [...], ... } or undefined (fallback to role-based)
 **Symptom:** `Capabilities: { gate_pass: [], ... }`
 **Fix:** Backend is explicitly setting empty capabilities, blocking role-based fallback.
 
-### Issue 3: Old cached user data
-**Symptom:** Role shows as "clerk" or wrong role
-**Fix:** Clear localStorage and re-login:
+### Issue 3: Stale session or cached UI state
+**Symptom:** Role shows as "clerk" or wrong role after changes
+**Fix:** Log out and log back in, then hard refresh:
 ```javascript
-localStorage.clear();
 location.reload();
 ```
 
@@ -55,18 +71,26 @@ If the above doesn't help, run this in console to trace the permission check:
 
 ```javascript
 // Paste this entire block into console:
-(function debugPermissions() {
-  const authStr = localStorage.getItem('auth');
-  if (!authStr) {
-    console.error('❌ No auth data in localStorage');
-    return;
-  }
+(async function debugPermissions() {
+  const guessApiBase = () => {
+    const preconnect = document.querySelector('link[rel="preconnect"]')?.getAttribute('href');
+    if (preconnect) {
+      return `${preconnect.replace(/\/$/, '')}/api`;
+    }
+    return `${location.origin}/api`;
+  };
 
-  const auth = JSON.parse(authStr);
-  const user = auth.user;
-
-  if (!user) {
-    console.error('❌ No user in auth data');
+  const apiBase = guessApiBase();
+  let user;
+  try {
+    const res = await fetch(`${apiBase}/user`, { credentials: 'include' });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const payload = await res.json();
+    user = payload.user || payload;
+  } catch (err) {
+    console.error('❌ Unable to fetch /user. Verify session or API base URL.', err);
     return;
   }
 
@@ -131,8 +155,6 @@ If the above doesn't help, run this in console to trace the permission check:
 
 Sometimes React state gets stale. Try:
 ```javascript
-// Clear all caches and reload
-localStorage.clear();
-sessionStorage.clear();
+// Reload the app and re-check permissions
 location.reload();
 ```
