@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import axios from "axios";
 import type { AxiosError } from "axios";
 import { apiClient, normalizeError } from "../lib/apiClient";
+import { getUserPermissions } from "../lib/users";
 import { AuthContext } from "./AuthContext";
 import type { User, AuthContextType, ApiErrorResponse } from "./authTypes";
 import { API_BASE_URL } from "../lib/apiConfig";
@@ -91,6 +92,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, []);
 
+  const hydrateUserPermissions = async (currentUser: User): Promise<User> => {
+    if (!currentUser?.id) {
+      return currentUser;
+    }
+
+    try {
+      const permissions = await getUserPermissions(currentUser.id);
+      return {
+        ...currentUser,
+        role: permissions.role || currentUser.role,
+        capabilities: permissions.capabilities ?? currentUser.capabilities,
+      };
+    } catch {
+      return currentUser;
+    }
+  };
+
   const checkAuth = async () => {
     try {
       // Add timeout to prevent hanging on connection errors
@@ -112,7 +130,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       ]) as any;
       
       // Handle both { user: User } and direct User response formats
-      setUser((response.data as any).user || response.data);
+      const baseUser = (response.data as any).user || response.data;
+      const nextUser = await hydrateUserPermissions(baseUser);
+      setUser(nextUser);
     } catch (err) {
       // Silently handle authentication check failures
       // 401 means user is not logged in, which is fine
@@ -136,7 +156,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Step 2: Get user data
       const response = await apiClient.get<{ user: User }>("/user");
       // Handle both { user: User } and direct User response formats
-      setUser((response.data as any).user || response.data);
+      const baseUser = (response.data as any).user || response.data;
+      const nextUser = await hydrateUserPermissions(baseUser);
+      setUser(nextUser);
     } catch (err) {
       const apiError = normalizeError(err);
       
