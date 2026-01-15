@@ -8,6 +8,7 @@ import { useAuth } from '../../providers/useAuth';
 import { navigationByRole, getMoreItemsForRole, type NavItem } from '../../lib/navigationConfig';
 import { useUnifiedApprovals } from '../../hooks/useUnifiedApprovals';
 import { zIndex } from '../../lib/z-index';
+import { hasCapability } from '../../lib/users';
 
 export function BottomNav() {
   const location = useLocation();
@@ -21,8 +22,10 @@ export function BottomNav() {
   const config = navigationByRole[role] || navigationByRole.clerk;
   const moreItems = getMoreItemsForRole(role);
 
-  // Get approval count for badge (only for roles that can approve)
-  const canApprove = role === 'super_admin' || role === 'admin' || role === 'supervisor';
+  // Get approval count for badge (only for users with approval capabilities)
+  const canApprove = hasCapability(user, 'gate_pass', 'approve') ||
+                     hasCapability(user, 'expense', 'approve') ||
+                     hasCapability(user, 'inspection', 'approve');
   const { counts } = useUnifiedApprovals({}, { enabled: canApprove });
   const approvalCount = canApprove ? (counts?.all || null) : null;
 

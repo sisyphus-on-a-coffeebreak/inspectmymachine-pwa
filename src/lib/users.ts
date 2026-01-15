@@ -5,7 +5,7 @@ import { hasCapability as hasEnhancedCapability } from './permissions/evaluator'
 
 // Re-export types for backward compatibility
 export type CapabilityAction = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'validate' | 'review' | 'reassign' | 'export';
-export type CapabilityModule = 'gate_pass' | 'inspection' | 'expense' | 'user_management' | 'reports';
+export type CapabilityModule = 'gate_pass' | 'inspection' | 'expense' | 'user_management' | 'reports' | 'stockyard';
 
 export interface UserCapabilities {
   gate_pass?: CapabilityAction[];
@@ -13,6 +13,7 @@ export interface UserCapabilities {
   expense?: CapabilityAction[];
   user_management?: CapabilityAction[];
   reports?: CapabilityAction[];
+  stockyard?: CapabilityAction[];
   // Enhanced capabilities with granularity support
   enhanced_capabilities?: EnhancedCapability[];
 }
@@ -305,6 +306,7 @@ function hasRoleCapability(role: User['role'], module: CapabilityModule, action:
       expense: ['create', 'read', 'update', 'delete', 'approve', 'reassign'],
       user_management: ['create', 'read', 'update', 'delete'],
       reports: ['read', 'export'],
+      stockyard: ['create', 'read', 'update', 'delete', 'approve'],
     },
     admin: {
       gate_pass: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
@@ -312,6 +314,7 @@ function hasRoleCapability(role: User['role'], module: CapabilityModule, action:
       expense: ['create', 'read', 'update', 'delete', 'approve', 'reassign'],
       user_management: ['read', 'update'],
       reports: ['read', 'export'],
+      stockyard: ['create', 'read', 'update', 'delete', 'approve'],
     },
     yard_incharge: {
       gate_pass: ['create', 'read', 'approve', 'validate'],
@@ -319,6 +322,7 @@ function hasRoleCapability(role: User['role'], module: CapabilityModule, action:
       expense: ['read'],
       user_management: [],
       reports: ['read'],
+      stockyard: [],
     },
     supervisor: {
       gate_pass: ['read', 'approve', 'validate'],
@@ -326,6 +330,7 @@ function hasRoleCapability(role: User['role'], module: CapabilityModule, action:
       expense: ['read', 'approve'],
       user_management: [],
       reports: ['read'],
+      stockyard: [],
     },
     executive: {
       gate_pass: ['create', 'read', 'validate'],
@@ -333,6 +338,7 @@ function hasRoleCapability(role: User['role'], module: CapabilityModule, action:
       expense: ['create', 'read'],
       user_management: [],
       reports: [],
+      stockyard: [],
     },
     inspector: {
       gate_pass: ['read'],
@@ -340,6 +346,7 @@ function hasRoleCapability(role: User['role'], module: CapabilityModule, action:
       expense: ['create', 'read'],
       user_management: [],
       reports: [],
+      stockyard: [],
     },
     guard: {
       gate_pass: ['read', 'validate'],
@@ -347,6 +354,7 @@ function hasRoleCapability(role: User['role'], module: CapabilityModule, action:
       expense: ['read'],
       user_management: [],
       reports: [],
+      stockyard: [],
     },
     clerk: {
       gate_pass: ['create', 'read'],
@@ -354,6 +362,7 @@ function hasRoleCapability(role: User['role'], module: CapabilityModule, action:
       expense: ['create', 'read'],
       user_management: [],
       reports: [],
+      stockyard: [],
     },
   };
   

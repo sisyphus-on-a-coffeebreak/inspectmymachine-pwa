@@ -46,7 +46,7 @@ export interface NavConfig {
   };
 }
 
-type UserRole = 'super_admin' | 'admin' | 'supervisor' | 'inspector' | 'guard' | 'clerk';
+type UserRole = 'super_admin' | 'admin' | 'supervisor' | 'yard_incharge' | 'executive' | 'inspector' | 'guard' | 'clerk';
 
 export const navigationByRole: Record<UserRole, NavConfig> = {
   guard: {
@@ -104,6 +104,39 @@ export const navigationByRole: Record<UserRole, NavConfig> = {
     },
   },
 
+  yard_incharge: {
+    items: [
+      { id: 'home', label: 'Home', icon: Home, route: '/dashboard' },
+      { id: 'approvals', label: 'Approvals', icon: CheckCircle, route: '/app/approvals' },
+      { id: 'gate-pass', label: 'Passes', icon: Ticket, route: '/app/gate-pass' },
+      { id: 'more', label: 'More', icon: Menu, route: null },
+    ],
+    fab: {
+      icon: Plus,
+      label: 'Create',
+      actions: [
+        { label: 'Gate Pass', icon: Ticket, route: '/app/gate-pass/create' },
+      ],
+    },
+  },
+
+  executive: {
+    items: [
+      { id: 'home', label: 'Home', icon: Home, route: '/dashboard' },
+      { id: 'gate-pass', label: 'Passes', icon: Ticket, route: '/app/gate-pass' },
+      { id: 'expenses', label: 'Expenses', icon: Wallet, route: '/app/expenses' },
+      { id: 'more', label: 'More', icon: Menu, route: null },
+    ],
+    fab: {
+      icon: Plus,
+      label: 'Create',
+      actions: [
+        { label: 'Gate Pass', icon: Ticket, route: '/app/gate-pass/create' },
+        { label: 'Expense', icon: Wallet, route: '/app/expenses/create' },
+      ],
+    },
+  },
+
   admin: {
     items: [
       { id: 'home', label: 'Home', icon: Home, route: '/dashboard' },
@@ -149,13 +182,13 @@ export const navigationByRole: Record<UserRole, NavConfig> = {
  */
 export function getMoreItemsForRole(role: UserRole): NavItem[] {
   const allItems: Array<NavItem & { roles: UserRole[] }> = [
-    { id: 'gate-pass', label: 'Gate Passes', icon: Ticket, route: '/app/gate-pass', roles: ['clerk', 'admin', 'super_admin'] },
-    { id: 'inspections', label: 'Inspections', icon: ClipboardCheck, route: '/app/inspections', roles: ['clerk', 'admin', 'super_admin', 'supervisor'] },
-    { id: 'expenses', label: 'Expenses', icon: Wallet, route: '/app/expenses', roles: ['supervisor', 'admin', 'super_admin'] },
+    { id: 'gate-pass', label: 'Gate Passes', icon: Ticket, route: '/app/gate-pass', roles: ['clerk', 'yard_incharge', 'executive', 'admin', 'super_admin'] },
+    { id: 'inspections', label: 'Inspections', icon: ClipboardCheck, route: '/app/inspections', roles: ['clerk', 'admin', 'super_admin', 'supervisor', 'yard_incharge'] },
+    { id: 'expenses', label: 'Expenses', icon: Wallet, route: '/app/expenses', roles: ['supervisor', 'executive', 'admin', 'super_admin'] },
     { id: 'stockyard', label: 'Stockyard', icon: Warehouse, route: '/app/stockyard', roles: ['admin', 'super_admin'] },
     { id: 'users', label: 'Users', icon: UserCog, route: '/app/admin/users', roles: ['admin', 'super_admin'] },
-    { id: 'alerts', label: 'Alerts', icon: AlertTriangle, route: '/app/alerts', roles: ['supervisor', 'admin', 'super_admin'] },
-    { id: 'settings', label: 'Settings', icon: Settings, route: '/app/settings', roles: ['super_admin', 'admin', 'supervisor', 'inspector', 'guard', 'clerk'] },
+    { id: 'alerts', label: 'Alerts', icon: AlertTriangle, route: '/app/alerts', roles: ['supervisor', 'yard_incharge', 'admin', 'super_admin'] },
+    { id: 'settings', label: 'Settings', icon: Settings, route: '/app/settings', roles: ['super_admin', 'admin', 'supervisor', 'yard_incharge', 'executive', 'inspector', 'guard', 'clerk'] },
   ];
 
   return allItems

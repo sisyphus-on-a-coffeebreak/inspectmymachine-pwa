@@ -123,7 +123,7 @@ export function getDefaultLayout(role?: string): WidgetConfig[] {
     );
   }
 
-  // Default layout for office staff (super_admin, admin, supervisor, clerk)
+  // Default layout for office staff (super_admin, admin, supervisor, yard_incharge, executive, clerk)
   const defaultLayout: WidgetConfig[] = [
     {
       id: 'quick-actions',
@@ -138,7 +138,7 @@ export function getDefaultLayout(role?: string): WidgetConfig[] {
       type: 'pending-approvals',
       title: 'Pending Approvals',
       size: 'medium',
-      visible: role === 'super_admin' || role === 'admin' || role === 'supervisor',
+      visible: role === 'super_admin' || role === 'admin' || role === 'supervisor' || role === 'yard_incharge',
       order: 2,
     },
     {
@@ -146,7 +146,7 @@ export function getDefaultLayout(role?: string): WidgetConfig[] {
       type: 'needs-attention',
       title: 'Needs Attention',
       size: 'medium',
-      visible: role === 'super_admin' || role === 'admin' || role === 'supervisor' || role === 'clerk',
+      visible: role === 'super_admin' || role === 'admin' || role === 'supervisor' || role === 'yard_incharge' || role === 'executive' || role === 'clerk',
       order: 3,
     },
     {

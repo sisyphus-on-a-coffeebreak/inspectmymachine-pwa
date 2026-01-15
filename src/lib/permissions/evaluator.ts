@@ -449,6 +449,7 @@ function hasRoleCapability(
       expense: ['create', 'read', 'update', 'delete', 'approve', 'reassign'],
       user_management: ['create', 'read', 'update', 'delete'],
       reports: ['read', 'export'],
+      stockyard: ['create', 'read', 'update', 'delete', 'approve'],
     },
     admin: {
       gate_pass: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
@@ -456,6 +457,7 @@ function hasRoleCapability(
       expense: ['create', 'read', 'update', 'delete', 'approve', 'reassign'],
       user_management: ['read', 'update'],
       reports: ['read', 'export'],
+      stockyard: ['create', 'read', 'update', 'delete', 'approve'],
     },
     supervisor: {
       gate_pass: ['read', 'approve', 'validate'],
@@ -463,6 +465,7 @@ function hasRoleCapability(
       expense: ['read', 'approve'],
       user_management: [],
       reports: ['read'],
+      stockyard: [],
     },
     yard_incharge: {
       gate_pass: ['create', 'read', 'approve', 'validate'],
@@ -470,6 +473,7 @@ function hasRoleCapability(
       expense: ['read'],
       user_management: [],
       reports: ['read'],
+      stockyard: [],
     },
     executive: {
       gate_pass: ['create', 'read', 'validate'],
@@ -477,6 +481,7 @@ function hasRoleCapability(
       expense: ['create', 'read'],
       user_management: [],
       reports: [],
+      stockyard: [],
     },
     inspector: {
       gate_pass: ['read'],
@@ -484,6 +489,7 @@ function hasRoleCapability(
       expense: ['create', 'read'],
       user_management: [],
       reports: [],
+      stockyard: [],
     },
     guard: {
       gate_pass: ['read', 'validate'],
@@ -491,6 +497,7 @@ function hasRoleCapability(
       expense: ['read'],
       user_management: [],
       reports: [],
+      stockyard: [],
     },
     clerk: {
       gate_pass: ['create', 'read'],
@@ -498,6 +505,7 @@ function hasRoleCapability(
       expense: ['create', 'read'],
       user_management: [],
       reports: [],
+      stockyard: [],
     },
   };
   
