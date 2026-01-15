@@ -71,7 +71,15 @@ export const CreateGatePass: React.FC = () => {
   const { showToast } = useToast();
   const createPass = useCreateGatePass();
   const { permissions } = useUserRole();
-  
+
+  // DEBUG: Log permission status (remove after debugging)
+  console.log('=== CREATE GATE PASS DEBUG ===');
+  console.log('User:', user);
+  console.log('User Role:', user?.role);
+  console.log('Permissions object:', permissions);
+  console.log('canApprovePasses:', permissions.canApprovePasses);
+  console.log('=============================');
+
   // Track submission type for "Create & Approve" feature
   const [isSubmitting, setIsSubmitting] = useState(false);
   
