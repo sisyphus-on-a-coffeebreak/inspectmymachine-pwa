@@ -15,6 +15,7 @@ import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { CardGrid } from '../../components/ui/ResponsiveGrid';
+import { hasCapability } from '../../lib/users';
 
 export const UnifiedApprovals: React.FC = () => {
   const navigate = useNavigate();
@@ -49,17 +50,17 @@ export const UnifiedApprovals: React.FC = () => {
     ];
 
     // Gate Pass approvals - check capability
-    if (user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'supervisor') {
+    if (hasCapability(user, 'gate_pass', 'approve')) {
       tabs.push({ id: 'gate_pass', label: 'Gate Pass', count: counts.gate_pass });
     }
 
     // Expense approvals - check capability
-    if (user?.role === 'super_admin' || user?.role === 'admin') {
+    if (hasCapability(user, 'expense', 'approve')) {
       tabs.push({ id: 'expense', label: 'Expenses', count: counts.expense });
     }
 
-    // Transfer approvals - check capability
-    if (user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'supervisor') {
+    // Transfer approvals - check capability (transfers are part of stockyard)
+    if (hasCapability(user, 'stockyard', 'approve')) {
       tabs.push({ id: 'transfer', label: 'Transfers', count: counts.transfer });
     }
 

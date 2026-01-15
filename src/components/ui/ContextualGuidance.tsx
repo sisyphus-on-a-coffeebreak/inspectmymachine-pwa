@@ -1,6 +1,6 @@
 /**
  * ContextualGuidance Component
- * 
+ *
  * Role-based contextual guidance widgets
  * Shows relevant information based on user role and current context
  */
@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { colors, typography, spacing, borderRadius, cardStyles } from '../../lib/theme';
 import { Clock, CheckCircle, AlertCircle, TrendingUp, FileText, DollarSign } from 'lucide-react';
 import { DrillDownChip, DrillDownChipGroup } from './DrillDownChip';
+import { hasCapability, type User } from '../../lib/users';
 
 export interface GuidanceItem {
   id: string;
@@ -196,7 +197,7 @@ export const ContextualGuidance: React.FC<ContextualGuidanceProps> = ({
  * Role-based guidance factory
  */
 export const getRoleGuidance = (
-  role: string,
+  user: User | null,
   navigate: ReturnType<typeof useNavigate>,
   stats?: {
     pendingApprovals?: number;
@@ -207,8 +208,11 @@ export const getRoleGuidance = (
 ): GuidanceItem[] => {
   const items: GuidanceItem[] = [];
 
-  // Pending Approvals (for supervisors/admins)
-  if ((role === 'super_admin' || role === 'admin' || role === 'supervisor') && stats?.pendingApprovals) {
+  // Pending Approvals (for users with approval capabilities)
+  const canApproveAny = hasCapability(user, 'gate_pass', 'approve') ||
+                        hasCapability(user, 'expense', 'approve') ||
+                        hasCapability(user, 'inspection', 'approve');
+  if (canApproveAny && stats?.pendingApprovals) {
     items.push({
       id: 'pending-approvals',
       title: 'Your Pending Approvals',
@@ -218,7 +222,7 @@ export const getRoleGuidance = (
       count: stats.pendingApprovals,
       action: {
         label: 'Review Now',
-        onClick: () => navigate('/app/expenses/approval?filter=pending'),
+        onClick: () => navigate('/app/approvals'),
       },
     });
   }
