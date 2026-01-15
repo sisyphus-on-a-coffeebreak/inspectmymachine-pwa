@@ -361,6 +361,7 @@ export function getStatusColor(status: GatePassStatus): string {
   const colorMap: Record<GatePassStatus, string> = {
     draft: 'gray',
     pending: 'yellow',
+    pending_approval: 'yellow',
     active: 'green',
     inside: 'blue',
     completed: 'gray',
@@ -378,6 +379,7 @@ export function getStatusLabel(status: GatePassStatus): string {
   const labelMap: Record<GatePassStatus, string> = {
     draft: 'Draft',
     pending: 'Pending Approval',
+    pending_approval: 'Pending Approval',
     active: 'Active',
     inside: 'Inside',
     completed: 'Completed',
