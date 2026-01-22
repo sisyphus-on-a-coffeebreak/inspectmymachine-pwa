@@ -13,6 +13,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { apiClient } from '../lib/apiClient';
 import { queryKeys } from '../lib/queries';
+import { useAuth } from '../providers/useAuth';
+import { hasCapability } from '../lib/permissions/evaluator';
 
 export type ApprovalType = 'gate_pass' | 'expense' | 'transfer';
 
@@ -147,11 +149,30 @@ function mapTransferToUnified(data: any[]): UnifiedApproval[] {
   });
 }
 
+export interface UseUnifiedApprovalsOptions {
+  enabled?: boolean;
+}
+
 /**
  * Hook for fetching unified approvals from all modules
  */
-export function useUnifiedApprovals(filters: ApprovalFilters = {}) {
+export function useUnifiedApprovals(
+  filters: ApprovalFilters = {},
+  options: UseUnifiedApprovalsOptions = {}
+) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // Check permissions for each module
+  const canApproveGatePass = hasCapability(user, 'gate_pass', 'approve');
+  const canApproveExpense = hasCapability(user, 'expense', 'approve');
+  const canApproveTransfer = hasCapability(user, 'stockyard', 'approve');
+
+  // Determine if queries should be enabled
+  const enabled = options.enabled !== false; // Default to true unless explicitly disabled
+  const gatePassEnabled = enabled && canApproveGatePass;
+  const expenseEnabled = enabled && canApproveExpense;
+  const transferEnabled = enabled && canApproveTransfer;
 
   // Fetch gate pass approvals
   const gatePassQuery = useQuery({
@@ -160,14 +181,19 @@ export function useUnifiedApprovals(filters: ApprovalFilters = {}) {
       try {
         const response = await apiClient.get('/gate-pass-approval/pending', {
           params: { status: 'pending' },
-        });
+          suppressPermissionError: true, // Suppress permission error events for expected 403s
+          suppressErrorLog: true, // Suppress console errors for expected permission failures
+        } as any);
         return Array.isArray(response.data) ? response.data : [];
       } catch (error) {
+        // Silently return empty array on permission errors
         return [];
       }
     },
+    enabled: gatePassEnabled,
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchOnWindowFocus: true,
+    retry: false, // Don't retry on 403 errors
   });
 
   // Fetch expense approvals
@@ -177,17 +203,22 @@ export function useUnifiedApprovals(filters: ApprovalFilters = {}) {
       try {
         const response = await apiClient.get('/expense-approval/pending', {
           params: { status: 'pending' },
-        });
+          suppressPermissionError: true, // Suppress permission error events for expected 403s
+          suppressErrorLog: true, // Suppress console errors for expected permission failures
+        } as any);
         const expensesData = Array.isArray(response.data)
           ? response.data
           : (response.data as any)?.data || [];
         return expensesData;
       } catch (error) {
+        // Silently return empty array on permission errors
         return [];
       }
     },
+    enabled: expenseEnabled,
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: true,
+    retry: false, // Don't retry on 403 errors
   });
 
   // Fetch stockyard transfer approvals
@@ -195,17 +226,23 @@ export function useUnifiedApprovals(filters: ApprovalFilters = {}) {
     queryKey: ['approvals', 'transfers', filters],
     queryFn: async () => {
       try {
-        const response = await apiClient.get('/v1/components/transfers/pending');
+        const response = await apiClient.get('/v1/components/transfers/pending', {
+          suppressPermissionError: true, // Suppress permission error events for expected 403s
+          suppressErrorLog: true, // Suppress console errors for expected permission failures
+        } as any);
         if (response.data.success) {
           return response.data.data || [];
         }
         return [];
       } catch (error) {
+        // Silently return empty array on permission errors
         return [];
       }
     },
+    enabled: transferEnabled,
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: true,
+    retry: false, // Don't retry on 403 errors
   });
 
   // Merge and filter approvals
@@ -408,6 +445,7 @@ export function useBulkApproval() {
 
   return { bulkApprove, bulkReject };
 }
+
 
 
 

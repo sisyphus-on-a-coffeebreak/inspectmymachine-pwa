@@ -37,7 +37,8 @@ const actionLabels: Record<CapabilityAction, string> = {
   export: 'Export',
 };
 
-const roleOptions = [
+// Will be replaced by API fetch
+const defaultRoleOptions = [
   { value: 'super_admin', label: 'Super Admin' },
   { value: 'admin', label: 'Admin' },
   { value: 'supervisor', label: 'Supervisor' },
@@ -61,6 +62,39 @@ export const BulkUserOperations: React.FC = () => {
   // Role state
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [updateCapabilities, setUpdateCapabilities] = useState(true);
+
+  // Fetch roles from API
+  const { data: apiRoles = [] } = useQuery<Array<{
+    id: number;
+    name: string;
+    display_name: string;
+    description?: string;
+    is_system_role: boolean;
+    is_active: boolean;
+  }>>({
+    queryKey: ['roles'],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get('/v1/roles');
+        return response.data || [];
+      } catch (error: any) {
+        // If roles table doesn't exist, return empty array (will use default)
+        if (error?.response?.status === 503 || error?.response?.status === 500) {
+          return [];
+        }
+        throw error;
+      }
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  // Combine API roles with default roles
+  const roleOptions = apiRoles.length > 0
+    ? apiRoles.map(role => ({
+        value: role.name,
+        label: role.display_name + (role.is_system_role === false ? ' (Custom)' : ''),
+      }))
+    : defaultRoleOptions;
 
   // Fetch all users
   const { data: users, isLoading, error, refetch } = useQuery({

@@ -1,0 +1,738 @@
+{
+  "generated_at": "2026-01-04T00:00:00Z",
+  "scanner": "static-route-analysis",
+  "total_routes": 78,
+  "routes": [
+    {
+      "path": "/",
+      "type": "redirect",
+      "redirectTo": "/dashboard",
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/login",
+      "type": "public",
+      "component": "Login",
+      "lazy": true,
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/offline",
+      "type": "public",
+      "component": "OfflinePage",
+      "lazy": true,
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/dashboard",
+      "type": "protected",
+      "component": "Dashboard",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/gate-pass/:id",
+      "type": "protected",
+      "component": "GatePassDetails",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"],
+      "params": ["id"]
+    },
+    {
+      "path": "/app/gate-pass",
+      "type": "protected",
+      "component": "GatePassDashboard",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/gate-pass/create",
+      "type": "protected",
+      "component": "CreateGatePass",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/gate-pass/create-visitor",
+      "type": "redirect",
+      "redirectTo": "/app/gate-pass/create?type=visitor",
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/app/gate-pass/create-vehicle",
+      "type": "redirect",
+      "redirectTo": "/app/gate-pass/create?type=outbound",
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/app/gate-pass/guard-register",
+      "type": "protected",
+      "component": "GuardRegister",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/gate-pass/reports",
+      "type": "protected",
+      "component": "GatePassReports",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/gate-pass/templates",
+      "type": "protected",
+      "component": "PassTemplates",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/gate-pass/visitors",
+      "type": "protected",
+      "component": "VisitorManagement",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/gate-pass/calendar",
+      "type": "protected",
+      "component": "GatePassCalendar",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/gate-pass/scan",
+      "type": "protected",
+      "component": "QuickValidation",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin", "supervisor", "guard"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/gate-pass/validation",
+      "type": "redirect",
+      "redirectTo": "/app/gate-pass/scan",
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/app/gate-pass/quick-validation",
+      "type": "redirect",
+      "redirectTo": "/app/gate-pass/scan",
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/app/gate-pass/approval",
+      "type": "redirect",
+      "redirectTo": "/app/approvals?tab=gate_pass",
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/app/gate-pass/bulk",
+      "type": "protected",
+      "component": "BulkOperations",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/inspections",
+      "type": "protected",
+      "component": "InspectionDashboard",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/inspections/studio",
+      "type": "protected",
+      "component": "InspectionStudio",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/inspections/sync",
+      "type": "protected",
+      "component": "InspectionSyncCenter",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/inspections/new",
+      "type": "protected",
+      "component": "TemplateSelectionPage",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/inspections/:id",
+      "type": "protected",
+      "component": "InspectionDetails",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"],
+      "params": ["id"]
+    },
+    {
+      "path": "/app/inspections/completed",
+      "type": "protected",
+      "component": "InspectionsCompleted",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/inspections/reports",
+      "type": "protected",
+      "component": "InspectionReports",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/inspections/:templateId/capture",
+      "type": "protected",
+      "component": "InspectionCapture",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"],
+      "params": ["templateId"]
+    },
+    {
+      "path": "/app/inspections/:templateId/:vehicleId/capture",
+      "type": "protected",
+      "component": "InspectionCapture",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"],
+      "params": ["templateId", "vehicleId"]
+    },
+    {
+      "path": "/inspections/:id",
+      "type": "redirect",
+      "redirectTo": "/app/inspections/:id",
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/app/expenses/:id",
+      "type": "protected",
+      "component": "ExpenseDetails",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"],
+      "params": ["id"]
+    },
+    {
+      "path": "/app/expenses",
+      "type": "protected",
+      "component": "EmployeeExpenseDashboard",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/expenses/create",
+      "type": "protected",
+      "component": "CreateExpense",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/expenses/history",
+      "type": "protected",
+      "component": "ExpenseHistory",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/expenses/ledger",
+      "type": "protected",
+      "component": "EmployeeLedger",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/expenses/reconciliation",
+      "type": "protected",
+      "component": "LedgerReconciliation",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/expenses/advances/:advanceId/ledger",
+      "type": "protected",
+      "component": "AdvanceLedgerView",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"],
+      "params": ["advanceId"]
+    },
+    {
+      "path": "/app/expenses/categories",
+      "type": "redirect",
+      "redirectTo": "/app/expenses/analytics?tab=by-category",
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/app/expenses/assets",
+      "type": "redirect",
+      "redirectTo": "/app/expenses/analytics?tab=assets",
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/app/expenses/projects",
+      "type": "redirect",
+      "redirectTo": "/app/expenses/analytics?tab=by-project",
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/app/expenses/cashflow",
+      "type": "redirect",
+      "redirectTo": "/app/expenses/analytics?tab=cashflow",
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/app/expenses/approval",
+      "type": "redirect",
+      "redirectTo": "/app/approvals?tab=expense",
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/app/expenses/reports",
+      "type": "protected",
+      "component": "ExpenseReports",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/expenses/accounts",
+      "type": "redirect",
+      "redirectTo": "/app/expenses/analytics?tab=by-account",
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/app/expenses/analytics",
+      "type": "protected",
+      "component": "ExpenseAnalytics",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/expenses/receipts",
+      "type": "protected",
+      "component": "ReceiptsGallery",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/approvals",
+      "type": "protected",
+      "component": "UnifiedApprovals",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin", "supervisor"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/alerts",
+      "type": "protected",
+      "component": "AlertDashboard",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin", "supervisor"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/notifications",
+      "type": "protected",
+      "component": "NotificationsPage",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/notifications/preferences",
+      "type": "protected",
+      "component": "NotificationPreferences",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/settings/report-branding",
+      "type": "protected",
+      "component": "ReportBranding",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/settings/sessions",
+      "type": "protected",
+      "component": "SessionManagement",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/stockyard",
+      "type": "protected",
+      "component": "StockyardDashboard",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/stockyard/create",
+      "type": "protected",
+      "component": "CreateComponentMovement",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/stockyard/scan",
+      "type": "protected",
+      "component": "StockyardScan",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/stockyard/components",
+      "type": "protected",
+      "component": "ComponentLedger",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/stockyard/components/create",
+      "type": "redirect",
+      "redirectTo": "/app/stockyard/components?action=create",
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/app/stockyard/components/transfers/approvals",
+      "type": "redirect",
+      "redirectTo": "/app/approvals?tab=transfer",
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/app/stockyard/components/cost-analysis",
+      "type": "redirect",
+      "redirectTo": "/app/stockyard/analytics?tab=cost",
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/app/stockyard/components/health",
+      "type": "redirect",
+      "redirectTo": "/app/stockyard/analytics?tab=health",
+      "auth": "none",
+      "roles": []
+    },
+    {
+      "path": "/app/stockyard/components/:id",
+      "type": "protected",
+      "component": "ComponentDetails",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"],
+      "params": ["id"]
+    },
+    {
+      "path": "/app/stockyard/:id",
+      "type": "protected",
+      "component": "StockyardRequestDetails",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"],
+      "params": ["id"]
+    },
+    {
+      "path": "/app/stockyard/analytics",
+      "type": "protected",
+      "component": "StockyardAnalytics",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/stockyard/alerts",
+      "type": "protected",
+      "component": "StockyardAlertsDashboard",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["any"]
+    },
+    {
+      "path": "/app/admin/users/activity",
+      "type": "protected",
+      "component": "UserActivityDashboard",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/admin/users/capability-matrix",
+      "type": "protected",
+      "component": "CapabilityMatrix",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/admin/users/bulk-operations",
+      "type": "protected",
+      "component": "BulkUserOperations",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/admin/users/:id",
+      "type": "protected",
+      "component": "UserDetails",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole",
+      "params": ["id"]
+    },
+    {
+      "path": "/app/admin/users",
+      "type": "protected",
+      "component": "UserManagement",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/admin/permission-templates",
+      "type": "protected",
+      "component": "PermissionTemplates",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/admin/permission-testing",
+      "type": "protected",
+      "component": "PermissionTesting",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/admin/data-masking-rules",
+      "type": "protected",
+      "component": "DataMaskingRules",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/admin/security",
+      "type": "protected",
+      "component": "SecurityDashboard",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/admin/activity-logs",
+      "type": "protected",
+      "component": "ActivityLogs",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/admin/permission-logs",
+      "type": "protected",
+      "component": "PermissionChangeLogs",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/admin/audit-reports",
+      "type": "protected",
+      "component": "AuditReports",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "/app/admin/compliance",
+      "type": "protected",
+      "component": "ComplianceDashboard",
+      "lazy": true,
+      "auth": "required",
+      "layout": "AuthenticatedLayout",
+      "roles": ["super_admin", "admin"],
+      "roleGuard": "RequireRole"
+    },
+    {
+      "path": "*",
+      "type": "public",
+      "component": "NotFound",
+      "lazy": true,
+      "auth": "none",
+      "roles": []
+    }
+  ],
+  "summary": {
+    "public_routes": 3,
+    "protected_routes": 48,
+    "redirect_routes": 27,
+    "admin_only_routes": 17,
+    "role_restricted_routes": 22
+  },
+  "risk_flags": [
+    {
+      "type": "MISSING_ROLE_GUARD",
+      "routes": [
+        "/app/gate-pass/guard-register",
+        "/app/gate-pass/visitors",
+        "/app/gate-pass/calendar",
+        "/app/stockyard",
+        "/app/stockyard/create",
+        "/app/stockyard/scan",
+        "/app/stockyard/components",
+        "/app/stockyard/analytics",
+        "/app/stockyard/alerts"
+      ],
+      "description": "Routes protected only by AuthenticatedLayout, no role restriction"
+    },
+    {
+      "type": "DYNAMIC_PARAMS",
+      "routes": [
+        "/app/gate-pass/:id",
+        "/app/inspections/:id",
+        "/app/inspections/:templateId/capture",
+        "/app/expenses/:id",
+        "/app/stockyard/components/:id",
+        "/app/stockyard/:id",
+        "/app/admin/users/:id"
+      ],
+      "description": "Routes with dynamic parameters need validation testing"
+    }
+  ]
+}
+
+
+
+
+
+

@@ -91,15 +91,28 @@ export function BottomSheet({
     if (isOpen) {
       document.addEventListener('keydown', handleEscape);
       document.body.style.overflow = 'hidden';
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleEscape);
+      
+      // Failsafe: Auto-close if BottomSheet is stuck open for too long (30 seconds)
+      const failsafeTimeout = setTimeout(() => {
+        console.warn('BottomSheet has been open for 30+ seconds, auto-closing as failsafe');
+        onClose();
+      }, 30000);
+      
+      return () => {
+        document.removeEventListener('keydown', handleEscape);
+        document.body.style.overflow = '';
+        clearTimeout(failsafeTimeout);
+      };
+    } else {
+      // Ensure body is unlocked even if isOpen becomes false
       document.body.style.overflow = '';
-    };
+    }
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  // Early return if not open - prevents backdrop from rendering
+  if (!isOpen) {
+    return null;
+  }
 
   // Compute transform based on screen size and drag state
   const getTransform = () => {

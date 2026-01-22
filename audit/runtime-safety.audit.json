@@ -1,0 +1,326 @@
+{
+  "generated_at": "2026-01-04T00:00:00Z",
+  "scanner": "static-safety-analysis",
+  
+  "api_endpoints_by_route": {
+    "/login": {
+      "endpoints": [
+        { "method": "GET", "path": "/sanctum/csrf-cookie", "auth": "none" },
+        { "method": "POST", "path": "/login", "auth": "none" }
+      ],
+      "auth_required": false
+    },
+    "/dashboard": {
+      "endpoints": [
+        { "method": "GET", "path": "/user", "auth": "session" }
+      ],
+      "auth_required": true
+    },
+    "/app/gate-pass": {
+      "endpoints": [
+        { "method": "GET", "path": "/v2/gate-passes", "auth": "session" },
+        { "method": "GET", "path": "/v2/gate-passes-stats", "auth": "session" }
+      ],
+      "auth_required": true
+    },
+    "/app/gate-pass/create": {
+      "endpoints": [
+        { "method": "POST", "path": "/visitor-gate-passes", "auth": "session" },
+        { "method": "POST", "path": "/vehicle-exit-passes", "auth": "session" }
+      ],
+      "auth_required": true
+    },
+    "/app/inspections": {
+      "endpoints": [
+        { "method": "GET", "path": "/v1/inspection-dashboard", "auth": "session" },
+        { "method": "GET", "path": "/v1/inspection-templates", "auth": "session" }
+      ],
+      "auth_required": true
+    },
+    "/app/expenses": {
+      "endpoints": [
+        { "method": "GET", "path": "/v1/expenses", "auth": "session" },
+        { "method": "GET", "path": "/v1/float/me", "auth": "session" }
+      ],
+      "auth_required": true
+    },
+    "/app/approvals": {
+      "endpoints": [
+        { "method": "GET", "path": "/gate-pass-approval/pending", "auth": "session" },
+        { "method": "GET", "path": "/expense-approval/pending", "auth": "session" },
+        { "method": "GET", "path": "/v1/components/transfers/pending", "auth": "session" }
+      ],
+      "auth_required": true,
+      "roles": ["super_admin", "admin", "supervisor"]
+    },
+    "/app/admin/users": {
+      "endpoints": [
+        { "method": "GET", "path": "/v1/users", "auth": "session" }
+      ],
+      "auth_required": true,
+      "roles": ["super_admin", "admin"]
+    }
+  },
+
+  "unprotected_routes": {
+    "description": "Routes accessible without authentication",
+    "routes": [
+      {
+        "path": "/login",
+        "risk": "LOW",
+        "reason": "Public login page, expected behavior"
+      },
+      {
+        "path": "/offline",
+        "risk": "LOW",
+        "reason": "Offline fallback page, no sensitive data"
+      },
+      {
+        "path": "/*",
+        "risk": "LOW",
+        "reason": "404 catch-all, no sensitive data"
+      }
+    ]
+  },
+
+  "hard_coded_assumptions": [
+    {
+      "file": "src/lib/apiConfig.ts",
+      "issue": "Hard-coded production API URL",
+      "value": "https://api.inspectmymachine.in/api",
+      "risk": "LOW",
+      "mitigation": "Environment variable override available (VITE_API_BASE)"
+    },
+    {
+      "file": "src/lib/apiConfig.ts",
+      "issue": "Hard-coded development API URL",
+      "value": "http://localhost:8000/api",
+      "risk": "LOW",
+      "mitigation": "Only used in development mode"
+    },
+    {
+      "file": "vite.config.ts",
+      "issue": "Hard-coded proxy target",
+      "value": "http://127.0.0.1:8000",
+      "risk": "LOW",
+      "mitigation": "Development only, production uses direct API"
+    },
+    {
+      "file": "vite.config.ts",
+      "issue": "Hard-coded manifest start_url",
+      "value": "https://inspectmymachine.in/login",
+      "risk": "MEDIUM",
+      "mitigation": "May need update for different deployments"
+    },
+    {
+      "file": "src/providers/AuthProvider.tsx",
+      "issue": "Hard-coded auth check timeout",
+      "value": "2000ms",
+      "risk": "LOW",
+      "mitigation": "Reasonable default for fast initial render"
+    },
+    {
+      "file": "src/lib/apiClient.ts",
+      "issue": "Hard-coded retry settings",
+      "values": {
+        "baseMs": 400,
+        "maxDelayMs": 5000,
+        "tries": 3
+      },
+      "risk": "LOW",
+      "mitigation": "Reasonable defaults, configurable per-request"
+    }
+  ],
+
+  "missing_guards": [
+    {
+      "type": "ROUTE_LEVEL",
+      "routes": [
+        "/app/gate-pass/guard-register",
+        "/app/gate-pass/visitors",
+        "/app/gate-pass/calendar",
+        "/app/gate-pass/create"
+      ],
+      "issue": "No role restriction - any authenticated user can access",
+      "risk": "MEDIUM",
+      "recommendation": "Add RequireRole or RequireCapability if restricted access needed"
+    },
+    {
+      "type": "ROUTE_LEVEL",
+      "routes": [
+        "/app/stockyard",
+        "/app/stockyard/create",
+        "/app/stockyard/scan",
+        "/app/stockyard/components",
+        "/app/stockyard/analytics",
+        "/app/stockyard/alerts"
+      ],
+      "issue": "No role restriction - any authenticated user can access",
+      "risk": "MEDIUM",
+      "recommendation": "Verify if all roles should access stockyard features"
+    },
+    {
+      "type": "API_LEVEL",
+      "issue": "Backend permission enforcement assumed",
+      "description": "Frontend relies on backend to reject unauthorized API calls",
+      "risk": "LOW",
+      "mitigation": "403 handler dispatches permission error events globally"
+    }
+  ],
+
+  "silent_failures": [
+    {
+      "file": "src/App.tsx",
+      "location": "cleanupInvalidDrafts()",
+      "issue": "Silently catches and ignores cleanup errors",
+      "risk": "LOW",
+      "reason": "Non-critical cleanup, OK to fail silently"
+    },
+    {
+      "file": "src/providers/AuthProvider.tsx",
+      "location": "checkAuth()",
+      "issue": "Auth check failures set user to null silently",
+      "risk": "LOW",
+      "reason": "Expected behavior - user not authenticated"
+    },
+    {
+      "file": "src/providers/AuthProvider.tsx",
+      "location": "logout()",
+      "issue": "Logout errors are caught and user is cleared anyway",
+      "risk": "LOW",
+      "reason": "User experience priority - always clear local state"
+    },
+    {
+      "file": "src/lib/apiClient.ts",
+      "location": "ensureCsrfToken()",
+      "issue": "CSRF initialization failures are silent",
+      "risk": "MEDIUM",
+      "reason": "Prevents console spam but may hide connectivity issues"
+    },
+    {
+      "file": "src/main.tsx",
+      "location": "initWebVitals()",
+      "issue": "Web vitals initialization errors silently ignored",
+      "risk": "LOW",
+      "reason": "Non-critical telemetry"
+    }
+  ],
+
+  "error_handling_patterns": {
+    "global_error_boundary": {
+      "file": "src/components/ErrorBoundary.tsx",
+      "coverage": "App-level, catches React render errors"
+    },
+    "permission_errors": {
+      "handler": "onPermissionError() in apiClient.ts",
+      "dispatch": "Custom event 'voms:permission-error'",
+      "consumer": "usePermissionError hook in components"
+    },
+    "network_errors": {
+      "detection": "isNetworkError() in errorHandling.ts",
+      "handling": "Queued to offlineQueue for retry"
+    },
+    "toast_notifications": {
+      "provider": "ToastProvider",
+      "usage": "For user-facing error/success messages"
+    }
+  },
+
+  "dependency_risks": [
+    {
+      "dependency": "axios",
+      "usage": "All API calls",
+      "risk": "LOW",
+      "notes": "Well-maintained, production-ready"
+    },
+    {
+      "dependency": "idb-keyval",
+      "usage": "IndexedDB operations for offline storage",
+      "risk": "LOW",
+      "notes": "Wrapped with idb-safe.ts for error handling"
+    },
+    {
+      "dependency": "tesseract.js",
+      "usage": "OCR for document scanning",
+      "risk": "MEDIUM",
+      "notes": "Large bundle (~8MB), lazy-loaded"
+    },
+    {
+      "dependency": "jspdf + html2canvas",
+      "usage": "PDF generation",
+      "risk": "LOW",
+      "notes": "Lazy-loaded, excluded from preloading"
+    }
+  ],
+
+  "offline_behavior": {
+    "service_worker": {
+      "registration": "autoUpdate via vite-plugin-pwa",
+      "strategies": {
+        "api_calls": "NetworkOnly",
+        "uploads": "NetworkOnly with backgroundSync",
+        "static_assets": "StaleWhileRevalidate"
+      }
+    },
+    "offline_queue": {
+      "file": "src/lib/offlineQueue.ts",
+      "purpose": "Queue failed requests for retry when online"
+    },
+    "offline_page": {
+      "route": "/offline",
+      "fallback": "public/offline.html"
+    }
+  },
+
+  "security_considerations": [
+    {
+      "aspect": "Authentication",
+      "mechanism": "Laravel Sanctum (cookie-based)",
+      "implementation": "Cookies with withCredentials, X-XSRF-TOKEN header"
+    },
+    {
+      "aspect": "CSRF Protection",
+      "mechanism": "XSRF-TOKEN cookie + X-XSRF-TOKEN header",
+      "initialization": "GET /sanctum/csrf-cookie before mutations"
+    },
+    {
+      "aspect": "Authorization",
+      "mechanism": "Role-based (RequireRole) + Capability-based (RequireCapability)",
+      "enforcement": "Frontend guards + backend API checks"
+    },
+    {
+      "aspect": "Data Masking",
+      "mechanism": "Enhanced capability system with field-level masking",
+      "admin_config": "/app/admin/data-masking-rules"
+    }
+  ],
+
+  "testing_gaps": [
+    {
+      "area": "E2E Authentication Flow",
+      "issue": "No Playwright tests for full login/logout flow",
+      "priority": "HIGH"
+    },
+    {
+      "area": "Role-based Access",
+      "issue": "No automated tests verifying role restrictions",
+      "priority": "HIGH"
+    },
+    {
+      "area": "Offline Mode",
+      "issue": "No automated tests for offline queue and sync",
+      "priority": "MEDIUM"
+    },
+    {
+      "area": "Error Boundaries",
+      "issue": "No tests for error boundary recovery",
+      "priority": "MEDIUM"
+    }
+  ]
+}
+
+
+
+
+
+

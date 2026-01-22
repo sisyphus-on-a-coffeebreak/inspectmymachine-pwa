@@ -26,6 +26,20 @@ export function FloatingActionButton({ icon: Icon, label, actions }: FloatingAct
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
 
+  // Close on Escape key
+  React.useEffect(() => {
+    if (!expanded) return;
+    
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setExpanded(false);
+      }
+    };
+    
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [expanded]);
+
   const handleActionClick = (route: string) => {
     navigate(route);
     setExpanded(false);
@@ -40,9 +54,17 @@ export function FloatingActionButton({ icon: Icon, label, actions }: FloatingAct
             position: 'fixed',
             inset: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.3)',
-            zIndex: 99,
+            zIndex: zIndex.fab - 1, // Just below FAB
           }}
           onClick={() => setExpanded(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setExpanded(false);
+            }
+          }}
+          role="button"
+          tabIndex={-1}
+          aria-label="Close menu"
         />
       )}
 

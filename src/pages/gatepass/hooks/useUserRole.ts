@@ -39,13 +39,7 @@ function getRolePermissions(user: User | null): RolePermissions {
     };
   }
 
-  // DEBUG: Log capability checks (remove after debugging)
   const approveCheck = hasCapability(user, 'gate_pass', 'approve');
-  console.log('=== useUserRole DEBUG ===');
-  console.log('User role:', user.role);
-  console.log('User capabilities:', user.capabilities);
-  console.log('hasCapability(gate_pass, approve):', approveCheck);
-  console.log('=========================');
 
   return {
     canCreatePasses: hasCapability(user, 'gate_pass', 'create'),

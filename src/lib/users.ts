@@ -2,6 +2,7 @@ import { apiClient } from './apiClient';
 import { API_BASE_URL } from './apiConfig';
 import type { EnhancedCapability } from './permissions/types';
 import { hasCapability as hasEnhancedCapability } from './permissions/evaluator';
+import { hasRoleCapability as checkRoleCapability } from './permissions/roleCapabilities';
 
 // Re-export types for backward compatibility
 export type CapabilityAction = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'validate' | 'review' | 'reassign' | 'export';
@@ -39,6 +40,7 @@ export interface CreateUserPayload {
   email: string;
   password: string;
   role?: User['role']; // Optional - can use capabilities instead
+  role_id?: number; // Database role ID (preferred over role string)
   capabilities?: UserCapabilities; // Capability matrix
   yard_id?: string | null;
   is_active?: boolean;
@@ -49,6 +51,7 @@ export interface UpdateUserPayload {
   email?: string;
   password?: string;
   role?: User['role']; // Optional - can use capabilities instead
+  role_id?: number; // Database role ID (preferred over role string)
   capabilities?: UserCapabilities; // Capability matrix
   yard_id?: string | null;
   is_active?: boolean;
@@ -297,77 +300,10 @@ export function hasCapability(user: User | null, module: CapabilityModule, actio
 
 /**
  * Check if role has capability (backward compatibility)
+ * Uses shared role capabilities to avoid duplication
  */
 function hasRoleCapability(role: User['role'], module: CapabilityModule, action: CapabilityAction): boolean {
-  const roleCapabilities: Record<User['role'], UserCapabilities> = {
-    super_admin: {
-      gate_pass: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
-      inspection: ['create', 'read', 'update', 'delete', 'approve', 'review'],
-      expense: ['create', 'read', 'update', 'delete', 'approve', 'reassign'],
-      user_management: ['create', 'read', 'update', 'delete'],
-      reports: ['read', 'export'],
-      stockyard: ['create', 'read', 'update', 'delete', 'approve'],
-    },
-    admin: {
-      gate_pass: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
-      inspection: ['create', 'read', 'update', 'delete', 'approve', 'review'],
-      expense: ['create', 'read', 'update', 'delete', 'approve', 'reassign'],
-      user_management: ['read', 'update'],
-      reports: ['read', 'export'],
-      stockyard: ['create', 'read', 'update', 'delete', 'approve'],
-    },
-    yard_incharge: {
-      gate_pass: ['create', 'read', 'approve', 'validate'],
-      inspection: ['read', 'approve', 'review'],
-      expense: ['read'],
-      user_management: [],
-      reports: ['read'],
-      stockyard: [],
-    },
-    supervisor: {
-      gate_pass: ['read', 'approve', 'validate'],
-      inspection: ['read', 'approve', 'review'],
-      expense: ['read', 'approve'],
-      user_management: [],
-      reports: ['read'],
-      stockyard: [],
-    },
-    executive: {
-      gate_pass: ['create', 'read', 'validate'],
-      inspection: ['read'],
-      expense: ['create', 'read'],
-      user_management: [],
-      reports: [],
-      stockyard: [],
-    },
-    inspector: {
-      gate_pass: ['read'],
-      inspection: ['create', 'read', 'update'],
-      expense: ['create', 'read'],
-      user_management: [],
-      reports: [],
-      stockyard: [],
-    },
-    guard: {
-      gate_pass: ['read', 'validate'],
-      inspection: ['read'],
-      expense: ['read'],
-      user_management: [],
-      reports: [],
-      stockyard: [],
-    },
-    clerk: {
-      gate_pass: ['create', 'read'],
-      inspection: ['read'],
-      expense: ['create', 'read'],
-      user_management: [],
-      reports: [],
-      stockyard: [],
-    },
-  };
-  
-  const capabilities = roleCapabilities[role];
-  return capabilities[module]?.includes(action) ?? false;
+  return checkRoleCapability(role, module, action);
 }
 
 // Export enhanced permission system

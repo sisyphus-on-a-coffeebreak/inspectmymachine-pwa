@@ -1,0 +1,295 @@
+{
+  "generated_at": "2026-01-04T04:57:58.484Z",
+  "total_routes": 13,
+  "passed": 0,
+  "warnings": 0,
+  "failed": 13,
+  "results": [
+    {
+      "route": "/app/stockyard/create",
+      "loadTime": 2598,
+      "errors": [
+        {
+          "route": "/app/stockyard/create",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502644373
+        },
+        {
+          "route": "/app/stockyard/create",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502644373
+        }
+      ],
+      "warnings": [],
+      "networkRequests": 92,
+      "failedRequests": 2,
+      "status": "fail"
+    },
+    {
+      "route": "/app/stockyard/scan",
+      "loadTime": 2380,
+      "errors": [
+        {
+          "route": "/app/stockyard/scan",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502647366
+        },
+        {
+          "route": "/app/stockyard/scan",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502647366
+        }
+      ],
+      "warnings": [],
+      "networkRequests": 92,
+      "failedRequests": 2,
+      "status": "fail"
+    },
+    {
+      "route": "/app/stockyard/components",
+      "loadTime": 2565,
+      "errors": [
+        {
+          "route": "/app/stockyard/components",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502650245
+        },
+        {
+          "route": "/app/stockyard/components",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502650253
+        }
+      ],
+      "warnings": [],
+      "networkRequests": 92,
+      "failedRequests": 2,
+      "status": "fail"
+    },
+    {
+      "route": "/app/stockyard/analytics",
+      "loadTime": 2444,
+      "errors": [
+        {
+          "route": "/app/stockyard/analytics",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502653010
+        },
+        {
+          "route": "/app/stockyard/analytics",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502653010
+        }
+      ],
+      "warnings": [],
+      "networkRequests": 92,
+      "failedRequests": 2,
+      "status": "fail"
+    },
+    {
+      "route": "/app/stockyard/alerts",
+      "loadTime": 2183,
+      "errors": [
+        {
+          "route": "/app/stockyard/alerts",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502655586
+        },
+        {
+          "route": "/app/stockyard/alerts",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502655586
+        }
+      ],
+      "warnings": [],
+      "networkRequests": 92,
+      "failedRequests": 2,
+      "status": "fail"
+    },
+    {
+      "route": "/app/approvals",
+      "loadTime": 2636,
+      "errors": [
+        {
+          "route": "/app/approvals",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502658233
+        },
+        {
+          "route": "/app/approvals",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502658249
+        }
+      ],
+      "warnings": [],
+      "networkRequests": 92,
+      "failedRequests": 2,
+      "status": "fail"
+    },
+    {
+      "route": "/app/alerts",
+      "loadTime": 2174,
+      "errors": [
+        {
+          "route": "/app/alerts",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502661251
+        },
+        {
+          "route": "/app/alerts",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502661251
+        }
+      ],
+      "warnings": [],
+      "networkRequests": 92,
+      "failedRequests": 2,
+      "status": "fail"
+    },
+    {
+      "route": "/app/notifications",
+      "loadTime": 2177,
+      "errors": [
+        {
+          "route": "/app/notifications",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502663858
+        },
+        {
+          "route": "/app/notifications",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502663864
+        }
+      ],
+      "warnings": [],
+      "networkRequests": 92,
+      "failedRequests": 2,
+      "status": "fail"
+    },
+    {
+      "route": "/app/notifications/preferences",
+      "loadTime": 2178,
+      "errors": [
+        {
+          "route": "/app/notifications/preferences",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502666219
+        },
+        {
+          "route": "/app/notifications/preferences",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502666219
+        }
+      ],
+      "warnings": [],
+      "networkRequests": 92,
+      "failedRequests": 2,
+      "status": "fail"
+    },
+    {
+      "route": "/app/settings/report-branding",
+      "loadTime": 2191,
+      "errors": [
+        {
+          "route": "/app/settings/report-branding",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502668659
+        },
+        {
+          "route": "/app/settings/report-branding",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502668659
+        }
+      ],
+      "warnings": [],
+      "networkRequests": 92,
+      "failedRequests": 2,
+      "status": "fail"
+    },
+    {
+      "route": "/app/settings/sessions",
+      "loadTime": 2454,
+      "errors": [
+        {
+          "route": "/app/settings/sessions",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502671528
+        },
+        {
+          "route": "/app/settings/sessions",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502671607
+        }
+      ],
+      "warnings": [],
+      "networkRequests": 94,
+      "failedRequests": 2,
+      "status": "fail"
+    },
+    {
+      "route": "/app/admin/users",
+      "loadTime": 2168,
+      "errors": [
+        {
+          "route": "/app/admin/users",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502674000
+        },
+        {
+          "route": "/app/admin/users",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502674023
+        }
+      ],
+      "warnings": [],
+      "networkRequests": 92,
+      "failedRequests": 2,
+      "status": "fail"
+    },
+    {
+      "route": "/app/admin/users/activity",
+      "loadTime": 2147,
+      "errors": [
+        {
+          "route": "/app/admin/users/activity",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502676370
+        },
+        {
+          "route": "/app/admin/users/activity",
+          "type": "network_error",
+          "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+          "timestamp": 1767502676370
+        }
+      ],
+      "warnings": [],
+      "networkRequests": 96,
+      "failedRequests": 2,
+      "status": "fail"
+    }
+  ]
+}

@@ -21,7 +21,7 @@ export const PageTransition: React.FC<PageTransitionProps> = ({
   duration = 300,
 }) => {
   const location = useLocation();
-  const [isVisible, setIsVisible] = useState(false);
+  const [isVisible, setIsVisible] = useState(true); // Start visible to prevent stuck invisible state
   const [displayChildren, setDisplayChildren] = useState(children);
 
   useEffect(() => {
@@ -41,9 +41,16 @@ export const PageTransition: React.FC<PageTransitionProps> = ({
   }, [location.pathname, children, duration]);
 
   useEffect(() => {
-    // Initial fade in
+    // Initial fade in - ensure we're visible on mount
     setIsVisible(true);
-  }, []);
+    
+    // Failsafe: Force visibility if still invisible after transition duration
+    const failsafeTimer = setTimeout(() => {
+      setIsVisible(true); // Force visible as failsafe
+    }, duration + 100);
+    
+    return () => clearTimeout(failsafeTimer);
+  }, [duration]);
 
   const getTransitionStyle = (): React.CSSProperties => {
     const baseStyle: React.CSSProperties = {

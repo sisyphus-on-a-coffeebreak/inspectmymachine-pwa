@@ -23,11 +23,33 @@ const HAPTIC_PATTERNS: Record<HapticFeedbackType, number | number[]> = {
   warning: [15, 30, 15], // Two light vibrations
 };
 
+// Track if user has interacted with the page
+let hasUserInteracted = false;
+
+// Listen for any user interaction to enable haptic feedback
+if (typeof window !== 'undefined') {
+  const enableHaptic = () => {
+    hasUserInteracted = true;
+    // Remove listeners after first interaction
+    window.removeEventListener('touchstart', enableHaptic);
+    window.removeEventListener('mousedown', enableHaptic);
+    window.removeEventListener('keydown', enableHaptic);
+  };
+  
+  window.addEventListener('touchstart', enableHaptic, { once: true });
+  window.addEventListener('mousedown', enableHaptic, { once: true });
+  window.addEventListener('keydown', enableHaptic, { once: true });
+}
+
 export function useHapticFeedback(): UseHapticFeedbackReturn {
   const isSupported = typeof navigator !== 'undefined' && 'vibrate' in navigator;
 
   const trigger = useCallback((type: HapticFeedbackType = 'medium') => {
     if (!isSupported) return;
+    
+    // Only trigger haptic feedback after user interaction
+    // This prevents browser warnings about blocked vibration
+    if (!hasUserInteracted) return;
 
     try {
       const pattern = HAPTIC_PATTERNS[type];

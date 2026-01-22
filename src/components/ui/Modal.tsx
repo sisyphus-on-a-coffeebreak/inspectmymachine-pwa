@@ -47,11 +47,15 @@ export function Modal({
   
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
+      // Only handle Escape, don't prevent default for browser shortcuts
       if (e.key === 'Escape') {
+        e.stopPropagation(); // Prevent other handlers from interfering
         onClose();
       }
     };
-    document.addEventListener('keydown', handleEscape);
+    
+    // Use capture phase to ensure this runs early
+    document.addEventListener('keydown', handleEscape, { capture: true });
     
     // Lock body scroll on mobile
     lockBodyScroll(true);
@@ -67,9 +71,16 @@ export function Modal({
       }
     });
     
+    // Failsafe: Auto-close if modal is stuck open for too long (30 seconds)
+    const failsafeTimeout = setTimeout(() => {
+      console.warn('Modal has been open for 30+ seconds, auto-closing as failsafe');
+      onClose();
+    }, 30000);
+    
     return () => {
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('keydown', handleEscape, { capture: true });
       lockBodyScroll(false);
+      clearTimeout(failsafeTimeout);
     };
   }, [onClose]);
 

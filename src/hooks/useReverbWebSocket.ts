@@ -4,9 +4,34 @@
  * Connects to Laravel Reverb WebSocket server using Pusher protocol
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import Pusher from 'pusher-js';
 import { API_ORIGIN } from '../lib/apiConfig';
+
+// Global console suppression for WebSocket errors in development
+// This runs at module load time to catch errors before they're logged
+if (typeof window !== 'undefined' && import.meta.env.DEV && import.meta.env.VITE_ENABLE_WEBSOCKET !== 'true') {
+  const originalError = console.error;
+  const originalWarn = console.warn;
+  
+  console.error = (...args: any[]) => {
+    const message = args[0]?.toString() || '';
+    // Suppress WebSocket connection errors from Pusher
+    if (message.includes('WebSocket') && (message.includes('failed') || message.includes('closed') || message.includes('connection'))) {
+      return; // Suppress
+    }
+    originalError.apply(console, args);
+  };
+  
+  console.warn = (...args: any[]) => {
+    const message = args[0]?.toString() || '';
+    // Suppress WebSocket connection warnings from Pusher
+    if (message.includes('WebSocket') && message.includes('connection')) {
+      return; // Suppress
+    }
+    originalWarn.apply(console, args);
+  };
+}
 
 export interface ReverbWebSocketMessage {
   type: string;
@@ -42,39 +67,94 @@ export function useReverbWebSocket(options: UseReverbWebSocketOptions = {}): Use
     onClose,
   } = options;
 
+  // Early check: If WebSocket is disabled in development, return immediately
+  // This prevents any Pusher-related code from running
+  const isWebSocketDisabled = useMemo(() => {
+    if (!enabled) return true;
+    const reverbKey = import.meta.env.VITE_REVERB_APP_KEY || '';
+    // In development, disable WebSocket unless explicitly enabled
+    if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_WEBSOCKET !== 'true') {
+      return true;
+    }
+    if (!reverbKey || reverbKey.trim() === '') {
+      return true;
+    }
+    return false;
+  }, [enabled]);
+
+  // Early return if WebSocket is disabled - return a no-op implementation
+  // This prevents any Pusher code from running, including imports
+  if (isWebSocketDisabled) {
+    return {
+      isConnected: false,
+      isConnecting: false,
+      error: null,
+      send: () => {
+        // No-op
+      },
+      disconnect: () => {
+        // No-op
+      },
+    };
+  }
+
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const pusherRef = useRef<Pusher | null>(null);
   const channelRef = useRef<any>(null);
   const connectingRef = useRef(false); // Prevent multiple connection attempts
-  const permanentlyDisabledRef = useRef(false); // Disable after repeated failures
+  const permanentlyDisabledRef = useRef(isWebSocketDisabled); // Disable if WebSocket is disabled
 
   const connect = useCallback(() => {
-    if (!enabled) return;
-    if (permanentlyDisabledRef.current) return; // Don't try if permanently disabled
+    // Early exit if WebSocket is disabled - check this first to prevent any Pusher operations
+    if (isWebSocketDisabled || !enabled || permanentlyDisabledRef.current) {
+      permanentlyDisabledRef.current = true;
+      return;
+    }
     if (pusherRef.current?.connection.state === 'connected') return;
     if (connectingRef.current) return; // Prevent multiple simultaneous connections
+
+    const reverbKey = import.meta.env.VITE_REVERB_APP_KEY || '';
+    
+    // Double-check: if no key, don't proceed
+    if (!reverbKey || reverbKey.trim() === '') {
+      permanentlyDisabledRef.current = true;
+      return;
+    }
 
     const reverbHost = import.meta.env.VITE_REVERB_HOST || 'localhost';
     const reverbPort = import.meta.env.VITE_REVERB_PORT || '8080';
     const reverbScheme = import.meta.env.VITE_REVERB_SCHEME || 'ws';
-    const reverbKey = import.meta.env.VITE_REVERB_APP_KEY || '';
-
-    // In development, disable WebSocket if not explicitly enabled to avoid connection errors
-    if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_WEBSOCKET !== 'true') {
-      permanentlyDisabledRef.current = true;
-      return;
-    }
-
-    if (!reverbKey) {
-      permanentlyDisabledRef.current = true;
-      return;
-    }
 
     connectingRef.current = true;
     setIsConnecting(true);
     setError(null);
+
+    // Store original console methods for restoration
+    const originalError = console.error;
+    const originalWarn = console.warn;
+    
+    // Suppress Pusher's internal error logging in development
+    if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_WEBSOCKET !== 'true') {
+      // Suppress WebSocket-related errors in development
+      console.error = (...args: any[]) => {
+        const message = args[0]?.toString() || '';
+        // Only suppress WebSocket connection errors
+        if (message.includes('WebSocket') && (message.includes('failed') || message.includes('closed'))) {
+          return; // Suppress this error
+        }
+        originalError.apply(console, args);
+      };
+      console.warn = (...args: any[]) => {
+        const message = args[0]?.toString() || '';
+        // Only suppress WebSocket connection warnings
+        if (message.includes('WebSocket') && message.includes('connection')) {
+          return; // Suppress this warning
+        }
+        originalWarn.apply(console, args);
+      };
+    }
 
     try {
       // Configure Pusher for Reverb
@@ -87,6 +167,8 @@ export function useReverbWebSocket(options: UseReverbWebSocketOptions = {}): Use
         enabledTransports: reverbScheme === 'wss' ? ['wss'] : ['ws'],
         disableStats: true,
         cluster: '', // Reverb doesn't use cluster - empty string is required
+        // Suppress Pusher's internal logging unless explicitly enabled
+        enableLogging: import.meta.env.VITE_ENABLE_WEBSOCKET === 'true',
         // Custom authorizer: skip auth for public channels
         authorizer: (channel: any, options: any) => {
           return {
@@ -121,8 +203,20 @@ export function useReverbWebSocket(options: UseReverbWebSocketOptions = {}): Use
       });
 
       pusherRef.current = pusher;
+      
+      // Restore console methods after Pusher is created
+      // Pusher will log errors during connection attempts, but we've suppressed them
+      if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_WEBSOCKET !== 'true') {
+        // Keep console suppressed during connection lifecycle
+        // Will restore in error handlers or after successful connection
+      }
 
       pusher.connection.bind('connected', () => {
+        // Restore console methods on successful connection
+        if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_WEBSOCKET !== 'true') {
+          console.error = originalError;
+          console.warn = originalWarn;
+        }
         connectingRef.current = false;
         setIsConnected(true);
         setIsConnecting(false);
@@ -183,10 +277,16 @@ export function useReverbWebSocket(options: UseReverbWebSocketOptions = {}): Use
         if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_WEBSOCKET !== 'true') {
           // Silently disable - don't log errors
           permanentlyDisabledRef.current = true;
+          // Disconnect immediately to prevent further error logs
+          try {
+            pusher.disconnect();
+          } catch {
+            // Ignore disconnect errors
+          }
           return;
         }
         // Only log in production or when explicitly enabled
-        if (import.meta.env.PROD || import.meta.env.VITE_ENABLE_WEBSOCKET === 'true') {
+        if (import.meta.env.PROD && import.meta.env.VITE_ENABLE_WEBSOCKET === 'true') {
           console.warn('WebSocket connection error:', err?.error || err);
         }
         if (onError) {
@@ -204,9 +304,16 @@ export function useReverbWebSocket(options: UseReverbWebSocketOptions = {}): Use
         // Suppress in development unless explicitly enabled
         if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_WEBSOCKET !== 'true') {
           permanentlyDisabledRef.current = true;
+          // Disconnect immediately to prevent further error logs
+          try {
+            pusher.disconnect();
+          } catch {
+            // Ignore disconnect errors
+          }
           return;
         }
-        if (import.meta.env.PROD || import.meta.env.VITE_ENABLE_WEBSOCKET === 'true') {
+        // Only log in production when explicitly enabled
+        if (import.meta.env.PROD && import.meta.env.VITE_ENABLE_WEBSOCKET === 'true') {
           console.warn('WebSocket server unavailable');
         }
       });
@@ -217,9 +324,16 @@ export function useReverbWebSocket(options: UseReverbWebSocketOptions = {}): Use
         // Suppress in development unless explicitly enabled
         if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_WEBSOCKET !== 'true') {
           permanentlyDisabledRef.current = true;
+          // Disconnect immediately to prevent further error logs
+          try {
+            pusher.disconnect();
+          } catch {
+            // Ignore disconnect errors
+          }
           return;
         }
-        if (import.meta.env.PROD || import.meta.env.VITE_ENABLE_WEBSOCKET === 'true') {
+        // Only log in production when explicitly enabled
+        if (import.meta.env.PROD && import.meta.env.VITE_ENABLE_WEBSOCKET === 'true') {
           console.warn('WebSocket connection failed');
         }
       });
@@ -239,19 +353,34 @@ export function useReverbWebSocket(options: UseReverbWebSocketOptions = {}): Use
     } catch (err) {
       connectingRef.current = false;
       setIsConnecting(false);
+      // Suppress errors in development unless explicitly enabled
+      if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_WEBSOCKET !== 'true') {
+        permanentlyDisabledRef.current = true;
+        // Don't set error state - silently fail
+        return;
+      }
       setError(err instanceof Error ? err : new Error('Failed to create WebSocket connection'));
     }
-  }, [enabled, onMessage, onError, onOpen, onClose]);
+  }, [enabled, onMessage, onError, onOpen, onClose, isWebSocketDisabled]);
 
   const disconnect = useCallback(() => {
     connectingRef.current = false;
     if (channelRef.current) {
-      channelRef.current.unbind_all();
-      channelRef.current.unsubscribe();
+      try {
+        channelRef.current.unbind_all();
+        channelRef.current.unsubscribe();
+      } catch {
+        // Ignore unsubscribe errors
+      }
       channelRef.current = null;
     }
     if (pusherRef.current) {
-      pusherRef.current.disconnect();
+      try {
+        // Silently disconnect - errors are expected when server is unavailable
+        pusherRef.current.disconnect();
+      } catch {
+        // Ignore disconnect errors - these are expected when WebSocket server is not running
+      }
       pusherRef.current = null;
     }
     setIsConnected(false);
@@ -266,12 +395,13 @@ export function useReverbWebSocket(options: UseReverbWebSocketOptions = {}): Use
   }, []);
 
   useEffect(() => {
-    // In development, don't connect unless explicitly enabled
-    if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_WEBSOCKET !== 'true') {
+    // Early exit if WebSocket is disabled - don't even attempt connection
+    if (isWebSocketDisabled) {
       permanentlyDisabledRef.current = true;
       return;
     }
     
+    // Only connect if enabled and not already connected/disconnected
     if (enabled && !pusherRef.current && !permanentlyDisabledRef.current) {
       connect();
     }
@@ -280,7 +410,7 @@ export function useReverbWebSocket(options: UseReverbWebSocketOptions = {}): Use
       disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled]); // Only depend on enabled to prevent infinite loops
+  }, [enabled, isWebSocketDisabled]); // Include isWebSocketDisabled to re-check when it changes
 
   return {
     isConnected,

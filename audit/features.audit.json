@@ -1,0 +1,463 @@
+{
+  "generated_at": "2026-01-04T00:00:00Z",
+  "scanner": "static-feature-analysis",
+  "modules": [
+    {
+      "name": "Authentication",
+      "routes": ["/login", "/logout"],
+      "components": ["Login.tsx", "AuthProvider.tsx", "RequireAuth.tsx", "AuthenticatedLayout.tsx"],
+      "api_endpoints": [
+        { "method": "GET", "path": "/user", "auth": "required", "purpose": "Get current user" },
+        { "method": "POST", "path": "/login", "auth": "none", "purpose": "Authenticate user" },
+        { "method": "POST", "path": "/logout", "auth": "required", "purpose": "End session" },
+        { "method": "GET", "path": "/sanctum/csrf-cookie", "auth": "none", "purpose": "Get CSRF token" }
+      ],
+      "user_flows": [
+        "Login with employee_id and password",
+        "Session persistence check on page load",
+        "Logout and session cleanup",
+        "CSRF token initialization"
+      ],
+      "env_vars": ["VITE_API_BASE", "VITE_API_ORIGIN", "VITE_ENABLE_CSRF"]
+    },
+    {
+      "name": "Gate Pass",
+      "routes": [
+        "/app/gate-pass",
+        "/app/gate-pass/create",
+        "/app/gate-pass/:id",
+        "/app/gate-pass/guard-register",
+        "/app/gate-pass/reports",
+        "/app/gate-pass/templates",
+        "/app/gate-pass/visitors",
+        "/app/gate-pass/calendar",
+        "/app/gate-pass/scan",
+        "/app/gate-pass/bulk"
+      ],
+      "components": [
+        "GatePassDashboard.tsx",
+        "CreateGatePass.tsx",
+        "GatePassDetails.tsx",
+        "GuardRegister.tsx",
+        "GatePassReports.tsx",
+        "PassTemplates.tsx",
+        "VisitorManagement.tsx",
+        "GatePassCalendar.tsx",
+        "QuickValidation.tsx",
+        "BulkOperations.tsx"
+      ],
+      "api_endpoints": [
+        { "method": "GET", "path": "/v2/gate-passes", "auth": "required", "purpose": "List gate passes" },
+        { "method": "GET", "path": "/v2/gate-passes-stats", "auth": "required", "purpose": "Get statistics" },
+        { "method": "POST", "path": "/visitor-gate-passes", "auth": "required", "purpose": "Create visitor pass" },
+        { "method": "POST", "path": "/vehicle-exit-passes", "auth": "required", "purpose": "Create vehicle pass" },
+        { "method": "GET", "path": "/gate-pass-records", "auth": "required", "purpose": "Get all records" },
+        { "method": "GET", "path": "/gate-pass-records/stats", "auth": "required", "purpose": "Get stats" },
+        { "method": "POST", "path": "/visitor-gate-passes/scan", "auth": "required", "purpose": "Scan QR" },
+        { "method": "POST", "path": "/gate-pass-records/sync", "auth": "required", "purpose": "Sync offline" },
+        { "method": "GET", "path": "/gate-pass-approval/pending", "auth": "required", "purpose": "Pending approvals" },
+        { "method": "POST", "path": "/gate-pass-approval/approve/:id", "auth": "required", "purpose": "Approve pass" },
+        { "method": "GET", "path": "/gate-pass-calendar", "auth": "required", "purpose": "Calendar view" },
+        { "method": "GET", "path": "/visitor-management/visitors", "auth": "required", "purpose": "List visitors" },
+        { "method": "GET", "path": "/v1/gate-pass-templates", "auth": "required", "purpose": "List templates" },
+        { "method": "POST", "path": "/v1/gate-pass-templates", "auth": "required", "purpose": "Create template" },
+        { "method": "GET", "path": "/gate-pass-bulk/operations", "auth": "required", "purpose": "Bulk ops" },
+        { "method": "GET", "path": "/gate-pass-bulk/templates", "auth": "required", "purpose": "Bulk templates" },
+        { "method": "POST", "path": "/gate-pass-bulk/execute", "auth": "required", "purpose": "Execute bulk" },
+        { "method": "GET", "path": "/gate-pass-bulk/export", "auth": "required", "purpose": "Export data" }
+      ],
+      "user_flows": [
+        "View gate pass dashboard with filters",
+        "Create visitor gate pass",
+        "Create vehicle exit pass",
+        "View gate pass details",
+        "Scan QR code to validate pass",
+        "Approve/reject pending passes",
+        "View guard register",
+        "Manage visitors",
+        "View calendar",
+        "Bulk operations"
+      ],
+      "required_roles": {
+        "read": ["any"],
+        "create": ["any"],
+        "approve": ["super_admin", "admin", "supervisor"],
+        "validate": ["super_admin", "admin", "supervisor", "guard"],
+        "reports": ["super_admin", "admin"],
+        "templates": ["super_admin", "admin"],
+        "bulk": ["super_admin", "admin"]
+      }
+    },
+    {
+      "name": "Inspections",
+      "routes": [
+        "/app/inspections",
+        "/app/inspections/new",
+        "/app/inspections/:id",
+        "/app/inspections/studio",
+        "/app/inspections/sync",
+        "/app/inspections/completed",
+        "/app/inspections/reports",
+        "/app/inspections/:templateId/capture"
+      ],
+      "components": [
+        "InspectionDashboard.tsx",
+        "TemplateSelectionPage.tsx",
+        "InspectionDetails.tsx",
+        "InspectionStudio.tsx",
+        "InspectionSyncCenter.tsx",
+        "InspectionsCompleted.tsx",
+        "InspectionReports.tsx",
+        "InspectionCapture.tsx"
+      ],
+      "api_endpoints": [
+        { "method": "GET", "path": "/v1/inspection-dashboard", "auth": "required", "purpose": "Dashboard data" },
+        { "method": "GET", "path": "/v1/inspection-templates", "auth": "required", "purpose": "List templates" },
+        { "method": "GET", "path": "/v1/inspections", "auth": "required", "purpose": "List inspections" },
+        { "method": "GET", "path": "/v1/inspections/:id", "auth": "required", "purpose": "Get details" },
+        { "method": "POST", "path": "/v1/inspections", "auth": "required", "purpose": "Create inspection" },
+        { "method": "PUT", "path": "/v1/inspections/:id", "auth": "required", "purpose": "Update inspection" },
+        { "method": "POST", "path": "/v1/inspection-templates", "auth": "required", "purpose": "Create template" },
+        { "method": "POST", "path": "/v1/files/upload", "auth": "required", "purpose": "Upload photos" }
+      ],
+      "user_flows": [
+        "View inspection dashboard",
+        "Select template for new inspection",
+        "Capture inspection photos",
+        "Submit inspection",
+        "View completed inspections",
+        "Create/edit inspection templates (admin)",
+        "Sync offline inspections",
+        "Generate inspection reports"
+      ],
+      "required_roles": {
+        "read": ["any"],
+        "create": ["any"],
+        "update": ["any"],
+        "studio": ["super_admin", "admin"]
+      }
+    },
+    {
+      "name": "Expenses",
+      "routes": [
+        "/app/expenses",
+        "/app/expenses/create",
+        "/app/expenses/:id",
+        "/app/expenses/history",
+        "/app/expenses/ledger",
+        "/app/expenses/reconciliation",
+        "/app/expenses/analytics",
+        "/app/expenses/reports",
+        "/app/expenses/receipts"
+      ],
+      "components": [
+        "EmployeeExpenseDashboard.tsx",
+        "CreateExpense.tsx",
+        "ExpenseDetails.tsx",
+        "ExpenseHistory.tsx",
+        "EmployeeLedger.tsx",
+        "LedgerReconciliation.tsx",
+        "ExpenseAnalytics.tsx",
+        "ExpenseReports.tsx",
+        "ReceiptsGallery.tsx"
+      ],
+      "api_endpoints": [
+        { "method": "GET", "path": "/v1/expenses", "auth": "required", "purpose": "List expenses" },
+        { "method": "GET", "path": "/v1/expenses/:id", "auth": "required", "purpose": "Get details" },
+        { "method": "POST", "path": "/v1/expenses", "auth": "required", "purpose": "Create expense" },
+        { "method": "GET", "path": "/v1/float/me", "auth": "required", "purpose": "Get user float" },
+        { "method": "GET", "path": "/v1/ledger/reconciliation", "auth": "required", "purpose": "Reconciliation" },
+        { "method": "GET", "path": "/expense-approval/pending", "auth": "required", "purpose": "Pending approvals" },
+        { "method": "GET", "path": "/expense-approval/stats", "auth": "required", "purpose": "Approval stats" },
+        { "method": "POST", "path": "/expense-approval/approve/:id", "auth": "required", "purpose": "Approve" },
+        { "method": "POST", "path": "/expense-approval/reject/:id", "auth": "required", "purpose": "Reject" },
+        { "method": "POST", "path": "/expense-approval/bulk-approve", "auth": "required", "purpose": "Bulk approve" },
+        { "method": "POST", "path": "/expense-approval/bulk-reject", "auth": "required", "purpose": "Bulk reject" },
+        { "method": "GET", "path": "/v1/expense-reports/summary", "auth": "required", "purpose": "Report summary" },
+        { "method": "GET", "path": "/v1/expense-reports/analytics", "auth": "required", "purpose": "Analytics" },
+        { "method": "GET", "path": "/v1/expense-reports/export", "auth": "required", "purpose": "Export" }
+      ],
+      "user_flows": [
+        "View expense dashboard",
+        "Create new expense",
+        "View expense details",
+        "View expense history",
+        "View employee ledger",
+        "Ledger reconciliation",
+        "Approve/reject expenses (admin)",
+        "View analytics",
+        "Generate reports",
+        "View receipts gallery"
+      ],
+      "required_roles": {
+        "read": ["any"],
+        "create": ["any"],
+        "approve": ["super_admin", "admin", "supervisor"],
+        "reports": ["super_admin", "admin"],
+        "analytics": ["super_admin", "admin"]
+      }
+    },
+    {
+      "name": "Stockyard",
+      "routes": [
+        "/app/stockyard",
+        "/app/stockyard/create",
+        "/app/stockyard/:id",
+        "/app/stockyard/scan",
+        "/app/stockyard/components",
+        "/app/stockyard/components/:id",
+        "/app/stockyard/analytics",
+        "/app/stockyard/alerts"
+      ],
+      "components": [
+        "StockyardDashboard.tsx",
+        "CreateComponentMovement.tsx",
+        "StockyardRequestDetails.tsx",
+        "StockyardScan.tsx",
+        "ComponentLedger.tsx",
+        "ComponentDetails.tsx",
+        "StockyardAnalytics.tsx",
+        "StockyardAlertsDashboard.tsx"
+      ],
+      "api_endpoints": [
+        { "method": "GET", "path": "/v1/stockyard-requests", "auth": "required", "purpose": "List requests" },
+        { "method": "GET", "path": "/v1/components", "auth": "required", "purpose": "List components" },
+        { "method": "POST", "path": "/v1/components", "auth": "required", "purpose": "Create component" },
+        { "method": "POST", "path": "/v1/component-movements", "auth": "required", "purpose": "Create movement" },
+        { "method": "GET", "path": "/v1/components/transfers/pending", "auth": "required", "purpose": "Pending transfers" },
+        { "method": "GET", "path": "/v1/components/cost-analysis", "auth": "required", "purpose": "Cost analysis" },
+        { "method": "GET", "path": "/v1/yards", "auth": "required", "purpose": "List yards" },
+        { "method": "GET", "path": "/v1/vehicles", "auth": "required", "purpose": "List vehicles" }
+      ],
+      "user_flows": [
+        "View stockyard dashboard",
+        "Create component movement",
+        "View request details",
+        "Scan component QR",
+        "View component ledger",
+        "View component details",
+        "View analytics",
+        "View alerts"
+      ]
+    },
+    {
+      "name": "User Management",
+      "routes": [
+        "/app/admin/users",
+        "/app/admin/users/:id",
+        "/app/admin/users/activity",
+        "/app/admin/users/capability-matrix",
+        "/app/admin/users/bulk-operations",
+        "/app/admin/permission-templates",
+        "/app/admin/permission-testing",
+        "/app/admin/data-masking-rules",
+        "/app/admin/security",
+        "/app/admin/activity-logs",
+        "/app/admin/permission-logs",
+        "/app/admin/audit-reports",
+        "/app/admin/compliance"
+      ],
+      "components": [
+        "UserManagement.tsx",
+        "UserDetails.tsx",
+        "UserActivityDashboard.tsx",
+        "CapabilityMatrix.tsx",
+        "BulkUserOperations.tsx",
+        "PermissionTemplates.tsx",
+        "PermissionTesting.tsx",
+        "DataMaskingRules.tsx",
+        "SecurityDashboard.tsx",
+        "ActivityLogs.tsx",
+        "PermissionChangeLogs.tsx",
+        "AuditReports.tsx",
+        "ComplianceDashboard.tsx"
+      ],
+      "api_endpoints": [
+        { "method": "GET", "path": "/v1/users", "auth": "required", "purpose": "List users" },
+        { "method": "GET", "path": "/v1/users/:id", "auth": "required", "purpose": "Get user" },
+        { "method": "POST", "path": "/v1/users", "auth": "required", "purpose": "Create user" },
+        { "method": "PUT", "path": "/v1/users/:id", "auth": "required", "purpose": "Update user" },
+        { "method": "DELETE", "path": "/v1/users/:id", "auth": "required", "purpose": "Delete user" },
+        { "method": "POST", "path": "/v1/users/:id/reset-password", "auth": "required", "purpose": "Reset password" },
+        { "method": "GET", "path": "/v1/users/:id/permissions", "auth": "required", "purpose": "Get permissions" },
+        { "method": "POST", "path": "/v1/users/bulk-assign-capabilities", "auth": "required", "purpose": "Bulk assign" },
+        { "method": "POST", "path": "/v1/users/bulk-activate", "auth": "required", "purpose": "Bulk activate" },
+        { "method": "POST", "path": "/v1/users/bulk-deactivate", "auth": "required", "purpose": "Bulk deactivate" },
+        { "method": "POST", "path": "/v1/users/bulk-assign-role", "auth": "required", "purpose": "Bulk role" },
+        { "method": "GET", "path": "/v1/users/activity", "auth": "required", "purpose": "User activity" },
+        { "method": "GET", "path": "/v1/users/activity/statistics", "auth": "required", "purpose": "Activity stats" },
+        { "method": "GET", "path": "/v1/users/permission-changes", "auth": "required", "purpose": "Permission logs" },
+        { "method": "GET", "path": "/v1/permission-templates", "auth": "required", "purpose": "Templates" },
+        { "method": "POST", "path": "/v1/permissions/check", "auth": "required", "purpose": "Check permission" },
+        { "method": "GET", "path": "/v1/masking-rules", "auth": "required", "purpose": "Masking rules" }
+      ],
+      "user_flows": [
+        "View user list",
+        "View user details",
+        "Create new user",
+        "Update user",
+        "Delete user",
+        "Reset user password",
+        "Bulk user operations",
+        "View activity logs",
+        "Manage permission templates",
+        "Test permissions",
+        "Configure data masking",
+        "View security dashboard",
+        "View audit reports",
+        "View compliance dashboard"
+      ],
+      "required_roles": {
+        "all": ["super_admin", "admin"]
+      }
+    },
+    {
+      "name": "Approvals",
+      "routes": ["/app/approvals"],
+      "components": ["UnifiedApprovals.tsx"],
+      "api_endpoints": [
+        { "method": "GET", "path": "/gate-pass-approval/pending", "auth": "required", "purpose": "Gate pass pending" },
+        { "method": "GET", "path": "/expense-approval/pending", "auth": "required", "purpose": "Expense pending" },
+        { "method": "GET", "path": "/v1/components/transfers/pending", "auth": "required", "purpose": "Transfer pending" },
+        { "method": "POST", "path": "/expense-approval/bulk-approve", "auth": "required", "purpose": "Bulk approve" },
+        { "method": "POST", "path": "/expense-approval/bulk-reject", "auth": "required", "purpose": "Bulk reject" }
+      ],
+      "user_flows": [
+        "View all pending approvals",
+        "Filter by type (gate pass, expense, transfer)",
+        "Approve/reject items",
+        "Bulk approve/reject"
+      ],
+      "required_roles": {
+        "all": ["super_admin", "admin", "supervisor"]
+      }
+    },
+    {
+      "name": "Alerts & Notifications",
+      "routes": [
+        "/app/alerts",
+        "/app/notifications",
+        "/app/notifications/preferences"
+      ],
+      "components": [
+        "AlertDashboard.tsx",
+        "NotificationsPage.tsx",
+        "NotificationPreferences.tsx"
+      ],
+      "api_endpoints": [
+        { "method": "GET", "path": "/v1/alerts", "auth": "required", "purpose": "List alerts" },
+        { "method": "GET", "path": "/v1/alerts/statistics", "auth": "required", "purpose": "Alert stats" },
+        { "method": "POST", "path": "/v1/alerts/bulk-acknowledge", "auth": "required", "purpose": "Bulk ack" },
+        { "method": "POST", "path": "/v1/alerts/bulk-resolve", "auth": "required", "purpose": "Bulk resolve" },
+        { "method": "POST", "path": "/v1/alerts/bulk-dismiss", "auth": "required", "purpose": "Bulk dismiss" },
+        { "method": "GET", "path": "/v1/notifications", "auth": "required", "purpose": "List notifications" },
+        { "method": "GET", "path": "/v1/notifications/unread-count", "auth": "required", "purpose": "Unread count" },
+        { "method": "PATCH", "path": "/v1/notifications/mark-all-read", "auth": "required", "purpose": "Mark all read" }
+      ],
+      "user_flows": [
+        "View alert dashboard",
+        "Acknowledge/resolve/dismiss alerts",
+        "View notifications",
+        "Mark notifications as read",
+        "Configure notification preferences"
+      ]
+    },
+    {
+      "name": "Settings",
+      "routes": [
+        "/app/settings/report-branding",
+        "/app/settings/sessions"
+      ],
+      "components": [
+        "ReportBranding.tsx",
+        "SessionManagement.tsx"
+      ],
+      "api_endpoints": [
+        { "method": "DELETE", "path": "/v1/settings/report-branding/logo", "auth": "required", "purpose": "Delete logo" }
+      ],
+      "user_flows": [
+        "Configure report branding",
+        "View active sessions",
+        "Terminate sessions"
+      ],
+      "required_roles": {
+        "report_branding": ["super_admin", "admin"],
+        "sessions": ["any"]
+      }
+    }
+  ],
+  "env_vars_required": [
+    {
+      "name": "VITE_API_BASE",
+      "description": "Base URL for API requests",
+      "default_dev": "http://localhost:8000/api",
+      "default_prod": "https://api.inspectmymachine.in/api",
+      "required": true
+    },
+    {
+      "name": "VITE_API_ORIGIN",
+      "description": "API origin for CSRF",
+      "default_dev": "http://localhost:8000",
+      "default_prod": "https://api.inspectmymachine.in",
+      "required": true
+    },
+    {
+      "name": "VITE_ENABLE_CSRF",
+      "description": "Enable/disable CSRF (dev only)",
+      "default": "true",
+      "required": false
+    }
+  ],
+  "critical_flows": [
+    {
+      "name": "Login Flow",
+      "steps": [
+        "Navigate to /login",
+        "Enter employee_id and password",
+        "POST /login",
+        "GET /user",
+        "Redirect to /dashboard"
+      ],
+      "failure_points": ["CSRF initialization", "Network error", "Invalid credentials", "Server unavailable"]
+    },
+    {
+      "name": "Gate Pass Creation",
+      "steps": [
+        "Navigate to /app/gate-pass/create",
+        "Fill form (type, vehicle, purpose)",
+        "POST /visitor-gate-passes or /vehicle-exit-passes",
+        "Show success with QR code"
+      ],
+      "failure_points": ["Validation errors", "Network error", "Permission denied"]
+    },
+    {
+      "name": "Inspection Capture",
+      "steps": [
+        "Navigate to /app/inspections/new",
+        "Select template",
+        "Capture photos for each section",
+        "POST /v1/files/upload (per photo)",
+        "POST /v1/inspections",
+        "Show success"
+      ],
+      "failure_points": ["Template load fail", "Photo upload fail", "Offline sync fail", "Validation errors"]
+    },
+    {
+      "name": "Expense Approval",
+      "steps": [
+        "Navigate to /app/approvals",
+        "GET /expense-approval/pending",
+        "Select expenses",
+        "POST /expense-approval/bulk-approve",
+        "Refresh list"
+      ],
+      "failure_points": ["Permission denied", "Stale data", "Network error"]
+    }
+  ]
+}
+
+
+
+
+
+

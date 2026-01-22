@@ -106,20 +106,25 @@ axios.interceptors.response.use(
       (error as AxiosError & { __suppressLog?: boolean }).__suppressLog = true;
     }
     
-    // Handle 403 permission errors - dispatch global event
+    // Handle 403 permission errors - dispatch global event (unless suppressed)
     if (axios.isAxiosError(error) && error.response?.status === 403) {
-      const responseData = error.response.data as {
-        error?: string;
-        message?: string;
-        required_capability?: string;
-      } | undefined;
+      const config = error.config as ApiRequestConfig | undefined;
+      const shouldSuppressPermissionError = config?.suppressPermissionError;
       
-      dispatchPermissionError({
-        url: error.config?.url || '',
-        method: error.config?.method?.toUpperCase() || 'GET',
-        requiredCapability: responseData?.required_capability,
-        message: responseData?.message || "You don't have permission to perform this action.",
-      });
+      if (!shouldSuppressPermissionError) {
+        const responseData = error.response.data as {
+          error?: string;
+          message?: string;
+          required_capability?: string;
+        } | undefined;
+        
+        dispatchPermissionError({
+          url: error.config?.url || '',
+          method: error.config?.method?.toUpperCase() || 'GET',
+          requiredCapability: responseData?.required_capability,
+          message: responseData?.message || "You don't have permission to perform this action.",
+        });
+      }
     }
     
     return Promise.reject(error);
@@ -132,6 +137,9 @@ export interface ApiError {
   statusText?: string;
   data?: unknown;
   code?: string;
+  response?: {
+    headers?: Record<string, string>;
+  };
 }
 
 export interface ApiResponse<T = unknown> {
@@ -145,6 +153,7 @@ export interface ApiRequestConfig extends AxiosRequestConfig {
   skipRetry?: boolean;
   retryCount?: number;
   suppressErrorLog?: boolean; // Suppress console errors for expected failures (e.g., auth checks)
+  suppressPermissionError?: boolean; // Suppress permission error events for expected 403s (e.g., permission checks)
 }
 
 /**
@@ -153,6 +162,19 @@ export interface ApiRequestConfig extends AxiosRequestConfig {
 function normalizeError(error: unknown): ApiError {
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+    // Extract headers for rate limiting
+    const headers: Record<string, string> = {};
+    if (axiosError.response?.headers) {
+      Object.keys(axiosError.response.headers).forEach(key => {
+        const value = axiosError.response?.headers[key];
+        if (typeof value === 'string') {
+          headers[key.toLowerCase()] = value;
+        } else if (Array.isArray(value) && value.length > 0) {
+          headers[key.toLowerCase()] = value[0];
+        }
+      });
+    }
+    
     return {
       message: axiosError.response?.data?.message || 
                axiosError.response?.data?.error ||
@@ -162,6 +184,7 @@ function normalizeError(error: unknown): ApiError {
       statusText: axiosError.response?.statusText,
       data: axiosError.response?.data,
       code: axiosError.code,
+      response: Object.keys(headers).length > 0 ? { headers } : undefined,
     };
   }
   if (error instanceof Error) {

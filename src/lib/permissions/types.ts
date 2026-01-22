@@ -22,7 +22,7 @@ export type CapabilityAction = 'create' | 'read' | 'update' | 'delete' | 'approv
 /**
  * Modules in the system
  */
-export type CapabilityModule = 'gate_pass' | 'inspection' | 'expense' | 'user_management' | 'reports';
+export type CapabilityModule = 'gate_pass' | 'inspection' | 'expense' | 'user_management' | 'reports' | 'stockyard';
 
 // ========================================
 // 1. FIELD-LEVEL PERMISSIONS

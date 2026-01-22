@@ -17,6 +17,7 @@ import type {
 } from './types';
 import { evaluateConditionalRule } from './conditionEvaluator';
 import { evaluateRecordScope } from './scopeEvaluator';
+import { hasRoleCapability } from './roleCapabilities';
 
 /**
  * Check if user has a basic capability (backward compatible)
@@ -65,7 +66,7 @@ export function checkPermission(
   }
   
   // Check if user has enhanced capabilities
-  const enhancedCaps = (user.capabilities as any)?.enhanced_capabilities as EnhancedCapability[] | undefined;
+  const enhancedCaps = user.capabilities?.enhanced_capabilities;
   
   if (enhancedCaps && enhancedCaps.length > 0) {
     // Find matching enhanced capability
@@ -111,8 +112,6 @@ function evaluateEnhancedCapability(
   capability: EnhancedCapability,
   context?: PermissionCheckContext
 ): PermissionCheckResult {
-  const failedConditions: string[] = [];
-  
   // 1. Check if permission has expired
   if (capability.expires_at) {
     const expiryDate = new Date(capability.expires_at);
@@ -347,10 +346,14 @@ function checkContextRestrictions(
  * @returns true if field is accessible
  */
 function checkFieldPermission(
-  fieldPermissions: any[],
-  field: string,
+  fieldPermissions: Array<{ module: CapabilityModule; action: 'read' | 'update'; mode: 'whitelist' | 'blacklist'; fields: string[] }> | undefined,
+  field: string | undefined,
   action: CapabilityAction
 ): boolean {
+  if (!fieldPermissions || !field) {
+    return true; // No restrictions if no field permissions or no field specified
+  }
+  
   // Find relevant field permission (matching action)
   const relevantPermission = fieldPermissions.find(
     fp => fp.action === action || 
@@ -435,83 +438,9 @@ export function checkPermissions(
 
 /**
  * Check role-based capability (backward compatibility helper)
- * This mirrors the logic from users.ts
+ * Uses shared role capabilities to avoid duplication
  */
-function hasRoleCapability(
-  role: User['role'],
-  module: CapabilityModule,
-  action: CapabilityAction
-): boolean {
-  const roleCapabilities: Record<User['role'], Record<CapabilityModule, CapabilityAction[]>> = {
-    super_admin: {
-      gate_pass: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
-      inspection: ['create', 'read', 'update', 'delete', 'approve', 'review'],
-      expense: ['create', 'read', 'update', 'delete', 'approve', 'reassign'],
-      user_management: ['create', 'read', 'update', 'delete'],
-      reports: ['read', 'export'],
-      stockyard: ['create', 'read', 'update', 'delete', 'approve'],
-    },
-    admin: {
-      gate_pass: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
-      inspection: ['create', 'read', 'update', 'delete', 'approve', 'review'],
-      expense: ['create', 'read', 'update', 'delete', 'approve', 'reassign'],
-      user_management: ['read', 'update'],
-      reports: ['read', 'export'],
-      stockyard: ['create', 'read', 'update', 'delete', 'approve'],
-    },
-    supervisor: {
-      gate_pass: ['read', 'approve', 'validate'],
-      inspection: ['read', 'approve', 'review'],
-      expense: ['read', 'approve'],
-      user_management: [],
-      reports: ['read'],
-      stockyard: [],
-    },
-    yard_incharge: {
-      gate_pass: ['create', 'read', 'approve', 'validate'],
-      inspection: ['read', 'approve', 'review'],
-      expense: ['read'],
-      user_management: [],
-      reports: ['read'],
-      stockyard: [],
-    },
-    executive: {
-      gate_pass: ['create', 'read', 'validate'],
-      inspection: ['read'],
-      expense: ['create', 'read'],
-      user_management: [],
-      reports: [],
-      stockyard: [],
-    },
-    inspector: {
-      gate_pass: ['read'],
-      inspection: ['create', 'read', 'update'],
-      expense: ['create', 'read'],
-      user_management: [],
-      reports: [],
-      stockyard: [],
-    },
-    guard: {
-      gate_pass: ['read', 'validate'],
-      inspection: ['read'],
-      expense: ['read'],
-      user_management: [],
-      reports: [],
-      stockyard: [],
-    },
-    clerk: {
-      gate_pass: ['create', 'read'],
-      inspection: ['read'],
-      expense: ['create', 'read'],
-      user_management: [],
-      reports: [],
-      stockyard: [],
-    },
-  };
-  
-  const capabilities = roleCapabilities[role];
-  return capabilities[module]?.includes(action) ?? false;
-}
+// hasRoleCapability is now imported from roleCapabilities.ts
 
 
 

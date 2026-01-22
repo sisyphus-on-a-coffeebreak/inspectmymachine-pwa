@@ -12,14 +12,9 @@
 }
 
 /* Desktop Sidebar - hidden on mobile/tablet, visible on desktop (1024px+) only */
+/* Note: Display is controlled by inline styles in component, not CSS */
 .app-layout-desktop-sidebar {
-  display: none !important;
-}
-
-@media (min-width: 1024px) {
-  .app-layout-desktop-sidebar {
-    display: block !important;
-  }
+  /* Display controlled by component logic */
 }
 
 /* Mobile Sidebar - visible on mobile and tablet, hidden on desktop */

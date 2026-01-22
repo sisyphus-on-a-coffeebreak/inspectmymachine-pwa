@@ -1,0 +1,159 @@
+import { test as setup } from '@playwright/test';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const authFile = path.join(__dirname, '../.playwright/.auth/user.json');
+const adminAuthFile = path.join(__dirname, '../.playwright/.auth/admin.json');
+const supervisorAuthFile = path.join(__dirname, '../.playwright/.auth/supervisor.json');
+const clerkAuthFile = path.join(__dirname, '../.playwright/.auth/clerk.json');
+
+/**
+ * Authentication Setup
+ * 
+ * Creates authenticated state files for different user roles:
+ * - Standard user (inspector)
+ * - Admin/Super Admin
+ * - Supervisor
+ * - Clerk (limited permissions)
+ * 
+ * Default credentials (can be overridden via environment variables):
+ * - Admin: SUPER001 / password
+ * - User: TEST001 / password
+ * - Supervisor: EXEC002 / password
+ * - Clerk: LIMITED1766562318270 / password
+ */
+
+// Default test credentials
+const DEFAULT_ADMIN_ID = 'SUPER001';
+const DEFAULT_ADMIN_PASSWORD = 'password';
+const DEFAULT_USER_ID = 'TEST001';
+const DEFAULT_USER_PASSWORD = 'password';
+const DEFAULT_SUPERVISOR_ID = 'EXEC002';
+const DEFAULT_SUPERVISOR_PASSWORD = 'password';
+const DEFAULT_CLERK_ID = 'LIMITED1766562318270';
+const DEFAULT_CLERK_PASSWORD = 'password';
+
+async function performLogin(
+  page: import('@playwright/test').Page, 
+  employeeId: string, 
+  password: string,
+  roleName: string
+): Promise<boolean> {
+  try {
+    await page.goto('/login', { timeout: 15000 });
+    
+    // Wait for the login form to be visible
+    await page.waitForSelector('input[type="password"]', { timeout: 10000 });
+    
+    // Find and fill the employee ID field (various possible selectors)
+    const employeeInput = page.locator('input[name="employee_id"], input[placeholder*="Employee"], input[placeholder*="ID"], input:not([type="password"]):not([type="hidden"]):visible').first();
+    await employeeInput.fill(employeeId);
+    
+    // Fill password
+    await page.fill('input[type="password"]', password);
+    
+    // Submit and wait for navigation
+    const submitButton = page.locator('button[type="submit"]');
+    await submitButton.click();
+    
+    // Wait for either dashboard or error
+    try {
+      await page.waitForURL('**/dashboard', { timeout: 15000 });
+      
+      // Verify we're on the dashboard
+      const isDashboard = page.url().includes('/dashboard');
+      if (isDashboard) {
+        console.log(`✅ ${roleName} authentication successful`);
+        return true;
+      }
+    } catch {
+      // Check if there's an error message
+      const errorVisible = await page.locator('.text-red, [class*="error"], .alert-error').count() > 0;
+      if (errorVisible) {
+        console.log(`❌ ${roleName} login failed - check credentials`);
+      } else {
+        console.log(`⚠️  ${roleName} login - unexpected state`);
+      }
+      return false;
+    }
+    
+    return false;
+  } catch (error) {
+    console.log(`⚠️  ${roleName} authentication failed:`, error instanceof Error ? error.message : 'Unknown error');
+    return false;
+  }
+}
+
+setup.describe('Authentication Setup', () => {
+  setup('authenticate as standard user (inspector)', async ({ page }) => {
+    const employeeId = process.env.TEST_USER_ID || DEFAULT_USER_ID;
+    const password = process.env.TEST_USER_PASSWORD || DEFAULT_USER_PASSWORD;
+    
+    console.log(`🔐 Authenticating as standard user: ${employeeId}`);
+    
+    const success = await performLogin(page, employeeId, password, 'Standard User');
+    
+    if (success) {
+      await page.context().storageState({ path: authFile });
+      console.log(`📁 User auth state saved to ${authFile}`);
+    } else {
+      // Don't fail the setup - just skip dependent tests
+      console.log('⚠️  Skipping user auth state save - login failed');
+      setup.skip();
+    }
+  });
+
+  setup('authenticate as admin user (super_admin)', async ({ page }) => {
+    const adminId = process.env.TEST_ADMIN_ID || DEFAULT_ADMIN_ID;
+    const adminPassword = process.env.TEST_ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
+    
+    console.log(`🔐 Authenticating as admin: ${adminId}`);
+    
+    const success = await performLogin(page, adminId, adminPassword, 'Admin');
+    
+    if (success) {
+      await page.context().storageState({ path: adminAuthFile });
+      console.log(`📁 Admin auth state saved to ${adminAuthFile}`);
+    } else {
+      console.log('⚠️  Skipping admin auth state save - login failed');
+      setup.skip();
+    }
+  });
+
+  setup('authenticate as supervisor', async ({ page }) => {
+    const supervisorId = process.env.TEST_SUPERVISOR_ID || DEFAULT_SUPERVISOR_ID;
+    const supervisorPassword = process.env.TEST_SUPERVISOR_PASSWORD || DEFAULT_SUPERVISOR_PASSWORD;
+    
+    console.log(`🔐 Authenticating as supervisor: ${supervisorId}`);
+    
+    const success = await performLogin(page, supervisorId, supervisorPassword, 'Supervisor');
+    
+    if (success) {
+      await page.context().storageState({ path: supervisorAuthFile });
+      console.log(`📁 Supervisor auth state saved to ${supervisorAuthFile}`);
+    } else {
+      console.log('⚠️  Skipping supervisor auth state save - login failed');
+      setup.skip();
+    }
+  });
+
+  setup('authenticate as clerk (limited permissions)', async ({ page }) => {
+    const clerkId = process.env.TEST_CLERK_ID || DEFAULT_CLERK_ID;
+    const clerkPassword = process.env.TEST_CLERK_PASSWORD || DEFAULT_CLERK_PASSWORD;
+    
+    console.log(`🔐 Authenticating as clerk: ${clerkId}`);
+    
+    const success = await performLogin(page, clerkId, clerkPassword, 'Clerk');
+    
+    if (success) {
+      await page.context().storageState({ path: clerkAuthFile });
+      console.log(`📁 Clerk auth state saved to ${clerkAuthFile}`);
+    } else {
+      console.log('⚠️  Skipping clerk auth state save - login failed');
+      setup.skip();
+    }
+  });
+});

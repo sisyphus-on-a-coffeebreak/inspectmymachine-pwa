@@ -1,4 +1,11 @@
 import type { GatePassPurpose } from '../gatePassTypes';
+import {
+  DEFAULT_VISITOR_VALIDITY_HOURS,
+  DEFAULT_VEHICLE_OUTBOUND_VALIDITY_HOURS,
+  DEFAULT_VEHICLE_INBOUND_VALIDITY_HOURS,
+  MORNING_HOUR_THRESHOLD,
+  GATE_PASS_PURPOSE,
+} from '../constants';
 
 /**
  * Smart defaults for gate pass creation
@@ -7,19 +14,19 @@ import type { GatePassPurpose } from '../gatePassTypes';
 
 export const GATE_PASS_DEFAULTS = {
   visitor: {
-    purpose: 'inspection' as GatePassPurpose,
-    validityHours: 4,
+    purpose: GATE_PASS_PURPOSE.INSPECTION as GatePassPurpose,
+    validityHours: DEFAULT_VISITOR_VALIDITY_HOURS,
   },
   vehicle_outbound: {
     purpose: (() => {
       const hour = new Date().getHours();
-      return hour < 12 ? 'rto_work' : 'service';
+      return hour < MORNING_HOUR_THRESHOLD ? GATE_PASS_PURPOSE.RTO_WORK : GATE_PASS_PURPOSE.SERVICE;
     })() as GatePassPurpose,
-    validityHours: 24,
+    validityHours: DEFAULT_VEHICLE_OUTBOUND_VALIDITY_HOURS,
   },
   vehicle_inbound: {
-    purpose: 'service' as GatePassPurpose,
-    validityHours: 2,
+    purpose: GATE_PASS_PURPOSE.SERVICE as GatePassPurpose,
+    validityHours: DEFAULT_VEHICLE_INBOUND_VALIDITY_HOURS,
   },
 } as const;
 
@@ -60,6 +67,7 @@ export function getDefaultValidityDates(
     validTo: validTo.toISOString(),
   };
 }
+
 
 
 

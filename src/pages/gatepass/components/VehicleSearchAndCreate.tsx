@@ -41,7 +41,7 @@ export const VehicleSearchAndCreate: React.FC<VehicleSearchAndCreateProps> = ({
       setFoundVehicle(response.data);
       setRegistrationNumber(response.data.registration_number || '');
     } catch (error) {
-      console.error('Error fetching vehicle details:', error);
+      // Error handled silently - component will show create form
     }
   };
 
@@ -73,7 +73,6 @@ export const VehicleSearchAndCreate: React.FC<VehicleSearchAndCreateProps> = ({
         setShowCreateForm(true);
       }
     } catch (error) {
-      console.error('Error searching for vehicle:', error);
       setFoundVehicle(null);
       setShowCreateForm(true);
     } finally {
@@ -103,7 +102,6 @@ export const VehicleSearchAndCreate: React.FC<VehicleSearchAndCreateProps> = ({
       onVehicleSelect(response.data.id);
       setShowCreateForm(false);
     } catch (error: any) {
-      console.error('Error creating vehicle:', error);
       // Error is handled by apiClient
     } finally {
       setCreating(false);
@@ -288,6 +286,7 @@ export const VehicleSearchAndCreate: React.FC<VehicleSearchAndCreateProps> = ({
     </div>
   );
 };
+
 
 
 

@@ -108,6 +108,24 @@ export function getUserFriendlyError(error: unknown, context?: string): UserFrie
   const apiError = normalizeError(error);
   const status = apiError.status;
   
+  // Extract retry-after header from axios error if available
+  let retryAfter: string | undefined;
+  if (error && typeof error === 'object' && 'response' in error) {
+    const axiosError = error as { response?: { headers?: Record<string, string | string[]> } };
+    if (axiosError.response?.headers) {
+      const headers = axiosError.response.headers;
+      retryAfter = typeof headers['retry-after'] === 'string' 
+        ? headers['retry-after']
+        : Array.isArray(headers['retry-after']) 
+          ? headers['retry-after'][0]
+          : typeof headers['x-ratelimit-reset'] === 'string'
+            ? headers['x-ratelimit-reset']
+            : Array.isArray(headers['x-ratelimit-reset'])
+              ? headers['x-ratelimit-reset'][0]
+              : undefined;
+    }
+  }
+  
   // Handle specific status codes
   if (status === 401) {
     return {
@@ -177,9 +195,23 @@ export function getUserFriendlyError(error: unknown, context?: string): UserFrie
   }
   
   if (status === 429) {
+    let message = 'Too many requests. Please wait a moment and try again.';
+    
+    if (retryAfter) {
+      const seconds = parseInt(retryAfter, 10);
+      if (!isNaN(seconds)) {
+        if (seconds < 60) {
+          message = `Too many requests. Please wait ${seconds} second${seconds !== 1 ? 's' : ''} and try again.`;
+        } else {
+          const minutes = Math.ceil(seconds / 60);
+          message = `Too many requests. Please wait ${minutes} minute${minutes !== 1 ? 's' : ''} and try again.`;
+        }
+      }
+    }
+    
     return {
-      title: 'Too Many Requests',
-      message: 'Too many requests. Please wait a moment and try again.',
+      title: 'Rate Limit Exceeded',
+      message,
       severity: 'warning',
       showRetry: true,
       showGoBack: false,

@@ -132,19 +132,9 @@ class GatePassService {
           : [];
       }
 
-      // Log normalized payload
-      console.log('[GatePassService] Sending create request:', {
-        url: BASE_URL,
-        payload: normalizedData,
-        vehicles_to_view: normalizedData.vehicles_to_view,
-        vehicles_to_view_type: typeof normalizedData.vehicles_to_view,
-        vehicles_to_view_isArray: Array.isArray(normalizedData.vehicles_to_view),
-      });
-
       const response = await apiClient.post<GatePass>(BASE_URL, normalizedData);
       return response.data;
     } catch (error) {
-      console.error('[GatePassService] Create error:', error);
       throw normalizeError(error);
     }
   }

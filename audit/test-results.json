@@ -1,0 +1,419 @@
+{
+  "config": {
+    "configFile": "/Users/narnolia/code/voms-pwa/playwright.config.ts",
+    "rootDir": "/Users/narnolia/code/voms-pwa/e2e",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 4
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "audit/playwright-report"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "audit/test-results.json"
+        }
+      ],
+      [
+        "list",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "/Users/narnolia/code/voms-pwa/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 4
+        },
+        "id": "setup",
+        "name": "setup",
+        "testDir": "/Users/narnolia/code/voms-pwa/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/.*\\.setup\\.ts/"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/narnolia/code/voms-pwa/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 4
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/Users/narnolia/code/voms-pwa/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/routes\\.spec\\.ts|critical-flows\\.spec\\.ts|api-contracts\\.spec\\.ts/"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/narnolia/code/voms-pwa/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 4
+        },
+        "id": "authenticated",
+        "name": "authenticated",
+        "testDir": "/Users/narnolia/code/voms-pwa/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/authenticated-flows\\.spec\\.ts|js-error-audit\\.spec\\.ts/"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/Users/narnolia/code/voms-pwa/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 4
+        },
+        "id": "mobile",
+        "name": "mobile",
+        "testDir": "/Users/narnolia/code/voms-pwa/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/routes\\.spec\\.ts|critical-flows\\.spec\\.ts/"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.57.0",
+    "workers": 4,
+    "webServer": {
+      "command": "npm run dev",
+      "url": "http://localhost:5173",
+      "reuseExistingServer": true,
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "auth.setup.ts",
+      "file": "auth.setup.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Authentication Setup",
+          "file": "auth.setup.ts",
+          "line": 102,
+          "column": 7,
+          "specs": [
+            {
+              "title": "authenticate as standard user (inspector)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/Users/narnolia/code/voms-pwa/e2e/auth.setup.ts",
+                        "line": 114,
+                        "column": 13
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "setup",
+                  "projectName": "setup",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "skipped",
+                      "duration": 2490,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "🔐 Authenticating as Standard User: TEST001\n"
+                        },
+                        {
+                          "text": "   Login response status: 422\n"
+                        },
+                        {
+                          "text": "   Error: {\"message\":\"The provided credentials are incorrect.\",\"errors\":{\"employee_id\":[\"The provided credentials are incorrect.\"]}}\n"
+                        },
+                        {
+                          "text": "❌ Standard User login failed\n"
+                        },
+                        {
+                          "text": "⚠️  Skipping user auth state save - login failed\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-04T05:10:22.009Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "location": {
+                            "file": "/Users/narnolia/code/voms-pwa/e2e/auth.setup.ts",
+                            "line": 114,
+                            "column": 13
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "17e3fe6f4d9d8bd79c6b-9c9cfafba2b2a61d7f23",
+              "file": "auth.setup.ts",
+              "line": 103,
+              "column": 3
+            },
+            {
+              "title": "authenticate as admin user (super_admin)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/Users/narnolia/code/voms-pwa/e2e/auth.setup.ts",
+                        "line": 129,
+                        "column": 13
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "setup",
+                  "projectName": "setup",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "skipped",
+                      "duration": 3025,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "🔐 Authenticating as Admin: SUPER001\n"
+                        },
+                        {
+                          "text": "   Login response status: 422\n"
+                        },
+                        {
+                          "text": "   Error: {\"message\":\"The provided credentials are incorrect.\",\"errors\":{\"employee_id\":[\"The provided credentials are incorrect.\"]}}\n"
+                        },
+                        {
+                          "text": "❌ Admin login failed\n"
+                        },
+                        {
+                          "text": "⚠️  Skipping admin auth state save - login failed\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-04T05:10:22.005Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "location": {
+                            "file": "/Users/narnolia/code/voms-pwa/e2e/auth.setup.ts",
+                            "line": 129,
+                            "column": 13
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "17e3fe6f4d9d8bd79c6b-ce35e04bb7e8da88663c",
+              "file": "auth.setup.ts",
+              "line": 118,
+              "column": 3
+            },
+            {
+              "title": "authenticate as supervisor",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/Users/narnolia/code/voms-pwa/e2e/auth.setup.ts",
+                        "line": 144,
+                        "column": 13
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "setup",
+                  "projectName": "setup",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "skipped",
+                      "duration": 3309,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "🔐 Authenticating as Supervisor: EXEC002\n"
+                        },
+                        {
+                          "text": "   Login response status: 422\n"
+                        },
+                        {
+                          "text": "   Error: {\"message\":\"The provided credentials are incorrect.\",\"errors\":{\"employee_id\":[\"The provided credentials are incorrect.\"]}}\n"
+                        },
+                        {
+                          "text": "❌ Supervisor login failed\n"
+                        },
+                        {
+                          "text": "⚠️  Skipping supervisor auth state save - login failed\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-04T05:10:22.002Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "location": {
+                            "file": "/Users/narnolia/code/voms-pwa/e2e/auth.setup.ts",
+                            "line": 144,
+                            "column": 13
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "17e3fe6f4d9d8bd79c6b-032d3adb905bb15dd0bd",
+              "file": "auth.setup.ts",
+              "line": 133,
+              "column": 3
+            },
+            {
+              "title": "authenticate as clerk (limited permissions)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "/Users/narnolia/code/voms-pwa/e2e/auth.setup.ts",
+                        "line": 159,
+                        "column": 13
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "setup",
+                  "projectName": "setup",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "skipped",
+                      "duration": 2740,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "🔐 Authenticating as Clerk: LIMITED1766562318270\n"
+                        },
+                        {
+                          "text": "   Login response status: 422\n"
+                        },
+                        {
+                          "text": "   Error: {\"message\":\"The provided credentials are incorrect.\",\"errors\":{\"employee_id\":[\"The provided credentials are incorrect.\"]}}\n"
+                        },
+                        {
+                          "text": "❌ Clerk login failed\n"
+                        },
+                        {
+                          "text": "⚠️  Skipping clerk auth state save - login failed\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-01-04T05:10:22.012Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "location": {
+                            "file": "/Users/narnolia/code/voms-pwa/e2e/auth.setup.ts",
+                            "line": 159,
+                            "column": 13
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "17e3fe6f4d9d8bd79c6b-ce1a8c1d0a6cdb14d6ed",
+              "file": "auth.setup.ts",
+              "line": 148,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-01-04T05:10:21.345Z",
+    "duration": 4881.192,
+    "expected": 0,
+    "skipped": 4,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

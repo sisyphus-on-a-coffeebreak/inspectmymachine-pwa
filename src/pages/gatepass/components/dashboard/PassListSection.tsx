@@ -19,10 +19,11 @@ import { FilterBadges } from '../../../../components/ui/FilterBadge';
 import { Button } from '../../../../components/ui/button';
 import { X } from 'lucide-react';
 import { typography } from '../../../../lib/theme';
+import { DEFAULT_PAGE_SIZE, GATE_PASS_TYPE, GATE_PASS_STATUS } from '../../constants';
 
 export const PassListSection: React.FC = () => {
   const { filters, setFilter, clearFilters, hasActiveFilters, activeFilterCount } = useGatePassFilters();
-  const perPage = 20;
+  const perPage = DEFAULT_PAGE_SIZE;
 
   // Build API filters from URL-based filters
   const apiFilters: GatePassFilters = useMemo(() => {
@@ -34,18 +35,18 @@ export const PassListSection: React.FC = () => {
 
     // Map status filter
     if (filters.status === 'all') {
-      filterObj.status = ['pending', 'active', 'inside'];
+      filterObj.status = [GATE_PASS_STATUS.PENDING, GATE_PASS_STATUS.ACTIVE, GATE_PASS_STATUS.INSIDE];
     } else if (filters.status === 'active') {
-      filterObj.status = ['active', 'inside'];
+      filterObj.status = [GATE_PASS_STATUS.ACTIVE, GATE_PASS_STATUS.INSIDE];
     } else {
       filterObj.status = [filters.status as any];
     }
 
     // Map type filter
     if (filters.type === 'visitor') {
-      filterObj.type = 'visitor';
+      filterObj.type = GATE_PASS_TYPE.VISITOR;
     } else if (filters.type === 'vehicle') {
-      filterObj.type = ['vehicle_inbound', 'vehicle_outbound'];
+      filterObj.type = [GATE_PASS_TYPE.VEHICLE_INBOUND, GATE_PASS_TYPE.VEHICLE_OUTBOUND];
     }
 
     // Add search if present
@@ -61,7 +62,7 @@ export const PassListSection: React.FC = () => {
   const pagination = {
     total: passesData?.total || 0,
     page: passesData?.page || 1,
-    per_page: passesData?.per_page || 20,
+    per_page: passesData?.per_page || DEFAULT_PAGE_SIZE,
     last_page: passesData?.last_page || 1,
   };
 
@@ -222,6 +223,7 @@ export const PassListSection: React.FC = () => {
     </div>
   );
 };
+
 
 
 

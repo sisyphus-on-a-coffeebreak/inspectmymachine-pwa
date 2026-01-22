@@ -8,6 +8,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';
 import { gatePassService } from '../lib/services/GatePassService';
 import { useToast } from '../providers/ToastProvider';
+import { getGatePassErrorMessage } from '@/pages/gatepass/utils/errorMessages';
+import { RETRY_CONFIG } from '@/pages/gatepass/constants';
 import type {
   GatePass,
   GatePassFilters,
@@ -45,11 +47,19 @@ export function useGatePasses(
   filters?: GatePassFilters,
   options?: Omit<UseQueryOptions<GatePassListResponse, Error>, 'queryKey' | 'queryFn'>
 ) {
+  // Add retry configuration for transient failures
+  const retryConfig = {
+    retry: RETRY_CONFIG.MAX_RETRIES,
+    retryDelay: (attemptIndex: number) => 
+      RETRY_CONFIG.RETRY_DELAY * Math.pow(RETRY_CONFIG.RETRY_DELAY_MULTIPLIER, attemptIndex),
+  };
   return useQuery({
     queryKey: gatePassKeys.list(filters),
     queryFn: () => gatePassService.list(filters),
     staleTime: 3 * 60 * 1000, // 3 minutes
     gcTime: 15 * 60 * 1000, // 15 minutes
+    retry: retryConfig.retry,
+    retryDelay: retryConfig.retryDelay,
     ...options,
   });
 }
@@ -179,9 +189,10 @@ export function useUpdateGatePass(
       }
     },
     onError: (error) => {
+      const errorMessage = getGatePassErrorMessage(error, 'UPDATE_FAILED', 'update gate pass');
       showToast({
         title: 'Error',
-        description: error.message || 'Failed to update gate pass',
+        description: errorMessage,
         variant: 'error',
       });
       if (options?.onError) {
@@ -302,9 +313,10 @@ export function useRecordEntry(
       }
     },
     onError: (error) => {
+      const errorMessage = getGatePassErrorMessage(error, 'RECORD_ENTRY_FAILED', 'record entry');
       showToast({
         title: 'Error',
-        description: error.message || 'Failed to record entry',
+        description: errorMessage,
         variant: 'error',
       });
       if (options?.onError) {
@@ -348,9 +360,10 @@ export function useRecordExit(
       }
     },
     onError: (error) => {
+      const errorMessage = getGatePassErrorMessage(error, 'RECORD_EXIT_FAILED', 'record exit');
       showToast({
         title: 'Error',
-        description: error.message || 'Failed to record exit',
+        description: errorMessage,
         variant: 'error',
       });
       if (options?.onError) {

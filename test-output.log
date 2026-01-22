@@ -1,0 +1,220 @@
+🚀 COMPREHENSIVE USER FLOW TESTING SUITE
+============================================================
+Testing all user flows to find shortcomings...
+
+
+🔐 TEST SUITE 1: Authentication Flows
+
+============================================================
+✅ 1.1: CSRF Token Retrieval
+✅ 1.2: Login with valid credentials
+❌ 1.3: Login with invalid credentials - Status: 422, Error: {"message":"The provided credentials are incorrect.","errors":{"employee_id":["The provided credenti
+❌ 1.4: Login with missing password - Status: 422, Error: {"message":"The password field is required.","errors":{"password":["The password field is required."
+❌ 1.5: Get current user - Status: 401, Error: {"message":"Unauthenticated."}
+❌ 1.6: Access protected route without auth - Status: 401, Error: {"message":"Unauthenticated."}
+
+👥 TEST SUITE 2: User Management Flows
+
+============================================================
+✅ 2.1: List all users
+✅ 2.2: Create user with all fields
+✅ 2.3: Get single user
+✅ 2.4: Update user
+❌ 2.5: Create user with duplicate employee_id - Status: 422, Error: {"success":false,"message":"Validation failed","errors":{"employee_id":["The employee id has already
+❌ 2.6: Create user with invalid role - Status: 422, Error: {"success":false,"message":"Validation failed","errors":{"role":["The selected role is invalid."]}}
+❌ 2.7: Update non-existent user - Status: 404, Error: {"error":"User not found"}
+✅ 2.8: Reset user password
+✅ 2.9: Get user enhanced capabilities
+✅ 2.10: Add enhanced capability
+✅ 2.11: List enhanced capabilities
+✅ 2.12: Update enhanced capability
+✅ 2.13: Delete enhanced capability
+✅ 2.14: Get bulk operations
+✅ 2.15: User activity endpoints
+✅ 2.16: Get user activity logs
+✅ 2.17: Get user activity statistics
+✅ 2.18: Get permission changes
+
+📋 TEST SUITE 3: Permission Templates Flows
+
+============================================================
+✅ 3.1: List permission templates
+✅ 3.2: Create permission template
+✅ 3.3: Get single template
+✅ 3.4: Update template
+✅ 3.5: Create template with duplicate name
+✅ 3.6: Apply template to user
+✅ 3.7: Delete template
+❌ 3.8: Get non-existent template - Status: 404, Error: {"error":"Permission template not found"}
+
+🔍 TEST SUITE 4: Permission Testing Flows
+
+============================================================
+✅ 4.1: Test single permission check
+✅ 4.2: Test permission check with context
+✅ 4.3: Test bulk permission check
+❌ 4.4: Test permission with invalid user - Status: 422, Error: {"success":false,"message":"Validation failed","errors":{"user_id":["The selected user id is invalid
+❌ 4.5: Test permission with missing action - Status: 422, Error: {"success":false,"message":"Validation failed","errors":{"action":["The action field is required."]}
+
+🔒 TEST SUITE 5: Data Masking Rules Flows
+
+============================================================
+✅ 5.1: List masking rules
+✅ 5.2: Create masking rule
+✅ 5.3: Get masking rules by module
+✅ 5.4: Update masking rule
+❌ 5.5: Create rule with invalid mask type - Status: 422, Error: {"success":false,"message":"Validation failed","errors":{"mask_type":["The selected mask type is inv
+✅ 5.6: Delete masking rule
+
+🚪 TEST SUITE 6: Gate Pass Flows
+
+============================================================
+✅ 6.1: List gate pass records
+❌ 6.2: Create visitor gate pass - Status: 422, Error: {"success":false,"message":"Validation failed","errors":{"purpose":["The selected purpose is invalid
+❌ 6.3: Create vehicle exit pass - Status: 422, Error: {"success":false,"message":"Validation failed","errors":{"vehicle_id":["The selected vehicle id is i
+✅ 6.7: Get pending gate pass approvals
+❌ 6.8: Create pass with missing fields - Status: 422, Error: {"success":false,"message":"Validation failed","errors":{"visitor_phone":["The visitor phone field i
+✅ 6.9: Get gate pass stats
+✅ 6.10: Get gate pass calendar
+
+🔍 TEST SUITE 7: Inspection Flows
+
+============================================================
+✅ 7.1: List inspections
+✅ 7.2: List inspection templates
+✅ 7.3: Get inspection template
+❌ 7.4: Create inspection - Status: 422, Error: {"message":"Validation failed","errors":{"vehicle_id":["The selected vehicle id is invalid."]}}
+❌ 7.7: Create inspection without template - Status: 422, Error: {"message":"Validation failed","errors":{"template_id":["The template id field is required."]}}
+
+💰 TEST SUITE 8: Expense Flows
+
+============================================================
+✅ 8.1: List expenses
+❌ 8.2: Create expense - Status: 422, Error: {"success":false,"message":"Vehicle linkage is required for fleet-related expenses","errors":{"asset
+❌ 8.6: Create expense with negative amount - Status: 422, Error: {"success":false,"message":"Validation failed","errors":{"amount":["The amount field must be at leas
+✅ 8.7: Get expense reports summary
+
+📦 TEST SUITE 9: Stockyard Flows
+
+============================================================
+✅ 9.1: List stockyard requests
+✅ 9.2: List components
+❌ 9.3: Create component movement - Status: 405, Error: {"message":"The POST method is not supported for route api/v1/component-movements. Supported methods
+❌ 9.4: Get stockyard analytics - Status: 404, Error: {"message":"Not Found"}
+
+✅ TEST SUITE 10: Approval Flows
+
+============================================================
+✅ 10.1: List pending gate pass approvals
+✅ 10.2: List pending expense approvals
+❌ 10.3: Bulk approve expenses (empty list) - Status: 422, Error: {"success":false,"message":"Validation failed","errors":{"expense_ids":["The expense ids field is re
+
+⚠️  TEST SUITE 11: Edge Cases & Error Scenarios
+
+============================================================
+✅ 11.1: Invalid JSON in request
+❌ 11.2: Very long employee_id - Status: 422, Error: {"success":false,"message":"Validation failed","errors":{"employee_id":["The employee id field must 
+✅ 11.3: SQL injection attempt
+✅ 11.4: XSS attempt in name field
+✅ 11.5: Missing Content-Type header
+❌ 11.6: Empty request body - Status: 422, Error: {"success":false,"message":"Validation failed","errors":{"employee_id":["The employee id field is re
+❌ 11.7: Invalid UUID format - Status: 404, Error: {"error":"User not found"}
+✅ 11.8: Concurrent requests
+✅ 11.9: Very large payload
+✅ 11.10: Special characters in fields
+
+🔐 TEST SUITE 12: Permission-Based Access Control
+
+============================================================
+✅ 12.1: Limited user create permission check
+✅ 12.2: Limited user delete permission check
+✅ 12.3: Super admin delete permission check
+
+============================================================
+📊 TEST SUMMARY
+============================================================
+✅ Passed: 55
+❌ Failed: 24
+⚠️  Warnings: 0
+💥 Errors: 0
+⏱️  Duration: 4.87s
+============================================================
+
+❌ FAILED TESTS:
+1. 1.3: Login with invalid credentials
+   Status: 422
+   Error: {"message":"The provided credentials are incorrect.","errors":{"employee_id":["The provided credentials are incorrect."]}}
+2. 1.4: Login with missing password
+   Status: 422
+   Error: {"message":"The password field is required.","errors":{"password":["The password field is required."]}}
+3. 1.5: Get current user
+   Status: 401
+   Error: {"message":"Unauthenticated."}
+4. 1.6: Access protected route without auth
+   Status: 401
+   Error: {"message":"Unauthenticated."}
+5. 2.5: Create user with duplicate employee_id
+   Status: 422
+   Error: {"success":false,"message":"Validation failed","errors":{"employee_id":["The employee id has already been taken."]}}
+6. 2.6: Create user with invalid role
+   Status: 422
+   Error: {"success":false,"message":"Validation failed","errors":{"role":["The selected role is invalid."]}}
+7. 2.7: Update non-existent user
+   Status: 404
+   Error: {"error":"User not found"}
+8. 3.8: Get non-existent template
+   Status: 404
+   Error: {"error":"Permission template not found"}
+9. 4.4: Test permission with invalid user
+   Status: 422
+   Error: {"success":false,"message":"Validation failed","errors":{"user_id":["The selected user id is invalid."]}}
+10. 4.5: Test permission with missing action
+   Status: 422
+   Error: {"success":false,"message":"Validation failed","errors":{"action":["The action field is required."]}}
+11. 5.5: Create rule with invalid mask type
+   Status: 422
+   Error: {"success":false,"message":"Validation failed","errors":{"mask_type":["The selected mask type is invalid."]}}
+12. 6.2: Create visitor gate pass
+   Status: 422
+   Error: {"success":false,"message":"Validation failed","errors":{"purpose":["The selected purpose is invalid."],"valid_from":["The valid from field is require
+13. 6.3: Create vehicle exit pass
+   Status: 422
+   Error: {"success":false,"message":"Validation failed","errors":{"vehicle_id":["The selected vehicle id is invalid."],"purpose":["The selected purpose is inva
+14. 6.8: Create pass with missing fields
+   Status: 422
+   Error: {"success":false,"message":"Validation failed","errors":{"visitor_phone":["The visitor phone field is required."],"purpose":["The purpose field is req
+15. 7.4: Create inspection
+   Status: 422
+   Error: {"message":"Validation failed","errors":{"vehicle_id":["The selected vehicle id is invalid."]}}
+16. 7.7: Create inspection without template
+   Status: 422
+   Error: {"message":"Validation failed","errors":{"template_id":["The template id field is required."]}}
+17. 8.2: Create expense
+   Status: 422
+   Error: {"success":false,"message":"Vehicle linkage is required for fleet-related expenses","errors":{"asset_id":["Vehicle linkage is required for this expens
+18. 8.6: Create expense with negative amount
+   Status: 422
+   Error: {"success":false,"message":"Validation failed","errors":{"amount":["The amount field must be at least 0."],"payment_method":["The payment method field
+19. 9.3: Create component movement
+   Status: 405
+   Error: {"message":"The POST method is not supported for route api/v1/component-movements. Supported methods: GET, HEAD.","exception":"Symfony\\Component\\Htt
+20. 9.4: Get stockyard analytics
+   Status: 404
+   Error: {"message":"Not Found"}
+21. 10.3: Bulk approve expenses (empty list)
+   Status: 422
+   Error: {"success":false,"message":"Validation failed","errors":{"expense_ids":["The expense ids field is required."]}}
+22. 11.2: Very long employee_id
+   Status: 422
+   Error: {"success":false,"message":"Validation failed","errors":{"employee_id":["The employee id field must not be greater than 50 characters."],"email":["The
+23. 11.6: Empty request body
+   Status: 422
+   Error: {"success":false,"message":"Validation failed","errors":{"employee_id":["The employee id field is required."],"name":["The name field is required."],"
+24. 11.7: Invalid UUID format
+   Status: 404
+   Error: {"error":"User not found"}
+
+📄 Detailed report saved to test-results.json
+Fatal error: ReferenceError: require is not defined
+    at runAllTests (file:///Users/narnolia/code/voms-pwa/comprehensive-user-flow-tests.js:945:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)

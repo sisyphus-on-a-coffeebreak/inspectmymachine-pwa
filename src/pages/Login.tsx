@@ -49,7 +49,9 @@ export default function Login() {
       justifyContent: 'center',
       padding: spacing.xl,
       position: 'relative',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      // Force light background regardless of theme
+      backgroundColor: colors.neutral[50]
     }}>
       {/* Background decoration */}
       <div style={{

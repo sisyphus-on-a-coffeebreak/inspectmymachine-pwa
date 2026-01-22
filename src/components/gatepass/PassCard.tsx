@@ -213,7 +213,7 @@ export const PassCard: React.FC<PassCardProps> = ({ pass, onClick, compact = fal
           </Badge>
           
           {/* Approval Status Badge */}
-          {pass.status === 'pending_approval' && (
+          {pass.status === 'pending' && (
             <Badge
               variant="warning"
               size="sm"
@@ -222,7 +222,7 @@ export const PassCard: React.FC<PassCardProps> = ({ pass, onClick, compact = fal
               ⏳ Pending Approval
             </Badge>
           )}
-          {pass.approval_status === 'approved' && (
+          {pass.approvals && pass.approvals.some(a => a.status === 'approved') && (
             <Badge
               variant="success"
               size="sm"
@@ -231,7 +231,7 @@ export const PassCard: React.FC<PassCardProps> = ({ pass, onClick, compact = fal
               ✓ Approved
             </Badge>
           )}
-          {pass.approval_status === 'rejected' && (
+          {pass.approvals && pass.approvals.some(a => a.status === 'rejected') && (
             <Badge
               variant="error"
               size="sm"

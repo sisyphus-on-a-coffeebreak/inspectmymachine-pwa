@@ -27,7 +27,11 @@ import { useUserRole } from './hooks/useUserRole';
 import { GuardDashboardContent } from './components/dashboard/GuardDashboardContent';
 import { StaffDashboardContent } from './components/dashboard/StaffDashboardContent';
 import { SupervisorDashboardContent } from './components/dashboard/SupervisorDashboardContent';
-import { X } from 'lucide-react';
+import { ActionCards } from './components/dashboard/ActionCards';
+import { StatsCards } from './components/dashboard/StatsCards';
+import { AnomalyAlerts } from './components/dashboard/AnomalyAlerts';
+import { FiltersSection } from './components/dashboard/FiltersSection';
+import { DEFAULT_PAGE_SIZE, GATE_PASS_TYPE, GATE_PASS_STATUS } from './constants';
 
 // 🚪 Gate Pass Dashboard
 // Main screen for office staff to manage all gate passes
@@ -55,18 +59,18 @@ export const GatePassDashboard: React.FC = () => {
     // Map status filter
     if (filters.status === 'all') {
       // Exclude completed/cancelled/expired by default
-      filterObj.status = ['pending', 'active', 'inside'];
+      filterObj.status = [GATE_PASS_STATUS.PENDING, GATE_PASS_STATUS.ACTIVE, GATE_PASS_STATUS.INSIDE];
     } else if (filters.status === 'active') {
-      filterObj.status = ['active', 'inside'];
+      filterObj.status = [GATE_PASS_STATUS.ACTIVE, GATE_PASS_STATUS.INSIDE];
     } else {
       filterObj.status = [filters.status as GatePassStatus];
     }
 
     // Map type filter
     if (filters.type === 'visitor') {
-      filterObj.type = 'visitor';
+      filterObj.type = GATE_PASS_TYPE.VISITOR;
     } else if (filters.type === 'vehicle') {
-      filterObj.type = ['vehicle_inbound', 'vehicle_outbound'];
+      filterObj.type = [GATE_PASS_TYPE.VEHICLE_INBOUND, GATE_PASS_TYPE.VEHICLE_OUTBOUND];
     }
     // 'all' means no type filter
 
@@ -86,44 +90,26 @@ export const GatePassDashboard: React.FC = () => {
   const stats = passesData?.stats;
   
   // Separate by type for backward compatibility with existing UI
-  const visitorPasses = allPasses.filter((p: GatePass) => p.pass_type === 'visitor');
+  const visitorPasses = allPasses.filter((p: GatePass) => p.pass_type === GATE_PASS_TYPE.VISITOR);
   const vehicleMovements = allPasses.filter((p: GatePass) => 
-    p.pass_type === 'vehicle_inbound' || p.pass_type === 'vehicle_outbound'
+    p.pass_type === GATE_PASS_TYPE.VEHICLE_INBOUND || p.pass_type === GATE_PASS_TYPE.VEHICLE_OUTBOUND
   );
   
   // Pagination info
   const pagination = {
     total: passesData?.total || 0,
     page: passesData?.page || 1,
-    per_page: passesData?.per_page || 20,
+    per_page: passesData?.per_page || DEFAULT_PAGE_SIZE,
     last_page: passesData?.last_page || 1,
   };
   
-  // Calculate expiring passes (within 24 hours) - client-side for now
-  const expiringPasses = allPasses.filter((p: GatePass) => {
-    if (p.status !== 'active') return false;
-    if (!p.valid_to) return false;
-    const validTo = new Date(p.valid_to);
-    const hoursUntilExpiry = (validTo.getTime() - Date.now()) / (1000 * 60 * 60);
-    return hoursUntilExpiry > 0 && hoursUntilExpiry <= 24;
-  });
-  
-  const expiredPasses = allPasses.filter((p: GatePass) => {
-    if (!p.valid_to) return false;
-    return new Date(p.valid_to) < new Date();
-  });
-  
-  // Use stats from API if available, otherwise calculate client-side
+  // Always use stats from backend - no client-side calculation
+  // Backend stats are authoritative and more efficient
   const statsData = stats || {
-    visitors_inside: visitorPasses.filter((p: GatePass) => p.status === 'inside').length,
-    vehicles_out: vehicleMovements.filter((p: GatePass) => p.status === 'inside').length, // inside = out for vehicles
-    expected_today: visitorPasses.filter((p: GatePass) => {
-      const today = new Date().toISOString().split('T')[0];
-      const validFromDate = p.valid_from ? p.valid_from.split('T')[0] : null;
-      if (validFromDate !== today) return false;
-      return p.status === 'pending' || p.status === 'active';
-    }).length,
-    expiring_soon: expiringPasses.length,
+    visitors_inside: 0,
+    vehicles_out: 0,
+    expected_today: 0,
+    expiring_soon: 0,
     pending_approval: 0,
   };
   
@@ -186,7 +172,7 @@ export const GatePassDashboard: React.FC = () => {
       passNumber,
       passType: type,
       visitorName:
-        type === 'visitor'
+        type === GATE_PASS_TYPE.VISITOR
           ? pass.visitor_name || 'Visitor'
           : pass.driver_name || vehicle?.registration_number || 'Vehicle Movement',
       vehicleDetails: type === 'vehicle'
@@ -517,978 +503,93 @@ export const GatePassDashboard: React.FC = () => {
         <>
           {/* Admin/Super Admin - Full Dashboard */}
           {/* Action Cards */}
-      <ActionGrid gap="lg">
-        {/* Create Visitor Pass */}
-        <div
-          onClick={() => navigate('/app/gate-pass/create?type=visitor')}
-          style={{
-            ...cardStyles.base,
-            padding: spacing.xl,
-            cursor: 'pointer',
-            minHeight: '120px',
-            display: 'flex',
-            flexDirection: 'column' as const,
-            justifyContent: 'center',
-            alignItems: 'center',
-            textAlign: 'center' as const,
-            border: `2px solid ${colors.primary}`,
-            position: 'relative' as const
-          }}
-          className="card-hover touch-feedback"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 8px 25px rgba(37, 99, 235, 0.15)';
-            e.currentTarget.style.borderColor = colors.primary;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-            e.currentTarget.style.borderColor = colors.primary;
-          }}
-        >
-          <div style={{ 
-            fontSize: '3rem', 
-            marginBottom: spacing.md,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
-          }}>
-            👥
-          </div>
-          <div style={{ 
-            ...typography.subheader,
-            fontSize: '20px',
-            color: colors.neutral[900],
-            marginBottom: spacing.sm
-          }}>
-            Create Visitor Pass
-          </div>
-          <div style={{ 
-            ...typography.bodySmall,
-            color: colors.neutral[600],
-            lineHeight: 1.4
-          }}>
-            For clients & inspections
-          </div>
-        </div>
+          <ActionCards />
 
-        {/* Create Vehicle Outbound */}
-        <div
-          onClick={() => navigate('/app/gate-pass/create?type=outbound')}
-          style={{
-            ...cardStyles.base,
-            padding: spacing.xl,
-            cursor: 'pointer',
-            minHeight: '120px',
-            display: 'flex',
-            flexDirection: 'column' as const,
-            justifyContent: 'center',
-            alignItems: 'center',
-            textAlign: 'center' as const,
-            border: `2px solid ${colors.brand}`,
-            position: 'relative' as const
-          }}
-          className="card-hover touch-feedback"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 8px 25px rgba(235, 139, 0, 0.15)';
-            e.currentTarget.style.borderColor = colors.brand;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-            e.currentTarget.style.borderColor = colors.brand;
-          }}
-        >
-          <div style={{ 
-            fontSize: '3rem', 
-            marginBottom: spacing.md,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
-          }}>
-            🚛
-          </div>
-          <div style={{ 
-            ...typography.subheader,
-            fontSize: '20px',
-            color: colors.neutral[900],
-            marginBottom: spacing.sm
-          }}>
-            Vehicle Going Out
-          </div>
-          <div style={{ 
-            ...typography.bodySmall,
-            color: colors.neutral[600],
-            lineHeight: 1.4
-          }}>
-            RTO, sale, test drive
-          </div>
-        </div>
-
-        {/* Create Vehicle Inbound */}
-        <div
-          onClick={() => navigate('/app/gate-pass/create?type=inbound')}
-          style={{
-            ...cardStyles.base,
-            padding: spacing.xl,
-            cursor: 'pointer',
-            minHeight: '120px',
-            display: 'flex',
-            flexDirection: 'column' as const,
-            justifyContent: 'center',
-            alignItems: 'center',
-            textAlign: 'center' as const,
-            border: `2px solid ${colors.success}`,
-            position: 'relative' as const
-          }}
-          className="card-hover touch-feedback"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.15)';
-            e.currentTarget.style.borderColor = colors.success;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-            e.currentTarget.style.borderColor = colors.success;
-          }}
-        >
-          <div style={{ 
-            fontSize: '3rem', 
-            marginBottom: spacing.md,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
-          }}>
-            🚗
-          </div>
-          <div style={{ 
-            ...typography.subheader,
-            fontSize: '20px',
-            color: colors.neutral[900],
-            marginBottom: spacing.sm
-          }}>
-            Vehicle Coming In
-          </div>
-          <div style={{ 
-            ...typography.bodySmall,
-            color: colors.neutral[600],
-            lineHeight: 1.4
-          }}>
-            New vehicle arriving
-          </div>
-        </div>
-
-        {/* Guard Register */}
-        <div
-          onClick={() => navigate('/app/gate-pass/guard-register')}
-          style={{
-            ...cardStyles.base,
-            padding: spacing.xl,
-            cursor: 'pointer',
-            minHeight: '120px',
-            display: 'flex',
-            flexDirection: 'column' as const,
-            justifyContent: 'center',
-            alignItems: 'center',
-            textAlign: 'center' as const,
-            border: `2px solid ${colors.success}`,
-            position: 'relative' as const
-          }}
-          className="card-hover touch-feedback"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.15)';
-            e.currentTarget.style.borderColor = colors.success;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-            e.currentTarget.style.borderColor = colors.success;
-          }}
-        >
-          <div style={{ 
-            fontSize: '3rem', 
-            marginBottom: spacing.md,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
-          }}>
-            📊
-          </div>
-          <div style={{ 
-            ...typography.subheader,
-            fontSize: '20px',
-            color: colors.neutral[900],
-            marginBottom: spacing.sm
-          }}>
-            View Guard Register
-          </div>
-          <div style={{ 
-            ...typography.bodySmall,
-            color: colors.neutral[600],
-            lineHeight: 1.4
-          }}>
-            Today's activity log
-          </div>
-        </div>
-
-        {/* Reports & Analytics */}
-        <div
-          onClick={() => navigate('/app/gate-pass/reports')}
-          style={{
-            ...cardStyles.base,
-            padding: spacing.xl,
-            cursor: 'pointer',
-            minHeight: '120px',
-            display: 'flex',
-            flexDirection: 'column' as const,
-            justifyContent: 'center',
-            alignItems: 'center',
-            textAlign: 'center' as const,
-            border: `2px solid ${colors.primary}`,
-            position: 'relative' as const
-          }}
-          className="card-hover touch-feedback"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.15)';
-            e.currentTarget.style.borderColor = colors.primary;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-            e.currentTarget.style.borderColor = colors.primary;
-          }}
-        >
-          <div style={{ 
-            fontSize: '3rem', 
-            marginBottom: spacing.md,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
-          }}>
-            📈
-          </div>
-          <div style={{ 
-            ...typography.subheader,
-            fontSize: '20px',
-            color: colors.neutral[900],
-            marginBottom: spacing.sm
-          }}>
-            Reports & Analytics
-          </div>
-          <div style={{ 
-            ...typography.bodySmall,
-            color: colors.neutral[600],
-            lineHeight: 1.4
-          }}>
-            Comprehensive reporting and analytics
-          </div>
-        </div>
-
-        {/* Pass Templates */}
-        <div
-          onClick={() => navigate('/app/gate-pass/templates')}
-          style={{
-            ...cardStyles.base,
-            padding: spacing.xl,
-            cursor: 'pointer',
-            minHeight: '120px',
-            display: 'flex',
-            flexDirection: 'column' as const,
-            justifyContent: 'center',
-            alignItems: 'center',
-            textAlign: 'center' as const,
-            border: `2px solid ${colors.status.warning}`,
-            position: 'relative' as const
-          }}
-          className="card-hover touch-feedback"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 8px 25px rgba(245, 158, 11, 0.15)';
-            e.currentTarget.style.borderColor = colors.status.warning;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-            e.currentTarget.style.borderColor = colors.status.warning;
-          }}
-        >
-          <div style={{ 
-            fontSize: '3rem', 
-            marginBottom: spacing.md,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
-          }}>
-            📋
-          </div>
-          <div style={{ 
-            ...typography.subheader,
-            fontSize: '20px',
-            color: colors.neutral[900],
-            marginBottom: spacing.sm
-          }}>
-            Pass Templates
-          </div>
-          <div style={{ 
-            ...typography.bodySmall,
-            color: colors.neutral[600],
-            lineHeight: 1.4
-          }}>
-            Saved templates for common passes
-          </div>
-        </div>
-
-        {/* Visitor Management */}
-        <div
-          onClick={() => navigate('/app/gate-pass/visitors')}
-          style={{
-            ...cardStyles.base,
-            padding: spacing.xl,
-            cursor: 'pointer',
-            minHeight: '120px',
-            display: 'flex',
-            flexDirection: 'column' as const,
-            justifyContent: 'center',
-            alignItems: 'center',
-            textAlign: 'center' as const,
-            border: `2px solid ${colors.status.normal}`,
-            position: 'relative' as const
-          }}
-          className="card-hover touch-feedback"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.15)';
-            e.currentTarget.style.borderColor = colors.status.normal;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-            e.currentTarget.style.borderColor = colors.status.normal;
-          }}
-        >
-          <div style={{ 
-            fontSize: '3rem', 
-            marginBottom: spacing.md,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
-          }}>
-            👥
-          </div>
-          <div style={{ 
-            ...typography.subheader,
-            fontSize: '20px',
-            color: colors.neutral[900],
-            marginBottom: spacing.sm
-          }}>
-            Visitor Management
-          </div>
-          <div style={{ 
-            ...typography.bodySmall,
-            color: colors.neutral[600],
-            lineHeight: 1.4
-          }}>
-            Manage visitor database and history
-          </div>
-        </div>
-
-        {/* Calendar View */}
-        <div
-          onClick={() => navigate('/app/gate-pass/calendar')}
-          style={{
-            ...cardStyles.base,
-            padding: spacing.xl,
-            cursor: 'pointer',
-            minHeight: '120px',
-            display: 'flex',
-            flexDirection: 'column' as const,
-            justifyContent: 'center',
-            alignItems: 'center',
-            textAlign: 'center' as const,
-            border: `2px solid ${colors.status.error}`,
-            position: 'relative' as const
-          }}
-          className="card-hover touch-feedback"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 8px 25px rgba(239, 68, 68, 0.15)';
-            e.currentTarget.style.borderColor = colors.status.error;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-            e.currentTarget.style.borderColor = colors.status.error;
-          }}
-        >
-          <div style={{ 
-            fontSize: '3rem', 
-            marginBottom: spacing.md,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
-          }}>
-            📅
-          </div>
-          <div style={{ 
-            ...typography.subheader,
-            fontSize: '20px',
-            color: colors.neutral[900],
-            marginBottom: spacing.sm
-          }}>
-            Calendar View
-          </div>
-          <div style={{ 
-            ...typography.bodySmall,
-            color: colors.neutral[600],
-            lineHeight: 1.4
-          }}>
-            Calendar view of all gate passes
-          </div>
-        </div>
-
-        {/* Quick Validation */}
-        <div
-          onClick={() => navigate('/app/gate-pass/quick-validation')}
-          style={{
-            ...cardStyles.base,
-            padding: spacing.xl,
-            cursor: 'pointer',
-            minHeight: '120px',
-            display: 'flex',
-            flexDirection: 'column' as const,
-            justifyContent: 'center',
-            alignItems: 'center',
-            textAlign: 'center' as const,
-            border: `2px solid ${colors.brand}`,
-            position: 'relative' as const
-          }}
-          className="card-hover touch-feedback"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 8px 25px rgba(235, 139, 0, 0.15)';
-            e.currentTarget.style.borderColor = colors.brand;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-            e.currentTarget.style.borderColor = colors.brand;
-          }}
-        >
-          <div style={{ 
-            fontSize: '3rem', 
-            marginBottom: spacing.md,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
-          }}>
-            🚀
-          </div>
-          <div style={{ 
-            ...typography.subheader,
-            fontSize: '20px',
-            color: colors.neutral[900],
-            marginBottom: spacing.sm
-          }}>
-            Quick Validation
-          </div>
-          <div style={{ 
-            ...typography.bodySmall,
-            color: colors.neutral[600],
-            lineHeight: 1.4
-          }}>
-            Fast QR scanning for guards
-          </div>
-        </div>
-
-        {/* Pass Validation (Full Mode) */}
-        <div
-          onClick={() => navigate('/app/gate-pass/validation')}
-          style={{
-            ...cardStyles.base,
-            padding: spacing.xl,
-            cursor: 'pointer',
-            minHeight: '120px',
-            display: 'flex',
-            flexDirection: 'column' as const,
-            justifyContent: 'center',
-            alignItems: 'center',
-            textAlign: 'center' as const,
-            border: `2px solid ${colors.primary}`,
-            position: 'relative' as const
-          }}
-          className="card-hover touch-feedback"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 8px 25px rgba(37, 99, 235, 0.15)';
-            e.currentTarget.style.borderColor = colors.primary;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-            e.currentTarget.style.borderColor = colors.primary;
-          }}
-        >
-          <div style={{ 
-            fontSize: '3rem', 
-            marginBottom: spacing.md,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
-          }}>
-            🛡️
-          </div>
-          <div style={{ 
-            ...typography.subheader,
-            fontSize: '20px',
-            color: colors.neutral[900],
-            marginBottom: spacing.sm
-          }}>
-            Full Validation
-          </div>
-          <div style={{ 
-            ...typography.bodySmall,
-            color: colors.neutral[600],
-            lineHeight: 1.4
-          }}>
-            Detailed validation with notes
-          </div>
-        </div>
-
-        {/* Pass Approval */}
-        <div
-          onClick={() => navigate('/app/gate-pass/approval')}
-          style={{
-            ...cardStyles.base,
-            padding: spacing.xl,
-            cursor: 'pointer',
-            minHeight: '120px',
-            display: 'flex',
-            flexDirection: 'column' as const,
-            justifyContent: 'center',
-            alignItems: 'center',
-            textAlign: 'center' as const,
-            border: `2px solid ${colors.status.success}`,
-            position: 'relative' as const
-          }}
-          className="card-hover touch-feedback"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.15)';
-            e.currentTarget.style.borderColor = colors.status.success;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-            e.currentTarget.style.borderColor = colors.status.success;
-          }}
-        >
-          <div style={{ 
-            fontSize: '3rem', 
-            marginBottom: spacing.md,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
-          }}>
-            ✅
-          </div>
-          <div style={{ 
-            ...typography.subheader,
-            fontSize: '20px',
-            color: colors.neutral[900],
-            marginBottom: spacing.sm
-          }}>
-            Pass Approval
-          </div>
-          <div style={{ 
-            ...typography.bodySmall,
-            color: colors.neutral[600],
-            lineHeight: 1.4
-          }}>
-            Multi-level approval workflow
-          </div>
-        </div>
-
-        {/* Bulk Operations */}
-        <div
-          onClick={() => navigate('/app/gate-pass/bulk')}
-          style={{
-            ...cardStyles.base,
-            padding: spacing.xl,
-            cursor: 'pointer',
-            minHeight: '120px',
-            display: 'flex',
-            flexDirection: 'column' as const,
-            justifyContent: 'center',
-            alignItems: 'center',
-            textAlign: 'center' as const,
-            border: `2px solid ${colors.status.normal}`,
-            position: 'relative' as const
-          }}
-          className="card-hover touch-feedback"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.15)';
-            e.currentTarget.style.borderColor = colors.status.normal;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-            e.currentTarget.style.borderColor = colors.status.normal;
-          }}
-        >
-          <div style={{ 
-            fontSize: '3rem', 
-            marginBottom: spacing.md,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
-          }}>
-            🔄
-          </div>
-          <div style={{ 
-            ...typography.subheader,
-            fontSize: '20px',
-            color: colors.neutral[900],
-            marginBottom: spacing.sm
-          }}>
-            Bulk Operations
-          </div>
-          <div style={{ 
-            ...typography.bodySmall,
-            color: colors.neutral[600],
-            lineHeight: 1.4
-          }}>
-            Bulk create, update, and export
-          </div>
-        </div>
-      </ActionGrid>
-
-      {/* Stats Row */}
-      <StatsGrid gap="lg">
-        <StatCard
-          label="Visitors Inside"
-          value={statsData.visitors_inside}
-          icon={<span>👥</span>}
-          color={colors.success || '#10B981'}
-          onClick={() => {
-            setFilter('status', 'inside');
-            setFilter('type', 'visitor');
-          }}
-          loading={loading}
-        />
-        <StatCard
-          label="Vehicles Out"
-          value={statsData.vehicles_out}
-          icon={<span>🚗</span>}
-          color={colors.brand || '#EB8B00'}
-          onClick={() => {
-            setFilter('status', 'inside');
-            setFilter('type', 'vehicle');
-          }}
-          loading={loading}
-        />
-        <StatCard
-          label="Expected Today"
-          value={statsData.expected_today}
-          icon={<span>⏳</span>}
-          color={colors.primary}
-          onClick={() => setFilter('status', 'pending')}
-          loading={loading}
-        />
-        <StatCard
-          label="Expiring Soon"
-          value={statsData.expiring_soon || expiringPasses.length}
-          icon={<span>⏰</span>}
-          color={colors.status?.warning || '#F59E0B'}
-          onClick={() => setFilter('status', 'active')}
-          loading={loading}
-        />
-      </StatsGrid>
-
-      {/* Anomaly Alerts */}
-      {(() => {
-        const now = new Date();
-        const eightHoursAgo = new Date(now.getTime() - 8 * 60 * 60 * 1000);
-        
-        // Check for visitors inside > 8 hours
-        const longStayVisitors = allPasses.filter((pass: GatePass) => {
-          if (pass.pass_type !== 'visitor') return false;
-          if (pass.status !== 'inside' || !pass.entry_time) return false;
-          const entryTime = new Date(pass.entry_time);
-          return entryTime < eightHoursAgo;
-        });
-
-        // Check for expired but still active passes
-        const expiredActive = allPasses.filter((pass: GatePass) => {
-          if (pass.status !== 'active' && pass.status !== 'inside') return false;
-          if (!pass.valid_to) return false;
-          return new Date(pass.valid_to) < now;
-        });
-
-        // Check for vehicles out without return scan
-        const vehiclesOutLong = allPasses.filter((pass: GatePass) => {
-          if (pass.pass_type === 'visitor') return false;
-          if (pass.status !== 'inside' || !pass.entry_time) return false; // inside = out for vehicles
-          const exitTime = new Date(pass.entry_time);
-          const hoursOut = (now.getTime() - exitTime.getTime()) / (1000 * 60 * 60);
-          return hoursOut > 24; // Out for more than 24 hours
-        });
-
-        return (
-          <>
-            {longStayVisitors.length > 0 && (
-              <AnomalyAlert
-                title={`${longStayVisitors.length} Visitor${longStayVisitors.length > 1 ? 's' : ''} Inside > 8 Hours`}
-                description="Some visitors have been inside for more than 8 hours. Please verify their status."
-                severity="warning"
-                actions={[
-                  {
-                    label: 'View Long Stay Visitors',
-                    onClick: () => {
-                      setFilter('status', 'inside');
-                      setFilter('type', 'visitor');
-                    },
-                    variant: 'primary',
-                  },
-                ]}
-              />
-            )}
-            {expiredActive.length > 0 && (
-              <AnomalyAlert
-                title={`${expiredActive.length} Expired Pass${expiredActive.length > 1 ? 'es' : ''} Still Active`}
-                description="Some passes have expired but are still marked as active. Please review and update their status."
-                severity="error"
-                actions={[
-                  {
-                    label: 'Review Expired Passes',
-                    onClick: () => setFilter('status', 'all'),
-                    variant: 'primary',
-                  },
-                ]}
-              />
-            )}
-            {vehiclesOutLong.length > 0 && (
-              <AnomalyAlert
-                title={`${vehiclesOutLong.length} Vehicle${vehiclesOutLong.length > 1 ? 's' : ''} Out > 24 Hours`}
-                description="Some vehicles have been out for more than 24 hours without a return scan."
-                severity="warning"
-                actions={[
-                  {
-                    label: 'View Vehicles Out',
-                    onClick: () => {
-                      setFilter('status', 'inside');
-                      setFilter('type', 'vehicle');
-                    },
-                    variant: 'primary',
-                  },
-                ]}
-              />
-            )}
-          </>
-        );
-      })()}
-
-      {/* Filters */}
-      <div style={{ 
-        marginBottom: spacing.lg,
-        backgroundColor: 'white',
-        padding: spacing.md,
-        borderRadius: borderRadius.lg,
-        border: `1px solid ${colors.neutral[200]}`,
-      }}>
-        <div style={{ 
-          display: 'flex',
-          gap: spacing.sm,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          marginBottom: hasActiveFilters ? spacing.sm : 0,
-        }}>
-          {/* Search Input */}
-          <input
-            type="text"
-            placeholder="Search by name, pass number, or access code..."
-            value={filters.search}
-            onChange={(e) => setFilter('search', e.target.value)}
-            style={{
-              padding: spacing.sm,
-              border: `1px solid ${colors.neutral[300]}`,
-              borderRadius: borderRadius.md,
-              fontSize: typography.bodySmall.fontSize,
-              flex: 1,
-              minWidth: '200px',
-              fontFamily: typography.body.fontFamily,
+          {/* Stats Row */}
+          <StatsCards
+            stats={statsData}
+            loading={loading}
+            onStatClick={(filter) => {
+              if (filter.status) setFilter('status', filter.status as any);
+              if (filter.type) setFilter('type', filter.type as any);
             }}
           />
-          
-          {/* Status Filter */}
-          {(['all', 'active', 'pending', 'inside'] as const).map(filterOption => (
-            <button
-              key={filterOption}
-              onClick={() => setFilter('status', filterOption)}
-              style={{
-                padding: `${spacing.sm} ${spacing.md}`,
-                border: filters.status === filterOption ? `2px solid ${colors.primary[500]}` : `1px solid ${colors.neutral[300]}`,
-                borderRadius: borderRadius.md,
-                backgroundColor: filters.status === filterOption ? colors.primary[50] : 'white',
-                color: filters.status === filterOption ? colors.primary[600] : colors.neutral[700],
-                cursor: 'pointer',
-                fontSize: typography.bodySmall.fontSize,
-                fontWeight: filters.status === filterOption ? 600 : 500,
-                textTransform: 'capitalize',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                if (filters.status !== filterOption) {
-                  e.currentTarget.style.borderColor = colors.primary[300];
-                  e.currentTarget.style.backgroundColor = colors.neutral[50];
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (filters.status !== filterOption) {
-                  e.currentTarget.style.borderColor = colors.neutral[300];
-                  e.currentTarget.style.backgroundColor = 'white';
-                }
-              }}
-            >
-              {filterOption}
-            </button>
-          ))}
-          
-          {/* Type Filter */}
-          {(['all', 'visitor', 'vehicle'] as const).map(typeOption => (
-            <button
-              key={typeOption}
-              onClick={() => setFilter('type', typeOption)}
-              style={{
-                padding: `${spacing.sm} ${spacing.md}`,
-                border: filters.type === typeOption ? `2px solid ${colors.primary[500]}` : `1px solid ${colors.neutral[300]}`,
-                borderRadius: borderRadius.md,
-                backgroundColor: filters.type === typeOption ? colors.primary[50] : 'white',
-                color: filters.type === typeOption ? colors.primary[600] : colors.neutral[700],
-                cursor: 'pointer',
-                fontSize: typography.bodySmall.fontSize,
-                fontWeight: filters.type === typeOption ? 600 : 500,
-                textTransform: 'capitalize',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                if (filters.type !== typeOption) {
-                  e.currentTarget.style.borderColor = colors.primary[300];
-                  e.currentTarget.style.backgroundColor = colors.neutral[50];
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (filters.type !== typeOption) {
-                  e.currentTarget.style.borderColor = colors.neutral[300];
-                  e.currentTarget.style.backgroundColor = 'white';
-                }
-              }}
-            >
-              {typeOption}
-            </button>
-          ))}
-        </div>
-        
-        {/* Filter Summary and Clear Button */}
-        {hasActiveFilters && (
+
+          {/* Anomaly Alerts */}
+          <AnomalyAlerts
+            passes={allPasses}
+            onFilterChange={(filter) => {
+              if (filter.status) setFilter('status', filter.status as any);
+              if (filter.type) setFilter('type', filter.type as any);
+            }}
+          />
+
+          {/* Filters */}
+          <FiltersSection />
+
+          {/* Active Passes Section */}
           <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginTop: spacing.sm,
-            paddingTop: spacing.sm,
-            borderTop: `1px solid ${colors.neutral[200]}`,
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: spacing.xl,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+            border: '1px solid rgba(0,0,0,0.05)'
           }}>
-            <div style={{
-              ...typography.bodySmall,
-              color: colors.neutral[600],
+            <h2 style={{ 
+              fontSize: '1.5rem', 
+              fontWeight: 700, 
+              marginBottom: spacing.lg,
+              color: '#111827',
+              display: 'flex',
+              alignItems: 'center',
+              gap: spacing.sm
             }}>
-              Showing {pagination.total} result{pagination.total !== 1 ? 's' : ''}
-              {activeFilterCount > 0 && ` • ${activeFilterCount} filter${activeFilterCount !== 1 ? 's' : ''} active`}
-            </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={clearFilters}
-              icon={<X size={16} />}
-            >
-              Clear Filters
-            </Button>
+              📋 Active Gate Passes
+            </h2>
+
+            {/* Pass List - Using PassCard Component */}
+            {loading ? (
+              <div role="list" aria-label="Gate passes loading">
+                <PassCardSkeleton count={5} />
+              </div>
+            ) : allPasses.length === 0 ? (
+              <GatePassEmptyState
+                type={pagination.total === 0 ? 'no-data' : 'no-results'}
+                onClearFilters={hasActiveFilters ? clearFilters : undefined}
+                onCreatePass={() => navigate('/app/gate-pass/create')}
+                hasActiveFilters={hasActiveFilters}
+              />
+            ) : (
+              <div role="list" aria-label="Gate passes" style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+                {allPasses.map((pass: GatePass) => (
+                  <PassCard
+                    key={pass.id}
+                    pass={pass}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {pagination.total > 0 && (
+              <Pagination
+                currentPage={pagination.page}
+                totalPages={pagination.last_page}
+                totalItems={pagination.total}
+                perPage={pagination.per_page}
+                onPageChange={(page) => {
+                  setFilter('page', page);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                onPerPageChange={() => {
+                  // Note: perPage is fixed at 20 for now
+                  // Reset to page 1 if perPage changes in the future
+                  setFilter('page', 1);
+                }}
+              />
+            )}
           </div>
-        )}
-        
-        {/* Active Filter Badges */}
-        {hasActiveFilters && (
-          <div style={{ marginTop: spacing.sm }}>
-            <FilterBadges
-              filters={[
-                ...(filters.status !== 'all' ? [{
-                  label: 'Status',
-                  value: filters.status.charAt(0).toUpperCase() + filters.status.slice(1),
-                  onRemove: () => setFilter('status', 'all'),
-                }] : []),
-                ...(filters.type !== 'all' ? [{
-                  label: 'Type',
-                  value: filters.type.charAt(0).toUpperCase() + filters.type.slice(1),
-                  onRemove: () => setFilter('type', 'all'),
-                }] : []),
-                ...(filters.search.trim() ? [{
-                  label: 'Search',
-                  value: filters.search,
-                  onRemove: () => setFilter('search', ''),
-                }] : []),
-              ]}
-              onClearAll={clearFilters}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Active Passes Section */}
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '16px',
-        padding: spacing.xl,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-        border: '1px solid rgba(0,0,0,0.05)'
-      }}>
-        <h2 style={{ 
-          fontSize: '1.5rem', 
-          fontWeight: 700, 
-          marginBottom: spacing.lg,
-          color: '#111827',
-          display: 'flex',
-          alignItems: 'center',
-          gap: spacing.sm
-        }}>
-          📋 Active Gate Passes
-        </h2>
-
-      {/* Pass List - Using PassCard Component */}
-      {loading ? (
-        <div role="list" aria-label="Gate passes loading">
-          <PassCardSkeleton count={5} />
-        </div>
-      ) : allPasses.length === 0 ? (
-        <GatePassEmptyState
-          type={pagination.total === 0 ? 'no-data' : 'no-results'}
-          onClearFilters={hasActiveFilters ? clearFilters : undefined}
-          onCreatePass={() => navigate('/app/gate-pass/create')}
-          hasActiveFilters={hasActiveFilters}
-        />
-      ) : (
-        <div role="list" aria-label="Gate passes" style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-          {allPasses.map((pass: GatePass) => (
-            <PassCard
-              key={pass.id}
-              pass={pass}
-            />
-          ))}
-        </div>
-      )}
-
-
-
-      {/* Pagination */}
-      {pagination.total > 0 && (
-        <Pagination
-          currentPage={pagination.page}
-          totalPages={pagination.last_page}
-          totalItems={pagination.total}
-          perPage={pagination.per_page}
-          onPageChange={(page) => {
-            setFilter('page', page);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-          onPerPageChange={() => {
-            // Note: perPage is fixed at 20 for now
-            // Reset to page 1 if perPage changes in the future
-            setFilter('page', 1);
-          }}
-        />
-      )}
-      </div>
-      </>
+        </>
       )}
       </div>
 

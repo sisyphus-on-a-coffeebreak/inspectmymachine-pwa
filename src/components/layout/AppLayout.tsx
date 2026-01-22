@@ -2,6 +2,8 @@ import { type ReactNode, useState, useEffect, createElement } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../providers/useAuth";
 import { colors, typography, spacing, borderRadius } from "../../lib/theme";
+import { hasCapability } from "../../lib/permissions/evaluator";
+import type { CapabilityModule } from "../../lib/users";
 import "./AppLayout.css";
 import {
   Home,
@@ -18,7 +20,8 @@ import {
   Settings,
   AlertTriangle,
   Search,
-  CheckCircle
+  CheckCircle,
+  Shield
 } from "lucide-react";
 import { RecentlyViewed } from "../ui/RecentlyViewed";
 import { NotificationBell } from "../ui/NotificationBell";
@@ -37,7 +40,8 @@ interface NavItem {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   path: string;
-  roles: string[];
+  roles: string[]; // For backward compatibility
+  requiredCapability?: { module: CapabilityModule; action: string }; // For capability-based access
   children?: NavItem[];
 }
 
@@ -55,14 +59,16 @@ const navItems: NavItem[] = [
     icon: ClipboardList,
     path: "/app/gate-pass",
     roles: ["super_admin", "admin", "guard", "clerk"],
+    requiredCapability: { module: 'gate_pass', action: 'read' },
     children: [
-      { id: "dashboard", label: "Dashboard", icon: ClipboardList, path: "/app/gate-pass", roles: ["super_admin", "admin", "guard", "clerk"] },
-      { id: "create-visitor", label: "Create Visitor Pass", icon: ClipboardList, path: "/app/gate-pass/create-visitor", roles: ["super_admin", "admin", "clerk"] },
-      { id: "create-vehicle", label: "Create Vehicle Pass", icon: ClipboardList, path: "/app/gate-pass/create-vehicle", roles: ["super_admin", "admin", "clerk"] },
-      { id: "guard-register", label: "Guard Register", icon: ClipboardList, path: "/app/gate-pass/guard-register", roles: ["super_admin", "admin", "guard"] },
-      { id: "validation", label: "Validation", icon: ClipboardList, path: "/app/gate-pass/validation", roles: ["super_admin", "admin", "supervisor", "guard"] },
-      { id: "calendar", label: "Calendar", icon: ClipboardList, path: "/app/gate-pass/calendar", roles: ["super_admin", "admin", "guard", "clerk"] },
-      { id: "reports", label: "Reports", icon: ClipboardList, path: "/app/gate-pass/reports", roles: ["super_admin", "admin"] }
+      { id: "dashboard", label: "Dashboard", icon: ClipboardList, path: "/app/gate-pass", roles: ["super_admin", "admin", "guard", "clerk"], requiredCapability: { module: 'gate_pass', action: 'read' } },
+      { id: "create-visitor", label: "Create Visitor Pass", icon: ClipboardList, path: "/app/gate-pass/create-visitor", roles: ["super_admin", "admin", "clerk"], requiredCapability: { module: 'gate_pass', action: 'create' } },
+      { id: "create-vehicle", label: "Create Vehicle Pass", icon: ClipboardList, path: "/app/gate-pass/create-vehicle", roles: ["super_admin", "admin", "clerk"], requiredCapability: { module: 'gate_pass', action: 'create' } },
+      { id: "guard-register", label: "Guard Register", icon: ClipboardList, path: "/app/gate-pass/guard-register", roles: ["super_admin", "admin", "guard"], requiredCapability: { module: 'gate_pass', action: 'read' } },
+      { id: "validation", label: "Validation", icon: ClipboardList, path: "/app/gate-pass/validation", roles: ["super_admin", "admin", "supervisor", "guard"], requiredCapability: { module: 'gate_pass', action: 'validate' } },
+      { id: "calendar", label: "Calendar", icon: ClipboardList, path: "/app/gate-pass/calendar", roles: ["super_admin", "admin", "guard", "clerk"], requiredCapability: { module: 'gate_pass', action: 'read' } },
+      { id: "reports", label: "Reports", icon: ClipboardList, path: "/app/gate-pass/reports", roles: ["super_admin", "admin"], requiredCapability: { module: 'reports', action: 'read' } },
+      { id: "approvals", label: "Approvals", icon: CheckCircle, path: "/app/gate-pass/approvals", roles: ["super_admin", "admin", "supervisor"], requiredCapability: { module: 'gate_pass', action: 'approve' } }
     ]
   },
   {
@@ -71,11 +77,12 @@ const navItems: NavItem[] = [
     icon: FileText,
     path: "/app/inspections",
     roles: ["super_admin", "admin", "inspector"],
+    requiredCapability: { module: 'inspection', action: 'read' },
     children: [
-      { id: "dashboard", label: "Dashboard", icon: FileText, path: "/app/inspections", roles: ["super_admin", "admin", "inspector"] },
-      { id: "new", label: "New Inspection", icon: FileText, path: "/app/inspections/new", roles: ["super_admin", "admin", "inspector"] },
-      { id: "completed", label: "Completed", icon: FileText, path: "/app/inspections/completed", roles: ["super_admin", "admin", "inspector"] },
-      { id: "reports", label: "Reports", icon: FileText, path: "/app/inspections/reports", roles: ["super_admin", "admin", "inspector"] }
+      { id: "dashboard", label: "Dashboard", icon: FileText, path: "/app/inspections", roles: ["super_admin", "admin", "inspector"], requiredCapability: { module: 'inspection', action: 'read' } },
+      { id: "new", label: "New Inspection", icon: FileText, path: "/app/inspections/new", roles: ["super_admin", "admin", "inspector"], requiredCapability: { module: 'inspection', action: 'create' } },
+      { id: "completed", label: "Completed", icon: FileText, path: "/app/inspections/completed", roles: ["super_admin", "admin", "inspector"], requiredCapability: { module: 'inspection', action: 'read' } },
+      { id: "reports", label: "Reports", icon: FileText, path: "/app/inspections/reports", roles: ["super_admin", "admin", "inspector"], requiredCapability: { module: 'reports', action: 'read' } }
     ]
   },
   {
@@ -84,12 +91,13 @@ const navItems: NavItem[] = [
     icon: DollarSign,
     path: "/app/expenses",
     roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"],
+    requiredCapability: { module: 'expense', action: 'read' },
     children: [
-      { id: "dashboard", label: "Dashboard", icon: DollarSign, path: "/app/expenses", roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"] },
-      { id: "create", label: "Create Expense", icon: DollarSign, path: "/app/expenses/create", roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"] },
-      { id: "history", label: "History", icon: DollarSign, path: "/app/expenses/history", roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"] },
-      { id: "reports", label: "Reports", icon: DollarSign, path: "/app/expenses/reports", roles: ["super_admin", "admin"] },
-      { id: "analytics", label: "Analytics", icon: DollarSign, path: "/app/expenses/analytics", roles: ["super_admin", "admin"] }
+      { id: "dashboard", label: "Dashboard", icon: DollarSign, path: "/app/expenses", roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"], requiredCapability: { module: 'expense', action: 'read' } },
+      { id: "create", label: "Create Expense", icon: DollarSign, path: "/app/expenses/create", roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"], requiredCapability: { module: 'expense', action: 'create' } },
+      { id: "history", label: "History", icon: DollarSign, path: "/app/expenses/history", roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"], requiredCapability: { module: 'expense', action: 'read' } },
+      { id: "reports", label: "Reports", icon: DollarSign, path: "/app/expenses/reports", roles: ["super_admin", "admin"], requiredCapability: { module: 'reports', action: 'read' } },
+      { id: "analytics", label: "Analytics", icon: DollarSign, path: "/app/expenses/analytics", roles: ["super_admin", "admin"], requiredCapability: { module: 'reports', action: 'read' } }
     ]
   },
   {
@@ -98,27 +106,22 @@ const navItems: NavItem[] = [
     icon: Warehouse,
     path: "/app/stockyard",
     roles: ["super_admin", "admin"],
+    requiredCapability: { module: 'stockyard', action: 'read' },
     children: [
-      { id: "dashboard", label: "Dashboard", icon: Warehouse, path: "/app/stockyard", roles: ["super_admin", "admin"] },
-      { id: "create", label: "Record Movement", icon: Warehouse, path: "/app/stockyard/create", roles: ["super_admin", "admin"] },
-      { id: "scan", label: "Scan Vehicle", icon: Warehouse, path: "/app/stockyard/scan", roles: ["super_admin", "admin", "guard"] },
-      { id: "components", label: "Component Ledger", icon: Warehouse, path: "/app/stockyard/components", roles: ["super_admin", "admin"] },
-      { id: "analytics", label: "Analytics", icon: Warehouse, path: "/app/stockyard/analytics", roles: ["super_admin", "admin"] },
+      { id: "dashboard", label: "Dashboard", icon: Warehouse, path: "/app/stockyard", roles: ["super_admin", "admin"], requiredCapability: { module: 'stockyard', action: 'read' } },
+      { id: "create", label: "Record Movement", icon: Warehouse, path: "/app/stockyard/create", roles: ["super_admin", "admin"], requiredCapability: { module: 'stockyard', action: 'create' } },
+      { id: "scan", label: "Scan Vehicle", icon: Warehouse, path: "/app/stockyard/scan", roles: ["super_admin", "admin", "guard"], requiredCapability: { module: 'stockyard', action: 'read' } },
+      { id: "components", label: "Component Ledger", icon: Warehouse, path: "/app/stockyard/components", roles: ["super_admin", "admin"], requiredCapability: { module: 'stockyard', action: 'read' } },
+      { id: "analytics", label: "Analytics", icon: Warehouse, path: "/app/stockyard/analytics", roles: ["super_admin", "admin"], requiredCapability: { module: 'reports', action: 'read' } },
     ]
-  },
-  {
-    id: "approvals",
-    label: "Approvals",
-    icon: CheckCircle,
-    path: "/app/approvals",
-    roles: ["super_admin", "admin", "supervisor"]
   },
   {
     id: "alerts",
     label: "Alerts",
     icon: AlertTriangle,
     path: "/app/alerts",
-    roles: ["super_admin", "admin", "supervisor"]
+    roles: ["super_admin", "admin", "supervisor"],
+    requiredCapability: { module: 'gate_pass', action: 'read' } // Most users can see alerts
   },
   {
     id: "users",
@@ -126,11 +129,13 @@ const navItems: NavItem[] = [
     icon: UserCog,
     path: "/app/admin/users",
     roles: ["super_admin", "admin"],
+    requiredCapability: { module: 'user_management', action: 'read' },
     children: [
-      { id: "dashboard", label: "Dashboard", icon: UserCog, path: "/app/admin/users", roles: ["super_admin", "admin"] },
-      { id: "user-activity", label: "Activity Dashboard", icon: UserCog, path: "/app/admin/users/activity", roles: ["super_admin", "admin"] },
-      { id: "capability-matrix", label: "Capability Matrix", icon: UserCog, path: "/app/admin/users/capability-matrix", roles: ["super_admin", "admin"] },
-      { id: "bulk-operations", label: "Bulk Operations", icon: UserCog, path: "/app/admin/users/bulk-operations", roles: ["super_admin", "admin"] }
+      { id: "dashboard", label: "Dashboard", icon: UserCog, path: "/app/admin/users", roles: ["super_admin", "admin"], requiredCapability: { module: 'user_management', action: 'read' } },
+      { id: "roles", label: "Role Management", icon: Shield, path: "/app/admin/roles", roles: ["super_admin", "admin"], requiredCapability: { module: 'user_management', action: 'read' } },
+      { id: "user-activity", label: "Activity Dashboard", icon: UserCog, path: "/app/admin/users/activity", roles: ["super_admin", "admin"], requiredCapability: { module: 'user_management', action: 'read' } },
+      { id: "capability-matrix", label: "Capability Matrix", icon: UserCog, path: "/app/admin/users/capability-matrix", roles: ["super_admin", "admin"], requiredCapability: { module: 'user_management', action: 'read' } },
+      { id: "bulk-operations", label: "Bulk Operations", icon: UserCog, path: "/app/admin/users/bulk-operations", roles: ["super_admin", "admin"], requiredCapability: { module: 'user_management', action: 'update' } }
     ]
   },
   {
@@ -301,9 +306,30 @@ export default function AppLayout({
     return roleMap[role] || role;
   };
 
-  const accessibleNavItems = navItems.filter(item =>
-    item.roles.includes(user?.role || "")
-  );
+  // Check if user can access a nav item (by role or capability)
+  const canAccessNavItem = (item: NavItem): boolean => {
+    if (!user) return false;
+    
+    // For items with requiredCapability, always check capabilities first (for custom roles)
+    // This ensures custom roles work correctly
+    if (item.requiredCapability) {
+      const hasCap = hasCapability(
+        user,
+        item.requiredCapability.module,
+        item.requiredCapability.action as 'read' | 'create' | 'update' | 'delete' | 'approve' | 'validate' | 'review' | 'reassign' | 'export'
+      );
+      if (hasCap) return true;
+    }
+    
+    // Check role-based access (backward compatibility for hardcoded roles)
+    if (item.roles.includes(user.role || "")) {
+      return true;
+    }
+    
+    return false;
+  };
+
+  const accessibleNavItems = navItems.filter(canAccessNavItem);
 
   // Prefetching for faster navigation
   const { prefetchRoute } = usePrefetch({
@@ -317,16 +343,35 @@ export default function AppLayout({
     const active = isActive(item.path);
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedItems.has(item.id);
-    const accessibleChildren = item.children?.filter(child =>
-      child.roles.includes(user?.role || "")
-    ) || [];
+    const accessibleChildren = item.children?.filter(child => {
+      if (!user) return false;
+      
+      // For items with requiredCapability, always check capabilities first (for custom roles)
+      if (child.requiredCapability) {
+        const hasCap = hasCapability(
+          user,
+          child.requiredCapability.module,
+          child.requiredCapability.action as 'read' | 'create' | 'update' | 'delete' | 'approve' | 'validate' | 'review' | 'reassign' | 'export'
+        );
+        if (hasCap) return true;
+      }
+      
+      // Check role-based access (backward compatibility for hardcoded roles)
+      if (child.roles.includes(user.role || "")) {
+        return true;
+      }
+      
+      return false;
+    }) || [];
 
     const navItemContent = (
       <div
-        onClick={() => {
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
           if (hasChildren && !isCollapsed) {
             toggleExpanded(item.id);
-          } else if (!hasChildren) {
+          } else {
             navigate(item.path);
             setSidebarOpen(false);
           }
@@ -615,61 +660,85 @@ export default function AppLayout({
         {/* Sidebar - Responsive: Desktop only when showSidebar is true */}
         {showSidebar && (
           <>
-            {/* Desktop Sidebar - Hidden on mobile, visible on desktop */}
+            {/* Desktop Sidebar - Completely Rebuilt from Scratch */}
             {!isMobile && (
-              <aside className="app-layout-desktop-sidebar" style={{
-                width: isCollapsed ? "64px" : "280px",
-                background: "white",
-                borderRight: `1px solid ${colors.neutral[200]}`,
-                position: "fixed",
-                left: 0,
-                top: 0,
-                bottom: 0,
-                display: "flex",
-                flexDirection: "column",
-                zIndex: 50,
-                transition: "width 0.3s ease",
-                overflow: "hidden"
-              }}>
-              {/* Scrollable Content Area - Only menu items scroll */}
-              <div style={{
-                flex: 1,
-                minHeight: 0,
-                overflowY: "auto",
-                // INVARIANT 1: NO overflow-x masking - content must fit by design
-                width: '100%',
-                maxWidth: '100%',
-                boxSizing: 'border-box',
-                padding: spacing.lg,
-                paddingBottom: spacing.md,
-                WebkitOverflowScrolling: "touch"
-              }}>
-                {/* Logo */}
-                <div style={{ marginBottom: spacing.xl }}>
+              <aside 
+                role="complementary"
+                aria-label="Main navigation"
+                style={{
+                  position: "fixed",
+                  left: 0,
+                  top: 0,
+                  width: isCollapsed ? "64px" : "280px",
+                  height: "100dvh",
+                  maxHeight: "100dvh",
+                  background: "white",
+                  borderRight: `1px solid ${colors.neutral[200]}`,
+                  display: "flex",
+                  flexDirection: "column",
+                  zIndex: 50,
+                  transition: "width 0.3s ease",
+                  overflow: "hidden",
+                  boxSizing: "border-box"
+                }}
+              >
+                {/* TOP: Logo Section - Responsive Height */}
+                <header 
+                  role="banner"
+                  style={{
+                    minHeight: "clamp(64px, 8vh, 80px)",
+                    maxHeight: "clamp(64px, 8vh, 80px)",
+                    flexShrink: 0,
+                    padding: spacing.lg,
+                    borderBottom: `1px solid ${colors.neutral[200]}`,
+                    display: "flex",
+                    alignItems: "center",
+                    boxSizing: "border-box"
+                  }}
+                >
                   {!isCollapsed ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: spacing.md, marginBottom: spacing.md }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: spacing.md, width: "100%" }}>
                       <div style={{
                         width: "40px",
                         height: "40px",
+                        minWidth: "40px",
                         background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
                         borderRadius: "12px",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center"
+                        justifyContent: "center",
+                        flexShrink: 0
                       }}>
                         <Home style={{ width: "20px", height: "20px", color: "white" }} aria-hidden="true" />
                       </div>
-                      <div>
-                        <h1 style={{ ...typography.header, fontSize: "18px", margin: 0, fontWeight: 700 }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <h1 style={{ 
+                          fontSize: "18px", 
+                          margin: 0, 
+                          fontWeight: 700, 
+                          lineHeight: 1.2,
+                          color: colors.neutral[900],
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap"
+                        }}>
                           VOMS
                         </h1>
-                        <p style={{ ...typography.bodySmall, fontSize: "11px", color: colors.neutral[600], margin: 0 }}>
+                        <p style={{ 
+                          fontSize: "11px", 
+                          color: colors.neutral[600], 
+                          margin: 0, 
+                          lineHeight: 1.2,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap"
+                        }}>
                           Vehicle Operations
                         </p>
                       </div>
                     </div>
                   ) : (
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: spacing.md }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%" }}>
                       <div style={{
                         width: "40px",
                         height: "40px",
@@ -683,159 +752,230 @@ export default function AppLayout({
                       </div>
                     </div>
                   )}
+                </header>
+
+                {/* MIDDLE: Scrollable Content - Takes Remaining Space */}
+                <div 
+                  role="region"
+                  aria-label="Navigation menu"
+                  tabIndex={0}
+                  style={{
+                    flex: "1 1 auto",
+                    minHeight: 0,
+                    overflowY: "auto",
+                    overflowX: "hidden",
+                    padding: spacing.lg,
+                    paddingTop: spacing.md,
+                    paddingBottom: spacing.md,
+                    boxSizing: "border-box",
+                    WebkitOverflowScrolling: "touch",
+                    scrollbarWidth: "thin",
+                    scrollbarColor: `${colors.neutral[400]} ${colors.neutral[100]}`
+                  }}
+                  onKeyDown={(e) => {
+                    // Allow arrow key navigation within scrollable area
+                    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                      const scrollAmount = 50;
+                      e.currentTarget.scrollBy({
+                        top: e.key === "ArrowDown" ? scrollAmount : -scrollAmount,
+                        behavior: "smooth"
+                      });
+                    }
+                  }}
+                >
+                  {/* Navigation Menu */}
+                  <nav role="navigation" aria-label="Main menu" style={{ marginBottom: spacing.xl }}>
+                    {accessibleNavItems.map(item => renderNavItem(item))}
+                  </nav>
+
+                  {/* Recently Viewed - Only when expanded */}
+                  {!isCollapsed && (
+                    <div style={{ marginBottom: spacing.md }}>
+                      <RecentlyViewed />
+                    </div>
+                  )}
                 </div>
 
-                {/* Navigation */}
-                <nav style={{ marginBottom: spacing.xl }}>
-                  {accessibleNavItems.map(item => renderNavItem(item))}
-                </nav>
-
-                {/* Recently Viewed - Hide when collapsed */}
-                {!isCollapsed && (
-                  <div style={{ marginBottom: spacing.xl }}>
-                    <RecentlyViewed />
-                  </div>
-                )}
-              </div>
-
-              {/* User Section - Fixed at Bottom, Separate Component */}
-              <div style={{
-                padding: spacing.lg,
-                background: "white",
-                borderTop: `1px solid ${colors.neutral[200]}`,
-                flexShrink: 0,
-                zIndex: 10,
-                position: "relative"
-              }}>
-                {!isCollapsed ? (
-                  <>
-                    <div style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: spacing.sm,
-                      marginBottom: spacing.md,
-                      padding: spacing.sm,
-                      background: colors.neutral[50],
-                      borderRadius: "8px"
-                    }}>
+                {/* BOTTOM: User Section - Flexible but Never Shrinks */}
+                <footer 
+                  role="contentinfo"
+                  style={{
+                    flexShrink: 0,
+                    minHeight: "min-content",
+                    maxHeight: "clamp(120px, 25vh, 220px)",
+                    padding: spacing.lg,
+                    paddingTop: spacing.md,
+                    borderTop: `1px solid ${colors.neutral[200]}`,
+                    background: "white",
+                    boxSizing: "border-box",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: spacing.sm,
+                    overflow: "hidden",
+                    transition: "max-height 0.3s ease"
+                  }}
+                >
+                  {!isCollapsed ? (
+                    <>
+                      {/* User Info */}
                       <div style={{
-                        width: "32px",
-                        height: "32px",
-                        background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
-                        borderRadius: "8px",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center"
-                      }}>
-                        <UserCog style={{ width: "16px", height: "16px", color: "white" }} />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ ...typography.label, fontSize: "12px", margin: 0, fontWeight: 600 }}>
-                          {user?.name}
-                        </p>
-                        <p style={{ ...typography.bodySmall, fontSize: "10px", color: colors.neutral[600], margin: 0 }}>
-                          {getRoleDisplayName(user?.role || "")}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleLogout}
-                      style={{
-                        width: "100%",
                         display: "flex",
                         alignItems: "center",
                         gap: spacing.sm,
                         padding: spacing.sm,
-                        background: "transparent",
-                        border: `1px solid ${colors.status.critical}`,
+                        background: colors.neutral[50],
                         borderRadius: "8px",
-                        color: colors.status.critical,
-                        cursor: "pointer",
-                        fontSize: "12px",
-                        fontWeight: 500,
-                        transition: "all 0.2s ease",
-                        marginBottom: spacing.sm
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = colors.status.critical;
-                        e.currentTarget.style.color = "white";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.color = colors.status.critical;
-                      }}
-                    >
-                      <LogOut style={{ width: "14px", height: "14px" }} />
-                      Logout
-                    </button>
-                  </>
-                ) : (
-                  <Tooltip content={user?.name || "User"} position="right">
-                    <div style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      marginBottom: spacing.md,
-                      padding: spacing.sm,
-                      background: colors.neutral[50],
-                      borderRadius: "8px"
-                    }}>
+                        flexShrink: 0
+                      }}>
+                        <div style={{
+                          width: "32px",
+                          height: "32px",
+                          minWidth: "32px",
+                          background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
+                          borderRadius: "8px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0
+                        }}>
+                          <UserCog style={{ width: "16px", height: "16px", color: "white" }} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ 
+                            fontSize: "12px", 
+                            margin: 0, 
+                            fontWeight: 600,
+                            color: colors.neutral[900],
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap"
+                          }}>
+                            {user?.name || "User"}
+                          </p>
+                          <p style={{ 
+                            fontSize: "10px", 
+                            color: colors.neutral[600], 
+                            margin: 0,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap"
+                          }}>
+                            {getRoleDisplayName(user?.role || "")}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Logout Button */}
+                      <button
+                        onClick={handleLogout}
+                        style={{
+                          width: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: spacing.sm,
+                          padding: spacing.sm,
+                          background: "transparent",
+                          border: `1px solid ${colors.status.critical}`,
+                          borderRadius: "8px",
+                          color: colors.status.critical,
+                          cursor: "pointer",
+                          fontSize: "12px",
+                          fontWeight: 500,
+                          transition: "all 0.2s ease",
+                          flexShrink: 0
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = colors.status.critical;
+                          e.currentTarget.style.color = "white";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "transparent";
+                          e.currentTarget.style.color = colors.status.critical;
+                        }}
+                      >
+                        <LogOut style={{ width: "14px", height: "14px" }} />
+                        Logout
+                      </button>
+                    </>
+                  ) : (
+                    <Tooltip content={user?.name || "User"} position="right">
                       <div style={{
-                        width: "32px",
-                        height: "32px",
-                        background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
-                        borderRadius: "8px",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center"
+                        justifyContent: "center",
+                        padding: spacing.sm,
+                        background: colors.neutral[50],
+                        borderRadius: "8px",
+                        flexShrink: 0
                       }}>
-                        <UserCog style={{ width: "16px", height: "16px", color: "white" }} />
+                        <div style={{
+                          width: "32px",
+                          height: "32px",
+                          background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}80 100%)`,
+                          borderRadius: "8px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center"
+                        }}>
+                          <UserCog style={{ width: "16px", height: "16px", color: "white" }} />
+                        </div>
                       </div>
-                    </div>
-                  </Tooltip>
-                )}
-                
-                {/* Collapse Toggle Button */}
-                <button
-                  onClick={toggleCollapse}
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: isCollapsed ? "center" : "flex-start",
-                    gap: spacing.sm,
-                    padding: spacing.sm,
-                    background: "transparent",
-                    border: `1px solid ${colors.neutral[300]}`,
-                    borderRadius: "8px",
-                    color: colors.neutral[700],
-                    cursor: "pointer",
-                    fontSize: "12px",
-                    fontWeight: 500,
-                    transition: "all 0.2s ease",
-                    marginTop: !isCollapsed ? spacing.sm : 0
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = colors.neutral[100];
-                    e.currentTarget.style.borderColor = colors.neutral[400];
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.borderColor = colors.neutral[300];
-                  }}
-                  aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                >
-                  {isCollapsed ? (
-                    <ChevronRight style={{ width: "16px", height: "16px" }} />
-                  ) : (
-                    <>
-                      <ChevronLeft style={{ width: "16px", height: "16px" }} />
-                      <span>Collapse</span>
-                    </>
+                    </Tooltip>
                   )}
-                </button>
-              </div>
-            </aside>
+
+                  {/* Collapse Button - Always Visible */}
+                  <button
+                    onClick={toggleCollapse}
+                    type="button"
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: isCollapsed ? "center" : "flex-start",
+                      gap: spacing.sm,
+                      padding: spacing.sm,
+                      background: "transparent",
+                      border: `1px solid ${colors.neutral[300]}`,
+                      borderRadius: "8px",
+                      color: colors.neutral[700],
+                      cursor: "pointer",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      transition: "all 0.2s ease",
+                      flexShrink: 0,
+                      marginTop: "auto",
+                      outline: "none"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = colors.neutral[100];
+                      e.currentTarget.style.borderColor = colors.neutral[400];
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                      e.currentTarget.style.borderColor = colors.neutral[300];
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.outline = `2px solid ${colors.primary}`;
+                      e.currentTarget.style.outlineOffset = "2px";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.outline = "none";
+                    }}
+                    aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                    aria-expanded={!isCollapsed}
+                  >
+                    {isCollapsed ? (
+                      <ChevronRight style={{ width: "16px", height: "16px" }} />
+                    ) : (
+                      <>
+                        <ChevronLeft style={{ width: "16px", height: "16px" }} />
+                        <span>Collapse</span>
+                      </>
+                    )}
+                  </button>
+                </footer>
+              </aside>
             )}
 
             {/* Mobile Sidebar Overlay - Only on mobile */}

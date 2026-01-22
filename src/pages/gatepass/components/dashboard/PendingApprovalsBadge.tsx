@@ -11,6 +11,7 @@ import { AlertCircle, CheckCircle } from 'lucide-react';
 import { apiClient } from '../../../../lib/apiClient';
 import { colors, spacing, typography, borderRadius, cardStyles } from '../../../../lib/theme';
 import { Button } from '../../../../components/ui/button';
+import { PENDING_APPROVALS_REFRESH_INTERVAL_MS, GATE_PASS_STATUS } from '../../constants';
 
 interface PendingApprovalsBadgeProps {
   compact?: boolean;
@@ -27,11 +28,10 @@ export const PendingApprovalsBadge: React.FC<PendingApprovalsBadgeProps> = ({
     const fetchPendingCount = async () => {
       try {
         const response = await apiClient.get('/gate-pass-approval/pending', {
-          params: { status: 'pending' }
+          params: { status: GATE_PASS_STATUS.PENDING }
         });
         setPendingCount(Array.isArray(response.data) ? response.data.length : 0);
       } catch (error) {
-        console.error('Failed to fetch pending approvals:', error);
         setPendingCount(0);
       } finally {
         setLoading(false);
@@ -39,8 +39,8 @@ export const PendingApprovalsBadge: React.FC<PendingApprovalsBadgeProps> = ({
     };
 
     fetchPendingCount();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchPendingCount, 30000);
+    // Refresh at configured interval
+    const interval = setInterval(fetchPendingCount, PENDING_APPROVALS_REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
 
@@ -156,6 +156,7 @@ export const PendingApprovalsBadge: React.FC<PendingApprovalsBadgeProps> = ({
     </div>
   );
 };
+
 
 
 

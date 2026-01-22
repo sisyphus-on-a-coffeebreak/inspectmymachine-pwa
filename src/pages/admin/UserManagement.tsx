@@ -20,6 +20,7 @@ import {
   type UsersResponse,
   type GetUsersParams,
 } from '@/lib/users';
+import { apiClient } from '@/lib/apiClient';
 import { EnhancedCapabilityEditor } from '@/components/permissions/EnhancedCapabilityEditor';
 import type { EnhancedCapability } from '@/lib/permissions/types';
 import {
@@ -98,7 +99,46 @@ export default function UserManagement() {
 
   const [passwordData, setPasswordData] = useState({ password: '', confirmPassword: '' });
 
-  const roles = getAvailableRoles();
+  // Fetch roles from API (includes custom roles)
+  const { data: apiRoles = [], isLoading: rolesLoading } = useQuery<Array<{
+    id: number;
+    name: string;
+    display_name: string;
+    description?: string;
+    is_system_role: boolean;
+    is_active: boolean;
+  }>>({
+    queryKey: ['roles'],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get('/v1/roles');
+        return response.data || [];
+      } catch (error: any) {
+        // If roles table doesn't exist, fall back to hardcoded roles
+        if (error?.response?.status === 503 || error?.response?.status === 500) {
+          return [];
+        }
+        throw error;
+      }
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  // Combine API roles with hardcoded roles (for backward compatibility)
+  const hardcodedRoles = getAvailableRoles();
+  const roles = apiRoles.length > 0 
+    ? apiRoles.map(role => ({
+        value: role.name as User['role'],
+        label: role.display_name,
+        description: role.description || '',
+        id: role.id,
+        is_system_role: role.is_system_role,
+      }))
+    : hardcodedRoles.map(role => ({
+        ...role,
+        id: undefined,
+        is_system_role: true,
+      }));
 
   // Use React Query for better caching and pagination support
   const { data: usersQueryData, isLoading: queryLoading, error: queryError, refetch } = useQuery({
@@ -192,6 +232,7 @@ export default function UserManagement() {
         name: formData.name,
         email: formData.email,
         role: formData.role,
+        ...((formData as any).role_id && { role_id: Number((formData as any).role_id) }), // Include role_id as integer if available
         capabilities: formData.capabilities,
         yard_id: formData.yard_id,
         is_active: formData.is_active,
@@ -276,11 +317,17 @@ export default function UserManagement() {
       setShowEditModal(false);
       resetForm();
       loadUsers(); // Reload current page
-    } catch (err) {
+    } catch (err: any) {
+      // Show validation errors if available
+      const errorMessage = err?.response?.data?.errors 
+        ? Object.values(err.response.data.errors).flat().join(', ')
+        : err?.response?.data?.message || err?.message || 'Failed to update user';
+      
       showToast({
         title: 'Error',
-        description: err instanceof Error ? err.message : 'Failed to update user',
+        description: errorMessage,
         variant: 'error',
+        duration: 8000, // Longer duration for validation errors
       });
     }
   };
@@ -386,10 +433,11 @@ export default function UserManagement() {
       email: user.email,
       password: '',
       role: user.role,
+      ...((user as any).role_id && { role_id: (user as any).role_id }), // Include role_id if available
       capabilities: user.capabilities,
       yard_id: user.yard_id,
       is_active: user.is_active,
-    });
+    } as any);
     // Load enhanced capabilities from user data or set empty array
     setEnhancedCapabilities(user.enhanced_capabilities || []);
     setCapabilityTab('basic');
@@ -957,9 +1005,12 @@ export default function UserManagement() {
                   value={formData.role}
                   onChange={(e) => {
                     const newRole = e.target.value as User['role'];
+                    const selectedRoleData = roles.find(r => r.value === newRole);
                     setFormData({ 
                       ...formData, 
                       role: newRole,
+                      // Store role_id if available (for database roles)
+                      ...(selectedRoleData?.id && { role_id: selectedRoleData.id } as any),
                       // Auto-populate capabilities from role if not manually set
                       capabilities: showCapabilityMatrix ? formData.capabilities : undefined,
                     });
@@ -972,14 +1023,21 @@ export default function UserManagement() {
                     fontSize: '16px'
                   }}
                 >
-                  {roles.map((role) => (
-                    <option key={role.value} value={role.value}>
-                      {role.label} - {role.description}
-                    </option>
-                  ))}
+                  {rolesLoading ? (
+                    <option value="">Loading roles...</option>
+                  ) : roles.length === 0 ? (
+                    <option value="">No roles available</option>
+                  ) : (
+                    roles.map((role) => (
+                      <option key={role.value} value={role.value}>
+                        {role.label} {role.is_system_role === false && '(Custom)'} - {role.description}
+                      </option>
+                    ))
+                  )}
                 </select>
                 <p style={{ ...typography.caption, color: colors.neutral[600], marginTop: spacing.xs }}>
                   Role sets default capabilities. Use capability matrix below for custom permissions.
+                  {apiRoles.length === 0 && roles.length > 0 && ' (Using hardcoded roles - run migrations to enable custom roles)'}
                 </p>
               </FormField>
               
@@ -1152,9 +1210,12 @@ export default function UserManagement() {
                   value={formData.role}
                   onChange={(e) => {
                     const newRole = e.target.value as User['role'];
+                    const selectedRoleData = roles.find(r => r.value === newRole);
                     setFormData({ 
                       ...formData, 
                       role: newRole,
+                      // Store role_id if available (for database roles)
+                      ...(selectedRoleData?.id && { role_id: selectedRoleData.id } as any),
                       // Auto-populate capabilities from role if not manually set
                       capabilities: showCapabilityMatrix ? formData.capabilities : undefined,
                     });
@@ -1167,14 +1228,21 @@ export default function UserManagement() {
                     fontSize: '16px'
                   }}
                 >
-                  {roles.map((role) => (
-                    <option key={role.value} value={role.value}>
-                      {role.label} - {role.description}
-                    </option>
-                  ))}
+                  {rolesLoading ? (
+                    <option value="">Loading roles...</option>
+                  ) : roles.length === 0 ? (
+                    <option value="">No roles available</option>
+                  ) : (
+                    roles.map((role) => (
+                      <option key={role.value} value={role.value}>
+                        {role.label} {role.is_system_role === false && '(Custom)'} - {role.description}
+                      </option>
+                    ))
+                  )}
                 </select>
                 <p style={{ ...typography.caption, color: colors.neutral[600], marginTop: spacing.xs }}>
                   Role sets default capabilities. Use capability matrix below for custom permissions.
+                  {apiRoles.length === 0 && roles.length > 0 && ' (Using hardcoded roles - run migrations to enable custom roles)'}
                 </p>
               </FormField>
               

@@ -8,6 +8,7 @@ import { useToast } from '../../providers/ToastProvider';
 import { useConfirm } from '../../components/ui/Modal';
 import { CommentThread, type Comment } from '../../components/ui/CommentThread';
 import { useAuth } from '../../providers/useAuth';
+import { USER_LIST_LIMIT, GATE_PASS_TYPE, GATE_PASS_STATUS } from './constants';
 
 // ✅ Pass Approval Workflow
 // Multi-level approval system for gate passes
@@ -103,8 +104,6 @@ export const PassApproval: React.FC = () => {
       const response = await apiClient.get(`/gate-pass-approval/history`, { params });
       setApprovalLevels(response.data);
     } catch (error) {
-      console.error('Error fetching approval levels:', error);
-      // Show empty state instead of mock data
       setApprovalLevels([]);
     }
   };
@@ -121,7 +120,7 @@ export const PassApproval: React.FC = () => {
 
   const fetchAvailableUsers = useCallback(async () => {
     try {
-      const response = await apiClient.get('/v1/users', { params: { limit: 100 } });
+      const response = await apiClient.get('/v1/users', { params: { limit: USER_LIST_LIMIT } });
       const users = response.data.users || response.data || [];
       setAvailableUsers(users.map((u: any) => ({
         id: u.id,
@@ -173,7 +172,6 @@ export const PassApproval: React.FC = () => {
       ]);
     } catch (error) {
       // Errors are handled in individual fetch functions with fallbacks
-      console.error('Error loading request details:', error);
     } finally {
       setLoadingDetails(false);
     }

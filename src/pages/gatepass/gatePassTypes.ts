@@ -29,7 +29,6 @@ export type GatePassType = 'visitor' | 'vehicle_inbound' | 'vehicle_outbound';
 export type GatePassStatus = 
   | 'draft' 
   | 'pending' 
-  | 'pending_approval'
   | 'active' 
   | 'inside' 
   | 'completed' 
@@ -130,14 +129,8 @@ export interface GatePass {
   exit_odometer?: number;
   return_odometer?: number;
   
-  // Approval tracking
-  approval_status?: 'pending' | 'approved' | 'rejected';
-  approved_by?: number;
-  approver?: User;
-  approved_at?: string;
-  rejection_reason?: string;
-  
   // Metadata
+  // Note: Approval tracking is in gate_pass_approvals table, not on gate_passes
   notes?: string;
   created_by: number;
   creator?: User;
@@ -154,6 +147,34 @@ export interface GatePass {
   
   // Relationships
   validations?: GatePassValidation[];
+  approvals?: GatePassApproval[]; // Approval records from gate_pass_approvals table
+}
+
+// ============================================================================
+// Gate Pass Approval Interface (from gate_pass_approvals table)
+// ============================================================================
+
+export interface GatePassApproval {
+  id: string;
+  gate_pass_id: string;
+  requester_id: number;
+  requester_name: string;
+  approval_level: number;
+  current_approver_id?: number;
+  current_approver_role?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'escalated';
+  approval_notes?: string;
+  rejection_reason?: string;
+  escalation_reason?: string;
+  requested_at: string;
+  approved_at?: string;
+  rejected_at?: string;
+  created_at: string;
+  updated_at: string;
+  // Relationships
+  gate_pass?: GatePass;
+  requester?: User;
+  current_approver?: User;
 }
 
 // ============================================================================
@@ -361,7 +382,6 @@ export function getStatusColor(status: GatePassStatus): string {
   const colorMap: Record<GatePassStatus, string> = {
     draft: 'gray',
     pending: 'yellow',
-    pending_approval: 'yellow',
     active: 'green',
     inside: 'blue',
     completed: 'gray',
@@ -379,7 +399,6 @@ export function getStatusLabel(status: GatePassStatus): string {
   const labelMap: Record<GatePassStatus, string> = {
     draft: 'Draft',
     pending: 'Pending Approval',
-    pending_approval: 'Pending Approval',
     active: 'Active',
     inside: 'Inside',
     completed: 'Completed',

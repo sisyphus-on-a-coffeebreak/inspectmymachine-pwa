@@ -1,0 +1,335 @@
+{
+  "generated_at": "2026-01-04T04:11:22.594Z",
+  "summary": {
+    "total_tests": 136,
+    "passed": 134,
+    "failed": 0,
+    "skipped": 2,
+    "pass_rate": "98.5%"
+  },
+  "failures": [
+    {
+      "route": "/app/stockyard/create",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/stockyard/create",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/stockyard/scan",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/stockyard/scan",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/stockyard/components",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/stockyard/components",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/stockyard/analytics",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/stockyard/analytics",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/stockyard/alerts",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/stockyard/alerts",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/approvals",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/approvals",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/alerts",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/alerts",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/notifications",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/notifications",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/notifications/preferences",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/notifications/preferences",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/settings/report-branding",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/settings/report-branding",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/settings/sessions",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/settings/sessions",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/admin/users",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/admin/users",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/admin/users/activity",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    },
+    {
+      "route": "/app/admin/users/activity",
+      "errorType": "network_error",
+      "message": "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+      "severity": "low"
+    }
+  ],
+  "broken_flows": [
+    {
+      "flow": "/app/stockyard/create",
+      "errors": [
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "flow": "/app/stockyard/scan",
+      "errors": [
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "flow": "/app/stockyard/components",
+      "errors": [
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "flow": "/app/stockyard/analytics",
+      "errors": [
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "flow": "/app/stockyard/alerts",
+      "errors": [
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "flow": "/app/approvals",
+      "errors": [
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "flow": "/app/alerts",
+      "errors": [
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "flow": "/app/notifications",
+      "errors": [
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "flow": "/app/notifications/preferences",
+      "errors": [
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "flow": "/app/settings/report-branding",
+      "errors": [
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "flow": "/app/settings/sessions",
+      "errors": [
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "flow": "/app/admin/users",
+      "errors": [
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED"
+      ]
+    },
+    {
+      "flow": "/app/admin/users/activity",
+      "errors": [
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED",
+        "http://localhost:8000/sanctum/csrf-cookie: net::ERR_ABORTED"
+      ]
+    }
+  ],
+  "risk_ranking": [
+    {
+      "risk": "Authentication Bypass",
+      "severity": "critical",
+      "affected_routes": [
+        "/app/admin/*",
+        "/app/approvals"
+      ],
+      "recommendation": "Verify all protected routes redirect unauthenticated users to login"
+    },
+    {
+      "risk": "Network Resilience",
+      "severity": "medium",
+      "affected_routes": [
+        "/app/stockyard/create",
+        "/app/stockyard/create",
+        "/app/stockyard/scan",
+        "/app/stockyard/scan",
+        "/app/stockyard/components",
+        "/app/stockyard/components",
+        "/app/stockyard/analytics",
+        "/app/stockyard/analytics",
+        "/app/stockyard/alerts",
+        "/app/stockyard/alerts",
+        "/app/approvals",
+        "/app/approvals",
+        "/app/alerts",
+        "/app/alerts",
+        "/app/notifications",
+        "/app/notifications",
+        "/app/notifications/preferences",
+        "/app/notifications/preferences",
+        "/app/settings/report-branding",
+        "/app/settings/report-branding",
+        "/app/settings/sessions",
+        "/app/settings/sessions",
+        "/app/admin/users",
+        "/app/admin/users",
+        "/app/admin/users/activity",
+        "/app/admin/users/activity"
+      ],
+      "recommendation": "Add proper error handling for network failures"
+    }
+  ],
+  "untestable": [
+    {
+      "item": "Authenticated CRUD operations",
+      "reason": "Requires valid test credentials (TEST_USER_ID, TEST_USER_PASSWORD)"
+    },
+    {
+      "item": "Admin role-specific features",
+      "reason": "Requires admin test credentials (TEST_ADMIN_ID, TEST_ADMIN_PASSWORD)"
+    },
+    {
+      "item": "File upload flows",
+      "reason": "Requires authenticated session and backend file storage"
+    },
+    {
+      "item": "Real-time notifications",
+      "reason": "Requires WebSocket connection to backend"
+    },
+    {
+      "item": "Offline sync functionality",
+      "reason": "Requires service worker and IndexedDB mocking"
+    },
+    {
+      "item": "QR code scanning",
+      "reason": "Requires camera access which is not available in headless mode"
+    },
+    {
+      "item": "PDF generation",
+      "reason": "Requires full DOM rendering and jsPDF execution"
+    }
+  ]
+}

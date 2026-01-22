@@ -136,7 +136,6 @@ export const UnifiedVehicleSelector: React.FC<UnifiedVehicleSelectorProps> = ({
 
       setVehicles(vehicleData);
     } catch (error) {
-      console.error('Error fetching vehicles:', error);
       setVehicles([]);
     } finally {
       setLoading(false);
@@ -163,7 +162,7 @@ export const UnifiedVehicleSelector: React.FC<UnifiedVehicleSelectorProps> = ({
       setFoundVehicle(response.data);
       setRegistrationNumber(response.data.registration_number || '');
     } catch (error) {
-      console.error('Error fetching vehicle details:', error);
+      // Error handled silently - component will show create form
     }
   };
 
@@ -230,7 +229,6 @@ export const UnifiedVehicleSelector: React.FC<UnifiedVehicleSelectorProps> = ({
         setShowCreateForm(true);
       }
     } catch (error) {
-      console.error('Error searching for vehicle:', error);
       setFoundVehicle(null);
       setShowCreateForm(true);
     } finally {
@@ -260,7 +258,6 @@ export const UnifiedVehicleSelector: React.FC<UnifiedVehicleSelectorProps> = ({
         onChange(String(newVehicle.id));
         setShowCreateForm(false);
       } catch (error) {
-        console.error('Error creating vehicle:', error);
         throw error; // Re-throw to let form handle it
       } finally {
         setCreating(false);
@@ -519,6 +516,7 @@ export const UnifiedVehicleSelector: React.FC<UnifiedVehicleSelectorProps> = ({
     </div>
   );
 };
+
 
 
 

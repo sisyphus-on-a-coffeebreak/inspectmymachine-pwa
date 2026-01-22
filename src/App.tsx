@@ -80,6 +80,7 @@ const GatePassDashboard = lazy(() => import('./pages/gatepass/GatePassDashboard'
 const EmployeeExpenseDashboard = lazy(() => import('./pages/expenses/EmployeeExpenseDashboard').then(module => ({ default: module.EmployeeExpenseDashboard })));
 const StockyardDashboard = lazy(() => import('./pages/stockyard/StockyardDashboard').then(module => ({ default: module.StockyardDashboard })));
 const UserManagement = lazy(() => import('./pages/admin/UserManagement'));
+const RoleManagement = lazy(() => import('./pages/admin/RoleManagement'));
 const PermissionTemplates = lazy(() => import('./pages/admin/PermissionTemplates'));
 const PermissionTesting = lazy(() => import('./pages/admin/PermissionTesting'));
 const DataMaskingRules = lazy(() => import('./pages/admin/DataMaskingRules'));
@@ -123,14 +124,10 @@ export default function App() {
       />
 
       {/* 🚪 Gate Pass Module - UPDATED */}
-      {/* Gate Pass Details - Deep linking (must come before dashboard) */}
+      {/* Specific routes must come before dynamic :id route */}
       <Route
-        path="/app/gate-pass/:id"
-        element={<AuthenticatedLayout><LazyPage><GatePassDetails /></LazyPage></AuthenticatedLayout>}
-      />
-      <Route
-        path="/app/gate-pass"
-        element={<AuthenticatedLayout><LazyPage><GatePassDashboard /></LazyPage></AuthenticatedLayout>}
+        path="/app/gate-pass/approvals"
+        element={<Navigate to="/app/approvals?tab=gate_pass" replace />}
       />
       <Route
         path="/app/gate-pass/create"
@@ -163,6 +160,15 @@ export default function App() {
       <Route
         path="/app/gate-pass/calendar"
         element={<AuthenticatedLayout><LazyPage><GatePassCalendar /></LazyPage></AuthenticatedLayout>}
+      />
+      {/* Gate Pass Details - Deep linking (must come after specific routes) */}
+      <Route
+        path="/app/gate-pass/:id"
+        element={<AuthenticatedLayout><LazyPage><GatePassDetails /></LazyPage></AuthenticatedLayout>}
+      />
+      <Route
+        path="/app/gate-pass"
+        element={<AuthenticatedLayout><LazyPage><GatePassDashboard /></LazyPage></AuthenticatedLayout>}
       />
       <Route
         path="/app/gate-pass/scan"
@@ -444,6 +450,10 @@ export default function App() {
       <Route
         path="/app/admin/users"
         element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><UserManagement /></LazyPage></RequireRole></AuthenticatedLayout>}
+      />
+      <Route
+        path="/app/admin/roles"
+        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><RoleManagement /></LazyPage></RequireRole></AuthenticatedLayout>}
       />
       <Route
         path="/app/admin/permission-templates"
