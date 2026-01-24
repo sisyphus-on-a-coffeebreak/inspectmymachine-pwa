@@ -8,7 +8,7 @@ import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LedgerBalanceCard } from '../../components/ui/LedgerBalanceCard';
 import { OpenAdvancesSummary } from '../../components/ui/OpenAdvancesSummary';
-import { Card } from '../../components/ui/Card';
+import { Card } from '../../components/ui/card';
 import { PageTitle, SectionTitle } from '../../components/ui/Heading';
 import { useAuth } from '../../providers/useAuth';
 import { useAdvances } from '../../lib/queries';
