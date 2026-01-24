@@ -16,7 +16,7 @@ describe('hasCapability', () => {
       last_login_at: null,
     };
     expect(hasCapability(user, 'user_management', 'delete')).toBe(true);
-    expect(hasCapability(user, 'gate_pass', 'create')).toBe(true);
+    expect(hasCapability(user, 'stockyard', 'create')).toBe(true);
     expect(hasCapability(user, 'expense', 'approve')).toBe(true);
   });
 
@@ -49,9 +49,9 @@ describe('hasCapability', () => {
       is_active: true,
       last_login_at: null,
     };
-    // Clerk role has gate_pass.create by default
-    expect(hasCapability(user, 'gate_pass', 'create')).toBe(true);
-    expect(hasCapability(user, 'gate_pass', 'read')).toBe(true);
+    // Clerk role has stockyard.access_control.create by default
+    expect(hasCapability(user, 'stockyard', 'create')).toBe(true);
+    expect(hasCapability(user, 'stockyard', 'read')).toBe(true);
   });
 
   it('should return false when user lacks capability', () => {
@@ -72,7 +72,7 @@ describe('hasCapability', () => {
 
   it('should return false for null user', () => {
     expect(hasCapability(null, 'expense', 'read')).toBe(false);
-    expect(hasCapability(null, 'gate_pass', 'create')).toBe(false);
+    expect(hasCapability(null, 'stockyard', 'create')).toBe(false);
   });
 
   it('should return true for admin with user_management.read', () => {
@@ -106,6 +106,7 @@ describe('hasCapability', () => {
     expect(hasCapability(user, 'user_management', 'delete')).toBe(false);
   });
 });
+
 
 
 

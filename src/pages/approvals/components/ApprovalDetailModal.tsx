@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { UnifiedApproval } from '../../../hooks/useUnifiedApprovals';
-import { useToast } from '../../../providers/ToastProvider';
-import { apiClient } from '../../../lib/apiClient';
-import { Modal } from '../../../components/ui/Modal';
-import { Button } from '../../../components/ui/button';
-import { colors, spacing, typography } from '../../../lib/theme';
+import type { UnifiedApproval } from '@/hooks/useUnifiedApprovals';
+import { useToast } from '@/providers/ToastProvider';
+import { apiClient } from '@/lib/apiClient';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/button';
+import { colors, spacing, typography } from '@/lib/theme';
 import { formatDistanceToNow } from 'date-fns';
-import { ReceiptPreview } from '../../../components/ui/ReceiptPreview';
+import { ReceiptPreview } from '@/components/ui/ReceiptPreview';
 
 interface ApprovalDetailModalProps {
   approval: UnifiedApproval;
@@ -35,6 +35,7 @@ export function ApprovalDetailModal({
 }: ApprovalDetailModalProps) {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { user } = useAuth();
   const [comment, setComment] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [processing, setProcessing] = useState(false);
@@ -59,6 +60,17 @@ export function ApprovalDetailModal({
         await apiClient.post(`/expense-approval/approve/${id}`, {
           notes: comment,
         });
+        
+        // Emit workflow event
+        const expenseAmount = approval.metadata?.amount as number || 0;
+        const employeeId = approval.metadata?.employee_id as string || '';
+        await emitExpenseApproved(
+          id,
+          expenseAmount,
+          employeeId,
+          user?.id?.toString() || '',
+          user?.id?.toString()
+        );
       } else if (approval.type === 'transfer') {
         await apiClient.post(`/v1/components/transfers/${id}/approve`, {
           notes: comment,
@@ -108,6 +120,16 @@ export function ApprovalDetailModal({
         await apiClient.post(`/expense-approval/reject/${id}`, {
           reason: rejectionReason,
         });
+        
+        // Emit workflow event
+        const employeeId = approval.metadata?.employee_id as string || '';
+        await emitExpenseRejected(
+          id,
+          employeeId,
+          user?.id?.toString() || '',
+          rejectionReason,
+          user?.id?.toString()
+        );
       } else if (approval.type === 'transfer') {
         await apiClient.post(`/v1/components/transfers/${id}/reject`, {
           reason: rejectionReason,

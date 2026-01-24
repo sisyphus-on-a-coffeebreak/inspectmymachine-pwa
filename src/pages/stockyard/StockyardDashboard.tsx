@@ -500,7 +500,7 @@ export const StockyardDashboard: React.FC = () => {
         </Button>
         <Button
           variant="secondary"
-          onClick={() => navigate('/app/stockyard/buyer-readiness')}
+          onClick={() => navigate('/app/stockyard?tab=readiness')}
           style={{ width: '100%' }}
         >
           <CheckCircle2 size={20} style={{ marginRight: spacing.sm }} />

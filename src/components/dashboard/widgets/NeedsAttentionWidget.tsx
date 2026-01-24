@@ -6,9 +6,9 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUnifiedApprovals } from '../../../hooks/useUnifiedApprovals';
-import { useAlerts } from '../../../lib/queries';
-import { colors, spacing, typography } from '../../../lib/theme';
+import { useUnifiedApprovals } from '@/hooks/useUnifiedApprovals';
+import { useAlerts } from '@/lib/queries';
+import { colors, spacing, typography } from '@/lib/theme';
 import { AlertTriangle, ArrowRight } from 'lucide-react';
 
 export function NeedsAttentionWidget() {
@@ -99,6 +99,8 @@ export function NeedsAttentionWidget() {
     </div>
   );
 }
+
+
 
 
 

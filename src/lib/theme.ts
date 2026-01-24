@@ -42,6 +42,18 @@ export const colors = {
     800: '#991b1b',
     900: '#7f1d1d',
   },
+  info: {
+    50: '#eff6ff',      // Very light blue
+    100: '#dbeafe',     // Light blue
+    200: '#bfdbfe',     // Lighter blue
+    300: '#93c5fd',     // Light blue
+    400: '#60a5fa',     // Medium light blue
+    500: '#3b82f6',     // Base blue (matches primary)
+    600: '#2563eb',     // Medium blue
+    700: '#1d4ed8',     // Dark blue
+    800: '#1e40af',     // Very dark blue
+    900: '#1e3a8a',     // Darkest blue
+  },
   critical: '#ef4444',     // Red for critical 8PM+ (🔴) - alias for error[500]
   
   // Brand Colors
@@ -89,6 +101,22 @@ export const typography = {
   // Headers - Adaptive typography using clamp()
   header: {
     fontSize: 'clamp(24px, 4vw, 28px)', // Responsive: 24px mobile, scales up to 28px
+    fontWeight: 700,
+    lineHeight: 1.2,
+    color: colors.neutral[900],
+    fontFamily: 'system-ui, -apple-system, sans-serif'
+  },
+  
+  headerLarge: {
+    fontSize: 'clamp(28px, 5vw, 32px)', // Responsive: 28px mobile, scales up to 32px
+    fontWeight: 700,
+    lineHeight: 1.2,
+    color: colors.neutral[900],
+    fontFamily: 'system-ui, -apple-system, sans-serif'
+  },
+  
+  headerSmall: {
+    fontSize: 'clamp(20px, 3vw, 24px)', // Responsive: 20px mobile, scales up to 24px
     fontWeight: 700,
     lineHeight: 1.2,
     color: colors.neutral[900],
@@ -168,10 +196,15 @@ export const borderRadius = {
 
 export const shadows = {
   sm: '0 1px 2px rgba(0, 0, 0, 0.05)',
-  md: '0 4px 6px rgba(0, 0, 0, 0.1)',
-  lg: '0 10px 15px rgba(0, 0, 0, 0.1)',
+  md: '0 4px 12px rgba(0, 0, 0, 0.08)', // Standard card shadow
+  lg: '0 8px 24px rgba(0, 0, 0, 0.12)', // Elevated card shadow
   xl: '0 20px 25px rgba(0, 0, 0, 0.1)',
-  glow: '0 0 20px rgba(235, 139, 0, 0.3)' // Orange glow
+  glow: '0 0 20px rgba(235, 139, 0, 0.3)', // Orange glow
+  // Additional variants for consistency
+  card: '0 4px 12px rgba(0,0,0,0.08)', // Alias for md - most common card shadow
+  elevated: '0 8px 24px rgba(0,0,0,0.12)', // Alias for lg - elevated cards
+  hover: '0 4px 16px rgba(0,0,0,0.12)', // Hover state shadow
+  focus: '0 0 0 4px rgba(37, 99, 235, 0.2)' // Focus ring shadow
 };
 
 export const breakpoints = {
@@ -526,20 +559,20 @@ export const cardStyles = {
     width: '100%',
     maxWidth: '100%',
     boxSizing: 'border-box' as const,
-    backgroundColor: 'white',
+    backgroundColor: colors.background.white,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
-    boxShadow: shadows.sm,
+    boxShadow: shadows.card,
     border: `1px solid ${colors.neutral[200]}`,
     transition: 'all 0.2s ease',
   },
   
   // Alias for backward compatibility
   card: {
-    backgroundColor: 'white',
+    backgroundColor: colors.background.white,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
-    boxShadow: shadows.sm,
+    boxShadow: shadows.card,
     border: `1px solid ${colors.neutral[200]}`,
     transition: 'all 0.2s ease',
     width: '100%',
@@ -547,14 +580,54 @@ export const cardStyles = {
     boxSizing: 'border-box' as const,
   },
 
+  // Elevated card variant (with stronger shadow)
+  elevated: {
+    backgroundColor: colors.background.white,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    boxShadow: shadows.elevated,
+    border: `1px solid ${colors.neutral[200]}`,
+    transition: 'all 0.2s ease',
+    width: '100%',
+    maxWidth: '100%',
+    boxSizing: 'border-box' as const,
+  },
+
+  // Bordered card variant (no shadow, just border)
+  bordered: {
+    backgroundColor: colors.background.white,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    boxShadow: 'none',
+    border: `1px solid ${colors.neutral[200]}`,
+    transition: 'all 0.2s ease',
+    width: '100%',
+    maxWidth: '100%',
+    boxSizing: 'border-box' as const,
+  },
+
+  // Interactive card (for clickable cards)
+  interactive: {
+    backgroundColor: colors.background.white,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    boxShadow: shadows.card,
+    border: `1px solid ${colors.neutral[200]}`,
+    transition: 'all 0.2s ease',
+    cursor: 'pointer',
+    width: '100%',
+    maxWidth: '100%',
+    boxSizing: 'border-box' as const,
+  },
+
   hover: {
     transform: 'translateY(-2px)',
-    boxShadow: shadows.md
+    boxShadow: shadows.hover
   },
 
   selected: {
     borderColor: colors.primary,
-    boxShadow: `0 0 0 3px ${colors.primary}20`
+    boxShadow: shadows.focus
   }
 };
 

@@ -21,7 +21,16 @@ export const queryKeys = {
     stats: () => [...queryKeys.dashboard.all, 'stats'] as const,
   },
   
-  // Gate Passes
+  // Access Passes (formerly Gate Passes)
+  accessPasses: {
+    all: ['access-passes'] as const,
+    lists: () => [...queryKeys.accessPasses.all, 'list'] as const,
+    list: (filters?: Record<string, unknown>) => [...queryKeys.accessPasses.lists(), filters] as const,
+    details: () => [...queryKeys.accessPasses.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.accessPasses.details(), id] as const,
+    stats: () => [...queryKeys.accessPasses.all, 'stats'] as const,
+  },
+  // Backward compatibility
   gatePasses: {
     all: ['gate-passes'] as const,
     lists: () => [...queryKeys.gatePasses.all, 'list'] as const,

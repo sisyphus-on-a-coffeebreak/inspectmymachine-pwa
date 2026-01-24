@@ -230,7 +230,7 @@ export const InspectionSyncCenter: React.FC = () => {
         // Navigate to inspection capture with merge mode
         const url = draft.draft.vehicleId
           ? `/app/inspections/${draft.draft.templateId}/${draft.draft.vehicleId}/capture?merge=true`
-          : `/app/inspections/new?templateId=${draft.draft.templateId}&merge=true`;
+          : `/app/inspections/create?templateId=${draft.draft.templateId}&merge=true`;
         navigate(url);
       }
     } catch (error) {
@@ -276,7 +276,7 @@ export const InspectionSyncCenter: React.FC = () => {
   const handleContinueDraft = (draft: QueuedDraft) => {
     const url = draft.draft.vehicleId
       ? `/app/inspections/${draft.draft.templateId}/${draft.draft.vehicleId}/capture`
-      : `/app/inspections/new?templateId=${draft.draft.templateId}`;
+      : `/app/inspections/create?templateId=${draft.draft.templateId}`;
     navigate(url);
   };
 

@@ -43,8 +43,18 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
     if (!enabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if key is not available
+      if (!e.key || !e.key.toLowerCase) {
+        return;
+      }
+
       // Find matching shortcut
       const shortcut = shortcutsRef.current.find((s) => {
+        // Skip shortcuts without a key
+        if (!s.key || typeof s.key !== 'string') {
+          return false;
+        }
+
         const keyMatch = s.key.toLowerCase() === e.key.toLowerCase();
         const ctrlMatch = s.ctrlKey === undefined ? true : s.ctrlKey === (e.ctrlKey || e.metaKey);
         const metaMatch = s.metaKey === undefined ? true : s.metaKey === e.metaKey;
@@ -120,9 +130,9 @@ export function useAppKeyboardShortcuts() {
         // Navigate to create page based on current route
         const path = window.location.pathname;
         if (path.includes('/gate-pass')) {
-          navigate('/app/gate-pass/create-visitor');
+          navigate('/app/gate-pass/create?type=visitor');
         } else if (path.includes('/inspections')) {
-          navigate('/app/inspections/new');
+          navigate('/app/inspections/create');
         } else if (path.includes('/expenses')) {
           navigate('/app/expenses/create');
         } else {

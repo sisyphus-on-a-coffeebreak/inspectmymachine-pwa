@@ -6,16 +6,19 @@ import { hasRoleCapability as checkRoleCapability } from './permissions/roleCapa
 
 // Re-export types for backward compatibility
 export type CapabilityAction = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'validate' | 'review' | 'reassign' | 'export';
-export type CapabilityModule = 'gate_pass' | 'inspection' | 'expense' | 'user_management' | 'reports' | 'stockyard';
+export type CapabilityModule = 'inspection' | 'expense' | 'user_management' | 'reports' | 'stockyard';
+
+// Stockyard function types for granular capability checks
+export type StockyardFunction = 'access_control' | 'inventory' | 'movements';
 
 export interface UserCapabilities {
-  gate_pass?: CapabilityAction[];
+  // Note: gate_pass removed - use stockyard with access_control function instead
   inspection?: CapabilityAction[];
   expense?: CapabilityAction[];
   user_management?: CapabilityAction[];
   reports?: CapabilityAction[];
-  stockyard?: CapabilityAction[];
-  // Enhanced capabilities with granularity support
+  stockyard?: CapabilityAction[]; // Basic stockyard capabilities (for backward compat during transition)
+  // Enhanced capabilities with granularity support (preferred)
   enhanced_capabilities?: EnhancedCapability[];
 }
 
@@ -287,6 +290,7 @@ export async function getUserPermissions(id: number): Promise<{ user_id: number;
  * - Enhanced capabilities with granularity (scope, conditions, time, context)
  * 
  * For granular permission checks with context, use checkPermission from './permissions/evaluator'
+ * For stockyard function-specific checks, use hasStockyardCapability()
  * 
  * @param user - The user to check
  * @param module - The module to check
@@ -296,6 +300,72 @@ export async function getUserPermissions(id: number): Promise<{ user_id: number;
 export function hasCapability(user: User | null, module: CapabilityModule, action: CapabilityAction): boolean {
   // Use enhanced evaluator which handles both basic and enhanced capabilities
   return hasEnhancedCapability(user, module, action);
+}
+
+/**
+ * Check if user has stockyard capability for specific function
+ * This is the preferred way to check stockyard capabilities
+ * 
+ * @param user - The user to check
+ * @param function - The stockyard function (access_control, inventory, movements)
+ * @param action - The action to check
+ * @returns true if user has the capability
+ */
+export function hasStockyardCapability(
+  user: User | null,
+  functionType: StockyardFunction,
+  action: CapabilityAction
+): boolean {
+  if (!user) return false;
+  
+  // Check enhanced capabilities first (preferred)
+  if (user.enhanced_capabilities) {
+    const hasEnhanced = user.enhanced_capabilities.some(cap => 
+      cap.module === 'stockyard' &&
+      cap.action === action &&
+      cap.scope?.type === 'function' &&
+      cap.scope.value === functionType
+    );
+    if (hasEnhanced) return true;
+  }
+  
+  // Also check capabilities.enhanced_capabilities (if stored there)
+  if (user.capabilities?.enhanced_capabilities) {
+    const hasEnhanced = user.capabilities.enhanced_capabilities.some(cap => 
+      cap.module === 'stockyard' &&
+      cap.action === action &&
+      cap.scope?.type === 'function' &&
+      cap.scope.value === functionType
+    );
+    if (hasEnhanced) return true;
+  }
+  
+  // Fallback to basic capabilities (for backward compat during transition)
+  // Basic stockyard capabilities apply to access_control only during transition
+  // This ensures guards/clerks don't get inventory access
+  const hasBasic = hasCapability(user, 'stockyard', action);
+  
+  if (hasBasic) {
+    // During transition: if user has basic stockyard capability,
+    // check if it should apply to this function
+    // For now, basic capabilities apply to access_control only
+    return functionType === 'access_control';
+  }
+  
+  return false;
+}
+
+/**
+ * Legacy helper: Check gate pass capability (maps to stockyard.access_control)
+ * This will be removed after migration is complete
+ * 
+ * @deprecated Use hasStockyardCapability(user, 'access_control', action) instead
+ */
+export function hasGatePassCapability(
+  user: User | null,
+  action: CapabilityAction
+): boolean {
+  return hasStockyardCapability(user, 'access_control', action);
 }
 
 /**

@@ -5,10 +5,10 @@
  */
 
 import React from 'react';
-import type { WidgetProps } from '../../../types/widgets';
+import type { WidgetProps } from '@/types/widgets';
 import { QuickActionsPanel, getRoleQuickActions } from '../../ui/QuickActionsPanel';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../providers/useAuth';
+import { useAuth } from '@/providers/useAuth';
 
 export const QuickActionsWidget: React.FC<WidgetProps> = ({ config, data }) => {
   const navigate = useNavigate();

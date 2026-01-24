@@ -1,8 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUnifiedApprovals } from '../../../hooks/useUnifiedApprovals';
+import { useUnifiedApprovals } from '@/hooks/useUnifiedApprovals';
 import { StatCard } from '../../ui/StatCard';
-import { colors, spacing } from '../../../lib/theme';
+import { colors, spacing } from '@/lib/theme';
 import { CheckCircle } from 'lucide-react';
 
 export function PendingApprovalsWidget() {
@@ -139,6 +139,8 @@ export function PendingApprovalsWidget() {
     </div>
   );
 }
+
+
 
 
 

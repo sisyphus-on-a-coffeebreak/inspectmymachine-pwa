@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 // import { BarChart } from "../components/ui/charts"; // Not used in Dashboard
 import { DashboardWidgetsContainer } from "../components/dashboard/DashboardWidgetsContainer";
+import { PrimaryActionStrip } from "../components/dashboard/PrimaryActionStrip";
 // import { RealtimeIndicator } from "../components/dashboard/RealtimeIndicator";
 import { 
   getDefaultLayout, 
@@ -292,6 +293,16 @@ export default function Dashboard() {
           </p>
         </div>
 
+        {/* Role-Specific Primary Action Strip */}
+        <PrimaryActionStrip
+          role={user?.role}
+          stats={{
+            pendingApprovals: stats?.expense?.pending_approval,
+            urgentItems: stats?.overall?.urgent_items,
+            activePasses: stats?.gate_pass?.active_passes,
+          }}
+        />
+
         {/* Real-time Indicator - Temporarily simplified */}
         {realtime && (
           <div style={{ 
@@ -319,7 +330,7 @@ export default function Dashboard() {
             actions={[
               {
                 label: 'View Urgent Items',
-                onClick: () => navigate('/dashboard?filter=urgent'),
+                onClick: () => navigate('/app/home?filter=urgent'),
                 variant: 'primary',
               },
             ]}

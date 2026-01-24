@@ -341,14 +341,15 @@ export function isRetryableError(error: unknown): boolean {
     return apiError.status === 429 || apiError.status === 419;
   }
   
-  // For server errors (5xx), only retry network errors or if it's a temporary issue
+  // For server errors (5xx), don't retry unless it's a timeout
   // 500 errors are often permanent server issues that won't be fixed by retrying
+  // If we have a response with a 5xx status, the server responded, so don't retry
   if (apiError.status && apiError.status >= 500) {
-    // Only retry if it's a network error or timeout, not actual server errors
-    return isNetworkError(error) || apiError.code === 'ERR_TIMEOUT';
+    // Only retry timeouts, not actual server errors
+    return apiError.code === 'ERR_TIMEOUT';
   }
   
-  // Retry network errors (no status code)
+  // Retry network errors (no status code) - these are true network failures
   return isNetworkError(error);
 }
 

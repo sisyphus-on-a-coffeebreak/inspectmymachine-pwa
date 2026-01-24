@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { colors, spacing, typography } from '../../../lib/theme';
+import { colors, spacing, typography } from '@/lib/theme';
 import { QrCode } from 'lucide-react';
 
 export function ScanButtonWidget() {
@@ -50,6 +50,8 @@ export function ScanButtonWidget() {
     </button>
   );
 }
+
+
 
 
 

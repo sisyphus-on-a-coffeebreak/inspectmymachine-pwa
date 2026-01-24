@@ -4,7 +4,7 @@
  * Exports all widget components and registers them
  */
 
-import { registerWidget } from '../../../lib/widgetRegistry';
+import { registerWidget } from '@/lib/widgetRegistry';
 import { StatsWidget } from './StatsWidget';
 import { QuickActionsWidget } from './QuickActionsWidget';
 import { ChartWidget } from './ChartWidget';

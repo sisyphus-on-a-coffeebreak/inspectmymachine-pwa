@@ -411,7 +411,7 @@ export const StockyardRequestDetails: React.FC = () => {
                   variant="secondary"
                   onClick={() => {
                     setActiveActionTab('checklists');
-                    navigate(`/app/stockyard/requests/${id}/checklist?type=inbound`);
+                    navigate(`/app/stockyard/${id}?tab=checklists&type=inbound`);
                   }}
                   style={{ width: '100%' }}
                   icon={<ListChecks size={16} />}
@@ -424,7 +424,7 @@ export const StockyardRequestDetails: React.FC = () => {
                   variant="secondary"
                   onClick={() => {
                     setActiveActionTab('checklists');
-                    navigate(`/app/stockyard/requests/${id}/checklist?type=outbound`);
+                    navigate(`/app/stockyard/${id}?tab=checklists&type=outbound`);
                   }}
                   style={{ width: '100%' }}
                   icon={<ListChecks size={16} />}
@@ -436,7 +436,7 @@ export const StockyardRequestDetails: React.FC = () => {
                 variant="secondary"
                 onClick={() => {
                   setActiveActionTab('documents');
-                  navigate(`/app/stockyard/requests/${id}/documents`);
+                  navigate(`/app/stockyard/${id}?tab=documents`);
                 }}
                 style={{ width: '100%' }}
                 icon={<FileText size={16} />}
@@ -448,7 +448,7 @@ export const StockyardRequestDetails: React.FC = () => {
                   variant="secondary"
                   onClick={() => {
                     setActiveActionTab('analytics');
-                    navigate(`/app/stockyard/vehicles/${request.vehicle_id}/timeline`);
+                    navigate(`/app/stockyard/${id}?tab=timeline`);
                   }}
                   style={{ width: '100%' }}
                   icon={<History size={16} />}
@@ -465,7 +465,7 @@ export const StockyardRequestDetails: React.FC = () => {
               {request.scan_in_at && (
                 <Button
                   variant="secondary"
-                  onClick={() => navigate(`/app/stockyard/requests/${id}/checklist?type=inbound`)}
+                  onClick={() => navigate(`/app/stockyard/${id}?tab=checklists&type=inbound`)}
                   style={{ width: '100%' }}
                   icon={<ListChecks size={16} />}
                 >
@@ -475,7 +475,7 @@ export const StockyardRequestDetails: React.FC = () => {
               {request.type === 'EXIT' && (
                 <Button
                   variant="secondary"
-                  onClick={() => navigate(`/app/stockyard/requests/${id}/checklist?type=outbound`)}
+                  onClick={() => navigate(`/app/stockyard/${id}?tab=checklists&type=outbound`)}
                   style={{ width: '100%' }}
                   icon={<ListChecks size={16} />}
                 >
@@ -500,7 +500,7 @@ export const StockyardRequestDetails: React.FC = () => {
             <WideGrid gap="md">
               <Button
                 variant="secondary"
-                onClick={() => navigate(`/app/stockyard/requests/${id}/documents`)}
+                onClick={() => navigate(`/app/stockyard/${id}?tab=documents`)}
                 style={{ width: '100%' }}
                 icon={<FileText size={16} />}
               >
@@ -551,7 +551,7 @@ export const StockyardRequestDetails: React.FC = () => {
                 <>
                   <Button
                     variant="secondary"
-                    onClick={() => navigate(`/app/stockyard/vehicles/${request.vehicle_id}/timeline`)}
+                    onClick={() => navigate(`/app/stockyard/${id}?tab=timeline`)}
                     style={{ width: '100%' }}
                     icon={<History size={16} />}
                   >
@@ -559,7 +559,7 @@ export const StockyardRequestDetails: React.FC = () => {
                   </Button>
                   <Button
                     variant="secondary"
-                    onClick={() => navigate(`/app/stockyard/vehicles/${request.vehicle_id}/profitability`)}
+                    onClick={() => navigate(`/app/stockyard/analytics?tab=profitability&vehicle=${request.vehicle_id}`)}
                     style={{ width: '100%' }}
                     icon={<ShoppingBag size={16} />}
                   >
@@ -570,7 +570,7 @@ export const StockyardRequestDetails: React.FC = () => {
               {request.yard_id && (
                 <Button
                   variant="secondary"
-                  onClick={() => navigate(`/app/stockyard/yards/${request.yard_id}/map`)}
+                  onClick={() => navigate(`/app/stockyard/${id}?tab=map`)}
                   style={{ width: '100%' }}
                   icon={<MapPin size={16} />}
                 >
@@ -580,7 +580,7 @@ export const StockyardRequestDetails: React.FC = () => {
               {request.type === 'EXIT' && (
                 <Button
                   variant="secondary"
-                  onClick={() => navigate(`/app/stockyard/requests/${id}/transporter-bids`)}
+                  onClick={() => navigate(`/app/stockyard/${id}?tab=bids`)}
                   style={{ width: '100%' }}
                   icon={<Truck size={16} />}
                 >

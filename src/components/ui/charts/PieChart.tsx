@@ -7,7 +7,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { colors } from '../../../lib/theme';
+import { colors } from '@/lib/theme';
 
 export interface PieChartData {
   name: string;

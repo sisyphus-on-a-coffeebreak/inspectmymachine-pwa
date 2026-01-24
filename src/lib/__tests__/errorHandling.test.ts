@@ -74,7 +74,7 @@ describe('errorHandling utilities', () => {
     it('generates readable labels for known capabilities', () => {
       const capabilities = [
         ['user_management.create', 'create users'],
-        ['gate_pass.approve', 'approve gate passes'],
+        ['stockyard.approve', 'approve access passes'],
         ['expense.read', 'view expenses'],
         ['inspection.delete', 'delete inspections'],
       ];
@@ -293,6 +293,7 @@ describe('errorHandling utilities', () => {
     });
   });
 });
+
 
 
 

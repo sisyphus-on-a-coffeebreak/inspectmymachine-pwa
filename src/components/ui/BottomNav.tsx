@@ -4,8 +4,9 @@ import { MoreHorizontal } from 'lucide-react';
 import { colors, spacing, borderRadius, shadows } from '../../lib/theme';
 import { BottomSheet } from './BottomSheet';
 import { FloatingActionButton } from './FloatingActionButton';
+import { CustomizableFAB } from './CustomizableFAB';
 import { useAuth } from '../../providers/useAuth';
-import { navigationByRole, getMoreItemsForRole, type NavItem } from '../../lib/navigationConfig';
+import { getMobileNavConfigForRole, getMoreItemsForRole, type MobileNavConfig } from '../../lib/unifiedNavigation';
 import { useUnifiedApprovals } from '../../hooks/useUnifiedApprovals';
 import { zIndex } from '../../lib/z-index';
 import { hasCapability } from '../../lib/users';
@@ -17,9 +18,9 @@ export function BottomNav() {
   const [showMoreSheet, setShowMoreSheet] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
 
-  // Get role-based navigation config
-  const role = (user?.role || 'clerk') as keyof typeof navigationByRole;
-  const config = navigationByRole[role] || navigationByRole.clerk;
+  // Get role-based navigation config from unified navigation
+  const role = (user?.role || 'clerk') as 'super_admin' | 'admin' | 'supervisor' | 'yard_incharge' | 'executive' | 'inspector' | 'guard' | 'clerk';
+  const config: MobileNavConfig = getMobileNavConfigForRole(role);
   const moreItems = getMoreItemsForRole(role);
 
   // Get approval count for badge (only for users with approval capabilities)
@@ -63,7 +64,7 @@ export function BottomNav() {
     setShowMoreSheet(false);
   };
 
-  const getBadgeCount = (item: NavItem): number | null => {
+  const getBadgeCount = (item: { id: string; badge?: () => number | null }): number | null => {
     // Special case for approvals - use the approval count
     if (item.id === 'approvals') {
       return approvalCount;
@@ -308,12 +309,15 @@ export function BottomNav() {
         </BottomSheet>
       )}
 
-      {/* Floating Action Button */}
+      {/* Floating Action Button - Use CustomizableFAB for enhanced experience */}
       {config.fab && (
-        <FloatingActionButton
-          icon={config.fab.icon}
-          label={config.fab.label}
-          actions={config.fab.actions}
+        <CustomizableFAB
+          defaultActions={config.fab.actions}
+          onCustomize={() => {
+            // TODO: Open FAB customization page/sheet in settings
+            // Could navigate to /app/settings?tab=fab
+            console.log('Open FAB customization');
+          }}
         />
       )}
       

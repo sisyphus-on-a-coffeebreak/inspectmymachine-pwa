@@ -485,7 +485,9 @@ class ApiClient {
       }
 
       // Queue request if it's a network error and queueing is enabled
-      if (isNetworkError(error) && !config?.skipRetry && !this.serverUnavailable) {
+      // Don't queue rate limit errors (429) - these should be handled by retry logic, not offline queue
+      const isRateLimit = axios.isAxiosError(error) && error.response?.status === 429;
+      if (isNetworkError(error) && !config?.skipRetry && !this.serverUnavailable && !isRateLimit) {
         await offlineQueue.enqueue('POST', path, data, config, error);
       }
       throw error;

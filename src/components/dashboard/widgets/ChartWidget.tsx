@@ -5,9 +5,9 @@
  */
 
 import React, { useMemo, useCallback } from 'react';
-import type { WidgetProps } from '../../../types/widgets';
+import type { WidgetProps } from '@/types/widgets';
 import { BarChart } from '../../ui/charts';
-import { colors, spacing, typography } from '../../../lib/theme';
+import { colors, spacing, typography } from '@/lib/theme';
 
 const ChartWidgetInner: React.FC<WidgetProps> = ({ config, data }) => {
   // Memoize chart data to prevent recreation

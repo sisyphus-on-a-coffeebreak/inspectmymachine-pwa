@@ -1,16 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useExpenses, useFloatBalance } from '../../lib/queries';
-import { colors, typography, spacing, cardStyles } from '../../lib/theme';
+import { colors, typography, spacing, cardStyles, shadows, borderRadius } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { ActionGrid, StatsGrid } from '../../components/ui/ResponsiveGrid';
 import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LedgerBalanceCard } from '../../components/ui/LedgerBalanceCard';
-import { IssueAdvanceModal } from '../../components/ui/IssueAdvanceModal';
-import { CashReturnModal } from '../../components/ui/CashReturnModal';
-import { ReimbursementModal } from '../../components/ui/ReimbursementModal';
 import { OpenAdvancesSummary } from '../../components/ui/OpenAdvancesSummary';
+import { Card } from '../../components/ui/Card';
+import { PageTitle, SectionTitle } from '../../components/ui/Heading';
 import { useAuth } from '../../providers/useAuth';
 import { useAdvances } from '../../lib/queries';
 
@@ -59,9 +58,6 @@ export const EmployeeExpenseDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [selectedPeriod, setSelectedPeriod] = useState<'day' | 'week' | 'month' | 'quarter'>('month');
-  const [showIssueAdvance, setShowIssueAdvance] = useState(false);
-  const [showCashReturn, setShowCashReturn] = useState(false);
-  const [showReimbursement, setShowReimbursement] = useState(false);
   
   // Check role at the start - structure by role immediately
   const isAdmin = user ? ['admin', 'supervisor', 'super_admin'].includes(user.role) : false;
@@ -212,41 +208,35 @@ export const EmployeeExpenseDashboard: React.FC = () => {
       minHeight: '100vh'
     }}>
       {/* Header */}
-      <div style={{ 
+      <Card variant="elevated" style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
         marginBottom: spacing.xl,
-        padding: spacing.lg,
-        backgroundColor: 'white',
-        borderRadius: '16px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-        border: '1px solid rgba(0,0,0,0.05)'
       }}>
         <div>
-          <h1 style={{ 
-            ...typography.header,
-            fontSize: '28px',
-            color: colors.neutral[900],
-            margin: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: spacing.sm
-          }}>
-            💰 My Expenses
-          </h1>
-          <p style={{ color: colors.neutral[600], marginTop: spacing.xs }}>
+          <PageTitle style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+            My Expenses
+          </PageTitle>
+          <p style={{ ...typography.bodySmall, color: colors.neutral[600], marginTop: spacing.xs }}>
             Manage your expenses, track spending, and monitor your budget
           </p>
         </div>
         
-        <div style={{ display: 'flex', gap: spacing.sm }}>
+        <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
           <Button
             variant="secondary"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/app/home')}
             icon="⬅️"
           >
             Back
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => navigate('/app/expenses/record-advance')}
+            icon="💰"
+          >
+            Record Advance
           </Button>
           <Button
             variant="primary"
@@ -256,7 +246,7 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             Add Expense
           </Button>
         </div>
-      </div>
+      </Card>
 
 
       {/* Budget Alerts (only info-level) */}
@@ -267,9 +257,9 @@ export const EmployeeExpenseDashboard: React.FC = () => {
               key={`budget-alert-${alert.category || index}`}
               style={{
                 padding: spacing.lg,
-                backgroundColor: colors.primary + '10',
-                border: `2px solid ${getAlertColor('info')}`,
-                borderRadius: '12px',
+                backgroundColor: colors.info[50],
+                border: `2px solid ${colors.info[200]}`,
+                borderRadius: borderRadius.lg,
                 marginBottom: spacing.sm,
                 display: 'flex',
                 alignItems: 'center',
@@ -282,7 +272,7 @@ export const EmployeeExpenseDashboard: React.FC = () => {
               <div style={{ flex: 1 }}>
                 <div style={{ 
                   ...typography.subheader,
-                  color: getAlertColor('info'),
+                  color: colors.info[800],
                   marginBottom: spacing.xs
                 }}>
                   {alert.message}
@@ -292,13 +282,13 @@ export const EmployeeExpenseDashboard: React.FC = () => {
                     width: '100%', 
                     height: '8px', 
                     backgroundColor: colors.neutral[200], 
-                    borderRadius: '4px',
+                    borderRadius: borderRadius.sm,
                     overflow: 'hidden'
                   }}>
                     <div style={{ 
                       width: `${alert.percentage}%`, 
                       height: '100%', 
-                      backgroundColor: getAlertColor('info'),
+                      backgroundColor: colors.info[500],
                       transition: 'width 0.3s ease'
                     }} />
                   </div>
@@ -310,14 +300,7 @@ export const EmployeeExpenseDashboard: React.FC = () => {
       )}
 
       {/* Period Selector */}
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '16px',
-        padding: spacing.lg,
-        marginBottom: spacing.xl,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-        border: '1px solid rgba(0,0,0,0.05)'
-      }}>
+      <Card variant="elevated" style={{ marginBottom: spacing.xl }}>
         <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
           <span style={{ ...typography.label, color: colors.neutral[600] }}>View Period:</span>
           {['day', 'week', 'month', 'quarter'].map((period) => (
@@ -330,18 +313,14 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             </Button>
           ))}
         </div>
-      </div>
+      </Card>
 
       {/* Key Statistics */}
       <div style={{ marginBottom: spacing.xl }}>
         <StatsGrid gap="lg">
-          <div style={{ 
-            ...cardStyles.base,
-            padding: spacing.xl,
-            backgroundColor: 'white',
+          <Card variant="elevated" style={{ 
             border: `2px solid ${colors.primary}`,
-            borderRadius: '16px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+            padding: spacing.xl,
           }}>
             <div style={{ 
               ...typography.label,
@@ -356,13 +335,13 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             </div>
             <div style={{ 
               ...typography.header,
-              fontSize: '32px',
+              fontSize: 'clamp(28px, 5vw, 32px)',
               color: colors.primary,
               fontWeight: 700
             }}>
               ₹{summary?.total_spent?.toLocaleString('en-IN') || 0}
             </div>
-          </div>
+          </Card>
 
           <LedgerBalanceCard
             balance={summary?.remaining_budget || 0}
@@ -375,10 +354,10 @@ export const EmployeeExpenseDashboard: React.FC = () => {
           <div style={{ 
             ...cardStyles.base,
             padding: spacing.xl,
-            backgroundColor: 'white',
+            backgroundColor: colors.background.white,
             border: `2px solid ${colors.status.warning}`,
-            borderRadius: '16px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+            borderRadius: borderRadius.lg,
+            boxShadow: shadows.card
           }}>
             <div style={{ 
               ...typography.label,
@@ -393,7 +372,7 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             </div>
             <div style={{ 
               ...typography.header,
-              fontSize: '32px',
+              fontSize: 'clamp(28px, 5vw, 32px)',
               color: colors.status.warning,
               fontWeight: 700
             }}>
@@ -404,10 +383,10 @@ export const EmployeeExpenseDashboard: React.FC = () => {
           <div style={{ 
             ...cardStyles.base,
             padding: spacing.xl,
-            backgroundColor: 'white',
+            backgroundColor: colors.background.white,
             border: `2px solid ${colors.status.normal}`,
-            borderRadius: '16px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+            borderRadius: borderRadius.lg,
+            boxShadow: shadows.card
           }}>
             <div style={{ 
               ...typography.label,
@@ -422,7 +401,7 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             </div>
             <div style={{ 
               ...typography.header,
-              fontSize: '32px',
+              fontSize: 'clamp(28px, 5vw, 32px)',
               color: colors.status.normal,
               fontWeight: 700
             }}>
@@ -433,21 +412,10 @@ export const EmployeeExpenseDashboard: React.FC = () => {
       </div>
 
       {/* Quick Actions */}
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '16px',
-        padding: spacing.xl,
-        marginBottom: spacing.xl,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-        border: '1px solid rgba(0,0,0,0.05)'
-      }}>
-        <h3 style={{ 
-          ...typography.subheader,
-          marginBottom: spacing.lg,
-          color: colors.neutral[900]
-        }}>
-          🚀 Quick Actions
-        </h3>
+      <Card variant="elevated" style={{ marginBottom: spacing.xl }}>
+        <SectionTitle>
+          Quick Actions
+        </SectionTitle>
         
         <ActionGrid gap="md">
           <div
@@ -470,7 +438,6 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>➕</div>
             <div style={{ 
               ...typography.subheader,
-              fontSize: '16px',
               color: colors.neutral[900],
               marginBottom: spacing.xs
             }}>
@@ -504,7 +471,6 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>📊</div>
             <div style={{ 
               ...typography.subheader,
-              fontSize: '16px',
               color: colors.neutral[900],
               marginBottom: spacing.xs
             }}>
@@ -519,7 +485,7 @@ export const EmployeeExpenseDashboard: React.FC = () => {
           </div>
 
           <div
-            onClick={() => navigate('/app/expenses/categories')}
+            onClick={() => navigate('/app/expenses/analytics?tab=by-category')}
             style={{
               ...cardStyles.base,
               padding: spacing.lg,
@@ -538,7 +504,6 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>📈</div>
             <div style={{ 
               ...typography.subheader,
-              fontSize: '16px',
               color: colors.neutral[900],
               marginBottom: spacing.xs
             }}>
@@ -572,7 +537,6 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>📄</div>
             <div style={{ 
               ...typography.subheader,
-              fontSize: '16px',
               color: colors.neutral[900],
               marginBottom: spacing.xs
             }}>
@@ -606,7 +570,6 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>📊</div>
             <div style={{ 
               ...typography.subheader,
-              fontSize: '16px',
               color: colors.neutral[900],
               marginBottom: spacing.xs
             }}>
@@ -620,29 +583,18 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             </div>
           </div>
         </ActionGrid>
-      </div>
+      </Card>
 
       {/* Admin-only section - only rendered for admins */}
       {isAdmin && (
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '16px',
-          padding: spacing.xl,
-          marginBottom: spacing.xl,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-          border: '1px solid rgba(0,0,0,0.05)'
-        }}>
-          <h3 style={{ 
-            ...typography.subheader,
-            marginBottom: spacing.lg,
-            color: colors.neutral[900]
-          }}>
-            👔 Admin Actions
-          </h3>
+        <Card variant="elevated" style={{ marginBottom: spacing.xl }}>
+          <SectionTitle>
+            Admin Actions
+          </SectionTitle>
           
           <ActionGrid gap="md">
             <div
-              onClick={() => navigate('/app/expenses/approval')}
+              onClick={() => navigate('/app/approvals?tab=expense')}
               style={{
                 ...cardStyles.base,
                 padding: spacing.lg,
@@ -661,7 +613,6 @@ export const EmployeeExpenseDashboard: React.FC = () => {
               <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>✅</div>
               <div style={{ 
                 ...typography.subheader,
-                fontSize: '16px',
                 color: colors.neutral[900],
                 marginBottom: spacing.xs
               }}>
@@ -695,7 +646,6 @@ export const EmployeeExpenseDashboard: React.FC = () => {
               <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>📊</div>
               <div style={{ 
                 ...typography.subheader,
-                fontSize: '16px',
                 color: colors.neutral[900],
                 marginBottom: spacing.xs
               }}>
@@ -710,7 +660,7 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             </div>
 
             <div
-              onClick={() => navigate('/app/expenses/accounts')}
+              onClick={() => navigate('/app/expenses/analytics?tab=by-account')}
               style={{
                 ...cardStyles.base,
                 padding: spacing.lg,
@@ -729,7 +679,6 @@ export const EmployeeExpenseDashboard: React.FC = () => {
               <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>👥</div>
               <div style={{ 
                 ...typography.subheader,
-                fontSize: '16px',
                 color: colors.neutral[900],
                 marginBottom: spacing.xs
               }}>
@@ -744,7 +693,7 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             </div>
 
             <div
-              onClick={() => navigate('/app/expenses/cashflow')}
+              onClick={() => navigate('/app/expenses/analytics?tab=cashflow')}
               style={{
                 ...cardStyles.base,
                 padding: spacing.lg,
@@ -763,7 +712,6 @@ export const EmployeeExpenseDashboard: React.FC = () => {
               <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>💰</div>
               <div style={{ 
                 ...typography.subheader,
-                fontSize: '16px',
                 color: colors.neutral[900],
                 marginBottom: spacing.xs
               }}>
@@ -777,150 +725,33 @@ export const EmployeeExpenseDashboard: React.FC = () => {
               </div>
             </div>
           </ActionGrid>
-        </div>
+        </Card>
       )}
 
       {/* Ledger Actions - Everyone sees these */}
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '16px',
-        padding: spacing.xl,
-        marginBottom: spacing.xl,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-        border: '1px solid rgba(0,0,0,0.05)'
-      }}>
-        <h3 style={{ 
-          ...typography.subheader,
-          marginBottom: spacing.lg,
-          color: colors.neutral[900]
-        }}>
-          💳 Ledger Actions
-        </h3>
+      <Card variant="elevated" style={{ marginBottom: spacing.xl }}>
+        <SectionTitle>
+          Ledger Actions
+        </SectionTitle>
         
         <ActionGrid gap="md">
-          <div
-            onClick={() => setShowIssueAdvance(true)}
+          <Card
+            variant="interactive"
+            onClick={() => navigate('/app/expenses/analytics?tab=reconciliation')}
             style={{
-              ...cardStyles.base,
               padding: spacing.lg,
-              cursor: 'pointer',
               minHeight: '100px',
               display: 'flex',
-              flexDirection: 'column' as const,
+              flexDirection: 'column',
               justifyContent: 'center',
               alignItems: 'center',
-              textAlign: 'center' as const,
-              border: `2px solid ${colors.status.normal}`,
-              position: 'relative' as const
-            }}
-            className="card-hover touch-feedback"
-          >
-            <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>📈</div>
-            <div style={{ 
-              ...typography.subheader,
-              fontSize: '16px',
-              color: colors.neutral[900],
-              marginBottom: spacing.xs
-            }}>
-              Request Advance
-            </div>
-            <div style={{ 
-              ...typography.bodySmall,
-              color: colors.neutral[600]
-            }}>
-              Issue advance (CR)
-            </div>
-          </div>
-
-          <div
-            onClick={() => setShowCashReturn(true)}
-            style={{
-              ...cardStyles.base,
-              padding: spacing.lg,
-              cursor: 'pointer',
-              minHeight: '100px',
-              display: 'flex',
-              flexDirection: 'column' as const,
-              justifyContent: 'center',
-              alignItems: 'center',
-              textAlign: 'center' as const,
-              border: `2px solid ${colors.status.error}`,
-              position: 'relative' as const
-            }}
-            className="card-hover touch-feedback"
-          >
-            <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>💵</div>
-            <div style={{ 
-              ...typography.subheader,
-              fontSize: '16px',
-              color: colors.neutral[900],
-              marginBottom: spacing.xs
-            }}>
-              Return Cash
-            </div>
-            <div style={{ 
-              ...typography.bodySmall,
-              color: colors.neutral[600]
-            }}>
-              Return cash (DR)
-            </div>
-          </div>
-
-          <div
-            onClick={() => setShowReimbursement(true)}
-            style={{
-              ...cardStyles.base,
-              padding: spacing.lg,
-              cursor: 'pointer',
-              minHeight: '100px',
-              display: 'flex',
-              flexDirection: 'column' as const,
-              justifyContent: 'center',
-              alignItems: 'center',
-              textAlign: 'center' as const,
-              border: `2px solid ${colors.status.normal}`,
-              position: 'relative' as const
-            }}
-            className="card-hover touch-feedback"
-          >
-            <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>💰</div>
-            <div style={{ 
-              ...typography.subheader,
-              fontSize: '16px',
-              color: colors.neutral[900],
-              marginBottom: spacing.xs
-            }}>
-              Reimbursement
-            </div>
-            <div style={{ 
-              ...typography.bodySmall,
-              color: colors.neutral[600]
-            }}>
-              Post reimbursement (CR)
-            </div>
-          </div>
-
-          <div
-            onClick={() => navigate('/app/expenses/reconciliation')}
-            style={{
-              ...cardStyles.base,
-              padding: spacing.lg,
-              cursor: 'pointer',
-              minHeight: '100px',
-              display: 'flex',
-              flexDirection: 'column' as const,
-              justifyContent: 'center',
-              alignItems: 'center',
-              textAlign: 'center' as const,
+              textAlign: 'center',
               border: `2px solid ${colors.primary}`,
-              position: 'relative' as const
             }}
-            className="card-hover touch-feedback"
           >
             <div style={{ fontSize: '2rem', marginBottom: spacing.sm }}>⚖️</div>
             <div style={{ 
               ...typography.subheader,
-              fontSize: '16px',
               color: colors.neutral[900],
               marginBottom: spacing.xs
             }}>
@@ -932,27 +763,16 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             }}>
               CR-DR summary
             </div>
-          </div>
+          </Card>
         </ActionGrid>
-      </div>
+      </Card>
 
       {/* Category Breakdown */}
       {summary && (
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '16px',
-          padding: spacing.xl,
-          marginBottom: spacing.xl,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-          border: '1px solid rgba(0,0,0,0.05)'
-        }}>
-          <h3 style={{ 
-            ...typography.subheader,
-            marginBottom: spacing.lg,
-            color: colors.neutral[900]
-          }}>
-            📊 Spending by Category
-          </h3>
+        <Card variant="elevated" style={{ marginBottom: spacing.xl }}>
+          <SectionTitle>
+            Spending by Category
+          </SectionTitle>
           
           <div style={{ display: 'grid', gap: spacing.md }}>
             {summary.category_breakdown.map((category, index) => (
@@ -962,18 +782,17 @@ export const EmployeeExpenseDashboard: React.FC = () => {
                 gap: spacing.md,
                 padding: spacing.sm,
                 backgroundColor: colors.neutral[50],
-                borderRadius: '8px'
+                borderRadius: borderRadius.md
               }}>
                 <div style={{
                   width: '20px',
                   height: '20px',
                   backgroundColor: category.color,
-                  borderRadius: '4px'
+                  borderRadius: borderRadius.sm
                 }} />
                 <div style={{ flex: 1 }}>
                   <div style={{ 
                   ...typography.subheader,
-                  fontSize: '14px',
                   color: colors.neutral[900],
                   marginBottom: spacing.xs
                   }}>
@@ -983,7 +802,7 @@ export const EmployeeExpenseDashboard: React.FC = () => {
                   width: '100%', 
                   height: '8px', 
                   backgroundColor: colors.neutral[200], 
-                  borderRadius: '4px',
+                  borderRadius: borderRadius.sm,
                   overflow: 'hidden'
                 }}>
                   <div style={{ 
@@ -997,27 +816,15 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             </div>
             ))}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Open Advances */}
       {!isAdmin && (
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '16px',
-          padding: spacing.xl,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-          border: '1px solid rgba(0,0,0,0.05)',
-          marginBottom: spacing.xl
-        }}>
-          <h3 style={{ 
-            ...typography.subheader,
-            margin: 0,
-            marginBottom: spacing.lg,
-            color: colors.neutral[900]
-          }}>
-            💳 Open Advances
-          </h3>
+        <Card variant="elevated" style={{ marginBottom: spacing.xl }}>
+          <SectionTitle style={{ margin: 0 }}>
+            Open Advances
+          </SectionTitle>
           <OpenAdvancesSummary
             advances={advancesData?.data?.map((adv: any) => ({
               id: String(adv.id),
@@ -1042,30 +849,20 @@ export const EmployeeExpenseDashboard: React.FC = () => {
               });
             }}
           />
-        </div>
+        </Card>
       )}
 
       {/* Recent Expenses */}
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '16px',
-        padding: spacing.xl,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-        border: '1px solid rgba(0,0,0,0.05)'
-      }}>
+      <Card variant="elevated">
         <div style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
           marginBottom: spacing.lg
         }}>
-          <h3 style={{ 
-            ...typography.subheader,
-            margin: 0,
-            color: colors.neutral[900]
-          }}>
-            📋 Recent Expenses
-          </h3>
+          <SectionTitle style={{ margin: 0 }}>
+            Recent Expenses
+          </SectionTitle>
           <Button
             variant="secondary"
             onClick={() => navigate('/app/expenses/history')}
@@ -1082,7 +879,7 @@ export const EmployeeExpenseDashboard: React.FC = () => {
               style={{
                 padding: spacing.lg,
                 border: '1px solid #E5E7EB',
-                borderRadius: '12px',
+                borderRadius: borderRadius.lg,
                 backgroundColor: '#F9FAFB',
                 transition: 'all 0.2s ease'
               }}
@@ -1112,7 +909,6 @@ export const EmployeeExpenseDashboard: React.FC = () => {
                     <p style={{ 
                       ...typography.bodySmall,
                       color: colors.neutral[500],
-                      fontSize: '12px'
                     }}>
                       {expense.project_name && `Project: ${expense.project_name}`}
                       {expense.project_name && expense.asset_name && ' • '}
@@ -1138,7 +934,7 @@ export const EmployeeExpenseDashboard: React.FC = () => {
                     padding: '4px 12px',
                     backgroundColor: getStatusColor(expense.status),
                     color: 'white',
-                    borderRadius: '16px',
+                    borderRadius: borderRadius.lg,
                     fontSize: '12px',
                     fontWeight: 600,
                     textTransform: 'capitalize'
@@ -1163,30 +959,8 @@ export const EmployeeExpenseDashboard: React.FC = () => {
             }}
           />
         )}
-      </div>
+      </Card>
 
-      {/* Modals */}
-      <IssueAdvanceModal
-        isOpen={showIssueAdvance}
-        onClose={() => setShowIssueAdvance(false)}
-        onSuccess={() => {
-          // Refetch data if needed
-        }}
-      />
-      <CashReturnModal
-        isOpen={showCashReturn}
-        onClose={() => setShowCashReturn(false)}
-        onSuccess={() => {
-          // Refetch data if needed
-        }}
-      />
-      <ReimbursementModal
-        isOpen={showReimbursement}
-        onClose={() => setShowReimbursement(false)}
-        onSuccess={() => {
-          // Refetch data if needed
-        }}
-      />
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { CardGrid } from '../../components/ui/ResponsiveGrid';
 import { useToast } from '../../providers/ToastProvider';
 import { Warehouse, ArrowLeft, Package, ArrowRight, ArrowDown, Search, User, CheckCircle2, List, Grid, Battery, Circle, Wrench } from 'lucide-react';
 import { apiClient } from '../../lib/apiClient';

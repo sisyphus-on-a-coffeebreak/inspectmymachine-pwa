@@ -6,8 +6,8 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { WidgetProps } from '../../../types/widgets';
-import { colors, spacing, typography } from '../../../lib/theme';
+import type { WidgetProps } from '@/types/widgets';
+import { colors, spacing, typography } from '@/lib/theme';
 import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
 
 export const KanbanWidget: React.FC<WidgetProps> = ({ config, data }) => {

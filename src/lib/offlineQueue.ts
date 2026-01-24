@@ -187,11 +187,28 @@ class OfflineQueue {
       }
     }
 
-    // Process valid requests
-    for (const request of validRequests) {
+    // Process valid requests with delays to avoid rate limiting
+    for (let i = 0; i < validRequests.length; i++) {
+      const request = validRequests[i];
+      
+      // Add delay between requests to avoid rate limiting (minimum 1 second between requests)
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
       try {
         await this.retryRequest(request);
       } catch (error) {
+        // Check if error is a rate limit error (429) - don't retry these immediately
+        const isRateLimit = error && typeof error === 'object' && 'response' in error 
+          && (error as any).response?.status === 429;
+        
+        if (isRateLimit) {
+          // For rate limit errors, wait longer before next retry (exponential backoff)
+          const delay = Math.min(1000 * Math.pow(2, request.retryCount), 30000); // Max 30 seconds
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        
         // Request failed again, increment retry count
         request.retryCount++;
         request.lastError = error instanceof Error ? error.message : String(error);
@@ -206,23 +223,29 @@ class OfflineQueue {
    * Retry a queued request
    */
   private async retryRequest(request: QueuedRequest): Promise<void> {
+    // Skip retry logic in apiClient since we're already retrying here
+    const config = {
+      ...request.config,
+      skipRetry: true, // Don't retry again in apiClient
+    };
+
     let response;
 
     switch (request.method) {
       case 'GET':
-        response = await apiClient.get(request.path, request.config);
+        response = await apiClient.get(request.path, config);
         break;
       case 'POST':
-        response = await apiClient.post(request.path, request.data, request.config);
+        response = await apiClient.post(request.path, request.data, config);
         break;
       case 'PUT':
-        response = await apiClient.put(request.path, request.data, request.config);
+        response = await apiClient.put(request.path, request.data, config);
         break;
       case 'PATCH':
-        response = await apiClient.patch(request.path, request.data, request.config);
+        response = await apiClient.patch(request.path, request.data, config);
         break;
       case 'DELETE':
-        response = await apiClient.delete(request.path, request.config);
+        response = await apiClient.delete(request.path, config);
         break;
       default:
         throw new Error(`Unsupported method: ${request.method}`);

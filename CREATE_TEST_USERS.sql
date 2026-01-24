@@ -30,3 +30,5 @@ ON DUPLICATE KEY UPDATE updated_at = NOW();
 -- php artisan tinker
 -- Hash::make('password')
 
+
+

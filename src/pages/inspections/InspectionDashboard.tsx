@@ -5,7 +5,7 @@ import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { AnomalyAlert } from '../../components/ui/AnomalyAlert';
-import { StatsGrid, ActionGrid } from '../../components/ui/ResponsiveGrid';
+import { StatsGrid, ActionGrid, WideGrid } from '../../components/ui/ResponsiveGrid';
 import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PolicyLinks } from '../../components/ui/PolicyLinks';
@@ -187,7 +187,7 @@ export const InspectionDashboard: React.FC = () => {
           )}
           <Button
             variant="primary"
-            onClick={() => navigate('/app/inspections/new')}
+            onClick={() => navigate('/app/inspections/create')}
             icon="➕"
           >
             Start Inspection
@@ -424,7 +424,7 @@ export const InspectionDashboard: React.FC = () => {
         
         <ActionGrid gap="md">
           <div
-            onClick={() => navigate('/app/inspections/new')}
+            onClick={() => navigate('/app/inspections/create')}
             style={{
               backgroundColor: 'white',
               padding: spacing.lg,
@@ -704,7 +704,7 @@ export const InspectionDashboard: React.FC = () => {
             description="Start your first vehicle inspection to see it appear here."
             action={{
               label: "Start Inspection",
-              onClick: () => navigate('/app/inspections/new'),
+              onClick: () => navigate('/app/inspections/create'),
               icon: "➕"
             }}
           />

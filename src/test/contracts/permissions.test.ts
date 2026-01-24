@@ -118,26 +118,26 @@ describe('Permission Enforcement Contracts', () => {
       // expect(response.data.required_capability).toBe('gate_pass.delete');
     });
 
-    it('should return 403 when user without gate_pass.approve tries to approve', async () => {
-      // TODO: Test gate pass approval
+    it('should return 403 when user without stockyard.approve tries to approve', async () => {
+      // TODO: Test access pass approval
       // const response = await apiClient.post('/v2/gate-passes/1/approve', {});
       // expect(response.status).toBe(403);
-      // expect(response.data.required_capability).toBe('gate_pass.approve');
+      // expect(response.data.required_capability).toBe('stockyard.approve');
     });
 
-    it('should return 403 when user without gate_pass.create tries to create', async () => {
-      // TODO: Test gate pass creation
+    it('should return 403 when user without stockyard.create tries to create', async () => {
+      // TODO: Test access pass creation
       // const response = await apiClient.post('/v2/gate-passes', {
       //   pass_type: 'visitor',
       //   visitor_name: 'Test',
       // });
       // expect(response.status).toBe(403);
-      // expect(response.data.required_capability).toBe('gate_pass.create');
+      // expect(response.data.required_capability).toBe('stockyard.create');
     });
 
     it('should allow guard to validate passes', async () => {
       // TODO: Test that guard role can validate passes
-      // Guards should have gate_pass.validate capability
+      // Guards should have stockyard.validate capability (for access_control function)
     });
   });
 
@@ -222,6 +222,7 @@ describe('Permission Enforcement Contracts', () => {
     });
   });
 });
+
 
 
 

@@ -5,10 +5,10 @@
  */
 
 import React from 'react';
-import type { WidgetProps } from '../../../types/widgets';
+import type { WidgetProps } from '@/types/widgets';
 import { StatCard } from '../../ui/StatCard';
 import { CheckCircle, Clock, AlertCircle, TrendingUp } from 'lucide-react';
-import { colors, spacing } from '../../../lib/theme';
+import { colors, spacing } from '@/lib/theme';
 import { StatsGrid } from '../../ui/ResponsiveGrid';
 
 export const StatsWidget: React.FC<WidgetProps> = ({ config, data }) => {

@@ -14,7 +14,7 @@ export const testCategories = {
   pages: [
     './pages/Login.test.tsx',
     './pages/Dashboard.test.tsx',
-    './pages/GatePass.test.tsx',
+    './pages/GatePass.test.tsx', // Note: File renamed but tests updated to use Access components
     './pages/Inspections.test.tsx',
     './pages/Expenses.test.tsx',
     './pages/Stockyard.test.tsx',
@@ -32,7 +32,7 @@ export const testCategories = {
     '../lib/__tests__/apiClient.test.ts',
     '../lib/__tests__/errorHandling.test.ts',
     '../lib/__tests__/users.test.ts',
-    '../lib/services/__tests__/GatePassService.test.ts',
+    '../lib/services/__tests__/AccessService.test.ts',
   ],
 };
 
@@ -285,6 +285,7 @@ describe('Comprehensive Test Runner', () => {
     expect(adminFeatures.securityDashboard).toBe(true);
   });
 });
+
 
 
 

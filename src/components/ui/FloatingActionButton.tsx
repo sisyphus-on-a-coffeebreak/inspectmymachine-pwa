@@ -10,11 +10,8 @@ import { Plus, X } from 'lucide-react';
 import { colors, spacing, typography, borderRadius, shadows } from '../../lib/theme';
 import { zIndex } from '../../lib/z-index';
 
-export interface FabAction {
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  route: string;
-}
+// Re-export FabAction from unifiedNavigation for backward compatibility
+export type { FabAction } from '../../lib/unifiedNavigation';
 
 interface FloatingActionButtonProps {
   icon: React.ComponentType<{ className?: string }>;

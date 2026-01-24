@@ -270,7 +270,7 @@ export const getRoleGuidance = (
       count: stats.pendingTasks,
       action: {
         label: 'Start Inspection',
-        onClick: () => navigate('/app/inspections/new'),
+        onClick: () => navigate('/app/inspections/create'),
       },
     });
   }

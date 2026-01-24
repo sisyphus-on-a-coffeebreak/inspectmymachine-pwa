@@ -18,6 +18,9 @@ import { Modal } from '../../components/ui/Modal';
 import { OCRPanel } from '../../components/ui/OCRPanel';
 import { useSmartKeyboard } from '../../hooks/useSmartKeyboard';
 import { CompactGrid, DenseGrid } from '../../components/ui/ResponsiveGrid';
+import { emitExpenseCreated } from '../../lib/workflow/eventEmitters';
+import { updateVehicleCostOnExpense } from '../../lib/services/VehicleCostService';
+import { MultiAssetAllocation, type AllocationMethod, type AssetAllocation } from '../../components/expenses/MultiAssetAllocation';
 
 // 💰 Enhanced Expense Creation Form
 // Smart form with auto-categorization, GPS location, receipt capture
@@ -53,6 +56,9 @@ interface ExpenseFormData {
   asset_id?: string;
   template_id?: string;
   notes?: string;
+  // Multi-asset allocation
+  useMultiAsset?: boolean;
+  assetAllocations?: AssetAllocation[];
 }
 
 const EXPENSE_CATEGORIES = [
@@ -106,8 +112,13 @@ export const CreateExpense: React.FC = () => {
     time: resubmitData?.time || new Date().toTimeString().split(' ')[0].substring(0, 5),
     location: resubmitData?.location || '',
     receipts: [],
-    notes: resubmitData?.notes || ''
+    notes: resubmitData?.notes || '',
+    useMultiAsset: false,
+    assetAllocations: [],
   });
+  
+  const [allocationMethod, setAllocationMethod] = useState<AllocationMethod>('equal');
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   
   // Pre-fill form if resubmitting
   useEffect(() => {
@@ -705,13 +716,19 @@ export const CreateExpense: React.FC = () => {
       location: formData.location || undefined, // Backend expects 'location' not 'city'
       notes: [formData.description, formData.notes].filter(Boolean).join(' | ') || undefined,
       project_id: formData.project_id || undefined,
-      asset_id: formData.asset_id || undefined,
+      asset_id: formData.useMultiAsset ? undefined : formData.asset_id || undefined, // Single asset
       template_id: formData.template_id || undefined,
       receipts: formData.receipts.length > 0 ? formData.receipts.map((receipt) => receipt.key) : undefined, // Backend expects 'receipts' array, not 'receipt_keys'
+      // Multi-asset allocation
+      asset_allocations: formData.useMultiAsset && formData.assetAllocations && formData.assetAllocations.length > 0
+        ? formData.assetAllocations.map(a => ({ asset_id: a.assetId, amount: a.amount }))
+        : undefined,
     };
 
     try {
-      await apiClient.post('/v1/expenses', submitData);
+      const response = await apiClient.post('/v1/expenses', submitData);
+      const expenseId = response.data?.id || response.data?.data?.id || submitData.amount.toString();
+      
       // Clear draft on successful submission
       localStorage.removeItem('expense_draft');
       setShowRestoreBanner(false);
@@ -726,6 +743,38 @@ export const CreateExpense: React.FC = () => {
         queryClient.invalidateQueries({ queryKey: ['ledger', 'reconciliation'], refetchType: 'active' }),
       ]);
       
+      // Emit workflow event
+      await emitExpenseCreated(
+        expenseId,
+        submitData.amount,
+        submitData.category,
+        user?.id?.toString() || '',
+        user?.id?.toString()
+      );
+
+      // Update vehicle cost if linked (Super Admin only, but we emit the event)
+      if (user?.role === 'super_admin') {
+        if (submitData.asset_id) {
+          // Single asset
+          await updateVehicleCostOnExpense(
+            submitData.amount.toString(), // Will be replaced with actual expense ID from response
+            submitData.asset_id,
+            submitData.amount,
+            submitData.category
+          );
+        } else if (submitData.asset_allocations && submitData.asset_allocations.length > 0) {
+          // Multi-asset - update each vehicle cost
+          for (const allocation of submitData.asset_allocations) {
+            await updateVehicleCostOnExpense(
+              submitData.amount.toString(),
+              allocation.asset_id,
+              allocation.amount,
+              submitData.category
+            );
+          }
+        }
+      }
+
       showToast({
         title: 'Expense submitted',
         description: 'Your expense has been sent for review.',
@@ -1487,63 +1536,116 @@ export const CreateExpense: React.FC = () => {
             </div>
 
             <div>
-              <Label>
-                Asset {isFleetRelatedCategory(formData.category) ? '*' : '(Optional)'}
-                {isFleetRelatedCategory(formData.category) && (
-                  <span style={{ color: colors.warning, fontSize: '12px', marginLeft: spacing.xs }}>
-                    Required for {getCategoryLabel(formData.category)}
-                  </span>
-                )}
-              </Label>
-              <select
-                value={formData.asset_id || ''}
-                onChange={(e) => {
-                  const value = e.target.value || undefined;
-                  setFormData(prev => ({ ...prev, asset_id: value }));
-                  // Real-time validation
-                  const error = validateField('asset_id', value);
-                  if (error) {
-                    setValidationErrors(prev => ({ ...prev, asset_id: error }));
-                  } else {
-                    clearFieldError('asset_id');
-                    clearFieldError('asset');
-                  }
-                }}
-                onBlur={(e) => {
-                  // Validate on blur as well
-                  const error = validateField('asset_id', e.target.value || undefined);
-                  if (error) {
-                    setValidationErrors(prev => ({ ...prev, asset_id: error }));
-                  } else {
-                    clearFieldError('asset_id');
-                    clearFieldError('asset');
-                  }
-                }}
-                required={isFleetRelatedCategory(formData.category)}
-                style={{
-                  width: '100%',
-                  padding: spacing.sm,
-                  border: `1px solid ${getFieldError('asset_id') || (isFleetRelatedCategory(formData.category) && !formData.asset_id)
-                    ? colors.status.error 
-                    : '#D1D5DB'}`,
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  marginTop: spacing.xs
-                }}
-              >
-                <option value="">Select Asset</option>
-                {assets.map(asset => (
-                  <option key={asset.id} value={asset.id}>
-                    {asset.name} {asset.registration_number && `(${asset.registration_number})`}
-                  </option>
-                ))}
-              </select>
-              {assetsState.status === 'loading' && assets.length === 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+                <Label>
+                  Asset {isFleetRelatedCategory(formData.category) ? '*' : '(Optional)'}
+                  {isFleetRelatedCategory(formData.category) && (
+                    <span style={{ color: colors.warning, fontSize: '12px', marginLeft: spacing.xs }}>
+                      Required for {getCategoryLabel(formData.category)}
+                    </span>
+                  )}
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData(prev => ({ ...prev, useMultiAsset: !prev.useMultiAsset }));
+                    if (!formData.useMultiAsset) {
+                      // Switching to multi-asset - clear single asset
+                      setFormData(prev => ({ ...prev, asset_id: undefined }));
+                    } else {
+                      // Switching to single asset - clear multi-asset
+                      setSelectedAssetIds([]);
+                      setFormData(prev => ({ ...prev, assetAllocations: [] }));
+                    }
+                  }}
+                  style={{
+                    padding: `${spacing.xs} ${spacing.sm}`,
+                    border: `1px solid ${colors.neutral[300]}`,
+                    borderRadius: '6px',
+                    background: formData.useMultiAsset ? colors.primary + '15' : 'white',
+                    color: formData.useMultiAsset ? colors.primary : colors.neutral[700],
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                  }}
+                >
+                  {formData.useMultiAsset ? 'Single Asset' : 'Multiple Assets'}
+                </button>
+              </div>
+              
+              {!formData.useMultiAsset ? (
+                <select
+                  value={formData.asset_id || ''}
+                  onChange={(e) => {
+                    const value = e.target.value || undefined;
+                    setFormData(prev => ({ ...prev, asset_id: value }));
+                    // Real-time validation
+                    const error = validateField('asset_id', value);
+                    if (error) {
+                      setValidationErrors(prev => ({ ...prev, asset_id: error }));
+                    } else {
+                      clearFieldError('asset_id');
+                      clearFieldError('asset');
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // Validate on blur as well
+                    const error = validateField('asset_id', e.target.value || undefined);
+                    if (error) {
+                      setValidationErrors(prev => ({ ...prev, asset_id: error }));
+                    } else {
+                      clearFieldError('asset_id');
+                      clearFieldError('asset');
+                    }
+                  }}
+                  required={isFleetRelatedCategory(formData.category)}
+                  style={{
+                    width: '100%',
+                    padding: spacing.sm,
+                    border: `1px solid ${getFieldError('asset_id') || (isFleetRelatedCategory(formData.category) && !formData.asset_id)
+                      ? colors.status.error 
+                      : '#D1D5DB'}`,
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    marginTop: spacing.xs
+                  }}
+                >
+                  <option value="">Select Asset</option>
+                  {assets.map(asset => (
+                    <option key={asset.id} value={asset.id}>
+                      {asset.name} {asset.registration_number && `(${asset.registration_number})`}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <MultiAssetAllocation
+                  totalAmount={Number(formData.amount) || 0}
+                  selectedAssetIds={selectedAssetIds}
+                  allocations={formData.assetAllocations || []}
+                  onAssetIdsChange={(ids) => {
+                    setSelectedAssetIds(ids);
+                    // Validate
+                    if (isFleetRelatedCategory(formData.category) && ids.length === 0) {
+                      setValidationErrors(prev => ({ ...prev, asset_id: 'At least one asset is required' }));
+                    } else {
+                      clearFieldError('asset_id');
+                    }
+                  }}
+                  onAllocationsChange={(allocations) => {
+                    setFormData(prev => ({ ...prev, assetAllocations: allocations }));
+                  }}
+                  allocationMethod={allocationMethod}
+                  onAllocationMethodChange={setAllocationMethod}
+                  error={getFieldError('asset_id')}
+                />
+              )}
+              
+              {assetsState.status === 'loading' && assets.length === 0 && !formData.useMultiAsset && (
                 <div style={{ color: colors.neutral[600], fontSize: '12px', marginTop: spacing.xs }}>
                   Loading assets...
                 </div>
               )}
-              {assetsState.error && (
+              {assetsState.error && !formData.useMultiAsset && (
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',

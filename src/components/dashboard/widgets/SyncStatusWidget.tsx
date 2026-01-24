@@ -7,7 +7,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { InspectionSyncWidget } from './InspectionSyncWidget';
-import { colors, spacing } from '../../../lib/theme';
+import { colors, spacing } from '@/lib/theme';
 
 export function SyncStatusWidget() {
   // Reuse the existing InspectionSyncWidget but in a smaller format
@@ -24,6 +24,8 @@ export function SyncStatusWidget() {
     </div>
   );
 }
+
+
 
 
 

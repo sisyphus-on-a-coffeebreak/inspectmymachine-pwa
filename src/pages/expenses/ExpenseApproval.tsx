@@ -12,6 +12,9 @@ import { Pagination } from '../../components/ui/Pagination';
 import { StatCard } from '../../components/ui/StatCard';
 import { WideGrid, CardGrid } from '../../components/ui/ResponsiveGrid';
 import { useExpenseApprovals, useExpenseApprovalStats, useApproveExpense, useRejectExpense } from '../../lib/queries';
+import { emitExpenseApproved, emitExpenseRejected, emitBalanceNegative } from '../../lib/workflow/eventEmitters';
+import { updateVehicleCostOnExpense } from '../../lib/services/VehicleCostService';
+import { useAuth } from '../../providers/useAuth';
 
 // ✅ Expense Approval Workflow
 // Admin approval system for employee expenses
@@ -54,6 +57,7 @@ interface ApprovalStats {
 export const ExpenseApproval: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { user } = useAuth();
   const isMobile = useIsMobile();
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [selectedExpenses, setSelectedExpenses] = useState<string[]>([]);
@@ -83,13 +87,35 @@ export const ExpenseApproval: React.FC = () => {
 
   const handleExpenseClick = (expense: ExpenseApproval) => {
     navigate(`/app/expenses/${expense.id}`, { 
-      state: { from: '/app/expenses/approval' } 
+      state: { from: '/app/approvals?tab=expense' } 
     });
   };
 
   const approveExpense = async (expenseId: string) => {
     try {
+      const expense = expenses.find((e: ExpenseApproval) => e.id === expenseId);
       await approveMutation.mutateAsync({ id: expenseId });
+      
+      // Emit workflow events
+      if (expense) {
+        await emitExpenseApproved(
+          expenseId,
+          expense.amount,
+          expense.employee_id,
+          user?.id?.toString() || '',
+          user?.id?.toString()
+        );
+        
+        // Update vehicle cost if linked (Super Admin only)
+        if (expense.asset_name && user?.role === 'super_admin') {
+          // Note: We need asset_id, but we only have asset_name here
+          // This will be handled by backend workflow or we can fetch asset_id
+        }
+        
+        // Check for negative balance (will be handled by backend workflow)
+        // emitBalanceNegative will be called by backend when balance goes negative
+      }
+      
       showToast({
         title: 'Success',
         description: 'Expense approved successfully!',
@@ -348,20 +374,20 @@ export const ExpenseApproval: React.FC = () => {
             value={stats.pending}
             color={colors.warning[500]}
             description={formatCurrency(stats.pending_amount)}
-            href="/app/expenses/approval?filter=pending"
+            href="/app/approvals?tab=expense&filter=pending"
           />
           <StatCard
             label="Approved"
             value={stats.approved}
             color={colors.success[500]}
             description={formatCurrency(stats.approved_amount)}
-            href="/app/expenses/approval?filter=approved"
+            href="/app/approvals?tab=expense&filter=approved"
           />
           <StatCard
             label="Rejected"
             value={stats.rejected}
             color={colors.error[500]}
-            href="/app/expenses/approval?filter=rejected"
+            href="/app/approvals?tab=expense&filter=rejected"
           />
           <StatCard
             label="Average"

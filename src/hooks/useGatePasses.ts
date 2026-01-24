@@ -1,15 +1,15 @@
 /**
- * React Query Hooks for Gate Passes
+ * React Query Hooks for Access Passes (formerly Gate Passes)
  * 
- * Custom hooks using TanStack Query for unified Gate Pass API v2
+ * Custom hooks using TanStack Query for unified Access Pass API v2
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';
-import { gatePassService } from '../lib/services/GatePassService';
+import { accessService } from '../lib/services/AccessService';
 import { useToast } from '../providers/ToastProvider';
-import { getGatePassErrorMessage } from '@/pages/gatepass/utils/errorMessages';
-import { RETRY_CONFIG } from '@/pages/gatepass/constants';
+import { getGatePassErrorMessage } from '@/pages/stockyard/access/utils/errorMessages';
+import { RETRY_CONFIG } from '@/pages/stockyard/access/constants';
 import type {
   GatePass,
   GatePassFilters,
@@ -20,28 +20,31 @@ import type {
   ValidatePassRequest,
   ValidatePassResponse,
   GuardLogParams,
-} from '@/pages/gatepass/gatePassTypes';
+} from '@/pages/stockyard/access/gatePassTypes';
 
 // ============================================================================
 // Query Keys Factory
 // ============================================================================
 
-export const gatePassKeys = {
-  all: ['gate-passes'] as const,
-  lists: () => [...gatePassKeys.all, 'list'] as const,
-  list: (filters?: GatePassFilters) => [...gatePassKeys.lists(), filters] as const,
-  details: () => [...gatePassKeys.all, 'detail'] as const,
-  detail: (id: string) => [...gatePassKeys.details(), id] as const,
-  stats: (yardId?: string) => [...gatePassKeys.all, 'stats', yardId] as const,
-  guardLogs: (params?: GuardLogParams) => [...gatePassKeys.all, 'guard-logs', params] as const,
+export const accessPassKeys = {
+  all: ['access-passes'] as const,
+  lists: () => [...accessPassKeys.all, 'list'] as const,
+  list: (filters?: GatePassFilters) => [...accessPassKeys.lists(), filters] as const,
+  details: () => [...accessPassKeys.all, 'detail'] as const,
+  detail: (id: string) => [...accessPassKeys.details(), id] as const,
+  stats: (yardId?: string) => [...accessPassKeys.all, 'stats', yardId] as const,
+  guardLogs: (params?: GuardLogParams) => [...accessPassKeys.all, 'guard-logs', params] as const,
 } as const;
+
+// Backward compatibility: keep old key name for gradual migration
+export const gatePassKeys = accessPassKeys;
 
 // ============================================================================
 // Query Hooks
 // ============================================================================
 
 /**
- * Hook for fetching gate passes list
+ * Hook for fetching access passes list (formerly gate passes)
  */
 export function useGatePasses(
   filters?: GatePassFilters,
@@ -54,8 +57,8 @@ export function useGatePasses(
       RETRY_CONFIG.RETRY_DELAY * Math.pow(RETRY_CONFIG.RETRY_DELAY_MULTIPLIER, attemptIndex),
   };
   return useQuery({
-    queryKey: gatePassKeys.list(filters),
-    queryFn: () => gatePassService.list(filters),
+    queryKey: accessPassKeys.list(filters),
+    queryFn: () => accessService.list(filters),
     staleTime: 3 * 60 * 1000, // 3 minutes
     gcTime: 15 * 60 * 1000, // 15 minutes
     retry: retryConfig.retry,
@@ -72,8 +75,8 @@ export function useGatePassStats(
   options?: Omit<UseQueryOptions<GatePassStats, Error>, 'queryKey' | 'queryFn'>
 ) {
   return useQuery({
-    queryKey: gatePassKeys.stats(yardId),
-    queryFn: () => gatePassService.getStats(yardId),
+    queryKey: accessPassKeys.stats(yardId),
+    queryFn: () => accessService.getStats(yardId),
     staleTime: 1 * 60 * 1000, // 1 minute
     refetchInterval: 60 * 1000, // Auto refetch every 60 seconds
     ...options,
@@ -87,10 +90,13 @@ export function useGatePass(
   id: string | undefined,
   options?: Omit<UseQueryOptions<GatePass, Error>, 'queryKey' | 'queryFn'>
 ) {
+  // Validate id is not undefined and not the literal string ':id'
+  const validId = id && id !== ':id' ? id : undefined;
+  
   return useQuery({
-    queryKey: gatePassKeys.detail(id!),
-    queryFn: () => gatePassService.get(id!),
-    enabled: !!id,
+    queryKey: accessPassKeys.detail(validId!),
+    queryFn: () => accessService.get(validId!),
+    enabled: !!validId && validId !== ':id',
     staleTime: 10 * 60 * 1000, // 10 minutes
     ...options,
   });
@@ -104,8 +110,8 @@ export function useGuardLogs(
   options?: Omit<UseQueryOptions<any, Error>, 'queryKey' | 'queryFn'>
 ) {
   return useQuery({
-    queryKey: gatePassKeys.guardLogs(params),
-    queryFn: () => gatePassService.getGuardLogs(params),
+    queryKey: accessPassKeys.guardLogs(params),
+    queryFn: () => accessService.getGuardLogs(params),
     staleTime: 1 * 60 * 1000, // 1 minute
     ...options,
   });
@@ -125,19 +131,19 @@ export function useCreateGatePass(
   const { showToast } = useToast();
 
   return useMutation({
-    mutationFn: (data: CreateGatePassData) => gatePassService.create(data),
+    mutationFn: (data: CreateGatePassData) => accessService.create(data),
     onSuccess: (data) => {
       // Invalidate lists and stats
-      queryClient.invalidateQueries({ queryKey: gatePassKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: gatePassKeys.stats() });
+      queryClient.invalidateQueries({ queryKey: accessPassKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: accessPassKeys.stats() });
       
       // Pre-populate detail cache
-      queryClient.setQueryData(gatePassKeys.detail(data.id), data);
+      queryClient.setQueryData(accessPassKeys.detail(data.id), data);
       
       // Show success toast
       showToast({
         title: 'Success',
-        description: `Gate pass ${data.pass_number} created successfully!`,
+        description: `Access pass ${data.pass_number} created successfully!`,
         variant: 'success',
       });
       
@@ -169,13 +175,13 @@ export function useUpdateGatePass(
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateGatePassData }) =>
-      gatePassService.update(id, data),
+      accessService.update(id, data),
     onSuccess: (data, variables) => {
       // Invalidate lists
-      queryClient.invalidateQueries({ queryKey: gatePassKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: accessPassKeys.lists() });
       
       // Update detail cache
-      queryClient.setQueryData(gatePassKeys.detail(variables.id), data);
+      queryClient.setQueryData(accessPassKeys.detail(variables.id), data);
       
       showToast({
         title: 'Success',
@@ -214,15 +220,15 @@ export function useCancelGatePass(
   const { showToast } = useToast();
 
   return useMutation({
-    mutationFn: (id: string) => gatePassService.cancel(id),
+    mutationFn: (id: string) => accessService.cancel(id),
     onSuccess: (_, id) => {
       // Invalidate lists, detail, and stats
-      queryClient.invalidateQueries({ queryKey: gatePassKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: gatePassKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: gatePassKeys.stats() });
+      queryClient.invalidateQueries({ queryKey: accessPassKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: accessPassKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: accessPassKeys.stats() });
       
       // Remove from detail cache
-      queryClient.removeQueries({ queryKey: gatePassKeys.detail(id) });
+      queryClient.removeQueries({ queryKey: accessPassKeys.detail(id) });
       
       showToast({
         title: 'Success',
@@ -259,16 +265,16 @@ export function useValidatePass(
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: ValidatePassRequest) => gatePassService.validateAndProcess(data),
+    mutationFn: (data: ValidatePassRequest) => accessService.validateAndProcess(data),
     onSuccess: (data, variables) => {
       // If action was taken, invalidate lists and stats
       if (data.action_taken) {
-        queryClient.invalidateQueries({ queryKey: gatePassKeys.lists() });
-        queryClient.invalidateQueries({ queryKey: gatePassKeys.stats() });
+        queryClient.invalidateQueries({ queryKey: accessPassKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: accessPassKeys.stats() });
         
         // Update detail cache if pass is returned
         if (data.pass) {
-          queryClient.setQueryData(gatePassKeys.detail(data.pass.id), data.pass);
+          queryClient.setQueryData(accessPassKeys.detail(data.pass.id), data.pass);
         }
       }
       
@@ -285,21 +291,37 @@ export function useValidatePass(
  * Hook for recording entry
  */
 export function useRecordEntry(
-  options?: Omit<UseMutationOptions<GatePass, Error, { id: string; notes?: string }>, 'mutationFn'>
+  options?: Omit<UseMutationOptions<GatePass, Error, { 
+    id: string; 
+    notes?: string;
+    gate_id?: string;
+    guard_id?: number;
+    location?: { lat: number; lng: number };
+    photos?: string[];
+    condition_snapshot?: Record<string, unknown>;
+  }>, 'mutationFn'>
 ) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
   return useMutation({
-    mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
-      gatePassService.recordEntry(id, notes),
+    mutationFn: ({ id, notes, gate_id, guard_id, location, photos, condition_snapshot }: { 
+      id: string; 
+      notes?: string;
+      gate_id?: string;
+      guard_id?: number;
+      location?: { lat: number; lng: number };
+      photos?: string[];
+      condition_snapshot?: Record<string, unknown>;
+    }) =>
+      accessService.recordEntry(id, { notes, gate_id, guard_id, location, photos, condition_snapshot }),
     onSuccess: (data, variables) => {
       // Invalidate lists and stats
-      queryClient.invalidateQueries({ queryKey: gatePassKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: gatePassKeys.stats() });
+      queryClient.invalidateQueries({ queryKey: accessPassKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: accessPassKeys.stats() });
       
       // Update detail cache
-      queryClient.setQueryData(gatePassKeys.detail(variables.id), data);
+      queryClient.setQueryData(accessPassKeys.detail(variables.id), data);
       
       showToast({
         title: 'Success',
@@ -332,21 +354,39 @@ export function useRecordEntry(
  * Hook for recording exit
  */
 export function useRecordExit(
-  options?: Omit<UseMutationOptions<GatePass, Error, { id: string; notes?: string }>, 'mutationFn'>
+  options?: Omit<UseMutationOptions<GatePass, Error, { 
+    id: string; 
+    notes?: string;
+    gate_id?: string;
+    guard_id?: number;
+    location?: { lat: number; lng: number };
+    photos?: string[];
+    odometer_km?: number;
+    component_snapshot?: Record<string, unknown>;
+  }>, 'mutationFn'>
 ) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
   return useMutation({
-    mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
-      gatePassService.recordExit(id, notes),
+    mutationFn: ({ id, notes, gate_id, guard_id, location, photos, odometer_km, component_snapshot }: { 
+      id: string; 
+      notes?: string;
+      gate_id?: string;
+      guard_id?: number;
+      location?: { lat: number; lng: number };
+      photos?: string[];
+      odometer_km?: number;
+      component_snapshot?: Record<string, unknown>;
+    }) =>
+      accessService.recordExit(id, { notes, gate_id, guard_id, location, photos, odometer_km, component_snapshot }),
     onSuccess: (data, variables) => {
       // Invalidate lists and stats
-      queryClient.invalidateQueries({ queryKey: gatePassKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: gatePassKeys.stats() });
+      queryClient.invalidateQueries({ queryKey: accessPassKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: accessPassKeys.stats() });
       
       // Update detail cache
-      queryClient.setQueryData(gatePassKeys.detail(variables.id), data);
+      queryClient.setQueryData(accessPassKeys.detail(variables.id), data);
       
       showToast({
         title: 'Success',

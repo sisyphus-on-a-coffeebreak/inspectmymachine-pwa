@@ -21,9 +21,6 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { WideGrid } from '../../components/ui/ResponsiveGrid';
 import { LoadingError } from '../../components/ui/LoadingError';
 import { LedgerTimeline } from '../../components/ui/LedgerTimeline';
-import { IssueAdvanceModal } from '../../components/ui/IssueAdvanceModal';
-import { CashReturnModal } from '../../components/ui/CashReturnModal';
-import { ReimbursementModal } from '../../components/ui/ReimbursementModal';
 
 interface LedgerTransaction {
   id: string;
@@ -65,10 +62,6 @@ export const EmployeeLedger: React.FC = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'timeline'>('list');
-  const [showAdvanceModal, setShowAdvanceModal] = useState(false);
-  const [showCashReturnModal, setShowCashReturnModal] = useState(false);
-  const [showReimbursementModal, setShowReimbursementModal] = useState(false);
-  const [prefilledAdvanceAmount, setPrefilledAdvanceAmount] = useState<number | undefined>();
 
   // Fetch ledger transactions and balance
   const { data: transactionsData, isLoading: transactionsLoading, error: transactionsError, refetch: refetchTransactions } = useLedgerTransactions(
@@ -212,7 +205,7 @@ export const EmployeeLedger: React.FC = () => {
           balance={currentBalance}
           label="Current Ledger Balance"
           variant="detailed"
-          onClick={() => navigate('/app/expenses/reconciliation')}
+          onClick={() => navigate('/app/expenses/analytics?tab=reconciliation')}
         />
       </div>
 
@@ -552,33 +545,6 @@ export const EmployeeLedger: React.FC = () => {
         )}
       </div>
 
-      {/* Ledger Action Modals */}
-      <IssueAdvanceModal
-        isOpen={showAdvanceModal}
-        onClose={() => {
-          setShowAdvanceModal(false);
-          setPrefilledAdvanceAmount(undefined);
-        }}
-        onSuccess={() => {
-          // Refetch transactions after advance is issued
-          refetchTransactions();
-        }}
-        initialAmount={prefilledAdvanceAmount}
-      />
-      <CashReturnModal
-        isOpen={showCashReturnModal}
-        onClose={() => setShowCashReturnModal(false)}
-        onSuccess={() => {
-          refetchTransactions();
-        }}
-      />
-      <ReimbursementModal
-        isOpen={showReimbursementModal}
-        onClose={() => setShowReimbursementModal(false)}
-        onSuccess={() => {
-          refetchTransactions();
-        }}
-      />
     </div>
   );
 };

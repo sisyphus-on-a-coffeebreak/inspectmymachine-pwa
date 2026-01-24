@@ -70,9 +70,23 @@ export function checkPermission(
   
   if (enhancedCaps && enhancedCaps.length > 0) {
     // Find matching enhanced capability
-    const matchingCap = enhancedCaps.find(
-      cap => cap.module === module && cap.action === action
-    );
+    // For stockyard module, we need to check function scope if provided in context
+    const matchingCap = enhancedCaps.find(cap => {
+      if (cap.module !== module || cap.action !== action) return false;
+      
+      // For stockyard with function scope, check if scope matches
+      if (module === 'stockyard' && cap.scope?.type === 'function' && context?.stockyardFunction) {
+        return cap.scope.value === context.stockyardFunction;
+      }
+      
+      // For stockyard with function scope but no context function, skip (will check basic capabilities)
+      if (module === 'stockyard' && cap.scope?.type === 'function' && !context?.stockyardFunction) {
+        return false;
+      }
+      
+      // For other cases, match normally
+      return true;
+    });
     
     if (matchingCap) {
       return evaluateEnhancedCapability(user, matchingCap, context);

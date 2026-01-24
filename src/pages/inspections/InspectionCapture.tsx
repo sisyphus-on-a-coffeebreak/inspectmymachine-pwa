@@ -49,7 +49,7 @@ export const InspectionCapture: React.FC = () => {
 
       if (!templateId) {
         // No template ID - redirect to template selection
-        navigate('/app/inspections/new' + (vehicleId ? `?vehicleId=${vehicleId}` : ''), { replace: true });
+        navigate('/app/inspections/create' + (vehicleId ? `?vehicleId=${vehicleId}` : ''), { replace: true });
         setLoading(false);
         return;
       }
@@ -327,7 +327,7 @@ export const InspectionCapture: React.FC = () => {
         />
         <div style={{ textAlign: 'center', marginTop: spacing.md }}>
           <button
-            onClick={() => navigate('/app/inspections/new' + (vehicleId ? `?vehicleId=${vehicleId}` : ''))}
+            onClick={() => navigate('/app/inspections/create' + (vehicleId ? `?vehicleId=${vehicleId}` : ''))}
             style={{
               padding: spacing.sm,
               backgroundColor: colors.neutral[100],
@@ -369,7 +369,7 @@ export const InspectionCapture: React.FC = () => {
         ]}
         actions={
           <button
-            onClick={() => navigate('/app/inspections/new' + (vehicleId ? `?vehicleId=${vehicleId}` : ''))}
+            onClick={() => navigate('/app/inspections/create' + (vehicleId ? `?vehicleId=${vehicleId}` : ''))}
             style={{
               padding: spacing.sm,
               backgroundColor: colors.neutral[100],

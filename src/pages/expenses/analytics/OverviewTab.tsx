@@ -5,12 +5,12 @@
  */
 
 import React from 'react';
-import { useAnalytics } from '../../../contexts/AnalyticsContext';
-import { useExpenses } from '../../../lib/queries';
-import { StatCard } from '../../../components/ui/StatCard';
-import { colors, spacing } from '../../../lib/theme';
-import { EmptyState } from '../../../components/ui/EmptyState';
-import { WideGrid } from '../../../components/ui/ResponsiveGrid';
+import { useAnalytics } from '@/contexts/AnalyticsContext';
+import { useExpenses } from '@/lib/queries';
+import { StatCard } from '@/components/ui/StatCard';
+import { colors, spacing } from '@/lib/theme';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { WideGrid } from '@/components/ui/ResponsiveGrid';
 
 export function OverviewTab() {
   const { filters } = useAnalytics();

@@ -21,8 +21,14 @@ export type CapabilityAction = 'create' | 'read' | 'update' | 'delete' | 'approv
 
 /**
  * Modules in the system
+ * Note: gate_pass removed - use stockyard with access_control function instead
  */
-export type CapabilityModule = 'gate_pass' | 'inspection' | 'expense' | 'user_management' | 'reports' | 'stockyard';
+export type CapabilityModule = 'inspection' | 'expense' | 'user_management' | 'reports' | 'stockyard';
+
+/**
+ * Stockyard function types for granular capability checks
+ */
+export type StockyardFunction = 'access_control' | 'inventory' | 'movements';
 
 // ========================================
 // 1. FIELD-LEVEL PERMISSIONS
@@ -56,6 +62,7 @@ export type PermissionScope =
   | 'yard_only' // Only records in user's yard
   | 'department_only' // Only records in user's department
   | 'assigned_only' // Only records assigned to user
+  | 'function' // Function-based scope (for stockyard: access_control, inventory, movements)
   | 'custom'; // Custom filter function
 
 /**
@@ -64,6 +71,8 @@ export type PermissionScope =
 export interface RecordScopeRule {
   /** Type of scope restriction */
   type: PermissionScope;
+  /** Function value (for 'function' type - used for stockyard function-based scoping) */
+  value?: StockyardFunction; // For function-based scope
   /** Custom filter expression (for 'custom' type) */
   custom_filter?: string; // Serialized filter expression
 }
@@ -200,13 +209,14 @@ export interface EnhancedCapability {
  */
 export interface EnhancedUserCapabilities {
   // Basic module capabilities (backward compatible)
-  gate_pass?: CapabilityAction[];
+  // Note: gate_pass removed - use stockyard with access_control function instead
   inspection?: CapabilityAction[];
   expense?: CapabilityAction[];
   user_management?: CapabilityAction[];
   reports?: CapabilityAction[];
+  stockyard?: CapabilityAction[]; // Basic stockyard capabilities (for backward compat during transition)
   
-  // Enhanced granular capabilities
+  // Enhanced granular capabilities (preferred)
   enhanced_capabilities?: EnhancedCapability[];
 }
 
@@ -253,6 +263,10 @@ export interface PermissionCheckContext {
   // Advanced options
   /** Force granular permission checks even for super_admin */
   enforceGranular?: boolean;
+  
+  // Stockyard-specific context
+  /** Stockyard function for function-based capability checks */
+  stockyardFunction?: StockyardFunction;
 }
 
 // ========================================

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../providers/useAuth";
 import { colors, typography, spacing, borderRadius } from "../../lib/theme";
 import { hasCapability } from "../../lib/permissions/evaluator";
+import { hasStockyardCapability } from "../../lib/users";
 import type { CapabilityModule } from "../../lib/users";
 import "./AppLayout.css";
 import {
@@ -34,7 +35,9 @@ import { InstallBanner } from "../ui/InstallBanner";
 import { SkipToContent } from "../ui/SkipToContent";
 import { generateBreadcrumbs, shouldShowBreadcrumbs } from "../../lib/breadcrumbUtils";
 import { usePrefetch } from "../../hooks/usePrefetch";
+import { unifiedNavItems, filterNavItemsByAccess, type UnifiedNavItem } from "../../lib/unifiedNavigation";
 
+// Keep NavItem interface for backward compatibility with existing code
 interface NavItem {
   id: string;
   label: string;
@@ -45,110 +48,21 @@ interface NavItem {
   children?: NavItem[];
 }
 
-const navItems: NavItem[] = [
-  {
-    id: "dashboard",
-    label: "Dashboard",
-    icon: Home,
-    path: "/dashboard",
-    roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"]
-  },
-  {
-    id: "gate-pass",
-    label: "Gate Passes",
-    icon: ClipboardList,
-    path: "/app/gate-pass",
-    roles: ["super_admin", "admin", "guard", "clerk"],
-    requiredCapability: { module: 'gate_pass', action: 'read' },
-    children: [
-      { id: "dashboard", label: "Dashboard", icon: ClipboardList, path: "/app/gate-pass", roles: ["super_admin", "admin", "guard", "clerk"], requiredCapability: { module: 'gate_pass', action: 'read' } },
-      { id: "create-visitor", label: "Create Visitor Pass", icon: ClipboardList, path: "/app/gate-pass/create-visitor", roles: ["super_admin", "admin", "clerk"], requiredCapability: { module: 'gate_pass', action: 'create' } },
-      { id: "create-vehicle", label: "Create Vehicle Pass", icon: ClipboardList, path: "/app/gate-pass/create-vehicle", roles: ["super_admin", "admin", "clerk"], requiredCapability: { module: 'gate_pass', action: 'create' } },
-      { id: "guard-register", label: "Guard Register", icon: ClipboardList, path: "/app/gate-pass/guard-register", roles: ["super_admin", "admin", "guard"], requiredCapability: { module: 'gate_pass', action: 'read' } },
-      { id: "validation", label: "Validation", icon: ClipboardList, path: "/app/gate-pass/validation", roles: ["super_admin", "admin", "supervisor", "guard"], requiredCapability: { module: 'gate_pass', action: 'validate' } },
-      { id: "calendar", label: "Calendar", icon: ClipboardList, path: "/app/gate-pass/calendar", roles: ["super_admin", "admin", "guard", "clerk"], requiredCapability: { module: 'gate_pass', action: 'read' } },
-      { id: "reports", label: "Reports", icon: ClipboardList, path: "/app/gate-pass/reports", roles: ["super_admin", "admin"], requiredCapability: { module: 'reports', action: 'read' } },
-      { id: "approvals", label: "Approvals", icon: CheckCircle, path: "/app/gate-pass/approvals", roles: ["super_admin", "admin", "supervisor"], requiredCapability: { module: 'gate_pass', action: 'approve' } }
-    ]
-  },
-  {
-    id: "inspections",
-    label: "Inspections",
-    icon: FileText,
-    path: "/app/inspections",
-    roles: ["super_admin", "admin", "inspector"],
-    requiredCapability: { module: 'inspection', action: 'read' },
-    children: [
-      { id: "dashboard", label: "Dashboard", icon: FileText, path: "/app/inspections", roles: ["super_admin", "admin", "inspector"], requiredCapability: { module: 'inspection', action: 'read' } },
-      { id: "new", label: "New Inspection", icon: FileText, path: "/app/inspections/new", roles: ["super_admin", "admin", "inspector"], requiredCapability: { module: 'inspection', action: 'create' } },
-      { id: "completed", label: "Completed", icon: FileText, path: "/app/inspections/completed", roles: ["super_admin", "admin", "inspector"], requiredCapability: { module: 'inspection', action: 'read' } },
-      { id: "reports", label: "Reports", icon: FileText, path: "/app/inspections/reports", roles: ["super_admin", "admin", "inspector"], requiredCapability: { module: 'reports', action: 'read' } }
-    ]
-  },
-  {
-    id: "expenses",
-    label: "Expenses",
-    icon: DollarSign,
-    path: "/app/expenses",
-    roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"],
-    requiredCapability: { module: 'expense', action: 'read' },
-    children: [
-      { id: "dashboard", label: "Dashboard", icon: DollarSign, path: "/app/expenses", roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"], requiredCapability: { module: 'expense', action: 'read' } },
-      { id: "create", label: "Create Expense", icon: DollarSign, path: "/app/expenses/create", roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"], requiredCapability: { module: 'expense', action: 'create' } },
-      { id: "history", label: "History", icon: DollarSign, path: "/app/expenses/history", roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"], requiredCapability: { module: 'expense', action: 'read' } },
-      { id: "reports", label: "Reports", icon: DollarSign, path: "/app/expenses/reports", roles: ["super_admin", "admin"], requiredCapability: { module: 'reports', action: 'read' } },
-      { id: "analytics", label: "Analytics", icon: DollarSign, path: "/app/expenses/analytics", roles: ["super_admin", "admin"], requiredCapability: { module: 'reports', action: 'read' } }
-    ]
-  },
-  {
-    id: "stockyard",
-    label: "Stockyard",
-    icon: Warehouse,
-    path: "/app/stockyard",
-    roles: ["super_admin", "admin"],
-    requiredCapability: { module: 'stockyard', action: 'read' },
-    children: [
-      { id: "dashboard", label: "Dashboard", icon: Warehouse, path: "/app/stockyard", roles: ["super_admin", "admin"], requiredCapability: { module: 'stockyard', action: 'read' } },
-      { id: "create", label: "Record Movement", icon: Warehouse, path: "/app/stockyard/create", roles: ["super_admin", "admin"], requiredCapability: { module: 'stockyard', action: 'create' } },
-      { id: "scan", label: "Scan Vehicle", icon: Warehouse, path: "/app/stockyard/scan", roles: ["super_admin", "admin", "guard"], requiredCapability: { module: 'stockyard', action: 'read' } },
-      { id: "components", label: "Component Ledger", icon: Warehouse, path: "/app/stockyard/components", roles: ["super_admin", "admin"], requiredCapability: { module: 'stockyard', action: 'read' } },
-      { id: "analytics", label: "Analytics", icon: Warehouse, path: "/app/stockyard/analytics", roles: ["super_admin", "admin"], requiredCapability: { module: 'reports', action: 'read' } },
-    ]
-  },
-  {
-    id: "alerts",
-    label: "Alerts",
-    icon: AlertTriangle,
-    path: "/app/alerts",
-    roles: ["super_admin", "admin", "supervisor"],
-    requiredCapability: { module: 'gate_pass', action: 'read' } // Most users can see alerts
-  },
-  {
-    id: "users",
-    label: "User Management",
-    icon: UserCog,
-    path: "/app/admin/users",
-    roles: ["super_admin", "admin"],
-    requiredCapability: { module: 'user_management', action: 'read' },
-    children: [
-      { id: "dashboard", label: "Dashboard", icon: UserCog, path: "/app/admin/users", roles: ["super_admin", "admin"], requiredCapability: { module: 'user_management', action: 'read' } },
-      { id: "roles", label: "Role Management", icon: Shield, path: "/app/admin/roles", roles: ["super_admin", "admin"], requiredCapability: { module: 'user_management', action: 'read' } },
-      { id: "user-activity", label: "Activity Dashboard", icon: UserCog, path: "/app/admin/users/activity", roles: ["super_admin", "admin"], requiredCapability: { module: 'user_management', action: 'read' } },
-      { id: "capability-matrix", label: "Capability Matrix", icon: UserCog, path: "/app/admin/users/capability-matrix", roles: ["super_admin", "admin"], requiredCapability: { module: 'user_management', action: 'read' } },
-      { id: "bulk-operations", label: "Bulk Operations", icon: UserCog, path: "/app/admin/users/bulk-operations", roles: ["super_admin", "admin"], requiredCapability: { module: 'user_management', action: 'update' } }
-    ]
-  },
-  {
-    id: "settings",
-    label: "Settings",
-    icon: Settings,
-    path: "/app/settings",
-    roles: ["super_admin", "admin"],
-    children: [
-      { id: "report-branding", label: "Report Branding", icon: Settings, path: "/app/settings/report-branding", roles: ["super_admin", "admin"] }
-    ]
-  }
-];
+// Convert UnifiedNavItem to NavItem for compatibility
+function unifiedToNavItem(item: UnifiedNavItem): NavItem {
+  return {
+    id: item.id,
+    label: item.label,
+    icon: item.icon,
+    path: item.path,
+    roles: item.roles || [],
+    requiredCapability: item.requiredCapability,
+    children: item.children?.map(unifiedToNavItem),
+  };
+}
+
+// Use unified navigation items
+const navItems: NavItem[] = unifiedNavItems.map(unifiedToNavItem);
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -329,7 +243,14 @@ export default function AppLayout({
     return false;
   };
 
-  const accessibleNavItems = navItems.filter(canAccessNavItem);
+  // Use unified navigation filtering
+  const accessibleUnifiedItems = filterNavItemsByAccess(
+    unifiedNavItems,
+    user,
+    (user, module, action) => hasCapability(user, module, action as any),
+    (user, functionType, action) => hasStockyardCapability(user, functionType, action as any)
+  );
+  const accessibleNavItems = accessibleUnifiedItems.map(unifiedToNavItem);
 
   // Prefetching for faster navigation
   const { prefetchRoute } = usePrefetch({

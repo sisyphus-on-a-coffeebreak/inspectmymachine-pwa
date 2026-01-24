@@ -6,8 +6,8 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useGatePasses } from '../../../lib/queries';
-import { colors, spacing, typography } from '../../../lib/theme';
+import { useGatePasses } from '@/lib/queries';
+import { colors, spacing, typography } from '@/lib/theme';
 import { Users, ArrowRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -122,6 +122,8 @@ export function InsideNowWidget() {
     </div>
   );
 }
+
+
 
 
 

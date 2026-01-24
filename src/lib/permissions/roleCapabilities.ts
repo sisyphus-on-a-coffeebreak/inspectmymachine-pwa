@@ -8,7 +8,8 @@
  */
 
 import type { User } from '../users';
-import type { CapabilityModule, CapabilityAction, UserCapabilities } from '../users';
+import type { CapabilityModule, CapabilityAction, UserCapabilities, StockyardFunction } from '../users';
+import type { EnhancedCapability } from './types';
 import { apiClient } from '../apiClient';
 
 // Cache for role capabilities fetched from API
@@ -17,71 +18,123 @@ const roleCapabilitiesCache = new Map<string, UserCapabilities>();
 /**
  * Get role capabilities as UserCapabilities format (for users.ts)
  */
+/**
+ * Helper to create enhanced capabilities for stockyard functions
+ */
+function createStockyardCapabilities(
+  functions: StockyardFunction[],
+  actions: CapabilityAction[]
+): EnhancedCapability[] {
+  return functions.flatMap(func =>
+    actions.map(action => ({
+      module: 'stockyard' as CapabilityModule,
+      action,
+      scope: { type: 'function' as const, value: func },
+    }))
+  );
+}
+
 export function getRoleCapabilities(): Record<User['role'], UserCapabilities> {
   return {
     super_admin: {
-      gate_pass: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
+      // Basic capabilities (for backward compat during transition)
+      stockyard: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
       inspection: ['create', 'read', 'update', 'delete', 'approve', 'review'],
       expense: ['create', 'read', 'update', 'delete', 'approve', 'reassign'],
       user_management: ['create', 'read', 'update', 'delete'],
       reports: ['read', 'export'],
-      stockyard: ['create', 'read', 'update', 'delete', 'approve'],
+      // Enhanced capabilities (preferred, long-term)
+      enhanced_capabilities: [
+        // Access control (all actions)
+        ...createStockyardCapabilities(['access_control'], ['create', 'read', 'update', 'delete', 'approve', 'validate']),
+        // Inventory (all actions except validate)
+        ...createStockyardCapabilities(['inventory'], ['create', 'read', 'update', 'delete', 'approve']),
+        // Movements (all actions except validate)
+        ...createStockyardCapabilities(['movements'], ['create', 'read', 'update', 'delete', 'approve']),
+      ],
     },
     admin: {
-      gate_pass: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
+      stockyard: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
       inspection: ['create', 'read', 'update', 'delete', 'approve', 'review'],
       expense: ['create', 'read', 'update', 'delete', 'approve', 'reassign'],
       user_management: ['read', 'update'],
       reports: ['read', 'export'],
-      stockyard: ['create', 'read', 'update', 'delete', 'approve'],
+      enhanced_capabilities: [
+        ...createStockyardCapabilities(['access_control'], ['create', 'read', 'update', 'delete', 'approve', 'validate']),
+        ...createStockyardCapabilities(['inventory'], ['create', 'read', 'update', 'delete', 'approve']),
+        ...createStockyardCapabilities(['movements'], ['create', 'read', 'update', 'delete', 'approve']),
+      ],
     },
     yard_incharge: {
-      gate_pass: ['create', 'read', 'approve', 'validate'],
+      // Basic capabilities (mapped from old gate_pass)
+      stockyard: ['create', 'read', 'approve', 'validate'],
       inspection: ['read', 'approve', 'review'],
       expense: ['read'],
       user_management: [],
       reports: ['read'],
-      stockyard: [],
+      enhanced_capabilities: [
+        // Access control (full access)
+        ...createStockyardCapabilities(['access_control'], ['create', 'read', 'approve', 'validate']),
+        // Inventory (read only)
+        ...createStockyardCapabilities(['inventory'], ['read']),
+        // Movements (create, read, approve)
+        ...createStockyardCapabilities(['movements'], ['create', 'read', 'approve']),
+      ],
     },
     supervisor: {
-      gate_pass: ['read', 'approve', 'validate'],
+      stockyard: ['read', 'approve', 'validate'],
       inspection: ['read', 'approve', 'review'],
       expense: ['read', 'approve'],
       user_management: [],
       reports: ['read'],
-      stockyard: [],
+      enhanced_capabilities: [
+        // Access control (read, approve, validate)
+        ...createStockyardCapabilities(['access_control'], ['read', 'approve', 'validate']),
+      ],
     },
     executive: {
-      gate_pass: ['create', 'read', 'validate'],
+      stockyard: ['create', 'read', 'validate'],
       inspection: ['read'],
       expense: ['create', 'read'],
       user_management: [],
       reports: [],
-      stockyard: [],
+      enhanced_capabilities: [
+        // Access control (create, read, validate)
+        ...createStockyardCapabilities(['access_control'], ['create', 'read', 'validate']),
+      ],
     },
     inspector: {
-      gate_pass: ['read'],
+      stockyard: ['read'],
       inspection: ['create', 'read', 'update'],
       expense: ['create', 'read'],
       user_management: [],
       reports: [],
-      stockyard: [],
+      enhanced_capabilities: [
+        // Access control (read only)
+        ...createStockyardCapabilities(['access_control'], ['read']),
+      ],
     },
     guard: {
-      gate_pass: ['read', 'validate'],
+      stockyard: ['read', 'validate'],
       inspection: ['read'],
       expense: ['read'],
       user_management: [],
       reports: [],
-      stockyard: [],
+      enhanced_capabilities: [
+        // Access control (read, validate only)
+        ...createStockyardCapabilities(['access_control'], ['read', 'validate']),
+      ],
     },
     clerk: {
-      gate_pass: ['create', 'read'],
+      stockyard: ['create', 'read'],
       inspection: ['read'],
       expense: ['create', 'read'],
       user_management: [],
       reports: [],
-      stockyard: [],
+      enhanced_capabilities: [
+        // Access control (create, read only)
+        ...createStockyardCapabilities(['access_control'], ['create', 'read']),
+      ],
     },
   };
 }

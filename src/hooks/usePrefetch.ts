@@ -59,9 +59,9 @@ export function usePrefetch(options: PrefetchOptions = {}) {
     queryClient.prefetchQuery({
       queryKey: queryKeys.gatePasses.list({}),
       queryFn: async () => {
-        // Use the gatePassService for proper API v2 calls
-        const { gatePassService } = await import('../lib/services/GatePassService');
-        return await gatePassService.list({
+        // Use the accessService for proper API v2 calls
+        const { accessService } = await import('../lib/services/AccessService');
+        return await accessService.list({
           per_page: 20,
           page: 1,
         });

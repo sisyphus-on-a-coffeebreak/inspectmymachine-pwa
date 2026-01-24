@@ -6,9 +6,9 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useInspections } from '../../../lib/queries';
-import { useAuth } from '../../../providers/useAuth';
-import { colors, spacing, typography } from '../../../lib/theme';
+import { useInspections } from '@/lib/queries';
+import { useAuth } from '@/providers/useAuth';
+import { colors, spacing, typography } from '@/lib/theme';
 import { ClipboardList, ArrowRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -122,6 +122,8 @@ export function MyInspectionsWidget() {
     </div>
   );
 }
+
+
 
 
 

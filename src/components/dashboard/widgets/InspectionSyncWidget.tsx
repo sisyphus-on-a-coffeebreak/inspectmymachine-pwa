@@ -7,10 +7,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { WidgetProps } from '../../../types/widgets';
+import type { WidgetProps } from '@/types/widgets';
 import { Button } from '../../ui/button';
 import { StatusCard } from '../../ui/StatusCard';
-import { colors, spacing, typography, borderRadius } from '../../../lib/theme';
+import { colors, spacing, typography, borderRadius } from '@/lib/theme';
 import { 
   RefreshCw, 
   AlertTriangle, 
@@ -23,12 +23,12 @@ import {
 import { 
   listQueuedInspections, 
   subscribeQueuedInspectionCount 
-} from '../../../lib/inspection-queue';
-import { del, get, keys } from '../../../lib/idb-safe';
-import { syncQueuedInspections } from '../../../lib/inspection-submit';
-import { useToast } from '../../../providers/ToastProvider';
-import type { InspectionDraftRecord } from '../../../lib/inspection-queue';
-import { fetchInspectionTemplate } from '../../../lib/inspection-templates';
+} from '@/lib/inspection-queue';
+import { del, get, keys } from '@/lib/idb-safe';
+import { syncQueuedInspections } from '@/lib/inspection-submit';
+import { useToast } from '@/providers/ToastProvider';
+import type { InspectionDraftRecord } from '@/lib/inspection-queue';
+import { fetchInspectionTemplate } from '@/lib/inspection-templates';
 
 export const InspectionSyncWidget: React.FC<WidgetProps> = ({ config }) => {
   const navigate = useNavigate();

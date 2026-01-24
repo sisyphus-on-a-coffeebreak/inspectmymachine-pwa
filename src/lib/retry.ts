@@ -9,6 +9,28 @@ export interface RetryOptions {
 }
 
 /**
+ * Extract Retry-After header value from error response
+ */
+function getRetryAfter(error: unknown): number | null {
+  if (!error || typeof error !== 'object') return null;
+  
+  const axiosError = error as AxiosError;
+  if (!axiosError.response?.headers) return null;
+  
+  const headers = axiosError.response.headers;
+  const retryAfter = headers['retry-after'] || headers['Retry-After'];
+  
+  if (typeof retryAfter === 'string') {
+    const seconds = parseInt(retryAfter, 10);
+    if (!isNaN(seconds) && seconds > 0) {
+      return seconds * 1000; // Convert to milliseconds
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Enhanced retry logic with exponential backoff and jitter
  * 
  * Features:
@@ -17,6 +39,7 @@ export interface RetryOptions {
  * - Configurable retry attempts and delays
  * - Retry callbacks for UI feedback
  * - Special handling for CSRF token errors (419)
+ * - Respects Retry-After header for 429 rate limit errors
  */
 export async function withBackoff<T>(
   fn: () => Promise<T>,
@@ -47,8 +70,40 @@ export async function withBackoff<T>(
         break;
       }
       
-      // Special handling for CSRF token errors (419)
       const apiError = normalizeError(error);
+      
+      // Special handling for 429 rate limit errors - respect Retry-After header
+      if (apiError.status === 429) {
+        const retryAfter = getRetryAfter(error);
+        if (retryAfter) {
+          // Use the Retry-After value, but cap it at maxDelayMs
+          const delay = Math.min(retryAfter, maxDelayMs);
+          
+          // Notify about retry if callback provided
+          if (onRetry) {
+            onRetry(attempt + 1, error);
+          }
+          
+          // Wait for the specified retry-after period
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        // If no Retry-After header, use exponential backoff with longer delay for 429
+        const exponentialDelay = Math.max(baseMs * Math.pow(2, attempt + 2), 2000); // Minimum 2 seconds for 429
+        const jitter = Math.random() * (baseMs * 0.3);
+        const delay = Math.min(exponentialDelay + jitter, maxDelayMs);
+        
+        // Notify about retry if callback provided
+        if (onRetry) {
+          onRetry(attempt + 1, error);
+        }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      // Special handling for CSRF token errors (419)
       if (apiError.status === 419) {
         // For CSRF errors, we might want to refresh the token
         // This is handled by apiClient's ensureCsrfToken, so we just retry

@@ -6,8 +6,8 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getRecentlyViewed, getItemIcon, formatRelativeTime } from '../../../lib/recentlyViewed';
-import { colors, spacing, typography } from '../../../lib/theme';
+import { getRecentlyViewed, getItemIcon, formatRelativeTime } from '@/lib/recentlyViewed';
+import { colors, spacing, typography } from '@/lib/theme';
 import { Clock, ArrowRight } from 'lucide-react';
 
 export function RecentItemsWidget() {
@@ -88,6 +88,8 @@ export function RecentItemsWidget() {
     </div>
   );
 }
+
+
 
 
 

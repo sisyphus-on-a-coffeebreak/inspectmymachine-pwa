@@ -34,17 +34,18 @@ const ComplianceDocuments = lazy(() => import('./pages/stockyard/ComplianceDocum
 const TransporterBids = lazy(() => import('./pages/stockyard/TransporterBids').then(m => ({ default: m.TransporterBids })));
 const ProfitabilityDashboard = lazy(() => import('./pages/stockyard/ProfitabilityDashboard').then(m => ({ default: m.ProfitabilityDashboard })));
 const StockyardAlertsDashboard = lazy(() => import('./pages/stockyard/StockyardAlertsDashboard').then(m => ({ default: m.StockyardAlertsDashboard })));
-const GatePassDetails = lazy(() => import('./pages/gatepass/GatePassDetails').then(m => ({ default: m.GatePassDetails })));
-const CreateGatePass = lazy(() => import('./pages/gatepass/CreateGatePass').then(m => ({ default: m.CreateGatePass })));
-const GuardRegister = lazy(() => import('./pages/gatepass/GuardRegister').then(m => ({ default: m.GuardRegister })));
-const GatePassReports = lazy(() => import('./pages/gatepass/GatePassReports').then(m => ({ default: m.GatePassReports })));
-const PassTemplates = lazy(() => import('./pages/gatepass/PassTemplates').then(m => ({ default: m.PassTemplates })));
-const VisitorManagement = lazy(() => import('./pages/gatepass/VisitorManagement').then(m => ({ default: m.VisitorManagement })));
-const GatePassCalendar = lazy(() => import('./pages/gatepass/GatePassCalendar').then(m => ({ default: m.GatePassCalendar })));
-const QuickValidation = lazy(() => import('./pages/gatepass/QuickValidation').then(m => ({ default: m.QuickValidation })));
-const PassApproval = lazy(() => import('./pages/gatepass/PassApproval').then(m => ({ default: m.PassApproval })));
-const BulkOperations = lazy(() => import('./pages/gatepass/BulkOperations').then(m => ({ default: m.BulkOperations })));
+// Stockyard Access (formerly Gate Pass) components
+const AccessPassDetails = lazy(() => import('./pages/stockyard/access/AccessPassDetails').then(m => ({ default: m.AccessPassDetails })));
+const CreateAccessPass = lazy(() => import('./pages/stockyard/access/CreateAccessPass').then(m => ({ default: m.CreateAccessPass })));
+const GuardRegister = lazy(() => import('./pages/stockyard/access/GuardRegister').then(m => ({ default: m.GuardRegister })));
+const AccessReports = lazy(() => import('./pages/stockyard/access/AccessReports').then(m => ({ default: m.AccessReports })));
+const PassTemplates = lazy(() => import('./pages/stockyard/access/PassTemplates').then(m => ({ default: m.PassTemplates })));
+const VisitorManagement = lazy(() => import('./pages/stockyard/access/VisitorManagement').then(m => ({ default: m.VisitorManagement })));
+const AccessCalendar = lazy(() => import('./pages/stockyard/access/AccessCalendar').then(m => ({ default: m.AccessCalendar })));
+const QuickValidation = lazy(() => import('./pages/stockyard/access/QuickValidation').then(m => ({ default: m.QuickValidation })));
+const BulkAccessOperations = lazy(() => import('./pages/stockyard/access/BulkAccessOperations').then(m => ({ default: m.BulkAccessOperations })));
 const UnifiedApprovals = lazy(() => import('./pages/approvals/UnifiedApprovals').then(m => ({ default: m.UnifiedApprovals })));
+const WorkPage = lazy(() => import('./pages/work/WorkPage').then(m => ({ default: m.WorkPage })));
 const AlertDashboard = lazy(() => import('./pages/alerts/AlertDashboard').then(m => ({ default: m.AlertDashboard })));
 const NotificationsPage = lazy(() => import('./pages/notifications/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
 const NotificationPreferences = lazy(() => import('./pages/notifications/NotificationPreferences').then(m => ({ default: m.NotificationPreferences })));
@@ -56,11 +57,11 @@ const ExpenseHistory = lazy(() => import('./pages/expenses/ExpenseHistory').then
 const EmployeeLedger = lazy(() => import('./pages/expenses/EmployeeLedger').then(m => ({ default: m.EmployeeLedger })));
 const LedgerReconciliation = lazy(() => import('./pages/expenses/LedgerReconciliation').then(m => ({ default: m.LedgerReconciliation })));
 const AdvanceLedgerView = lazy(() => import('./pages/expenses/AdvanceLedgerView').then(m => ({ default: m.AdvanceLedgerView })));
+const RecordAdvance = lazy(() => import('./pages/expenses/RecordAdvance').then(m => ({ default: m.RecordAdvance })));
 const CategoryWiseDashboard = lazy(() => import('./pages/expenses/CategoryWiseDashboard').then(m => ({ default: m.CategoryWiseDashboard })));
 const AssetManagementDashboard = lazy(() => import('./pages/expenses/AssetManagementDashboard').then(m => ({ default: m.AssetManagementDashboard })));
 const ProjectManagementDashboard = lazy(() => import('./pages/expenses/ProjectManagementDashboard').then(m => ({ default: m.ProjectManagementDashboard })));
 const CashflowAnalysisDashboard = lazy(() => import('./pages/expenses/CashflowAnalysisDashboard').then(m => ({ default: m.CashflowAnalysisDashboard })));
-const ExpenseApproval = lazy(() => import('./pages/expenses/ExpenseApproval').then(m => ({ default: m.ExpenseApproval })));
 const ExpenseReports = lazy(() => import('./pages/expenses/ExpenseReports').then(m => ({ default: m.ExpenseReports })));
 const ExpenseAnalytics = lazy(() => import('./pages/expenses/ExpenseAnalytics').then(m => ({ default: m.ExpenseAnalytics })));
 const ReceiptsGallery = lazy(() => import('./pages/expenses/ReceiptsGallery').then(m => ({ default: m.ReceiptsGallery })));
@@ -76,7 +77,7 @@ const OfflinePage = lazy(() => import('./pages/Offline'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const InspectionCapture = lazy(() => import('./pages/inspections/InspectionCapture'));
 const InspectionDetails = lazy(() => import('./pages/inspections/InspectionDetails'));
-const GatePassDashboard = lazy(() => import('./pages/gatepass/GatePassDashboard').then(module => ({ default: module.GatePassDashboard })));
+const AccessDashboard = lazy(() => import('./pages/stockyard/access/AccessDashboard').then(module => ({ default: module.AccessDashboard })));
 const EmployeeExpenseDashboard = lazy(() => import('./pages/expenses/EmployeeExpenseDashboard').then(module => ({ default: module.EmployeeExpenseDashboard })));
 const StockyardDashboard = lazy(() => import('./pages/stockyard/StockyardDashboard').then(module => ({ default: module.StockyardDashboard })));
 const UserManagement = lazy(() => import('./pages/admin/UserManagement'));
@@ -89,6 +90,7 @@ const ActivityLogs = lazy(() => import('./pages/admin/ActivityLogs').then(m => (
 const PermissionChangeLogs = lazy(() => import('./pages/admin/PermissionChangeLogs').then(m => ({ default: m.PermissionChangeLogs })));
 const AuditReports = lazy(() => import('./pages/admin/AuditReports').then(m => ({ default: m.AuditReports })));
 const ComplianceDashboard = lazy(() => import('./pages/admin/ComplianceDashboard').then(m => ({ default: m.ComplianceDashboard })));
+const VehicleCostDashboard = lazy(() => import('./pages/admin/VehicleCostDashboard').then(m => ({ default: m.VehicleCostDashboard })));
 
 // Suspense wrapper component
 function LazyPage({ children }: { children: React.ReactNode }) {
@@ -110,85 +112,115 @@ export default function App() {
   return (
     <ErrorBoundary>
       <Routes>
-      {/* Root redirects to dashboard */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      {/* Root redirects to home (dashboard) */}
+      <Route path="/" element={<Navigate to="/app/home" replace />} />
       
       {/* Public routes */}
       <Route path="/login" element={<LazyPage><Login /></LazyPage>} />
       <Route path="/offline" element={<LazyPage><OfflinePage /></LazyPage>} />
 
-      {/* Main Dashboard */}
+      {/* Main Dashboard - /app/home is the new canonical route, /dashboard is alias for backward compatibility */}
+      <Route
+        path="/app/home"
+        element={<AuthenticatedLayout><LazyPage><Dashboard /></LazyPage></AuthenticatedLayout>}
+      />
       <Route
         path="/dashboard"
         element={<AuthenticatedLayout><LazyPage><Dashboard /></LazyPage></AuthenticatedLayout>}
       />
 
-      {/* 🚪 Gate Pass Module - UPDATED */}
+      {/* 🏭 Stockyard Access Module (formerly Gate Pass) */}
       {/* Specific routes must come before dynamic :id route */}
       <Route
-        path="/app/gate-pass/approvals"
-        element={<Navigate to="/app/approvals?tab=gate_pass" replace />}
+        path="/app/stockyard/access/create"
+        element={<AuthenticatedLayout><LazyPage><CreateAccessPass /></LazyPage></AuthenticatedLayout>}
       />
       <Route
-        path="/app/gate-pass/create"
-        element={<AuthenticatedLayout><LazyPage><CreateGatePass /></LazyPage></AuthenticatedLayout>}
-      />
-      <Route
-        path="/app/gate-pass/create-visitor"
-        element={<Navigate to="/app/gate-pass/create?type=visitor" replace />}
-      />
-      <Route
-        path="/app/gate-pass/create-vehicle"
-        element={<Navigate to="/app/gate-pass/create?type=outbound" replace />}
-      />
-      <Route
-        path="/app/gate-pass/guard-register"
+        path="/app/stockyard/access/register"
         element={<AuthenticatedLayout><LazyPage><GuardRegister /></LazyPage></AuthenticatedLayout>}
       />
       <Route
-        path="/app/gate-pass/reports"
-        element={<AuthenticatedLayout><RequireRole roles={["super_admin","admin"]}><LazyPage><GatePassReports /></LazyPage></RequireRole></AuthenticatedLayout>}
+        path="/app/stockyard/access/reports"
+        element={<AuthenticatedLayout><RequireRole roles={["super_admin","admin"]}><LazyPage><AccessReports /></LazyPage></RequireRole></AuthenticatedLayout>}
       />
       <Route
-        path="/app/gate-pass/templates"
+        path="/app/stockyard/access/templates"
         element={<AuthenticatedLayout><RequireRole roles={["super_admin","admin"]}><LazyPage><PassTemplates /></LazyPage></RequireRole></AuthenticatedLayout>}
       />
       <Route
-        path="/app/gate-pass/visitors"
+        path="/app/stockyard/access/visitors"
         element={<AuthenticatedLayout><LazyPage><VisitorManagement /></LazyPage></AuthenticatedLayout>}
       />
       <Route
-        path="/app/gate-pass/calendar"
-        element={<AuthenticatedLayout><LazyPage><GatePassCalendar /></LazyPage></AuthenticatedLayout>}
-      />
-      {/* Gate Pass Details - Deep linking (must come after specific routes) */}
-      <Route
-        path="/app/gate-pass/:id"
-        element={<AuthenticatedLayout><LazyPage><GatePassDetails /></LazyPage></AuthenticatedLayout>}
+        path="/app/stockyard/access/calendar"
+        element={<AuthenticatedLayout><LazyPage><AccessCalendar /></LazyPage></AuthenticatedLayout>}
       />
       <Route
-        path="/app/gate-pass"
-        element={<AuthenticatedLayout><LazyPage><GatePassDashboard /></LazyPage></AuthenticatedLayout>}
-      />
-      <Route
-        path="/app/gate-pass/scan"
+        path="/app/stockyard/access/scan"
         element={<AuthenticatedLayout><RequireRole roles={["super_admin","admin","supervisor","guard"]}><LazyPage><QuickValidation /></LazyPage></RequireRole></AuthenticatedLayout>}
       />
       <Route
-        path="/app/gate-pass/validation"
-        element={<Navigate to="/app/gate-pass/scan" replace />}
+        path="/app/stockyard/access/bulk"
+        element={<AuthenticatedLayout><RequireRole roles={["super_admin","admin"]}><LazyPage><BulkAccessOperations /></LazyPage></RequireRole></AuthenticatedLayout>}
+      />
+      {/* Access Pass Details - Deep linking (must come AFTER all specific routes) */}
+      <Route
+        path="/app/stockyard/access/:id"
+        element={<AuthenticatedLayout><LazyPage><AccessPassDetails /></LazyPage></AuthenticatedLayout>}
       />
       <Route
-        path="/app/gate-pass/quick-validation"
-        element={<Navigate to="/app/gate-pass/scan" replace />}
+        path="/app/stockyard/access"
+        element={<AuthenticatedLayout><LazyPage><AccessDashboard /></LazyPage></AuthenticatedLayout>}
+      />
+
+      {/* Legacy Gate Pass Routes - Redirect to Stockyard Access for backward compatibility */}
+      {/* Specific routes must come BEFORE the dynamic :id route */}
+      <Route
+        path="/app/gate-pass/create"
+        element={<Navigate to="/app/stockyard/access/create" replace />}
       />
       <Route
-        path="/app/gate-pass/approval"
-        element={<Navigate to="/app/approvals?tab=gate_pass" replace />}
+        path="/app/gate-pass/guard-register"
+        element={<Navigate to="/app/stockyard/access/register" replace />}
+      />
+      <Route
+        path="/app/gate-pass/reports"
+        element={<Navigate to="/app/stockyard/access/reports" replace />}
+      />
+      <Route
+        path="/app/gate-pass/templates"
+        element={<Navigate to="/app/stockyard/access/templates" replace />}
+      />
+      <Route
+        path="/app/gate-pass/visitors"
+        element={<Navigate to="/app/stockyard/access/visitors" replace />}
+      />
+      <Route
+        path="/app/gate-pass/calendar"
+        element={<Navigate to="/app/stockyard/access/calendar" replace />}
+      />
+      <Route
+        path="/app/gate-pass/scan"
+        element={<Navigate to="/app/stockyard/access/scan" replace />}
       />
       <Route
         path="/app/gate-pass/bulk"
-        element={<AuthenticatedLayout><RequireRole roles={["super_admin","admin"]}><LazyPage><BulkOperations /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<Navigate to="/app/stockyard/access/bulk" replace />}
+      />
+      {/* Dynamic :id route must come AFTER all specific routes */}
+      <Route
+        path="/app/gate-pass/:id"
+        element={
+          <AuthenticatedLayout>
+            <LazyPage>
+              <AccessPassDetails />
+            </LazyPage>
+          </AuthenticatedLayout>
+        }
+      />
+      <Route
+        path="/app/gate-pass"
+        element={<Navigate to="/app/stockyard/access" replace />}
       />
 
       {/* 🎯 Inspections Module - Main Dashboard */}
@@ -208,7 +240,7 @@ export default function App() {
       {/* Inspections - Sub Routes */}
       {/* Template Selection - Always shown first for new inspections */}
       <Route
-        path="/app/inspections/new"
+        path="/app/inspections/create"
         element={<AuthenticatedLayout><LazyPage><TemplateSelectionPage /></LazyPage></AuthenticatedLayout>}
       />
       {/* Inspection Details - Deep linking (must come before capture routes with :id) */}
@@ -233,10 +265,14 @@ export default function App() {
         path="/app/inspections/:templateId/:vehicleId/capture"
         element={<AuthenticatedLayout><LazyPage><InspectionCapture /></LazyPage></AuthenticatedLayout>}
       />
-      {/* Legacy route redirect */}
+      {/* Legacy route redirects - kept for backward compatibility */}
       <Route 
         path="/inspections/:id" 
         element={<Navigate to="/app/inspections/:id" replace />} 
+      />
+      <Route 
+        path="/app/inspections/new" 
+        element={<Navigate to="/app/inspections/create" replace />} 
       />
 
       {/* 💰 Expenses Module - Enhanced */}
@@ -270,36 +306,12 @@ export default function App() {
         element={<AuthenticatedLayout><LazyPage><AdvanceLedgerView /></LazyPage></AuthenticatedLayout>}
       />
       <Route
-        path="/app/expenses/categories"
-        element={<Navigate to="/app/expenses/analytics?tab=by-category" replace />}
-      />
-      <Route
-        path="/app/expenses/assets"
-        element={<Navigate to="/app/expenses/analytics?tab=assets" replace />}
-      />
-      <Route
-        path="/app/expenses/projects"
-        element={<Navigate to="/app/expenses/analytics?tab=by-project" replace />}
-      />
-      <Route
-        path="/app/expenses/cashflow"
-        element={<Navigate to="/app/expenses/analytics?tab=cashflow" replace />}
-      />
-      <Route
-        path="/app/expenses/approval"
-        element={<Navigate to="/app/approvals?tab=expense" replace />}
+        path="/app/expenses/record-advance"
+        element={<AuthenticatedLayout><LazyPage><RecordAdvance /></LazyPage></AuthenticatedLayout>}
       />
       <Route
         path="/app/expenses/reports"
         element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><ExpenseReports /></LazyPage></RequireRole></AuthenticatedLayout>}
-      />
-      <Route
-        path="/app/expenses/accounts"
-        element={<Navigate to="/app/expenses/analytics?tab=by-account" replace />}
-      />
-      <Route
-        path="/app/expenses/reconciliation"
-        element={<Navigate to="/app/expenses/analytics?tab=reconciliation" replace />}
       />
 
       {/* Unified Analytics Page */}
@@ -318,6 +330,12 @@ export default function App() {
       <Route
         path="/app/approvals"
         element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin', 'supervisor']}><LazyPage><UnifiedApprovals /></LazyPage></RequireRole></AuthenticatedLayout>}
+      />
+
+      {/* 📋 Unified Work Section */}
+      <Route
+        path="/app/work"
+        element={<AuthenticatedLayout><LazyPage><WorkPage /></LazyPage></AuthenticatedLayout>}
       />
 
       {/* 🚨 Alerts Module */}
@@ -362,64 +380,12 @@ export default function App() {
         element={<AuthenticatedLayout><LazyPage><ComponentLedger /></LazyPage></AuthenticatedLayout>}
       />
       <Route
-        path="/app/stockyard/components/create"
-        element={<Navigate to="/app/stockyard/components?action=create" replace />}
-      />
-      <Route
-        path="/app/stockyard/components/transfers/approvals"
-        element={<Navigate to="/app/approvals?tab=transfer" replace />}
-      />
-      <Route
-        path="/app/stockyard/components/cost-analysis"
-        element={<Navigate to="/app/stockyard/analytics?tab=cost" replace />}
-      />
-      <Route
-        path="/app/stockyard/components/health"
-        element={<Navigate to="/app/stockyard/analytics?tab=health" replace />}
-      />
-      <Route
-        path="/app/stockyard/components/:type/:id/edit"
-        element={<Navigate to="/app/stockyard/components/:id?action=edit" replace />}
-      />
-      <Route
-        path="/app/stockyard/components/:type/:id"
-        element={<Navigate to="/app/stockyard/components/:id" replace />}
-      />
-      <Route
         path="/app/stockyard/components/:id"
         element={<AuthenticatedLayout><LazyPage><ComponentDetails /></LazyPage></AuthenticatedLayout>}
       />
       <Route
-        path="/app/stockyard/yards/:yardId/map"
-        element={<Navigate to="/app/stockyard/:id?tab=map" replace />}
-      />
-      <Route
         path="/app/stockyard/:id"
         element={<AuthenticatedLayout><LazyPage><StockyardRequestDetails /></LazyPage></AuthenticatedLayout>}
-      />
-      <Route
-        path="/app/stockyard/requests/:requestId/checklist"
-        element={<Navigate to="/app/stockyard/:requestId?tab=checklists" replace />}
-      />
-      <Route
-        path="/app/stockyard/buyer-readiness"
-        element={<Navigate to="/app/stockyard?tab=readiness" replace />}
-      />
-      <Route
-        path="/app/stockyard/vehicles/:vehicleId/timeline"
-        element={<Navigate to="/app/stockyard/:id?tab=timeline" replace />}
-      />
-      <Route
-        path="/app/stockyard/requests/:requestId/documents"
-        element={<Navigate to="/app/stockyard/:requestId?tab=documents" replace />}
-      />
-      <Route
-        path="/app/stockyard/requests/:requestId/transporter-bids"
-        element={<Navigate to="/app/stockyard/:requestId?tab=bids" replace />}
-      />
-      <Route
-        path="/app/stockyard/vehicles/:vehicleId/profitability"
-        element={<Navigate to="/app/stockyard/analytics?tab=profitability" replace />}
       />
       <Route
         path="/app/stockyard/analytics"
@@ -487,6 +453,10 @@ export default function App() {
         path="/app/admin/compliance"
         element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><ComplianceDashboard /></LazyPage></RequireRole></AuthenticatedLayout>}
       />
+      <Route
+        path="/app/admin/vehicles/costs"
+        element={<AuthenticatedLayout><RequireRole roles={['super_admin']}><LazyPage><VehicleCostDashboard /></LazyPage></RequireRole></AuthenticatedLayout>}
+      />
 
       {/* 404 Catch-all */}
       <Route 
@@ -497,3 +467,9 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+
+
+
+
+
+

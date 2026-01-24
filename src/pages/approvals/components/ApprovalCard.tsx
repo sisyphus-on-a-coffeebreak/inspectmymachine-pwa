@@ -1,9 +1,9 @@
 import React from 'react';
-import type { UnifiedApproval } from '../../../hooks/useUnifiedApprovals';
-import { Button } from '../../../components/ui/button';
-import { colors, spacing, typography } from '../../../lib/theme';
+import type { UnifiedApproval } from '@/hooks/useUnifiedApprovals';
+import { Button } from '@/components/ui/button';
+import { colors, spacing, typography } from '@/lib/theme';
 import { formatDistanceToNow } from 'date-fns';
-import { useMobileViewport } from '../../../lib/mobileUtils';
+import { useMobileViewport } from '@/lib/mobileUtils';
 
 interface ApprovalCardProps {
   approval: UnifiedApproval;

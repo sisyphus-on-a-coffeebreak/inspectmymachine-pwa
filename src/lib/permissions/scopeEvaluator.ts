@@ -5,7 +5,7 @@
  * to a specific record based on ownership, assignment, yard, department, etc.
  */
 
-import type { RecordScopeRule, PermissionScope } from './types';
+import type { RecordScopeRule, PermissionScope, StockyardFunction } from './types';
 import type { User } from '../users';
 
 /**
@@ -56,6 +56,13 @@ export function evaluateRecordScope(
              record.assigned_user_id === user.id ||
              (Array.isArray(record.assigned_users) && record.assigned_users.includes(user.id)) ||
              (Array.isArray(record.assigned_to) && record.assigned_to.includes(user.id));
+      
+    case 'function':
+      // Function-based scope (for stockyard: access_control, inventory, movements)
+      // This is used for navigation/permission gates, not record-level checks
+      // The actual function check happens at component level via hasStockyardCapability
+      // At scope level, we always return true - the function check is handled separately
+      return true;
       
     case 'custom':
       // Custom filter expression
@@ -134,6 +141,7 @@ function evaluateCustomFilter(filter: string, user: User, record: any): boolean 
     return false;
   }
 }
+
 
 
 

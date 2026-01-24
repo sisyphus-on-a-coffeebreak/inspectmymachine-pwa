@@ -89,7 +89,9 @@ export const YardMap: React.FC = () => {
         if (!routeYardId && activeYards.length > 0) {
           const firstActiveYard = activeYards[0];
           setSelectedYardId(firstActiveYard.id);
-          navigate(`/app/stockyard/yards/${firstActiveYard.id}/map`, { replace: true });
+          // Yard map is now accessed via stockyard request details with ?tab=map
+          // For now, navigate to stockyard dashboard - will be updated when yard context is implemented
+          navigate(`/app/stockyard`, { replace: true });
         }
       } catch (err) {
         logger.error('Failed to fetch yards', err, 'YardMap');
@@ -111,7 +113,9 @@ export const YardMap: React.FC = () => {
   const handleYardChange = (newYardId: string) => {
     if (newYardId) {
       setSelectedYardId(newYardId);
-      navigate(`/app/stockyard/yards/${newYardId}/map`, { replace: true });
+      // Yard map is now accessed via stockyard request details with ?tab=map
+      // For now, navigate to stockyard dashboard - will be updated when yard context is implemented
+      navigate(`/app/stockyard`, { replace: true });
     }
   };
 

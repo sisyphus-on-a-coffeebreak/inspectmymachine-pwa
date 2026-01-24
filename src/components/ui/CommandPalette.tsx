@@ -308,7 +308,7 @@ export function CommandPalette() {
           { title: 'Visitor Management', subtitle: 'Manage visitors', icon: Users, path: '/app/gate-pass/visitors', keywords: ['visitors', 'visitor management'] },
           { title: 'Gate Pass Calendar', subtitle: 'View calendar', icon: Calendar, path: '/app/gate-pass/calendar', keywords: ['calendar', 'schedule'] },
           { title: 'Scan & Validate', subtitle: 'Quick validation for guards', icon: CheckSquare, path: '/app/gate-pass/scan', keywords: ['validation', 'validate', 'qr', 'scan', 'guard'] },
-          { title: 'Pass Approval', subtitle: 'Approve passes', icon: Shield, path: '/app/gate-pass/approval', keywords: ['approval', 'approve'] },
+          { title: 'Pass Approval', subtitle: 'Approve passes', icon: Shield, path: '/app/approvals?tab=gate_pass', keywords: ['approval', 'approve'] },
           { title: 'Bulk Operations', subtitle: 'Bulk gate pass operations', icon: Package, path: '/app/gate-pass/bulk', keywords: ['bulk', 'bulk operations'] },
           
           // Inspection Routes
@@ -317,18 +317,15 @@ export function CommandPalette() {
           { title: 'Sync Center', subtitle: 'Inspection sync center', icon: Activity, path: '/app/inspections/sync', keywords: ['sync', 'synchronize'] },
           { title: 'Completed Inspections', subtitle: 'View completed inspections', icon: CheckSquare, path: '/app/inspections/completed', keywords: ['completed', 'finished'] },
           { title: 'Inspection Reports', subtitle: 'View inspection reports', icon: FileText, path: '/app/inspections/reports', keywords: ['reports', 'inspection reports'] },
-          { title: 'New Inspection', subtitle: 'Start new inspection', icon: Plus, path: '/app/inspections/new', keywords: ['new inspection', 'create inspection', 'start inspection'] },
+          { title: 'New Inspection', subtitle: 'Start new inspection', icon: Plus, path: '/app/inspections/create', keywords: ['new inspection', 'create inspection', 'start inspection'] },
           
           // Expense Routes
           { title: 'Expenses', subtitle: 'Expense management', icon: DollarSign, path: '/app/expenses', keywords: ['expenses', 'expense'] },
           { title: 'Create Expense', subtitle: 'New expense', icon: Plus, path: '/app/expenses/create', keywords: ['create expense', 'new expense'] },
           { title: 'Expense History', subtitle: 'View expense history', icon: Calendar, path: '/app/expenses/history', keywords: ['history', 'expense history'] },
-          { title: 'Asset Management', subtitle: 'Manage assets', icon: Package, path: '/app/expenses/assets', keywords: ['assets', 'asset management'] },
-          { title: 'Project Management', subtitle: 'Manage projects', icon: BarChart3, path: '/app/expenses/projects', keywords: ['projects', 'project management'] },
-          { title: 'Cashflow Analysis', subtitle: 'Cashflow dashboard', icon: TrendingUp, path: '/app/expenses/cashflow', keywords: ['cashflow', 'cash flow', 'analysis'] },
-          { title: 'Expense Approval', subtitle: 'Approve expenses', icon: Shield, path: '/app/expenses/approval', keywords: ['approval', 'expense approval'] },
-          { title: 'Expense Reports', subtitle: 'View expense reports', icon: FileText, path: '/app/expenses/reports', keywords: ['reports', 'expense reports', 'analytics'] },
-          { title: 'Accounts Dashboard', subtitle: 'Accounts overview', icon: BarChart3, path: '/app/expenses/accounts', keywords: ['accounts', 'accounting'] },
+          { title: 'Expense Analytics', subtitle: 'Expense analytics dashboard', icon: BarChart3, path: '/app/expenses/analytics', keywords: ['analytics', 'assets', 'projects', 'cashflow', 'accounts'] },
+          { title: 'Expense Approval', subtitle: 'Approve expenses', icon: Shield, path: '/app/approvals?tab=expense', keywords: ['approval', 'expense approval'] },
+          { title: 'Expense Reports', subtitle: 'View expense reports', icon: FileText, path: '/app/expenses/reports', keywords: ['reports', 'expense reports'] },
           { title: 'Receipts Gallery', subtitle: 'View receipts', icon: Receipt, path: '/app/expenses/receipts', keywords: ['receipts', 'receipt'] },
           
           // Stockyard Routes
@@ -336,11 +333,8 @@ export function CommandPalette() {
           { title: 'Create Movement', subtitle: 'Create stockyard movement', icon: Plus, path: '/app/stockyard/create', keywords: ['create movement', 'new movement'] },
           { title: 'Scan Component', subtitle: 'Scan component', icon: Search, path: '/app/stockyard/scan', keywords: ['scan', 'component scan'] },
           { title: 'Component Ledger', subtitle: 'Component ledger', icon: FileText, path: '/app/stockyard/components', keywords: ['components', 'ledger', 'component ledger'] },
-          { title: 'Create Component', subtitle: 'New component', icon: Plus, path: '/app/stockyard/components/create', keywords: ['create component', 'new component'] },
-          { title: 'Transfer Approvals', subtitle: 'Component transfer approvals', icon: Shield, path: '/app/stockyard/components/transfers/approvals', keywords: ['transfers', 'transfer approvals'] },
-          { title: 'Cost Analysis', subtitle: 'Component cost analysis', icon: TrendingUp, path: '/app/stockyard/components/cost-analysis', keywords: ['cost', 'cost analysis'] },
-          { title: 'Component Health', subtitle: 'Component health dashboard', icon: Activity, path: '/app/stockyard/components/health', keywords: ['health', 'component health'] },
-          { title: 'Buyer Readiness', subtitle: 'Buyer readiness board', icon: CheckSquare, path: '/app/stockyard/buyer-readiness', keywords: ['buyer', 'readiness'] },
+          { title: 'Stockyard Analytics', subtitle: 'Stockyard analytics dashboard', icon: TrendingUp, path: '/app/stockyard/analytics', keywords: ['analytics', 'cost', 'health', 'profitability'] },
+          { title: 'Transfer Approvals', subtitle: 'Component transfer approvals', icon: Shield, path: '/app/approvals?tab=transfer', keywords: ['transfers', 'transfer approvals'] },
           { title: 'Stockyard Alerts', subtitle: 'Stockyard alerts', icon: AlertCircle, path: '/app/stockyard/alerts', keywords: ['alerts', 'stockyard alerts'] },
           
           // User Management Routes

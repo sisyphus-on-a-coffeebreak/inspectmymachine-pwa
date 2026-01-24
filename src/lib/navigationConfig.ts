@@ -31,11 +31,8 @@ export interface NavItem {
   badge?: () => number | null; // Dynamic badge count
 }
 
-export interface FabAction {
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  route: string;
-}
+// Re-export FabAction from unifiedNavigation for consistency
+export type { FabAction } from './unifiedNavigation';
 
 export interface NavConfig {
   items: NavItem[]; // Max 4 items for bottom nav
@@ -62,7 +59,7 @@ export const navigationByRole: Record<UserRole, NavConfig> = {
   inspector: {
     items: [
       { id: 'home', label: 'Home', icon: Home, route: '/dashboard' },
-      { id: 'new', label: 'New', icon: Plus, route: '/app/inspections/new' },
+      { id: 'new', label: 'New', icon: Plus, route: '/app/inspections/create' },
       { id: 'mine', label: 'Mine', icon: ClipboardCheck, route: '/app/inspections?filter=mine' },
       { id: 'profile', label: 'Profile', icon: Settings, route: '/app/settings' },
     ],
@@ -99,7 +96,7 @@ export const navigationByRole: Record<UserRole, NavConfig> = {
       actions: [
         { label: 'Gate Pass', icon: Ticket, route: '/app/gate-pass/create' },
         { label: 'Expense', icon: Wallet, route: '/app/expenses/create' },
-        { label: 'Inspection', icon: ClipboardCheck, route: '/app/inspections/new' },
+        { label: 'Inspection', icon: ClipboardCheck, route: '/app/inspections/create' },
       ],
     },
   },
@@ -150,7 +147,7 @@ export const navigationByRole: Record<UserRole, NavConfig> = {
       actions: [
         { label: 'Gate Pass', icon: Ticket, route: '/app/gate-pass/create' },
         { label: 'Expense', icon: Wallet, route: '/app/expenses/create' },
-        { label: 'Inspection', icon: ClipboardCheck, route: '/app/inspections/new' },
+        { label: 'Inspection', icon: ClipboardCheck, route: '/app/inspections/create' },
         { label: 'Stockyard', icon: Warehouse, route: '/app/stockyard/create' },
       ],
     },
@@ -170,7 +167,7 @@ export const navigationByRole: Record<UserRole, NavConfig> = {
       actions: [
         { label: 'Gate Pass', icon: Ticket, route: '/app/gate-pass/create' },
         { label: 'Expense', icon: Wallet, route: '/app/expenses/create' },
-        { label: 'Inspection', icon: ClipboardCheck, route: '/app/inspections/new' },
+        { label: 'Inspection', icon: ClipboardCheck, route: '/app/inspections/create' },
         { label: 'Stockyard', icon: Warehouse, route: '/app/stockyard/create' },
       ],
     },

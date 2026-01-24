@@ -6,8 +6,8 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useGatePasses } from '../../../lib/queries';
-import { colors, spacing, typography } from '../../../lib/theme';
+import { useGatePasses } from '@/lib/queries';
+import { colors, spacing, typography } from '@/lib/theme';
 import { Clock, ArrowRight } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 
@@ -130,6 +130,8 @@ export function ExpectedArrivalsWidget() {
     </div>
   );
 }
+
+
 
 
 

@@ -26,3 +26,5 @@ document.documentElement.style.position = '';
 
 console.log('✅ Emergency fix applied! Try clicking now.');
 
+
+

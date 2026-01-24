@@ -5,8 +5,8 @@
  */
 
 import React from 'react';
-import { useDashboardStats } from '../../../lib/queries';
-import { colors, spacing, typography } from '../../../lib/theme';
+import { useDashboardStats } from '@/lib/queries';
+import { colors, spacing, typography } from '@/lib/theme';
 import { Activity } from 'lucide-react';
 
 export function TodaysActivityWidget() {
@@ -104,6 +104,8 @@ export function TodaysActivityWidget() {
     </div>
   );
 }
+
+
 
 
 
