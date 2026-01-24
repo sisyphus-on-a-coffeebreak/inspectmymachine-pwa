@@ -10,7 +10,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { colors, typography, spacing, borderRadius } from '../../lib/theme';
-import { UnifiedVehicleSelector } from '../../pages/gatepass/components/UnifiedVehicleSelector';
+import { UnifiedVehicleSelector } from '../../pages/stockyard/access/components/UnifiedVehicleSelector';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
