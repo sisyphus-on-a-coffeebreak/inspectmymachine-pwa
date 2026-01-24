@@ -12,8 +12,7 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Select } from '../../components/ui/Select';
-import { Card } from '../../components/ui/Card';
+import { Card } from '../../components/ui/card';
 import { colors, typography, spacing, cardStyles, borderRadius } from '../../lib/theme';
 import { useVehicleCosts } from '../../hooks/useVehicleCosts';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
@@ -162,16 +161,24 @@ export const VehicleCostDashboard: React.FC = () => {
             </div>
             <div>
               <Label>Category</Label>
-              <Select
+              <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                style={{ marginTop: spacing.xs }}
+                style={{
+                  width: '100%',
+                  marginTop: spacing.xs,
+                  padding: `${spacing.sm} ${spacing.md}`,
+                  border: `1px solid ${colors.neutral[300]}`,
+                  borderRadius: borderRadius.md,
+                  fontSize: '14px',
+                  backgroundColor: '#fff',
+                }}
               >
                 <option value="all">All Categories</option>
                 {EXPENSE_CATEGORIES.map(cat => (
                   <option key={cat} value={cat}>{cat.replace(/_/g, ' ')}</option>
                 ))}
-              </Select>
+              </select>
             </div>
             <div>
               <Label>Date From</Label>
