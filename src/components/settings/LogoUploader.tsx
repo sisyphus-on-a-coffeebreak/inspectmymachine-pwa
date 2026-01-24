@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { colors, spacing, borderRadius, shadows, typography } from '../../lib/theme';
 import { Button } from '../ui/button';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { useLogoUrl } from '../../hooks/useLogoUrl';
 
 export interface LogoUploaderProps {
   currentLogoUrl: string | null;
@@ -18,13 +19,14 @@ export const LogoUploader: React.FC<LogoUploaderProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [preview, setPreview] = useState<string | null>(currentLogoUrl);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
-
-  // Sync preview with currentLogoUrl prop changes
-  useEffect(() => {
-    setPreview(currentLogoUrl);
-  }, [currentLogoUrl]);
+  
+  // Get safe logo URL (handles CORS by fetching through backend proxy)
+  const safeLogoUrl = useLogoUrl(currentLogoUrl);
+  
+  // Use local preview if available (during upload), otherwise use safe URL
+  const preview = localPreview || safeLogoUrl;
 
   const handleFileSelect = async (file: File) => {
     // Validate file type
@@ -44,7 +46,7 @@ export const LogoUploader: React.FC<LogoUploaderProps> = ({
     const reader = new FileReader();
     reader.onload = (e) => {
       const blobUrl = e.target?.result as string;
-      setPreview(blobUrl);
+      setLocalPreview(blobUrl);
     };
     reader.readAsDataURL(file);
 
@@ -52,10 +54,11 @@ export const LogoUploader: React.FC<LogoUploaderProps> = ({
     try {
       setUploading(true);
       await onUpload(file);
-      // After successful upload, parent updates currentLogoUrl which triggers useEffect to update preview
+      // Clear local preview - useLogoUrl will handle the new URL
+      setLocalPreview(null);
     } catch (error) {
       console.error('Failed to upload logo:', error);
-      setPreview(currentLogoUrl);
+      setLocalPreview(null);
       alert('Failed to upload logo. Please try again.');
     } finally {
       setUploading(false);
@@ -99,7 +102,7 @@ export const LogoUploader: React.FC<LogoUploaderProps> = ({
     try {
       setUploading(true);
       await onRemove();
-      setPreview(null);
+      setLocalPreview(null);
     } catch (error) {
       console.error('Remove error:', error);
       alert('Failed to remove logo. Please try again.');
@@ -131,14 +134,17 @@ export const LogoUploader: React.FC<LogoUploaderProps> = ({
           <img
             src={preview}
             alt="Company logo"
-            crossOrigin="anonymous"
             style={{
               maxWidth: '300px',
               maxHeight: '100px',
               objectFit: 'contain',
               display: 'block',
             }}
-            onError={() => console.warn('Logo failed to load - CORS issue. Ask backend team to add CORS headers to R2 bucket.')}
+            onError={(e) => {
+              console.warn('Logo failed to load. This may be a CORS issue. If the logo URL is from R2 storage, ask backend team to add CORS headers to the R2 bucket.');
+              // Hide broken image icon
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
           />
           {!disabled && (
             <button

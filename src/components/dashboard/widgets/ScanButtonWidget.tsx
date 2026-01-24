@@ -17,7 +17,7 @@ export function ScanButtonWidget() {
       onClick={() => navigate('/app/gate-pass/scan')}
       style={{
         width: '100%',
-        padding: spacing.xl * 2,
+        padding: spacing.xxl,
         backgroundColor: colors.primary,
         color: 'white',
         border: 'none',

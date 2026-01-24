@@ -48,15 +48,44 @@ export interface ReportBrandingUpdate {
 }
 
 /**
- * Convert external storage URL to backend-proxied URL to avoid CORS issues
+ * Check if a URL is an external storage URL that might have CORS issues
  */
-function proxyLogoUrl(url: string | null): string | null {
+function isExternalStorageUrl(url: string): boolean {
+  return url.includes('r2.cloudflarestorage.com') || 
+         url.includes('s3.amazonaws.com') ||
+         url.includes('amazonaws.com') ||
+         url.includes('cloudflarestorage.com');
+}
+
+/**
+ * Get a safe logo URL that avoids CORS issues
+ * For external storage URLs, returns the URL as-is
+ * The browser will attempt to load it, and onError handlers will catch CORS failures gracefully
+ * 
+ * Note: To fully fix CORS issues, the backend should either:
+ * 1. Implement a proxy endpoint at /v1/settings/report-branding/logo-proxy
+ * 2. Configure CORS headers on the R2 bucket to allow requests from the frontend domain
+ */
+
+/**
+ * Get a safe logo URL
+ * Returns the URL as-is - the browser will handle loading it
+ * For external storage URLs with CORS issues, the component's onError handler will catch failures
+ */
+export async function getSafeLogoUrl(url: string | null): Promise<string | null> {
   if (!url) return null;
   
-  // If it's an external storage URL (R2, S3, etc.), it needs CORS
-  // For now, return as-is and let backend handle CORS
-  // TODO: Ask backend team to add CORS headers to R2 bucket
+  // Return URL as-is - no transformation needed
+  // Components will handle CORS errors via onError handlers
   return url;
+}
+
+/**
+ * Clear logo cache (no-op since we're not caching anymore)
+ * Kept for API compatibility
+ */
+export function clearLogoCache(): void {
+  // No cache to clear
 }
 
 /**
@@ -67,7 +96,8 @@ export async function getReportBranding(): Promise<ReportBranding> {
     '/v1/settings/report-branding'
   );
   const data = response.data.data;
-  data.logoUrl = proxyLogoUrl(data.logoUrl);
+  // Note: logoUrl conversion to blob URL should be done in components using useLogoUrl hook
+  // to avoid blocking the API call
   return data;
 }
 
@@ -101,7 +131,9 @@ export async function uploadLogo(file: File): Promise<{ logoUrl: string; logoPat
     }
   );
   const data = response.data.data;
-  data.logoUrl = proxyLogoUrl(data.logoUrl) || data.logoUrl;
+  // Clear cache when logo is updated
+  clearLogoCache();
+  // Note: logoUrl conversion to blob URL should be done in components using useLogoUrl hook
   return data;
 }
 

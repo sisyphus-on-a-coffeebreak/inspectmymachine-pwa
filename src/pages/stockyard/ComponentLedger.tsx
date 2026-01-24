@@ -226,7 +226,7 @@ export const ComponentLedger: React.FC = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
                 width: '100%',
-                padding: `${spacing.sm}px ${spacing.md}px ${spacing.sm}px ${spacing.xl * 2}px`,
+                padding: `${spacing.sm}px ${spacing.md}px ${spacing.sm}px ${spacing.xxl}`,
                 borderRadius: borderRadius.md,
                 border: `1px solid ${colors.neutral[300]}`,
                 fontSize: typography.body.fontSize,

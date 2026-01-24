@@ -375,7 +375,7 @@ export const AccountsDashboard: React.FC = () => {
                 placeholder="Search expenses..."
                 style={{
                   width: '100%',
-                  padding: `${spacing.sm} ${spacing.sm} ${spacing.sm} ${spacing.xl * 2}`,
+                  padding: `${spacing.sm} ${spacing.sm} ${spacing.sm} ${spacing.xxl}`,
                   border: `1px solid ${colors.neutral[300]}`,
                   borderRadius: borderRadius.md,
                   fontSize: '14px',

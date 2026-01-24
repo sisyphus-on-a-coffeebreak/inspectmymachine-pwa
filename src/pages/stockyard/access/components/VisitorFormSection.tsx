@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { Input } from '@/components/ui/input';
+import { FormField } from '@/components/ui/FormField';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { UnifiedVehicleSelector } from './UnifiedVehicleSelector';
 import { colors, typography, spacing, cardStyles, borderRadius } from '@/lib/theme';
@@ -39,24 +40,29 @@ export const VisitorFormSection: React.FC<VisitorFormSectionProps> = ({
         Visitor Details
       </h2>
       
-      <div style={{ marginBottom: spacing.md }}>
-        <label style={{ ...typography.label, display: 'block', marginBottom: spacing.xs }}>
-          Visitor Name <span style={{ color: colors.error }}>*</span>
-        </label>
+      <FormField
+        label="Visitor Name"
+        required
+        error={touched.has('visitor_name') ? errors.visitor_name : undefined}
+        touched={touched.has('visitor_name')}
+        isValid={!errors.visitor_name && !!formData.visitor_name}
+        helperText="Enter the full name of the visitor"
+      >
         <Input
           type="text"
           value={formData.visitor_name || ''}
           onChange={(e) => onFieldChange('visitor_name', e.target.value)}
           onBlur={() => onFieldBlur('visitor_name')}
-          placeholder="Enter visitor name"
-          style={{ width: '100%' }}
+          placeholder="Enter visitor name (e.g., John Doe)"
+          style={{ 
+            width: '100%',
+            paddingRight: '40px', // Space for validation icon
+            borderColor: touched.has('visitor_name') 
+              ? (errors.visitor_name ? colors.error[500] : colors.success[500])
+              : undefined,
+          }}
         />
-        {touched.has('visitor_name') && errors.visitor_name && (
-          <div style={{ color: colors.error, fontSize: '0.75rem', marginTop: spacing.xs }}>
-            {errors.visitor_name}
-          </div>
-        )}
-      </div>
+      </FormField>
 
       <div style={{ marginBottom: spacing.md }}>
         <label style={{ ...typography.label, display: 'block', marginBottom: spacing.xs }}>

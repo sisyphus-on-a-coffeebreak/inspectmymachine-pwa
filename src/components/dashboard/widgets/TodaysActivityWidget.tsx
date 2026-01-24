@@ -1,15 +1,18 @@
 /**
  * Today's Activity Widget
  * 
- * Shows summary of today's activity across modules
+ * Shows summary of today's activity across modules with drill-down
  */
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDashboardStats } from '@/lib/queries';
 import { colors, spacing, typography } from '@/lib/theme';
 import { Activity } from 'lucide-react';
+import { getDrillDownUrl } from '@/lib/utils/drillDown';
 
 export function TodaysActivityWidget() {
+  const navigate = useNavigate();
   const { data: stats, isLoading } = useDashboardStats();
 
   if (isLoading) {
@@ -32,16 +35,19 @@ export function TodaysActivityWidget() {
       label: 'Gate Passes',
       value: stats?.gate_pass?.completed_today || 0,
       color: colors.primary,
+      url: getDrillDownUrl('gate_pass_completed_today'),
     },
     {
       label: 'Inspections',
       value: stats?.inspection?.completed_today || 0,
       color: colors.success[500],
+      url: getDrillDownUrl('inspection_completed_today'),
     },
     {
       label: 'Expenses',
       value: stats?.expense?.pending_approval || 0,
       color: colors.warning[500],
+      url: getDrillDownUrl('expense_pending_approval'),
     },
   ];
 
@@ -79,6 +85,7 @@ export function TodaysActivityWidget() {
         {activities.map((activity) => (
           <div
             key={activity.label}
+            onClick={() => activity.url && navigate(activity.url)}
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -86,7 +93,22 @@ export function TodaysActivityWidget() {
               padding: spacing.sm,
               backgroundColor: colors.neutral[50],
               borderRadius: '8px',
+              cursor: activity.url ? 'pointer' : 'default',
+              transition: 'all 0.2s ease',
             }}
+            onMouseEnter={(e) => {
+              if (activity.url && window.matchMedia('(hover: hover)').matches) {
+                e.currentTarget.style.backgroundColor = colors.neutral[100];
+                e.currentTarget.style.transform = 'translateX(4px)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activity.url && window.matchMedia('(hover: hover)').matches) {
+                e.currentTarget.style.backgroundColor = colors.neutral[50];
+                e.currentTarget.style.transform = 'translateX(0)';
+              }
+            }}
+            title={activity.url ? `Click to view ${activity.label}` : undefined}
           >
             <span style={{ color: colors.neutral[700] }}>{activity.label}</span>
             <span

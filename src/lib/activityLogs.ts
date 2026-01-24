@@ -48,7 +48,10 @@ export type ActivityAction =
   | 'unlock'
   | 'reset_password'
   | 'change_password'
-  | 'permission_change';
+  | 'permission_change'
+  | 'entry'
+  | 'exit'
+  | 'return';
 
 /**
  * Activity module types
@@ -92,6 +95,20 @@ export interface ActivityLogFilters {
 }
 
 /**
+ * Create activity log entry request
+ */
+export interface CreateActivityLogRequest {
+  action: ActivityAction;
+  module: ActivityModule;
+  resource_type?: string;
+  resource_id?: string | number;
+  resource_name?: string;
+  details?: Record<string, unknown>;
+  old_values?: Record<string, unknown>;
+  new_values?: Record<string, unknown>;
+}
+
+/**
  * Get activity logs
  */
 export async function getActivityLogs(filters?: ActivityLogFilters): Promise<ActivityLogsResponse> {
@@ -114,6 +131,28 @@ export async function getUserActivityLogs(
   filters?: Omit<ActivityLogFilters, 'user_id'>
 ): Promise<ActivityLogsResponse> {
   return getActivityLogs({ ...filters, user_id: userId });
+}
+
+/**
+ * Create a new activity log entry
+ * This is a helper function that logs activities after CRUD operations
+ */
+export async function logActivity(
+  request: CreateActivityLogRequest
+): Promise<void> {
+  try {
+    // Silently fail if backend doesn't support it yet
+    // This allows gradual rollout without breaking functionality
+    await apiClient.post('/v1/activity-logs', request, {
+      suppressErrorLog: true, // Don't log errors for activity logging failures
+    });
+  } catch (error) {
+    // Silently handle errors - activity logging should not break main functionality
+    // Log to console in development only
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[activityLogs] Failed to log activity:', error);
+    }
+  }
 }
 
 /**
@@ -177,6 +216,12 @@ export function getActionIcon(action: ActivityAction): string {
       return '🔑';
     case 'permission_change':
       return '🛡️';
+    case 'entry':
+      return '↪️';
+    case 'exit':
+      return '↩️';
+    case 'return':
+      return '↩️';
     default:
       return '📋';
   }
@@ -223,6 +268,12 @@ export function getActionLabel(action: ActivityAction): string {
       return 'Changed Password';
     case 'permission_change':
       return 'Changed Permissions';
+    case 'entry':
+      return 'Entry Recorded';
+    case 'exit':
+      return 'Exit Recorded';
+    case 'return':
+      return 'Return Recorded';
     default:
       return action;
   }
@@ -253,6 +304,12 @@ export function getActionColor(action: ActivityAction): string {
       return '#10B981'; // Green
     case 'permission_change':
       return '#F59E0B'; // Amber
+    case 'entry':
+      return '#10B981'; // Green
+    case 'exit':
+      return '#3B82F6'; // Blue
+    case 'return':
+      return '#8B5CF6'; // Purple
     default:
       return '#6B7280'; // Gray
   }
@@ -285,10 +342,3 @@ export function getModuleLabel(module: ActivityModule): string {
       return module;
   }
 }
-
-
-
-
-
-
-

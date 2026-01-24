@@ -404,7 +404,24 @@ export async function getStockyardRequest(id: string): Promise<StockyardRequest>
  */
 export async function createStockyardRequest(payload: CreateStockyardRequestPayload): Promise<StockyardRequest> {
   const response = await apiClient.post('/v1/stockyard-requests', payload);
-  return response.data.data || response.data;
+  const request = response.data.data || response.data;
+  
+  // Log activity
+  const { logActivity } = await import('./activityLogs');
+  await logActivity({
+    action: 'create',
+    module: 'stockyard',
+    resource_type: 'stockyard_request',
+    resource_id: request.id,
+    resource_name: `Request ${request.id}`,
+    details: {
+      type: request.type,
+      vehicle_id: request.vehicle_id,
+      yard_id: request.yard_id,
+    },
+  });
+  
+  return request;
 }
 
 /**
@@ -415,7 +432,19 @@ export async function approveStockyardRequest(
   payload: ApproveStockyardRequestPayload = {}
 ): Promise<StockyardRequest> {
   const response = await apiClient.post(`/v1/stockyard-requests/${id}/approve`, payload);
-  return response.data.data || response.data;
+  const request = response.data.data || response.data;
+  
+  // Log activity
+  const { logActivity } = await import('./activityLogs');
+  await logActivity({
+    action: 'approve',
+    module: 'stockyard',
+    resource_type: 'stockyard_request',
+    resource_id: id,
+    resource_name: `Request ${id}`,
+  });
+  
+  return request;
 }
 
 /**
@@ -423,7 +452,20 @@ export async function approveStockyardRequest(
  */
 export async function rejectStockyardRequest(id: string, reason?: string): Promise<StockyardRequest> {
   const response = await apiClient.post(`/v1/stockyard-requests/${id}/reject`, { reason });
-  return response.data.data || response.data;
+  const request = response.data.data || response.data;
+  
+  // Log activity
+  const { logActivity } = await import('./activityLogs');
+  await logActivity({
+    action: 'reject',
+    module: 'stockyard',
+    resource_type: 'stockyard_request',
+    resource_id: id,
+    resource_name: `Request ${id}`,
+    details: { reason },
+  });
+  
+  return request;
 }
 
 /**

@@ -110,7 +110,7 @@ const ACTION_CARDS: ActionCard[] = [
     icon: '🔄',
     title: 'Bulk Operations',
     description: 'Bulk create, update, and export',
-    path: '/app/gate-pass/bulk',
+    path: '/app/stockyard/access/bulk',
     borderColor: colors.status.normal,
     hoverShadowColor: 'rgba(16, 185, 129, 0.15)',
   },

@@ -17,19 +17,19 @@ import { InspectionReport } from '../../components/inspection/InspectionReport';
 import { useInspections } from '../../lib/queries';
 import { FileText, Search, Filter, Download, Share2, Eye, Calendar, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { logger } from '../../lib/logger';
+import { ExportButton } from '../../components/ui/ExportButton';
+import { useInspectionFilters } from './hooks/useInspectionFilters';
 
 export const InspectionReports: React.FC = () => {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const { filters, setFilter } = useInspectionFilters();
   const [selectedInspection, setSelectedInspection] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
   const perPage = 20;
 
   const { data: inspectionsData, isLoading, isError, error, refetch } = useInspections({
-    status: statusFilter !== 'all' ? statusFilter : undefined,
+    status: filters.status !== 'all' ? filters.status : undefined,
     per_page: perPage,
-    page: currentPage,
+    page: filters.page,
   });
 
   const inspections = inspectionsData?.data || [];
@@ -37,9 +37,9 @@ export const InspectionReports: React.FC = () => {
 
   // Filter by search query
   const filteredInspections = useMemo(() => {
-    if (!searchQuery.trim()) return inspections;
+    if (!filters.search.trim()) return inspections;
     
-    const query = searchQuery.toLowerCase();
+    const query = filters.search.toLowerCase();
     return inspections.filter((insp: any) => {
       return (
         insp.vehicle?.registration_number?.toLowerCase().includes(query) ||
@@ -50,7 +50,7 @@ export const InspectionReports: React.FC = () => {
         insp.id?.toLowerCase().includes(query)
       );
     });
-  }, [inspections, searchQuery]);
+  }, [inspections, filters.search]);
 
   const handleViewReport = (inspectionId: string) => {
     setSelectedInspection(inspectionId);
@@ -186,8 +186,8 @@ export const InspectionReports: React.FC = () => {
           <input
             type="text"
             placeholder="Search by vehicle, inspector, or template..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={filters.search}
+            onChange={(e) => setFilter('search', e.target.value)}
             style={{
               width: '100%',
               padding: `${spacing.md} ${spacing.md} ${spacing.md} ${spacing.xxl}`,
@@ -199,36 +199,58 @@ export const InspectionReports: React.FC = () => {
           />
         </div>
 
-        <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap', alignItems: 'center' }}>
-          <Filter size={16} color={colors.neutral[600]} />
-          <Button
-            variant={statusFilter === 'all' ? 'primary' : 'secondary'}
+        <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Filter size={16} color={colors.neutral[600]} />
+            <Button
+              variant={filters.status === 'all' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setFilter('status', 'all')}
+            >
+              All
+            </Button>
+            <Button
+              variant={filters.status === 'completed' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setFilter('status', 'completed')}
+            >
+              Completed
+            </Button>
+            <Button
+              variant={filters.status === 'pending' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setFilter('status', 'pending')}
+            >
+              Pending
+            </Button>
+            <Button
+              variant={filters.status === 'approved' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setFilter('status', 'approved')}
+            >
+              Approved
+            </Button>
+          </div>
+          <ExportButton
+            data={filteredInspections.map((insp: any) => ({
+              'ID': insp.id,
+              'Vehicle': insp.vehicle?.registration_number || '',
+              'Make': insp.vehicle?.make || '',
+              'Model': insp.vehicle?.model || '',
+              'Inspector': insp.inspector?.name || '',
+              'Template': insp.template?.name || '',
+              'Status': insp.status,
+              'Pass/Fail': insp.pass_fail || '',
+              'Date': insp.created_at ? new Date(insp.created_at).toLocaleDateString() : '',
+            }))}
+            formats={['csv', 'excel']}
+            options={{
+              filename: `inspections-${new Date().toISOString().split('T')[0]}.csv`,
+            }}
+            module="inspection"
             size="sm"
-            onClick={() => setStatusFilter('all')}
-          >
-            All
-          </Button>
-          <Button
-            variant={statusFilter === 'completed' ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => setStatusFilter('completed')}
-          >
-            Completed
-          </Button>
-          <Button
-            variant={statusFilter === 'pending' ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => setStatusFilter('pending')}
-          >
-            Pending
-          </Button>
-          <Button
-            variant={statusFilter === 'approved' ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => setStatusFilter('approved')}
-          >
-            Approved
-          </Button>
+            variant="secondary"
+          />
         </div>
       </div>
 
@@ -238,8 +260,8 @@ export const InspectionReports: React.FC = () => {
           icon={<FileText size={48} />}
           title="No reports found"
           description={
-            searchQuery
-              ? `No inspections match "${searchQuery}". Try a different search term.`
+            filters.search
+              ? `No inspections match "${filters.search}". Try a different search term.`
               : 'No inspection reports available yet.'
           }
         />

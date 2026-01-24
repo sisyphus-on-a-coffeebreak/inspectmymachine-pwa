@@ -5,6 +5,9 @@ import { colors, typography, spacing } from "../lib/theme";
 import { AnomalyAlert } from "../components/ui/AnomalyAlert";
 import { useDashboardStats } from "../lib/queries";
 import { useRealtimeDashboard } from "../hooks/useRealtimeDashboard";
+import { dashboardService } from "../lib/services/DashboardService";
+import { CacheIndicator } from "../components/dashboard/CacheIndicator";
+import { getDrillDownUrl } from "../lib/utils/drillDown";
 import { 
   ClipboardList, 
   FileText, 
@@ -291,6 +294,18 @@ export default function Dashboard() {
           }}>
             {getRoleBasedSubtitle(user?.role)}
           </p>
+        </div>
+
+        {/* Cache Indicator */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: spacing.sm }}>
+          <CacheIndicator
+            cacheAge={dashboardService.getCacheAge()}
+            onRefresh={() => {
+              dashboardService.invalidateCache();
+              // Trigger refetch
+              window.location.reload();
+            }}
+          />
         </div>
 
         {/* Role-Specific Primary Action Strip */}

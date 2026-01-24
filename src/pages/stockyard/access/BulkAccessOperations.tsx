@@ -5,6 +5,10 @@ import { colors, typography, spacing, cardStyles } from '@/lib/theme';
 import { Button } from '@/components/ui/button';
 import { ActionGrid, StatsGrid } from '@/components/ui/ResponsiveGrid';
 import { useToast } from '@/providers/ToastProvider';
+import { BulkPassCreationGrid } from './components/BulkPassCreationGrid';
+import { useAuth } from '@/providers/useAuth';
+import { accessService } from '@/lib/services/AccessService';
+import type { GatePassType } from './gatePassTypes';
 
 // 🔄 Bulk Operations
 // Handle bulk operations on gate passes
@@ -49,6 +53,7 @@ interface BulkTemplate {
 export const BulkAccessOperations: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { user } = useAuth();
   const [bulkOperations, setBulkOperations] = useState<BulkOperation[]>([]);
   const [bulkTemplates, setBulkTemplates] = useState<BulkTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<BulkTemplate | null>(null);
@@ -57,6 +62,8 @@ export const BulkAccessOperations: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'create' | 'update' | 'export' | 'templates'>('create');
   const [csvData, setCsvData] = useState<string>('');
   const [operationType, setOperationType] = useState<'create' | 'update' | 'status_change'>('create');
+  const [passType, setPassType] = useState<GatePassType>('visitor');
+  const [yardId, setYardId] = useState<string | undefined>(user?.yard_id);
 
   const fetchBulkOperations = useCallback(async () => {
     try {
@@ -364,111 +371,137 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
           </h3>
           
           <div style={{ display: 'grid', gap: spacing.lg }}>
+            {/* Pass Type and Yard Selection */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md }}>
             <div>
               <label style={{ ...typography.label, marginBottom: spacing.xs, display: 'block' }}>
-                Upload CSV File
+                  Pass Type
               </label>
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleCSVUpload}
+                <select
+                  value={passType}
+                  onChange={(e) => setPassType(e.target.value as GatePassType)}
                 style={{
                   width: '100%',
                   padding: spacing.sm,
-                  border: '1px solid #D1D5DB',
+                    border: `1px solid ${colors.neutral[300]}`,
                   borderRadius: '8px',
                   fontSize: '14px'
                 }}
-              />
-              <div style={{ marginTop: spacing.xs }}>
-                <Button
-                  variant="secondary"
-                  onClick={downloadTemplate}
-                  icon="📥"
                 >
-                  Download Template
-                </Button>
+                  <option value="visitor">Visitor Pass</option>
+                  <option value="vehicle_inbound">Vehicle Inbound</option>
+                  <option value="vehicle_outbound">Vehicle Outbound</option>
+                </select>
               </div>
-            </div>
-            
-            {bulkData.length > 0 && (
+              {yardId && (
               <div>
-                <h4 style={{ 
-                  ...typography.subheader,
-                  marginBottom: spacing.md,
-                  color: colors.neutral[900]
-                }}>
-                  Preview Data ({bulkData.length} items)
-                </h4>
-                
-                <div style={{ 
-                  maxHeight: '300px', 
-                  overflow: 'auto',
-                  border: '1px solid #E5E7EB',
-                  borderRadius: '8px'
-                }}>
-                  <table style={{ width: '100%', fontSize: '14px' }}>
-                    <thead style={{ backgroundColor: colors.neutral[50] }}>
-                      <tr>
-                        <th style={{ padding: spacing.sm, textAlign: 'left' }}>Pass Number</th>
-                        <th style={{ padding: spacing.sm, textAlign: 'left' }}>Type</th>
-                        <th style={{ padding: spacing.sm, textAlign: 'left' }}>Name</th>
-                        <th style={{ padding: spacing.sm, textAlign: 'left' }}>Purpose</th>
-                        <th style={{ padding: spacing.sm, textAlign: 'left' }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bulkData.slice(0, 10).map((item, index) => (
-                        <tr key={index}>
-                          <td style={{ padding: spacing.sm }}>{item.pass_number}</td>
-                          <td style={{ padding: spacing.sm, textTransform: 'capitalize' }}>{item.type}</td>
-                          <td style={{ padding: spacing.sm }}>
-                            {item.visitor_name || item.vehicle_registration || 'N/A'}
-                          </td>
-                          <td style={{ padding: spacing.sm, textTransform: 'capitalize' }}>{item.purpose}</td>
-                          <td style={{ padding: spacing.sm, textTransform: 'capitalize' }}>{item.status}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {bulkData.length > 10 && (
-                    <div style={{ 
+                  <label style={{ ...typography.label, marginBottom: spacing.xs, display: 'block' }}>
+                    Yard
+                  </label>
+                  <input
+                    type="text"
+                    value={yardId}
+                    disabled
+                    style={{
+                      width: '100%',
                       padding: spacing.sm, 
-                      textAlign: 'center', 
-                      color: colors.neutral[600],
-                      backgroundColor: colors.neutral[50]
-                    }}>
-                      ... and {bulkData.length - 10} more items
+                      border: `1px solid ${colors.neutral[300]}`,
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      backgroundColor: colors.neutral[100],
+                      color: colors.neutral[600]
+                    }}
+                  />
                     </div>
                   )}
                 </div>
                 
-                <div style={{ 
-                  display: 'flex', 
-                  gap: spacing.sm, 
-                  marginTop: spacing.lg,
-                  justifyContent: 'flex-end'
-                }}>
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setBulkData([]);
-                      setCsvData('');
-                    }}
-                  >
-                    Clear Data
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={executeBulkOperation}
-                    icon="🚀"
-                    disabled={loading}
-                  >
-                    {loading ? 'Processing...' : `Create ${bulkData.length} Passes`}
-                  </Button>
-                </div>
-              </div>
-            )}
+            {/* CSV-like Grid */}
+            <BulkPassCreationGrid
+              passType={passType}
+              yardId={yardId}
+              onValidate={(validatedRows) => {
+                // Store validated rows for submission
+                setBulkData(validatedRows.map(row => ({
+                  pass_number: `BULK-${Date.now()}`,
+                  type: passType === 'visitor' ? 'visitor' : 'vehicle',
+                  visitor_name: row.data.visitor_name,
+                  vehicle_registration: row.data.vehicle_registration,
+                  purpose: row.data.purpose || 'inspection',
+                  valid_from: row.data.valid_from || new Date().toISOString(),
+                  valid_to: row.data.valid_to || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+                  status: 'pending',
+                  notes: row.data.notes
+                })));
+              }}
+              onSubmit={async (validRows) => {
+                try {
+                  setLoading(true);
+                  const results = await Promise.allSettled(
+                    validRows.map(async (row) => {
+                      // Convert row data to API payload format
+                      const payload: any = {
+                        pass_type: passType,
+                        purpose: row.data.purpose || 'inspection',
+                        valid_from: row.data.valid_from || new Date().toISOString(),
+                        valid_to: row.data.valid_to || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+                        yard_id: yardId,
+                        notes: row.data.notes,
+                      };
+
+                      if (passType === 'visitor') {
+                        payload.visitor_name = row.data.visitor_name;
+                        payload.visitor_phone = row.data.visitor_phone;
+                        payload.referred_by = row.data.referred_by;
+                        payload.visitor_company = row.data.visitor_company;
+                        // vehicles_to_view is already an array of vehicle IDs
+                        payload.vehicles_to_view = Array.isArray(row.data.vehicles_to_view) 
+                          ? row.data.vehicles_to_view 
+                          : (row.data.vehicles_to_view ? [row.data.vehicles_to_view] : []);
+                      } else if (passType === 'vehicle_outbound') {
+                        // For vehicle outbound, use vehicle_id directly
+                        payload.vehicle_id = row.data.vehicle_id;
+                        payload.driver_name = row.data.driver_name;
+                        payload.driver_contact = row.data.driver_contact;
+                        payload.destination = row.data.destination;
+                        payload.expected_return_date = row.data.expected_return_date;
+                      } else {
+                        // For vehicle inbound, we'd need to lookup vehicle_id from registration
+                        // For now, we'll need to handle this in the backend or add vehicle lookup
+                        payload.vehicle_registration = row.data.vehicle_registration;
+                        payload.driver_name = row.data.driver_name;
+                        payload.driver_contact = row.data.driver_contact;
+                      }
+
+                      return await accessService.create(payload as any);
+                    })
+                  );
+
+                  const successful = results.filter(r => r.status === 'fulfilled').length;
+                  const failed = results.filter(r => r.status === 'rejected').length;
+
+                  showToast({
+                    title: 'Bulk Creation Complete',
+                    description: `Successfully created ${successful} passes. ${failed > 0 ? `${failed} failed.` : ''}`,
+                    variant: successful > 0 ? 'success' : 'error',
+                    duration: 5000,
+                  });
+
+                  if (successful > 0) {
+                    fetchBulkOperations();
+                    // Optionally navigate or refresh
+                  }
+                } catch (error) {
+                  showToast({
+                    title: 'Error',
+                    description: 'Failed to create passes. Please try again.',
+                    variant: 'error',
+                  });
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            />
           </div>
         </div>
       )}
@@ -551,7 +584,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
           </h3>
           
           <div style={{ display: 'grid', gap: spacing.lg }}>
-            <WideGrid gap="lg">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.lg }}>
               <div>
                 <label style={{ ...typography.label, marginBottom: spacing.xs, display: 'block' }}>
                   Date Range
@@ -605,7 +638,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
                   <option value="pdf">PDF</option>
                 </select>
               </div>
-            </WideGrid>
+            </div>
             
             <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'flex-end' }}>
               <Button
@@ -638,7 +671,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
             📋 Bulk Templates
           </h3>
           
-          <CardGrid gap="lg">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: spacing.lg }}>
             {bulkTemplates.map((template) => (
               <div
                 key={template.id}
@@ -677,7 +710,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
                 </div>
               </div>
             ))}
-          </CardGrid>
+          </div>
         </div>
       )}
 

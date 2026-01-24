@@ -32,6 +32,8 @@ export interface User {
   enhanced_capabilities?: EnhancedCapability[]; // Enhanced capabilities with granularity
   yard_id: string | null;
   is_active: boolean;
+  skip_approval_gate_pass?: boolean; // Auto-approve gate passes created by this user
+  skip_approval_expense?: boolean; // Auto-approve expenses created by this user
   last_login_at: string | null;
   created_at?: string;
   updated_at?: string;
@@ -47,6 +49,8 @@ export interface CreateUserPayload {
   capabilities?: UserCapabilities; // Capability matrix
   yard_id?: string | null;
   is_active?: boolean;
+  skip_approval_gate_pass?: boolean; // Auto-approve gate passes created by this user
+  skip_approval_expense?: boolean; // Auto-approve expenses created by this user
 }
 
 export interface UpdateUserPayload {
@@ -58,6 +62,8 @@ export interface UpdateUserPayload {
   capabilities?: UserCapabilities; // Capability matrix
   yard_id?: string | null;
   is_active?: boolean;
+  skip_approval_gate_pass?: boolean; // Auto-approve gate passes created by this user
+  skip_approval_expense?: boolean; // Auto-approve expenses created by this user
 }
 
 export interface GetUsersParams {

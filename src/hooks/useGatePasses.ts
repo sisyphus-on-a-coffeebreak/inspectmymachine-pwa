@@ -10,6 +10,7 @@ import { accessService } from '../lib/services/AccessService';
 import { useToast } from '../providers/ToastProvider';
 import { getGatePassErrorMessage } from '@/pages/stockyard/access/utils/errorMessages';
 import { RETRY_CONFIG } from '@/pages/stockyard/access/constants';
+import { logActivity } from '../lib/activityLogs';
 import type {
   GatePass,
   GatePassFilters,
@@ -132,13 +133,26 @@ export function useCreateGatePass(
 
   return useMutation({
     mutationFn: (data: CreateGatePassData) => accessService.create(data),
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       // Invalidate lists and stats
       queryClient.invalidateQueries({ queryKey: accessPassKeys.lists() });
       queryClient.invalidateQueries({ queryKey: accessPassKeys.stats() });
       
       // Pre-populate detail cache
       queryClient.setQueryData(accessPassKeys.detail(data.id), data);
+      
+      // Log activity
+      await logActivity({
+        action: 'create',
+        module: 'gate_pass',
+        resource_type: 'gate_pass',
+        resource_id: data.id,
+        resource_name: data.pass_number || `Pass ${data.id}`,
+        details: {
+          pass_type: data.pass_type,
+          status: data.status,
+        },
+      });
       
       // Show success toast
       showToast({
@@ -176,12 +190,25 @@ export function useUpdateGatePass(
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateGatePassData }) =>
       accessService.update(id, data),
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
       // Invalidate lists
       queryClient.invalidateQueries({ queryKey: accessPassKeys.lists() });
       
       // Update detail cache
       queryClient.setQueryData(accessPassKeys.detail(variables.id), data);
+      
+      // Log activity
+      await logActivity({
+        action: 'update',
+        module: 'gate_pass',
+        resource_type: 'gate_pass',
+        resource_id: data.id,
+        resource_name: data.pass_number || `Pass ${data.id}`,
+        details: {
+          pass_type: data.pass_type,
+          status: data.status,
+        },
+      });
       
       showToast({
         title: 'Success',
@@ -221,7 +248,7 @@ export function useCancelGatePass(
 
   return useMutation({
     mutationFn: (id: string) => accessService.cancel(id),
-    onSuccess: (_, id) => {
+    onSuccess: async (_, id) => {
       // Invalidate lists, detail, and stats
       queryClient.invalidateQueries({ queryKey: accessPassKeys.lists() });
       queryClient.invalidateQueries({ queryKey: accessPassKeys.detail(id) });
@@ -229,6 +256,15 @@ export function useCancelGatePass(
       
       // Remove from detail cache
       queryClient.removeQueries({ queryKey: accessPassKeys.detail(id) });
+      
+      // Log activity
+      await logActivity({
+        action: 'delete',
+        module: 'gate_pass',
+        resource_type: 'gate_pass',
+        resource_id: id,
+        details: { action: 'cancelled' },
+      });
       
       showToast({
         title: 'Success',
@@ -315,13 +351,27 @@ export function useRecordEntry(
       condition_snapshot?: Record<string, unknown>;
     }) =>
       accessService.recordEntry(id, { notes, gate_id, guard_id, location, photos, condition_snapshot }),
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
       // Invalidate lists and stats
       queryClient.invalidateQueries({ queryKey: accessPassKeys.lists() });
       queryClient.invalidateQueries({ queryKey: accessPassKeys.stats() });
       
       // Update detail cache
       queryClient.setQueryData(accessPassKeys.detail(variables.id), data);
+      
+      // Log activity
+      await logActivity({
+        action: 'entry',
+        module: 'gate_pass',
+        resource_type: 'gate_pass',
+        resource_id: data.id,
+        resource_name: data.pass_number || `Pass ${data.id}`,
+        details: {
+          gate_id: variables.gate_id,
+          guard_id: variables.guard_id,
+          location: variables.location,
+        },
+      });
       
       showToast({
         title: 'Success',
@@ -380,13 +430,27 @@ export function useRecordExit(
       component_snapshot?: Record<string, unknown>;
     }) =>
       accessService.recordExit(id, { notes, gate_id, guard_id, location, photos, odometer_km, component_snapshot }),
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
       // Invalidate lists and stats
       queryClient.invalidateQueries({ queryKey: accessPassKeys.lists() });
       queryClient.invalidateQueries({ queryKey: accessPassKeys.stats() });
       
       // Update detail cache
       queryClient.setQueryData(accessPassKeys.detail(variables.id), data);
+      
+      // Log activity
+      await logActivity({
+        action: 'exit',
+        module: 'gate_pass',
+        resource_type: 'gate_pass',
+        resource_id: data.id,
+        resource_name: data.pass_number || `Pass ${data.id}`,
+        details: {
+          gate_id: variables.gate_id,
+          guard_id: variables.guard_id,
+          location: variables.location,
+        },
+      });
       
       showToast({
         title: 'Success',

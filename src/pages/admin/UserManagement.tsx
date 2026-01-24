@@ -75,6 +75,8 @@ export default function UserManagement() {
     capabilities: undefined,
     yard_id: null,
     is_active: true,
+    skip_approval_gate_pass: false,
+    skip_approval_expense: false,
   });
   const [showCapabilityMatrix, setShowCapabilityMatrix] = useState(false);
   const [capabilityTab, setCapabilityTab] = useState<'basic' | 'enhanced'>('basic');
@@ -236,6 +238,8 @@ export default function UserManagement() {
         capabilities: formData.capabilities,
         yard_id: formData.yard_id,
         is_active: formData.is_active,
+        skip_approval_gate_pass: formData.skip_approval_gate_pass,
+        skip_approval_expense: formData.skip_approval_expense,
       };
       await updateUser(selectedUser.id, payload);
       
@@ -421,6 +425,8 @@ export default function UserManagement() {
       capabilities: undefined,
       yard_id: null,
       is_active: true,
+      skip_approval_gate_pass: false,
+      skip_approval_expense: false,
     });
     setShowCapabilityMatrix(false);
   };
@@ -437,6 +443,8 @@ export default function UserManagement() {
       capabilities: user.capabilities,
       yard_id: user.yard_id,
       is_active: user.is_active,
+      skip_approval_gate_pass: user.skip_approval_gate_pass || false,
+      skip_approval_expense: user.skip_approval_expense || false,
     } as any);
     // Load enhanced capabilities from user data or set empty array
     setEnhancedCapabilities(user.enhanced_capabilities || []);
@@ -1117,7 +1125,55 @@ export default function UserManagement() {
                 )}
               </div>
               
-              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+              {/* Auto-Approval Settings */}
+              <div style={{ 
+                padding: spacing.md, 
+                backgroundColor: colors.neutral[50], 
+                borderRadius: borderRadius.md,
+                marginTop: spacing.md,
+                border: `1px solid ${colors.neutral[200]}`
+              }}>
+                <div style={{ ...typography.label, marginBottom: spacing.sm, color: colors.primary[700] }}>
+                  Auto-Approval Settings
+                </div>
+                <div style={{ ...typography.caption, color: colors.neutral[600], marginBottom: spacing.md }}>
+                  When enabled, items created by this user are automatically approved (skips approval queue)
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                    <input
+                      type="checkbox"
+                      id="skip_approval_gate_pass"
+                      checked={formData.skip_approval_gate_pass || false}
+                      onChange={(e) => setFormData({ ...formData, skip_approval_gate_pass: e.target.checked })}
+                      style={{ width: '18px', height: '18px' }}
+                    />
+                    <label htmlFor="skip_approval_gate_pass" style={{ ...typography.body, cursor: 'pointer', flex: 1 }}>
+                      Skip Approval for Gate Passes
+                    </label>
+                    <span style={{ ...typography.caption, color: colors.neutral[500] }}>
+                      Gate passes created by this user will be automatically approved
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                    <input
+                      type="checkbox"
+                      id="skip_approval_expense"
+                      checked={formData.skip_approval_expense || false}
+                      onChange={(e) => setFormData({ ...formData, skip_approval_expense: e.target.checked })}
+                      style={{ width: '18px', height: '18px' }}
+                    />
+                    <label htmlFor="skip_approval_expense" style={{ ...typography.body, cursor: 'pointer', flex: 1 }}>
+                      Skip Approval for Expenses
+                    </label>
+                    <span style={{ ...typography.caption, color: colors.neutral[500] }}>
+                      Expenses submitted by this user will be automatically approved
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md }}>
                 <input
                   type="checkbox"
                   id="is_active"
@@ -1322,7 +1378,55 @@ export default function UserManagement() {
                 )}
               </div>
               
-              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+              {/* Auto-Approval Settings */}
+              <div style={{ 
+                padding: spacing.md, 
+                backgroundColor: colors.neutral[50], 
+                borderRadius: borderRadius.md,
+                marginTop: spacing.md,
+                border: `1px solid ${colors.neutral[200]}`
+              }}>
+                <div style={{ ...typography.label, marginBottom: spacing.sm, color: colors.primary[700] }}>
+                  Auto-Approval Settings
+                </div>
+                <div style={{ ...typography.caption, color: colors.neutral[600], marginBottom: spacing.md }}>
+                  When enabled, items created by this user are automatically approved (skips approval queue)
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                    <input
+                      type="checkbox"
+                      id="skip_approval_gate_pass_edit"
+                      checked={formData.skip_approval_gate_pass || false}
+                      onChange={(e) => setFormData({ ...formData, skip_approval_gate_pass: e.target.checked })}
+                      style={{ width: '18px', height: '18px' }}
+                    />
+                    <label htmlFor="skip_approval_gate_pass_edit" style={{ ...typography.body, cursor: 'pointer', flex: 1 }}>
+                      Skip Approval for Gate Passes
+                    </label>
+                    <span style={{ ...typography.caption, color: colors.neutral[500] }}>
+                      Gate passes created by this user will be automatically approved
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                    <input
+                      type="checkbox"
+                      id="skip_approval_expense_edit"
+                      checked={formData.skip_approval_expense || false}
+                      onChange={(e) => setFormData({ ...formData, skip_approval_expense: e.target.checked })}
+                      style={{ width: '18px', height: '18px' }}
+                    />
+                    <label htmlFor="skip_approval_expense_edit" style={{ ...typography.body, cursor: 'pointer', flex: 1 }}>
+                      Skip Approval for Expenses
+                    </label>
+                    <span style={{ ...typography.caption, color: colors.neutral[500] }}>
+                      Expenses submitted by this user will be automatically approved
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md }}>
                 <input
                   type="checkbox"
                   id="is_active_edit"
@@ -1479,11 +1583,11 @@ function CapabilityMatrixEditor({
   capabilities?: UserCapabilities;
   onChange: (capabilities: UserCapabilities) => void;
 }) {
-  const modules: CapabilityModule[] = ['gate_pass', 'inspection', 'expense', 'user_management', 'reports'];
+  const modules: CapabilityModule[] = ['stockyard', 'inspection', 'expense', 'user_management', 'reports'];
   const actions: CapabilityAction[] = ['create', 'read', 'update', 'delete', 'approve', 'validate', 'review', 'reassign', 'export'];
   
   const moduleLabels: Record<CapabilityModule, string> = {
-    gate_pass: 'Gate Pass',
+    stockyard: 'Stockyard',
     inspection: 'Inspection',
     expense: 'Expense',
     user_management: 'User Management',
@@ -1535,6 +1639,8 @@ function CapabilityMatrixEditor({
     }}>
       <div style={{ ...typography.caption, color: colors.neutral[600], marginBottom: spacing.md }}>
         Select capabilities for each module. Capabilities override role-based permissions.
+        <br />
+        <strong>Note:</strong> For Stockyard module, use Enhanced Capabilities below to assign function-specific permissions (Access Control, Inventory, Movements).
       </div>
       <div style={{ display: 'grid', gap: spacing.md }}>
         {modules.map((module) => (
@@ -1550,7 +1656,7 @@ function CapabilityMatrixEditor({
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.xs }}>
               {actions.map((action) => {
                 // Filter actions by module relevance
-                if (module === 'gate_pass' && !['create', 'read', 'update', 'delete', 'approve', 'validate'].includes(action)) return null;
+                if (module === 'stockyard' && !['create', 'read', 'update', 'delete', 'approve', 'validate'].includes(action)) return null;
                 if (module === 'inspection' && !['create', 'read', 'update', 'delete', 'approve', 'review'].includes(action)) return null;
                 if (module === 'expense' && !['create', 'read', 'update', 'delete', 'approve', 'reassign'].includes(action)) return null;
                 if (module === 'user_management' && !['create', 'read', 'update', 'delete'].includes(action)) return null;

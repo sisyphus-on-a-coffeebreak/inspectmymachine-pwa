@@ -161,6 +161,25 @@ export async function submitInspection({
 
   try {
     const response = await upload();
+    
+    // Log activity after successful submission
+    if (response?.id || response?.data?.id) {
+      const inspectionId = response.id || response.data.id;
+      const { logActivity } = await import('./activityLogs');
+      await logActivity({
+        action: 'create',
+        module: 'inspection',
+        resource_type: 'inspection',
+        resource_id: inspectionId,
+        resource_name: `Inspection ${inspectionId}`,
+        details: {
+          template_id: templateId,
+          vehicle_id: vehicleId,
+          mode,
+        },
+      });
+    }
+    
     return { status: 'submitted', mode, response };
   } catch (error: any) {
     if (isOfflineError(error)) {

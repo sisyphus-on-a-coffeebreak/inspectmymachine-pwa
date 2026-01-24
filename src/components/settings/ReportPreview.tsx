@@ -4,6 +4,7 @@ import type { ReportBranding } from '../../lib/report-branding';
 import { Button } from '../ui/button';
 import { Modal } from '../ui/Modal';
 import { ExternalLink } from 'lucide-react';
+import { useLogoUrl } from '../../hooks/useLogoUrl';
 
 export interface ReportPreviewProps {
   branding: ReportBranding;
@@ -16,6 +17,8 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
   onFullSize,
   compact = false,
 }) => {
+  // Get safe logo URL (handles CORS by fetching through backend proxy)
+  const safeLogoUrl = useLogoUrl(branding.logoUrl);
   const previewContent = (
     <div
       style={{
@@ -41,18 +44,21 @@ export const ReportPreview: React.FC<ReportPreviewProps> = ({
         }}
       >
         {/* Logo */}
-        {branding.showLogoInHeader && branding.logoUrl ? (
+        {branding.showLogoInHeader && safeLogoUrl ? (
           <div style={{ flex: '0 0 auto' }}>
             <img
-              src={branding.logoUrl}
+              src={safeLogoUrl}
               alt="Company logo"
-              crossOrigin="anonymous"
               style={{
                 maxWidth: '150px',
                 maxHeight: '50px',
                 objectFit: 'contain',
               }}
-              onError={() => console.warn('Logo failed to load - CORS issue. Ask backend team to add CORS headers to R2 bucket.')}
+              onError={(e) => {
+                console.warn('Logo failed to load. This may be a CORS issue. If the logo URL is from R2 storage, ask backend team to add CORS headers to the R2 bucket.');
+                // Hide broken image icon
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
             />
           </div>
         ) : branding.showLogoInHeader ? (

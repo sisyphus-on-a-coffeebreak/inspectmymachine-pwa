@@ -15,6 +15,8 @@ import { Pagination } from '../../components/ui/Pagination';
 import { FilterBadges } from '../../components/ui/FilterBadge';
 import { PullToRefreshWrapper } from '../../components/ui/PullToRefreshWrapper';
 import { CollapsibleSection } from '../../components/ui/CollapsibleSection';
+import { ExportButton } from '../../components/ui/ExportButton';
+import { useStockyardFilters } from './hooks/useStockyardFilters';
 
 // 📦 Stockyard Dashboard
 // Main screen for managing stockyard requests and operations
@@ -22,15 +24,12 @@ import { CollapsibleSection } from '../../components/ui/CollapsibleSection';
 export const StockyardDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'active'>('all');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'ENTRY' | 'EXIT'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
+  const { filters, setFilter } = useStockyardFilters();
   const [perPage, setPerPage] = useState(20);
   
   // Map filters to API parameters
-  const statusFilter = filter === 'all' ? undefined : filter === 'active' ? undefined : filter;
-  const typeFilterValue = typeFilter === 'all' ? undefined : typeFilter;
+  const statusFilter = filters.status === 'all' ? undefined : filters.status === 'active' ? undefined : filters.status;
+  const typeFilterValue = filters.type === 'all' ? undefined : filters.type;
   
   // Use React Query for stockyard requests
   const { data: requestsData, isLoading: loading, error: queryError, refetch } = useStockyardRequests(
@@ -38,7 +37,7 @@ export const StockyardDashboard: React.FC = () => {
       status: statusFilter as StockyardRequestStatus | 'all',
       type: typeFilterValue as StockyardRequestType | 'all',
       per_page: perPage,
-      page: currentPage,
+      page: filters.page,
     }
   );
   
@@ -72,15 +71,15 @@ export const StockyardDashboard: React.FC = () => {
     let filtered = requestsData?.data || [];
     
     // Filter active requests (approved and not yet scanned out)
-    if (filter === 'active') {
+    if (filters.status === 'active') {
       filtered = filtered.filter(
         (req) => req.status === 'Approved' && !req.scan_out_at
       );
     }
     
     // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (filters.search.trim()) {
+      const query = filters.search.toLowerCase();
       filtered = filtered.filter(
         (req) =>
           req.id.toLowerCase().includes(query) ||
@@ -90,7 +89,7 @@ export const StockyardDashboard: React.FC = () => {
     }
     
     return filtered;
-  }, [requestsData?.data, filter, searchQuery]);
+  }, [requestsData?.data, filters.status, filters.search]);
   
   const totalItems = requestsData?.total || requests.length;
   const stats = statsData || {
@@ -110,10 +109,7 @@ export const StockyardDashboard: React.FC = () => {
     await refetch();
   };
 
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filter, typeFilter, searchQuery]);
+  // Note: Page reset is handled by the filter hook when filters change
 
   const getStatusColor = (status: StockyardRequestStatus) => {
     switch (status) {
@@ -533,8 +529,8 @@ export const StockyardDashboard: React.FC = () => {
             <input
               type="text"
               placeholder="Search by ID, vehicle, or requester..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={filters.search}
+              onChange={(e) => setFilter('search', e.target.value)}
               style={{
                 width: '100%',
                 padding: spacing.md,
@@ -546,8 +542,8 @@ export const StockyardDashboard: React.FC = () => {
           </div>
           <div style={{ display: 'flex', gap: spacing.sm }}>
             <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value as any)}
+              value={filters.status}
+              onChange={(e) => setFilter('status', e.target.value as any)}
               style={{
                 padding: spacing.md,
                 border: `1px solid ${colors.neutral[300]}`,
@@ -561,8 +557,8 @@ export const StockyardDashboard: React.FC = () => {
               <option value="active">Active (Inside)</option>
             </select>
             <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as any)}
+              value={filters.type}
+              onChange={(e) => setFilter('type', e.target.value as any)}
               style={{
                 padding: spacing.md,
                 border: `1px solid ${colors.neutral[300]}`,
@@ -578,32 +574,54 @@ export const StockyardDashboard: React.FC = () => {
         </div>
         
         {/* Active Filter Badges */}
-        {(filter !== 'all' || typeFilter !== 'all' || searchQuery.trim()) && (
+        {(filters.status !== 'all' || filters.type !== 'all' || filters.search.trim()) && (
           <FilterBadges
             filters={[
-              ...(filter !== 'all' ? [{
+              ...(filters.status !== 'all' ? [{
                 label: 'Status',
-                value: filter.charAt(0).toUpperCase() + filter.slice(1),
-                onRemove: () => setFilter('all'),
+                value: filters.status.charAt(0).toUpperCase() + filters.status.slice(1),
+                onRemove: () => setFilter('status', 'all'),
               }] : []),
-              ...(typeFilter !== 'all' ? [{
+              ...(filters.type !== 'all' ? [{
                 label: 'Type',
-                value: typeFilter,
-                onRemove: () => setTypeFilter('all'),
+                value: filters.type,
+                onRemove: () => setFilter('type', 'all'),
               }] : []),
-              ...(searchQuery.trim() ? [{
+              ...(filters.search.trim() ? [{
                 label: 'Search',
-                value: `"${searchQuery}"`,
-                onRemove: () => setSearchQuery(''),
+                value: `"${filters.search}"`,
+                onRemove: () => setFilter('search', ''),
               }] : []),
             ]}
             onClearAll={() => {
-              setFilter('all');
-              setTypeFilter('all');
-              setSearchQuery('');
+              setFilter('status', 'all');
+              setFilter('type', 'all');
+              setFilter('search', '');
             }}
           />
         )}
+        
+        {/* Export Button */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: spacing.md }}>
+          <ExportButton
+            data={requests.map((req: any) => ({
+              'ID': req.id,
+              'Vehicle': req.vehicle?.registration_number || '',
+              'Type': req.type,
+              'Status': req.status,
+              'Requester': req.requester?.name || '',
+              'Created': req.created_at ? new Date(req.created_at).toLocaleDateString() : '',
+              'Approved': req.approved_at ? new Date(req.approved_at).toLocaleDateString() : '',
+            }))}
+            formats={['csv', 'excel']}
+            options={{
+              filename: `stockyard-requests-${new Date().toISOString().split('T')[0]}.csv`,
+            }}
+            module="stockyard"
+            size="sm"
+            variant="secondary"
+          />
+        </div>
       </div>
 
       {/* Requests List */}
@@ -704,17 +722,17 @@ export const StockyardDashboard: React.FC = () => {
       {/* Pagination */}
       {totalItems > 0 && (
         <Pagination
-          currentPage={currentPage}
+          currentPage={filters.page}
           totalPages={Math.ceil(totalItems / perPage)}
           totalItems={totalItems}
           perPage={perPage}
           onPageChange={(page) => {
-            setCurrentPage(page);
+            setFilter('page', page);
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
           onPerPageChange={(newPerPage) => {
             setPerPage(newPerPage);
-            setCurrentPage(1); // Reset to first page when changing per-page
+            setFilter('page', 1); // Reset to first page when changing per-page
           }}
         />
       )}

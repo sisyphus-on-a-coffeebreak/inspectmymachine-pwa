@@ -227,14 +227,9 @@ export function useDashboardStats(options?: Omit<UseQueryOptions<any, Error>, 'q
   return useQuery({
     queryKey: queryKeys.dashboard.stats(),
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: any }>('/v1/dashboard', {
-        suppressErrorLog: true, // Suppress console errors for connection failures
-      });
-      // Handle both response formats: { success: true, data: {...} } or direct data
-      if (response.data.success && response.data.data) {
-        return response.data.data;
-      }
-      return response.data;
+      // Dynamic import to avoid circular dependencies
+      const { dashboardService } = await import('./services/DashboardService');
+      return await dashboardService.getStats();
     },
     ...defaultQueryOptions,
     ...queryOptions.dashboard,
@@ -570,11 +565,21 @@ export function useApproveExpense(
         queryClient.setQueryData(queryKeys.expenses.approval.all(), context.previousApprovals);
       }
     },
-    onSuccess: () => {
+    onSuccess: async (data, variables) => {
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: queryKeys.expenses.approval.all() });
       queryClient.invalidateQueries({ queryKeys: queryKeys.expenses.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.stats() });
+
+      // Log activity
+      const { logActivity } = await import('./activityLogs');
+      await logActivity({
+        action: 'approve',
+        module: 'expense',
+        resource_type: 'expense',
+        resource_id: variables.id,
+        resource_name: `Expense ${variables.id}`,
+      });
     },
     ...options,
   });
@@ -619,11 +624,24 @@ export function useRejectExpense(
         queryClient.setQueryData(queryKeys.expenses.approval.all(), context.previousApprovals);
       }
     },
-    onSuccess: () => {
+    onSuccess: async (data, variables) => {
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: queryKeys.expenses.approval.all() });
       queryClient.invalidateQueries({ queryKeys: queryKeys.expenses.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.stats() });
+
+      // Log activity
+      const { logActivity } = await import('./activityLogs');
+      await logActivity({
+        action: 'reject',
+        module: 'expense',
+        resource_type: 'expense',
+        resource_id: variables.id,
+        resource_name: `Expense ${variables.id}`,
+        details: {
+          reason: variables.reason,
+        },
+      });
     },
     ...options,
   });

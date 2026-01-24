@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import type { UnifiedApproval } from '@/hooks/useUnifiedApprovals';
 import { Button } from '@/components/ui/button';
 import { colors, spacing, typography } from '@/lib/theme';
 import { formatDistanceToNow } from 'date-fns';
 import { useMobileViewport } from '@/lib/mobileUtils';
+import { useSwipeGestures } from '@/hooks/useSwipeGestures';
 
 interface ApprovalCardProps {
   approval: UnifiedApproval;
@@ -33,9 +34,30 @@ export function ApprovalCard({
 }: ApprovalCardProps) {
   const isMobile = useMobileViewport();
   const config = typeConfig[approval.type];
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Add swipe gestures for mobile
+  useSwipeGestures(
+    {
+      onSwipeRight: () => {
+        if (approval.actions.canApprove && isMobile) {
+          onApprove();
+        }
+      },
+      onSwipeLeft: () => {
+        if (approval.actions.canApprove && isMobile) {
+          onReject();
+        }
+      },
+      threshold: 100, // Require 100px swipe
+      enabled: isMobile && approval.actions.canApprove,
+    },
+    cardRef
+  );
 
   return (
     <div
+      ref={cardRef}
       style={{
         backgroundColor: 'white',
         borderRadius: '12px',
@@ -48,6 +70,7 @@ export function ApprovalCard({
         width: '100%',
         maxWidth: '100%',
         boxSizing: 'border-box',
+        touchAction: 'pan-y', // Allow vertical scrolling, horizontal for swipe
       }}
       onClick={onView}
     >

@@ -17,6 +17,7 @@ import { VehicleChip } from './UnifiedVehicleSelector/VehicleChip';
 import { VehicleCard } from './UnifiedVehicleSelector/VehicleCard';
 import { VehicleSearchInput } from './UnifiedVehicleSelector/VehicleSearchInput';
 import { CreateVehicleForm } from './UnifiedVehicleSelector/CreateVehicleForm';
+import { recordVehicleUse } from '@/lib/utils/vehicleHistory';
 
 export interface NewVehiclePayload {
   registration_number: string;
@@ -206,6 +207,12 @@ export const UnifiedVehicleSelector: React.FC<UnifiedVehicleSelectorProps> = ({
   // Handle vehicle selection
   const handleSelect = useCallback(
     (vehicleId: string) => {
+      // Find vehicle to record its use
+      const vehicle = vehicles.find((v) => String(v.id) === vehicleId);
+      if (vehicle) {
+        recordVehicleUse(vehicleId, vehicle.registration_number || '');
+      }
+
       if (mode === 'multiple') {
         const currentIds = selectedIds;
         if (!currentIds.includes(vehicleId)) {
@@ -224,7 +231,7 @@ export const UnifiedVehicleSelector: React.FC<UnifiedVehicleSelectorProps> = ({
         setShowDropdown(false);
       }
     },
-    [mode, selectedIds, maxSelection, onChange]
+    [mode, selectedIds, maxSelection, onChange, vehicles]
   );
 
   // Handle vehicle removal (multiple mode)

@@ -116,6 +116,23 @@ export const useGatePassDetails = (pass: GatePass | undefined) => {
       // Determine pass type for PDF
       const passType: 'visitor' | 'vehicle' = isVisitorPass(pass) ? 'visitor' : 'vehicle';
       
+      // Get company branding (logo and name)
+      let companyName: string | undefined;
+      let companyLogo: string | undefined;
+      try {
+        const { getReportBranding, getSafeLogoUrl } = await import('@/lib/report-branding');
+        const branding = await getReportBranding();
+        companyName = branding.companyName;
+        // Fetch logo as safe URL (blob URL) to avoid CORS issues
+        if (branding.logoUrl) {
+          const safeUrl = await getSafeLogoUrl(branding.logoUrl);
+          companyLogo = safeUrl || undefined;
+        }
+      } catch (error) {
+        // If branding fetch fails, continue without logo
+        console.warn('Failed to fetch company branding for gate pass:', error);
+      }
+
       // Build pass data
       const passData = {
         passNumber: pass.pass_number,
@@ -133,6 +150,8 @@ export const useGatePassDetails = (pass: GatePass | undefined) => {
           pass.valid_to || undefined,
         accessCode: pass.access_code,
         qrCode,
+        companyName,
+        companyLogo,
       };
 
       // Generate PDF

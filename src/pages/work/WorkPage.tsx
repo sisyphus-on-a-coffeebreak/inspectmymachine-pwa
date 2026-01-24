@@ -269,7 +269,7 @@ export const WorkPage: React.FC = () => {
         <div
           style={{
             textAlign: 'center',
-            padding: spacing.xl * 2,
+            padding: spacing.xxl,
             backgroundColor: colors.neutral[50],
             borderRadius: borderRadius.lg,
             border: `1px solid ${colors.neutral[200]}`,

@@ -120,8 +120,33 @@ export const CreateAccessPass: React.FC = () => {
         console.debug('Workflow event emission failed:', error);
       }
       
-      // Navigate to the created pass details page
-      navigate(`/app/stockyard/access/${newPass.id}`);
+      // Show success toast with "Create Another" option
+      const currentType = formData.pass_type;
+      showToast({
+        title: 'Pass Created Successfully!',
+        description: isAutoApproved 
+          ? `Pass #${newPass.pass_number} created and auto-approved`
+          : `Pass #${newPass.pass_number} created and pending approval`,
+        variant: 'success',
+        duration: 6000,
+        actionLabel: 'Create Another',
+        onAction: () => {
+          // Reset form but keep the same pass type
+          Object.keys(formData).forEach((key) => {
+            if (key !== 'pass_type') {
+              updateField(key as any, '');
+            }
+          });
+          // Navigate to create page with same type
+          navigate(`/app/stockyard/access/create?type=${currentType}`, { replace: true });
+        },
+      });
+      
+      // Navigate to the created pass details page after a short delay
+      // This allows user to see the toast and click "Create Another" if needed
+      setTimeout(() => {
+        navigate(`/app/stockyard/access/${newPass.id}`);
+      }, 2500);
     } catch {
       // Error is handled by the mutation hook
     } finally {

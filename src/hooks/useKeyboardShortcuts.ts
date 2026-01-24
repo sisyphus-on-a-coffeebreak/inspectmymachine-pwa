@@ -1,217 +1,131 @@
 /**
  * Keyboard Shortcuts Hook
  * 
- * Comprehensive keyboard shortcuts system for power users
- * Supports global and context-specific shortcuts
+ * Provides keyboard shortcuts for common actions across the application
+ * - Ctrl/Cmd+N: New pass (opens type selector)
+ * - Ctrl/Cmd+Shift+V: New visitor pass
+ * - Ctrl/Cmd+Shift+C: New vehicle pass
+ * - Ctrl/Cmd+K: Global search (future)
  */
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../providers/useAuth';
+import { useAuth } from '@/providers/useAuth';
 
 export interface KeyboardShortcut {
   key: string;
-  ctrlKey?: boolean;
-  metaKey?: boolean;
-  shiftKey?: boolean;
-  altKey?: boolean;
+  ctrl?: boolean;
+  shift?: boolean;
+  alt?: boolean;
+  meta?: boolean;
   action: () => void;
-  description: string;
-  category?: string;
-  preventDefault?: boolean;
-  stopPropagation?: boolean;
+  description?: string;
 }
 
-export interface UseKeyboardShortcutsOptions {
-  enabled?: boolean;
-  shortcuts: KeyboardShortcut[];
-}
-
-/**
- * Hook for managing keyboard shortcuts
- */
-export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
-  const { enabled = true, shortcuts } = options;
-  const shortcutsRef = useRef(shortcuts);
-
-  // Update shortcuts ref when shortcuts change
-  useEffect(() => {
-    shortcutsRef.current = shortcuts;
-  }, [shortcuts]);
-
+export function useKeyboardShortcuts(shortcuts: KeyboardShortcut[], enabled: boolean = true) {
   useEffect(() => {
     if (!enabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Skip if key is not available
-      if (!e.key || !e.key.toLowerCase) {
+      // Don't trigger shortcuts when user is typing in inputs, textareas, or contenteditable elements
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        (target.tagName === 'SELECT')
+      ) {
         return;
       }
 
-      // Find matching shortcut
-      const shortcut = shortcutsRef.current.find((s) => {
-        // Skip shortcuts without a key
-        if (!s.key || typeof s.key !== 'string') {
-          return false;
-        }
+      for (const shortcut of shortcuts) {
+        const ctrlMatch = shortcut.ctrl ? (e.ctrlKey || e.metaKey) : !(e.ctrlKey || e.metaKey);
+        const shiftMatch = shortcut.shift ? e.shiftKey : !e.shiftKey;
+        const altMatch = shortcut.alt ? e.altKey : !e.altKey;
+        const metaMatch = shortcut.meta ? e.metaKey : !e.metaKey;
+        const keyMatch = e.key.toLowerCase() === shortcut.key.toLowerCase();
 
-        const keyMatch = s.key.toLowerCase() === e.key.toLowerCase();
-        const ctrlMatch = s.ctrlKey === undefined ? true : s.ctrlKey === (e.ctrlKey || e.metaKey);
-        const metaMatch = s.metaKey === undefined ? true : s.metaKey === e.metaKey;
-        const shiftMatch = s.shiftKey === undefined ? true : s.shiftKey === e.shiftKey;
-        const altMatch = s.altKey === undefined ? true : s.altKey === e.altKey;
-
-        return keyMatch && ctrlMatch && metaMatch && shiftMatch && altMatch;
-      });
-
-      if (shortcut) {
-        if (shortcut.preventDefault !== false) {
+        if (ctrlMatch && shiftMatch && altMatch && metaMatch && keyMatch) {
           e.preventDefault();
+          shortcut.action();
+          break;
         }
-        if (shortcut.stopPropagation) {
-          e.stopPropagation();
-        }
-        shortcut.action();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [enabled]);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [shortcuts, enabled]);
 }
 
 /**
- * Common keyboard shortcuts for the app
+ * Global keyboard shortcuts for the application
+ * These work from any page
  */
-export function useAppKeyboardShortcuts() {
+export function useGlobalKeyboardShortcuts(enabled: boolean = true) {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const shortcuts: KeyboardShortcut[] = [
-    // Navigation shortcuts
-    {
-      key: 'k',
-      metaKey: true,
-      ctrlKey: true, // Also works with Ctrl+K on Windows/Linux
-      action: () => {
-        // Open command palette (handled by useCommandPalette)
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+  useKeyboardShortcuts(
+    [
+      {
+        key: 'n',
+        ctrl: true,
+        action: () => {
+          // Navigate to create pass page - user can select type
+          navigate('/app/stockyard/access/create');
+        },
+        description: 'Create new pass',
       },
-      description: 'Open command palette',
-      category: 'Navigation',
-    },
-    {
-      key: '/',
-      action: () => {
-        // Focus search
-        const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
-        if (searchInput) {
-          searchInput.focus();
-        }
+      {
+        key: 'v',
+        ctrl: true,
+        shift: true,
+        action: () => {
+          // Navigate directly to visitor pass creation
+          navigate('/app/stockyard/access/create?type=visitor');
+        },
+        description: 'Create visitor pass',
       },
-      description: 'Focus search',
-      category: 'Navigation',
-    },
-    {
-      key: 'g',
-      metaKey: true,
-      ctrlKey: true,
-      action: () => {
-        navigate('/dashboard');
+      {
+        key: 'c',
+        ctrl: true,
+        shift: true,
+        action: () => {
+          // Navigate directly to vehicle pass creation
+          navigate('/app/stockyard/access/create?type=vehicle_inbound');
+        },
+        description: 'Create vehicle pass',
       },
-      description: 'Go to dashboard',
-      category: 'Navigation',
-    },
-    {
-      key: 'n',
-      metaKey: true,
-      ctrlKey: true,
-      action: () => {
-        // Navigate to create page based on current route
-        const path = window.location.pathname;
-        if (path.includes('/gate-pass')) {
-          navigate('/app/gate-pass/create?type=visitor');
-        } else if (path.includes('/inspections')) {
-          navigate('/app/inspections/create');
-        } else if (path.includes('/expenses')) {
+      {
+        key: 'e',
+        ctrl: true,
+        shift: true,
+        action: () => {
+          // Navigate to expense creation
           navigate('/app/expenses/create');
-        } else {
-          navigate('/dashboard');
-        }
+        },
+        description: 'Create expense',
       },
-      description: 'Create new item',
-      category: 'Actions',
-    },
-    {
-      key: 's',
-      metaKey: true,
-      ctrlKey: true,
-      action: () => {
-        // Save current form (if in a form context)
-        const form = document.querySelector('form');
-        if (form) {
-          const submitButton = form.querySelector('button[type="submit"]') as HTMLButtonElement;
-          if (submitButton && !submitButton.disabled) {
-            submitButton.click();
-          }
-        }
+      {
+        key: 'k',
+        ctrl: true,
+        action: () => {
+          // Future: Open global search
+          // For now, just navigate to dashboard
+          navigate('/app');
+        },
+        description: 'Global search (coming soon)',
       },
-      description: 'Save form',
-      category: 'Actions',
-      preventDefault: true,
-    },
-    {
-      key: 'Escape',
-      action: () => {
-        // Close modals, dropdowns, etc.
-        const modal = document.querySelector('[role="dialog"]');
-        if (modal) {
-          const closeButton = modal.querySelector('button[aria-label*="close" i], button[aria-label*="Close" i]') as HTMLButtonElement;
-          if (closeButton) {
-            closeButton.click();
-          }
-        }
-      },
-      description: 'Close modal/dialog',
-      category: 'Navigation',
-    },
-  ];
-
-  useKeyboardShortcuts({
-    enabled: true,
-    shortcuts,
-  });
+    ],
+    enabled && !!user // Only enable if user is logged in
+  );
 }
 
 /**
- * Format keyboard shortcut for display
+ * Alias for useGlobalKeyboardShortcuts (for backward compatibility)
+ * @deprecated Use useGlobalKeyboardShortcuts instead
  */
-export function formatShortcut(shortcut: KeyboardShortcut): string {
-  const parts: string[] = [];
-  
-  if (shortcut.metaKey) {
-    parts.push('⌘');
-  } else if (shortcut.ctrlKey) {
-    parts.push('Ctrl');
-  }
-  
-  if (shortcut.shiftKey) {
-    parts.push('Shift');
-  }
-  
-  if (shortcut.altKey) {
-    parts.push('Alt');
-  }
-  
-  // Format key
-  let key = shortcut.key;
-  if (key === ' ') {
-    key = 'Space';
-  } else if (key.length === 1) {
-    key = key.toUpperCase();
-  }
-  parts.push(key);
-  
-  return parts.join(' + ');
-}
-
+export const useAppKeyboardShortcuts = useGlobalKeyboardShortcuts;

@@ -135,13 +135,16 @@ export function useCreateGatePassForm() {
 
   const updateField = (field: keyof CreateGatePassFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when field is updated
+    
+    // Real-time validation: validate field if it's been touched or if it has an error
+    if (touched.has(field) || errors[field]) {
+      validateField(field, value);
+    }
+    
+    // Clear error when field is updated (optimistic clearing)
     if (errors[field]) {
-      setErrors(prev => {
-        const next = { ...prev };
-        delete next[field];
-        return next;
-      });
+      // Don't clear immediately - let validateField decide
+      // This prevents flickering while user is typing
     }
   };
 
@@ -153,73 +156,144 @@ export function useCreateGatePassForm() {
   const validateField = (field: keyof CreateGatePassFormData, value: any): boolean => {
     const errorKey = field as string;
     
-    // Required field validation
+    // Clear error if field is valid
+    const clearError = () => {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next[errorKey];
+        return next;
+      });
+    };
+    
+    // Required field validation with helpful messages
     if (field === 'visitor_name' && formData.pass_type === 'visitor') {
       if (!value || !value.trim()) {
-        setErrors(prev => ({ ...prev, [errorKey]: 'Visitor name is required' }));
+        setErrors(prev => ({ 
+          ...prev, 
+          [errorKey]: 'Visitor name is required. Example: John Doe' 
+        }));
         return false;
       }
+      if (value.trim().length < 2) {
+        setErrors(prev => ({ 
+          ...prev, 
+          [errorKey]: 'Visitor name must be at least 2 characters long' 
+        }));
+        return false;
+      }
+      clearError();
+      return true;
     }
     
     if (field === 'visitor_phone' && formData.pass_type === 'visitor') {
       if (!value || !value.trim()) {
-        setErrors(prev => ({ ...prev, [errorKey]: 'Visitor phone is required' }));
+        setErrors(prev => ({ 
+          ...prev, 
+          [errorKey]: 'Visitor phone is required. Example: 9876543210' 
+        }));
         return false;
       }
       const validation = validateMobileNumber(value);
       if (!validation.isValid) {
-        setErrors(prev => ({ ...prev, [errorKey]: validation.error || 'Invalid mobile number' }));
+        setErrors(prev => ({ 
+          ...prev, 
+          [errorKey]: validation.error || 'Invalid mobile number. Must be 10 digits (e.g., 9876543210)' 
+        }));
         return false;
       }
+      clearError();
+      return true;
     }
     
     if (field === 'referred_by' && formData.pass_type === 'visitor') {
       if (!value || !value.trim()) {
-        setErrors(prev => ({ ...prev, [errorKey]: 'Referred by is required' }));
+        setErrors(prev => ({ 
+          ...prev, 
+          [errorKey]: 'Referred by is required. Enter the name of the person who referred this visitor' 
+        }));
         return false;
       }
+      clearError();
+      return true;
     }
     
     if (field === 'vehicles_to_view' && formData.pass_type === 'visitor') {
       if (!value || value.length === 0) {
-        setErrors(prev => ({ ...prev, [errorKey]: 'Please select at least one vehicle' }));
+        setErrors(prev => ({ 
+          ...prev, 
+          [errorKey]: 'Please select at least one vehicle that the visitor wants to view' 
+        }));
         return false;
       }
+      clearError();
+      return true;
     }
     
     if (field === 'vehicle_id' && (formData.pass_type === 'vehicle_inbound' || formData.pass_type === 'vehicle_outbound')) {
       if (!value) {
-        setErrors(prev => ({ ...prev, [errorKey]: 'Vehicle selection is required' }));
+        setErrors(prev => ({ 
+          ...prev, 
+          [errorKey]: 'Vehicle selection is required. Search and select a vehicle from the list' 
+        }));
         return false;
       }
+      clearError();
+      return true;
     }
     
     if (field === 'driver_name' && formData.pass_type === 'vehicle_outbound') {
       if (!value || !value.trim()) {
-        setErrors(prev => ({ ...prev, [errorKey]: 'Driver name is required' }));
+        setErrors(prev => ({ 
+          ...prev, 
+          [errorKey]: 'Driver name is required. Enter the full name of the driver' 
+        }));
         return false;
       }
+      if (value.trim().length < 2) {
+        setErrors(prev => ({ 
+          ...prev, 
+          [errorKey]: 'Driver name must be at least 2 characters long' 
+        }));
+        return false;
+      }
+      clearError();
+      return true;
     }
     
     if (field === 'driver_contact' && formData.pass_type === 'vehicle_outbound') {
       if (!value || !value.trim()) {
-        setErrors(prev => ({ ...prev, [errorKey]: 'Driver contact is required' }));
+        setErrors(prev => ({ 
+          ...prev, 
+          [errorKey]: 'Driver contact is required. Example: 9876543210' 
+        }));
         return false;
       }
       const validation = validateMobileNumber(value);
       if (!validation.isValid) {
-        setErrors(prev => ({ ...prev, [errorKey]: validation.error || 'Invalid mobile number' }));
+        setErrors(prev => ({ 
+          ...prev, 
+          [errorKey]: validation.error || 'Invalid mobile number. Must be 10 digits (e.g., 9876543210)' 
+        }));
         return false;
       }
+      clearError();
+      return true;
     }
     
     if (field === 'purpose') {
       if (!value) {
-        setErrors(prev => ({ ...prev, [errorKey]: 'Purpose is required' }));
+        setErrors(prev => ({ 
+          ...prev, 
+          [errorKey]: 'Purpose is required. Select the reason for this pass' 
+        }));
         return false;
       }
+      clearError();
+      return true;
     }
     
+    // If no validation rules match, clear any existing error
+    clearError();
     return true;
   };
 

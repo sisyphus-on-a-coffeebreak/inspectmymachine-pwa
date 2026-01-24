@@ -12,6 +12,8 @@ import { Pagination } from '../../components/ui/Pagination';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { useExpenses, useFloatBalance } from '../../lib/queries';
 import { PullToRefreshWrapper } from '../../components/ui/PullToRefreshWrapper';
+import { ExportButton } from '../../components/ui/ExportButton';
+import { useExpenseFilters } from './hooks/useExpenseFilters';
 
 // 📊 Expense History
 // Complete expense history with advanced filtering and search
@@ -49,35 +51,34 @@ export const ExpenseHistory: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast } = useToast();
-  const [searchTerm, setSearchTerm] = useState('');
   
-  // Initialize filters from navigation state if available
+  // Use URL-based filters
+  const { filters, setFilter, clearFilters, hasActiveFilters } = useExpenseFilters();
+  
+  // Initialize from navigation state if available (for backward compatibility)
   const initialFilters = location.state?.filters || {};
-  const [filters, setFilters] = useState<FilterOptions>({
-    status: 'all',
-    category: initialFilters.category || 'all',
-    project: 'all',
-    asset: 'all',
-    dateRange: initialFilters.dateRange || 'all',
-    amountRange: 'all'
-  });
-  
-  // Clear navigation state after applying filters
   useEffect(() => {
     if (location.state?.filters) {
+      // Apply navigation state filters to URL
+      if (initialFilters.category && initialFilters.category !== 'all') {
+        setFilter('category', initialFilters.category);
+      }
+      if (initialFilters.dateRange && initialFilters.dateRange !== 'all') {
+        setFilter('dateRange', initialFilters.dateRange);
+      }
       // Clear the state so it doesn't persist on refresh
       navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location, navigate]);
+  }, [location, navigate, setFilter, initialFilters]);
+  
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'status'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedExpense, setSelectedExpense] = useState<ExpenseHistoryItem | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(20);
   
   // Use React Query for expenses and float balance
   const { data: expensesData, isLoading: loading, error: queryError, refetch } = useExpenses(
-    { mine: true, page: currentPage, per_page: perPage }
+    { mine: true, page: filters.page, per_page: perPage }
   );
   const { data: floatData } = useFloatBalance();
   
@@ -111,22 +112,17 @@ export const ExpenseHistory: React.FC = () => {
     return expensesWithBalance.reverse();
   }, [expenses, currentBalance]);
 
-  // Reset to page 1 when filters or search change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filters, searchTerm]);
-
   // Apply filters, search, and sorting with useMemo
   const filteredExpenses = useMemo(() => {
     let filtered = expensesWithRunningBalance;
 
-    // Search filter
-    if (searchTerm) {
+    // Search filter (from URL)
+    if (filters.search) {
       filtered = filtered.filter(expense =>
-        expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        expense.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (expense.project_name && expense.project_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (expense.asset_name && expense.asset_name.toLowerCase().includes(searchTerm.toLowerCase()))
+        expense.description.toLowerCase().includes(filters.search.toLowerCase()) ||
+        expense.category.toLowerCase().includes(filters.search.toLowerCase()) ||
+        (expense.project_name && expense.project_name.toLowerCase().includes(filters.search.toLowerCase())) ||
+        (expense.asset_name && expense.asset_name.toLowerCase().includes(filters.search.toLowerCase()))
       );
     }
 
@@ -206,7 +202,7 @@ export const ExpenseHistory: React.FC = () => {
     });
 
     return filtered;
-  }, [expenses, searchTerm, filters, sortBy, sortOrder]);
+  }, [expensesWithRunningBalance, filters, sortBy, sortOrder]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -240,49 +236,24 @@ export const ExpenseHistory: React.FC = () => {
     }
   };
 
-  const exportExpenses = async () => {
-    try {
-      const rows = [
-        ['ID','Amount','Category','Description','Date','Status','Payment Method','Project','Asset','Location','Approved By','Approved At','Notes'],
-        ...filteredExpenses.map(e => [
-          e.id,
-          e.amount,
-          e.category,
-          e.description,
-          new Date(e.date).toISOString(),
-          e.status,
-          e.payment_method,
-          e.project_name || '',
-          e.asset_name || '',
-          e.location || '',
-          e.approved_by || '',
-          e.approved_at || '',
-          (e.notes || '').replace(/\n/g, ' '),
-        ])
-      ];
-
-      const csv = rows.map(r => r.map(v => {
-        const s = String(v ?? '');
-        return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
-      }).join(',')).join('\n');
-
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `expenses-${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      showToast({
-        title: 'Error',
-        description: 'Failed to export expenses. Please try again.',
-        variant: 'error',
-      });
-    }
-  };
+  // Prepare export data
+  const exportData = useMemo(() => {
+    return filteredExpenses.map(e => ({
+      'ID': e.id,
+      'Amount': e.amount,
+      'Category': e.category,
+      'Description': e.description,
+      'Date': new Date(e.date).toISOString(),
+      'Status': e.status,
+      'Payment Method': e.payment_method,
+      'Project': e.project_name || '',
+      'Asset': e.asset_name || '',
+      'Location': e.location || '',
+      'Approved By': e.approved_by || '',
+      'Approved At': e.approved_at || '',
+      'Notes': (e.notes || '').replace(/\n/g, ' '),
+    }));
+  }, [filteredExpenses]);
 
   if (loading) {
     return (
@@ -332,13 +303,16 @@ export const ExpenseHistory: React.FC = () => {
         ]}
         actions={
           <div style={{ display: 'flex', gap: spacing.sm }}>
-            <Button
+            <ExportButton
+              data={exportData}
+              formats={['csv', 'excel']}
+              options={{
+                filename: `expenses-${new Date().toISOString().split('T')[0]}.csv`,
+              }}
+              module="expense"
+              size="md"
               variant="secondary"
-              onClick={exportExpenses}
-              icon="📤"
-            >
-              Export
-            </Button>
+            />
             <Button
               variant="primary"
               onClick={() => navigate('/app/expenses/create')}
@@ -436,8 +410,8 @@ export const ExpenseHistory: React.FC = () => {
             <Label>Search Expenses</Label>
             <Input
               type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={filters.search}
+              onChange={(e) => setFilter('search', e.target.value)}
               placeholder="Search by description, category, project, or asset..."
               style={{ marginTop: spacing.xs }}
             />
@@ -449,7 +423,7 @@ export const ExpenseHistory: React.FC = () => {
               <Label>Status</Label>
               <select
                 value={filters.status}
-                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as any }))}
+                onChange={(e) => setFilter('status', e.target.value as any)}
                 style={{
                   width: '100%',
                   padding: spacing.sm,
@@ -470,7 +444,7 @@ export const ExpenseHistory: React.FC = () => {
               <Label>Category</Label>
               <select
                 value={filters.category}
-                onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
+                onChange={(e) => setFilter('category', e.target.value)}
                 style={{
                   width: '100%',
                   padding: spacing.sm,
@@ -493,7 +467,7 @@ export const ExpenseHistory: React.FC = () => {
               <Label>Date Range</Label>
               <select
                 value={filters.dateRange}
-                onChange={(e) => setFilters(prev => ({ ...prev, dateRange: e.target.value as any }))}
+                onChange={(e) => setFilter('dateRange', e.target.value as any)}
                 style={{
                   width: '100%',
                   padding: spacing.sm,
@@ -821,17 +795,17 @@ export const ExpenseHistory: React.FC = () => {
       {/* Pagination */}
       {totalItems > 0 && (
         <Pagination
-          currentPage={currentPage}
+          currentPage={filters.page}
           totalPages={Math.ceil(totalItems / perPage)}
           totalItems={totalItems}
           perPage={perPage}
           onPageChange={(page) => {
-            setCurrentPage(page);
+            setFilter('page', page);
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
           onPerPageChange={(newPerPage) => {
             setPerPage(newPerPage);
-            setCurrentPage(1);
+            setFilter('page', 1);
           }}
         />
       )}

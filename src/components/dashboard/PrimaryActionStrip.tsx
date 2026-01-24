@@ -12,6 +12,7 @@ import {
   QrCode,
   Plus,
   FileText,
+  FileSpreadsheet,
   CheckCircle,
   ClipboardList,
   Wallet,
@@ -100,10 +101,17 @@ export const PrimaryActionStrip: React.FC<PrimaryActionStripProps> = ({ role, st
       case 'clerk':
         return [
           {
-            id: 'create-pass',
-            label: 'Create Pass',
+            id: 'create-visitor-pass',
+            label: 'Visitor Pass',
             icon: Plus,
-            route: '/app/gate-pass/create',
+            route: '/app/stockyard/access/create?type=visitor',
+            variant: 'primary',
+          },
+          {
+            id: 'create-vehicle-pass',
+            label: 'Vehicle Pass',
+            icon: Plus,
+            route: '/app/stockyard/access/create?type=vehicle_inbound',
             variant: 'primary',
           },
           {
@@ -117,7 +125,7 @@ export const PrimaryActionStrip: React.FC<PrimaryActionStripProps> = ({ role, st
             id: 'gate-passes',
             label: 'Gate Passes',
             icon: ClipboardList,
-            route: '/app/gate-pass',
+            route: '/app/stockyard/access',
             variant: 'secondary',
           },
         ];
@@ -153,10 +161,17 @@ export const PrimaryActionStrip: React.FC<PrimaryActionStripProps> = ({ role, st
       case 'executive':
         return [
           {
-            id: 'create-pass',
-            label: 'Create Pass',
+            id: 'create-visitor-pass',
+            label: 'Visitor Pass',
             icon: Plus,
-            route: '/app/gate-pass/create',
+            route: '/app/stockyard/access/create?type=visitor',
+            variant: 'primary',
+          },
+          {
+            id: 'create-vehicle-pass',
+            label: 'Vehicle Pass',
+            icon: Plus,
+            route: '/app/stockyard/access/create?type=vehicle_inbound',
             variant: 'primary',
           },
           {
@@ -170,7 +185,7 @@ export const PrimaryActionStrip: React.FC<PrimaryActionStripProps> = ({ role, st
             id: 'gate-passes',
             label: 'Gate Passes',
             icon: ClipboardList,
-            route: '/app/gate-pass',
+            route: '/app/stockyard/access',
             variant: 'secondary',
           },
         ];
@@ -185,6 +200,27 @@ export const PrimaryActionStrip: React.FC<PrimaryActionStripProps> = ({ role, st
             route: '/app/approvals',
             variant: 'primary',
             badge: stats?.pendingApprovals || null,
+          },
+          {
+            id: 'create-visitor-pass',
+            label: 'Visitor Pass',
+            icon: Plus,
+            route: '/app/stockyard/access/create?type=visitor',
+            variant: 'success',
+          },
+          {
+            id: 'create-vehicle-pass',
+            label: 'Vehicle Pass',
+            icon: Plus,
+            route: '/app/stockyard/access/create?type=vehicle_inbound',
+            variant: 'success',
+          },
+          {
+            id: 'bulk-create',
+            label: 'Bulk Create',
+            icon: FileSpreadsheet,
+            route: '/app/stockyard/access/bulk',
+            variant: 'warning',
           },
           {
             id: 'analytics',

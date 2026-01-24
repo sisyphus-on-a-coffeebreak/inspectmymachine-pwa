@@ -16,6 +16,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { CardGrid } from '../../components/ui/ResponsiveGrid';
 import { hasCapability } from '../../lib/users';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 
 export const UnifiedApprovals: React.FC = () => {
   const navigate = useNavigate();
@@ -42,6 +43,20 @@ export const UnifiedApprovals: React.FC = () => {
     sortBy,
     search: searchQuery || undefined,
   });
+
+  // Keyboard shortcuts for bulk operations
+  useKeyboardShortcuts([
+    {
+      key: 'a',
+      ctrl: true,
+      action: () => {
+        if (approvals.length > 0) {
+          handleSelectAll();
+        }
+      },
+      description: 'Select all pending approvals',
+    },
+  ], approvals.length > 0);
 
   // Filter visible tabs based on user capabilities
   const visibleTabs = useMemo(() => {
@@ -239,6 +254,85 @@ export const UnifiedApprovals: React.FC = () => {
           fullWidth={isMobile}
         />
       </div>
+
+      {/* Bulk Actions Bar - Prominent when items are selected */}
+      {selectedIds.size > 0 && (
+        <div
+          style={{
+            position: 'sticky',
+            top: isMobile ? '60px' : '80px',
+            zIndex: 100,
+            backgroundColor: colors.primary,
+            color: 'white',
+            padding: spacing.md,
+            borderRadius: '12px',
+            marginBottom: spacing.lg,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: spacing.sm,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+            <div
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                fontSize: '16px',
+              }}
+            >
+              {selectedIds.size}
+            </div>
+            <span style={{ ...typography.body, fontWeight: 600, color: 'white' }}>
+              {selectedIds.size} item{selectedIds.size !== 1 ? 's' : ''} selected
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
+            <Button
+              variant="secondary"
+              onClick={() => setSelectedIds(new Set())}
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.3)',
+              }}
+            >
+              Clear
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setShowRejectModal(true)}
+              style={{
+                backgroundColor: colors.error[500],
+                color: 'white',
+                border: 'none',
+              }}
+            >
+              Reject ({selectedIds.size})
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleBulkApprove}
+              style={{
+                backgroundColor: colors.success[500],
+                color: 'white',
+                border: 'none',
+                fontWeight: 600,
+              }}
+            >
+              ✓ Approve ({selectedIds.size})
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div

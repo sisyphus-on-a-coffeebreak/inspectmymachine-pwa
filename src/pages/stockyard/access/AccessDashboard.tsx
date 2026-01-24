@@ -162,12 +162,30 @@ export const AccessDashboard: React.FC = () => {
     }
   };
 
-  const buildRecordMetadata = (
+  const buildRecordMetadata = async (
     pass: GatePass,
     type: 'visitor' | 'vehicle',
     passNumber: string
   ) => {
     const vehicle = pass.vehicle;
+    
+    // Get company branding (logo and name)
+    let companyName = 'VOMS';
+    let companyLogo: string | undefined;
+    try {
+      const { getReportBranding, getSafeLogoUrl } = await import('@/lib/report-branding');
+      const branding = await getReportBranding();
+      companyName = branding.companyName || companyName;
+      // Fetch logo as safe URL (blob URL) to avoid CORS issues
+      if (branding.logoUrl) {
+        const safeUrl = await getSafeLogoUrl(branding.logoUrl);
+        companyLogo = safeUrl || undefined;
+      }
+    } catch (error) {
+      // If branding fetch fails, use defaults
+      console.warn('Failed to fetch company branding for gate pass:', error);
+    }
+    
     return {
       passNumber,
       passType: type,
@@ -189,8 +207,8 @@ export const AccessDashboard: React.FC = () => {
           : (pass.entry_time || new Date().toISOString()),
       expectedReturn:
         pass.expected_return_date || pass.expected_return_time || undefined,
-      companyName: 'VOMS',
-      companyLogo: undefined,
+      companyName,
+      companyLogo,
     };
   };
 
@@ -214,7 +232,7 @@ export const AccessDashboard: React.FC = () => {
       ]);
 
       const passNumber = pdfUtils.formatPassNumber(type, passId);
-      const metadata = buildRecordMetadata(pass, type, passNumber);
+      const metadata = await buildRecordMetadata(pass, type, passNumber);
 
       // Sync with backend - backend MUST provide qrPayload for verifiable QR codes
       const record = await recordUtils.syncGatePassRecord({
@@ -288,7 +306,7 @@ export const AccessDashboard: React.FC = () => {
       ]);
 
       const passNumber = pdfUtils.formatPassNumber(type, passId);
-      const metadata = buildRecordMetadata(pass, type, passNumber);
+      const metadata = await buildRecordMetadata(pass, type, passNumber);
 
       const record = await recordUtils.syncGatePassRecord({
         passId: (pass as any).id ?? passId,
@@ -437,6 +455,16 @@ export const AccessDashboard: React.FC = () => {
         ]}
         actions={
           <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
+            {(isAdmin || role === 'super_admin') && (
+              <Button
+                variant="warning"
+                size="sm"
+                onClick={() => navigate('/app/stockyard/access/bulk')}
+                icon={<span>📊</span>}
+              >
+                Bulk Create
+              </Button>
+            )}
             <Button
               variant="secondary"
               size="sm"

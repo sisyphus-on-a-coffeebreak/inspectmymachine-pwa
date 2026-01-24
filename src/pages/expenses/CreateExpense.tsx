@@ -752,6 +752,21 @@ export const CreateExpense: React.FC = () => {
         user?.id?.toString()
       );
 
+      // Log activity
+      const { logActivity } = await import('../../lib/activityLogs');
+      await logActivity({
+        action: 'create',
+        module: 'expense',
+        resource_type: 'expense',
+        resource_id: expenseId,
+        resource_name: `Expense ${expenseId}`,
+        details: {
+          amount: submitData.amount,
+          category: submitData.category,
+          payment_method: submitData.payment_method,
+        },
+      });
+
       // Update vehicle cost if linked (Super Admin only, but we emit the event)
       if (user?.role === 'super_admin') {
         if (submitData.asset_id) {

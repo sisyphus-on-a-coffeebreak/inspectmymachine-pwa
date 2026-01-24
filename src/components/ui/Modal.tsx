@@ -15,6 +15,7 @@ export interface ModalProps {
   showCloseButton?: boolean;
   footer?: React.ReactNode;
   className?: string;
+  disableFailsafe?: boolean; // Disable auto-close failsafe for forms that need more time
 }
 
 const sizeMap = {
@@ -36,6 +37,7 @@ export function Modal({
   size = 'md',
   footer,
   className = '',
+  disableFailsafe = false,
 }: ModalProps) {
   const showCloseButton = true;
   const modalRef = useFocusTrap<HTMLDivElement>(true);
@@ -71,8 +73,8 @@ export function Modal({
       }
     });
     
-    // Failsafe: Auto-close if modal is stuck open for too long (30 seconds)
-    const failsafeTimeout = setTimeout(() => {
+    // Failsafe: Auto-close if modal is stuck open for too long (only if not disabled)
+    const failsafeTimeout = disableFailsafe ? null : setTimeout(() => {
       console.warn('Modal has been open for 30+ seconds, auto-closing as failsafe');
       onClose();
     }, 30000);
@@ -80,7 +82,9 @@ export function Modal({
     return () => {
       document.removeEventListener('keydown', handleEscape, { capture: true });
       lockBodyScroll(false);
-      clearTimeout(failsafeTimeout);
+      if (failsafeTimeout) {
+        clearTimeout(failsafeTimeout);
+      }
     };
   }, [onClose]);
 

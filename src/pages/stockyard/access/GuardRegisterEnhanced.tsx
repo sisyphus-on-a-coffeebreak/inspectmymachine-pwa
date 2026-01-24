@@ -39,7 +39,7 @@ type ActivityTab = 'expected' | 'inside' | 'log';
 type ActivityTypeFilter = 'all' | 'entry' | 'exit' | 'return' | 'pending';
 type TimeRange = 'today' | 'yesterday' | 'week' | 'month' | 'custom';
 
-export const GuardRegister: React.FC = () => {
+export const GuardRegisterEnhanced: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { confirm, ConfirmComponent } = useConfirm();

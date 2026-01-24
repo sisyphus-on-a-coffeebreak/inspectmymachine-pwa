@@ -11,6 +11,7 @@ import { colors, spacing } from '../../lib/theme';
 import { exportData, exportFromAPI } from '../../lib/exportUtils';
 import type { ExportFormat, ExportOptions } from '../../lib/exportUtils';
 import { useToast } from '../../providers/ToastProvider';
+import { exportService } from '../../lib/services/ExportService';
 
 export interface ExportButtonProps {
   data?: Record<string, any>[] | Record<string, any>;
@@ -22,6 +23,8 @@ export interface ExportButtonProps {
   variant?: 'primary' | 'secondary' | 'outline';
   size?: 'sm' | 'md' | 'lg';
   showDropdown?: boolean;
+  showTemplates?: boolean;
+  module?: 'gate_pass' | 'expense' | 'inspection' | 'user' | 'all';
 }
 
 const formatIcons: Record<ExportFormat, React.ReactNode> = {
@@ -46,12 +49,16 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
   variant = 'secondary',
   size = 'md',
   showDropdown = true,
+  showTemplates = false,
+  module,
 }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const { showToast } = useToast();
+  
+  const templates = (showTemplates && module) ? exportService.getTemplates(module) : [];
 
-  const handleExport = async (format: ExportFormat) => {
+  const handleExport = async (format: ExportFormat, templateId?: string) => {
     if (!data && !apiEndpoint) {
       showToast({
         title: 'Error',
@@ -65,15 +72,19 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
     setShowMenu(false);
 
     try {
-      if (apiEndpoint) {
+      if (templateId) {
+        await exportService.exportWithTemplate(templateId, Array.isArray(data) ? data : undefined, apiEndpoint, apiParams);
+      } else if (apiEndpoint) {
         await exportFromAPI(apiEndpoint, format, apiParams, options);
       } else if (data) {
-        await exportData(data, format, options);
+        await exportData(Array.isArray(data) ? data : [data], format, options);
       }
 
       showToast({
         title: 'Success',
-        description: `Data exported as ${formatLabels[format]}`,
+        description: templateId 
+          ? 'Data exported using template'
+          : `Data exported as ${formatLabels[format]}`,
         variant: 'success',
       });
     } catch (error) {

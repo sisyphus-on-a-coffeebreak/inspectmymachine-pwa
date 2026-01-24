@@ -24,11 +24,11 @@ export const EnhancedCapabilityEditor: React.FC<EnhancedCapabilityEditorProps> =
 }) => {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
-  const modules: CapabilityModule[] = ['gate_pass', 'inspection', 'expense', 'user_management', 'reports'];
+  const modules: CapabilityModule[] = ['stockyard', 'inspection', 'expense', 'user_management', 'reports'];
   const actions: CapabilityAction[] = ['create', 'read', 'update', 'delete', 'approve', 'validate', 'review', 'reassign', 'export'];
 
   const moduleLabels: Record<CapabilityModule, string> = {
-    gate_pass: 'Gate Pass',
+    stockyard: 'Stockyard',
     inspection: 'Inspection',
     expense: 'Expense',
     user_management: 'User Management',
@@ -49,7 +49,7 @@ export const EnhancedCapabilityEditor: React.FC<EnhancedCapabilityEditorProps> =
 
   const addCapability = () => {
     const newCap: EnhancedCapability = {
-      module: 'gate_pass',
+      module: 'stockyard',
       action: 'read',
     };
     onChange([...capabilities, newCap]);
@@ -331,7 +331,14 @@ const ScopeEditor: React.FC<ScopeEditorProps> = ({ scope, onChange, readonly = f
     { value: 'yard_only', label: 'Yard Records Only' },
     { value: 'department_only', label: 'Department Records Only' },
     { value: 'assigned_only', label: 'Assigned Records Only' },
+    { value: 'function', label: 'Function-Based (Stockyard)' },
     { value: 'custom', label: 'Custom Filter' },
+  ];
+  
+  const stockyardFunctions = [
+    { value: 'access_control', label: 'Access Control' },
+    { value: 'inventory', label: 'Inventory' },
+    { value: 'movements', label: 'Movements' },
   ];
 
   return (
@@ -357,6 +364,27 @@ const ScopeEditor: React.FC<ScopeEditorProps> = ({ scope, onChange, readonly = f
           <option key={st.value} value={st.value}>{st.label}</option>
         ))}
       </select>
+      {scope?.type === 'function' && (
+        <select
+          value={scope.value || ''}
+          onChange={(e) => onChange({ ...scope, value: e.target.value })}
+          disabled={readonly}
+          style={{
+            width: '100%',
+            marginTop: spacing.sm,
+            padding: spacing.sm,
+            border: `1px solid ${colors.neutral[300]}`,
+            borderRadius: borderRadius.sm,
+            ...typography.body,
+            backgroundColor: readonly ? colors.neutral[100] : 'white'
+          }}
+        >
+          <option value="">Select Stockyard Function</option>
+          {stockyardFunctions.map(func => (
+            <option key={func.value} value={func.value}>{func.label}</option>
+          ))}
+        </select>
+      )}
       {scope?.type === 'custom' && (
         <input
           type="text"
