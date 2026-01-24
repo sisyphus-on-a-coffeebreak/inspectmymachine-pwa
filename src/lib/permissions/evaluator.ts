@@ -60,10 +60,8 @@ export function checkPermission(
     };
   }
   
-  // Super admin has full access (unless granular enforcement is requested)
-  if (user.role === 'super_admin' && !context?.enforceGranular) {
-    return { allowed: true };
-  }
+  // Note: Super admin special case removed - must be granted via capabilities
+  // Check capabilities only
   
   // Check if user has enhanced capabilities
   const enhancedCaps = user.capabilities?.enhanced_capabilities;
@@ -93,25 +91,22 @@ export function checkPermission(
     }
   }
   
-  // Fall back to basic capability check
+  // Fall back to basic capability check (from users.capabilities JSON)
   const hasBasicCapability = user.capabilities?.[module]?.includes(action);
   
-  if (!hasBasicCapability) {
-    // Also check role-based fallback (from users.ts)
-    const roleBasedCheck = hasRoleCapability(user.role, module, action);
-    
-    if (!roleBasedCheck) {
-      return {
-        allowed: false,
-        reason: `User does not have ${action} permission for ${module}`,
-        missing_permissions: [`${module}.${action}`]
-      };
-    }
+  if (hasBasicCapability) {
+    // Basic capability exists - return allowed
+    // Note: Basic capabilities don't have granular restrictions
+    return { allowed: true };
   }
   
-  // Basic capability exists - return allowed
-  // Note: Basic capabilities don't have granular restrictions
-  return { allowed: true };
+  // No permission found - deny access
+  // Role-based fallback has been removed - users must have explicit capabilities
+  return {
+    allowed: false,
+    reason: `User does not have ${action} permission for ${module}`,
+    missing_permissions: [`${module}.${action}`]
+  };
 }
 
 /**

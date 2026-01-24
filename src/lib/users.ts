@@ -6,13 +6,14 @@ import { hasRoleCapability as checkRoleCapability } from './permissions/roleCapa
 
 // Re-export types for backward compatibility
 export type CapabilityAction = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'validate' | 'review' | 'reassign' | 'export';
-export type CapabilityModule = 'inspection' | 'expense' | 'user_management' | 'reports' | 'stockyard';
+export type CapabilityModule = 'inspection' | 'expense' | 'user_management' | 'reports' | 'stockyard' | 'gate_pass';
 
 // Stockyard function types for granular capability checks
 export type StockyardFunction = 'access_control' | 'inventory' | 'movements';
 
 export interface UserCapabilities {
-  // Note: gate_pass removed - use stockyard with access_control function instead
+  // Gate pass capabilities (unified module)
+  gate_pass?: CapabilityAction[];
   inspection?: CapabilityAction[];
   expense?: CapabilityAction[];
   user_management?: CapabilityAction[];

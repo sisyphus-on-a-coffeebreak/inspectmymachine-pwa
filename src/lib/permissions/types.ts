@@ -21,9 +21,8 @@ export type CapabilityAction = 'create' | 'read' | 'update' | 'delete' | 'approv
 
 /**
  * Modules in the system
- * Note: gate_pass removed - use stockyard with access_control function instead
  */
-export type CapabilityModule = 'inspection' | 'expense' | 'user_management' | 'reports' | 'stockyard';
+export type CapabilityModule = 'inspection' | 'expense' | 'user_management' | 'reports' | 'stockyard' | 'gate_pass';
 
 /**
  * Stockyard function types for granular capability checks

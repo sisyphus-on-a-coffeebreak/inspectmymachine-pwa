@@ -132,8 +132,8 @@ export const unifiedNavItems: UnifiedNavItem[] = [
             label: "Validation", 
             icon: QrCode, 
             path: "/app/stockyard/access/scan", 
-            roles: ["super_admin", "admin", "supervisor", "guard"], 
-            requiredCapability: { module: 'stockyard', action: 'validate', function: 'access_control' } 
+            roles: ["super_admin", "admin", "supervisor", "guard", "clerk", "executive"], 
+            requiredCapability: { module: 'gate_pass', action: 'validate' } 
           },
           { 
             id: "calendar", 

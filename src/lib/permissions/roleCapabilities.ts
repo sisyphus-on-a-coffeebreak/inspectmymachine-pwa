@@ -38,6 +38,7 @@ export function getRoleCapabilities(): Record<User['role'], UserCapabilities> {
   return {
     super_admin: {
       // Basic capabilities (for backward compat during transition)
+      gate_pass: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
       stockyard: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
       inspection: ['create', 'read', 'update', 'delete', 'approve', 'review'],
       expense: ['create', 'read', 'update', 'delete', 'approve', 'reassign'],
@@ -54,6 +55,7 @@ export function getRoleCapabilities(): Record<User['role'], UserCapabilities> {
       ],
     },
     admin: {
+      gate_pass: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
       stockyard: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
       inspection: ['create', 'read', 'update', 'delete', 'approve', 'review'],
       expense: ['create', 'read', 'update', 'delete', 'approve', 'reassign'],
@@ -67,6 +69,7 @@ export function getRoleCapabilities(): Record<User['role'], UserCapabilities> {
     },
     yard_incharge: {
       // Basic capabilities (mapped from old gate_pass)
+      gate_pass: ['create', 'read', 'approve', 'validate'],
       stockyard: ['create', 'read', 'approve', 'validate'],
       inspection: ['read', 'approve', 'review'],
       expense: ['read'],
@@ -82,6 +85,7 @@ export function getRoleCapabilities(): Record<User['role'], UserCapabilities> {
       ],
     },
     supervisor: {
+      gate_pass: ['read', 'approve', 'validate'],
       stockyard: ['read', 'approve', 'validate'],
       inspection: ['read', 'approve', 'review'],
       expense: ['read', 'approve'],
@@ -93,6 +97,7 @@ export function getRoleCapabilities(): Record<User['role'], UserCapabilities> {
       ],
     },
     executive: {
+      gate_pass: ['create', 'read', 'validate'],
       stockyard: ['create', 'read', 'validate'],
       inspection: ['read'],
       expense: ['create', 'read'],
@@ -104,6 +109,7 @@ export function getRoleCapabilities(): Record<User['role'], UserCapabilities> {
       ],
     },
     inspector: {
+      gate_pass: ['read'],
       stockyard: ['read'],
       inspection: ['create', 'read', 'update'],
       expense: ['create', 'read'],
@@ -115,6 +121,7 @@ export function getRoleCapabilities(): Record<User['role'], UserCapabilities> {
       ],
     },
     guard: {
+      gate_pass: ['read', 'validate'],
       stockyard: ['read', 'validate'],
       inspection: ['read'],
       expense: ['read'],
@@ -126,14 +133,15 @@ export function getRoleCapabilities(): Record<User['role'], UserCapabilities> {
       ],
     },
     clerk: {
+      gate_pass: ['create', 'read', 'validate'],
       stockyard: ['create', 'read'],
       inspection: ['read'],
       expense: ['create', 'read'],
       user_management: [],
       reports: [],
       enhanced_capabilities: [
-        // Access control (create, read only)
-        ...createStockyardCapabilities(['access_control'], ['create', 'read']),
+        // Access control (create, read, validate)
+        ...createStockyardCapabilities(['access_control'], ['create', 'read', 'validate']),
       ],
     },
   };
