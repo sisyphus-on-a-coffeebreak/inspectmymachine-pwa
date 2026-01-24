@@ -37,7 +37,7 @@ import { SkeletonTable } from '@/components/ui/SkeletonLoader';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Pagination } from '@/components/ui/Pagination';
-import { PermissionGate, useHasCapability } from '@/components/ui/PermissionGate';
+import { useHasCapability } from '@/components/ui/PermissionGate';
 import { colors, typography, spacing, cardStyles, borderRadius, shadows } from '@/lib/theme';
 import { UserCog, Search, Plus, Edit2, Trash2, Key, Users as UsersIcon, Filter } from 'lucide-react';
 
@@ -78,7 +78,7 @@ export default function UserManagement() {
     skip_approval_gate_pass: false,
     skip_approval_expense: false,
   });
-  const [showCapabilityMatrix, setShowCapabilityMatrix] = useState(false);
+  const [showCapabilityMatrix, setShowCapabilityMatrix] = useState(true); // Show by default
   const [capabilityTab, setCapabilityTab] = useState<'basic' | 'enhanced'>('basic');
   const [enhancedCapabilities, setEnhancedCapabilities] = useState<EnhancedCapability[]>([]);
   
@@ -190,6 +190,25 @@ export default function UserManagement() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate: User must have at least one capability
+    const hasBasicCapabilities = formData.capabilities && 
+      Object.values(formData.capabilities).some(moduleCaps => 
+        Array.isArray(moduleCaps) && moduleCaps.length > 0
+      );
+    const hasEnhancedCapabilities = enhancedCapabilities.length > 0;
+    
+    if (!hasBasicCapabilities && !hasEnhancedCapabilities) {
+      showToast({
+        title: 'Validation Error',
+        description: 'User must have at least one capability assigned. Please set capabilities in the capability matrix below.',
+        variant: 'error',
+      });
+      // Ensure capability matrix is visible
+      setShowCapabilityMatrix(true);
+      return;
+    }
+    
     try {
       const newUser = await createUser(formData);
       
@@ -228,6 +247,24 @@ export default function UserManagement() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUser) return;
+
+    // Validate: User must have at least one capability
+    const hasBasicCapabilities = formData.capabilities && 
+      Object.values(formData.capabilities).some(moduleCaps => 
+        Array.isArray(moduleCaps) && moduleCaps.length > 0
+      );
+    const hasEnhancedCapabilities = enhancedCapabilities.length > 0;
+    
+    if (!hasBasicCapabilities && !hasEnhancedCapabilities) {
+      showToast({
+        title: 'Validation Error',
+        description: 'User must have at least one capability assigned. Please set capabilities in the capability matrix below.',
+        variant: 'error',
+      });
+      // Ensure capability matrix is visible
+      setShowCapabilityMatrix(true);
+      return;
+    }
 
     try {
       const payload: UpdateUserPayload = {
@@ -428,7 +465,7 @@ export default function UserManagement() {
       skip_approval_gate_pass: false,
       skip_approval_expense: false,
     });
-    setShowCapabilityMatrix(false);
+    setShowCapabilityMatrix(true); // Show by default
   };
 
   const openEditModal = (user: User) => {
@@ -536,7 +573,8 @@ export default function UserManagement() {
             { label: 'User Management' }
           ]}
           actions={
-            <PermissionGate module="user_management" action="create">
+            // Only super admin can create users
+            {currentUser?.role === 'super_admin' && (
               <Button
                 variant="primary"
                 onClick={() => {
@@ -547,7 +585,7 @@ export default function UserManagement() {
               >
                 Create User
               </Button>
-            </PermissionGate>
+            )}
           }
         />
 
@@ -1008,21 +1046,17 @@ export default function UserManagement() {
                   }}
                 />
               </FormField>
-              <FormField label="Role">
-                <select
+              <FormField label="Role (Display Name)">
+                <input
+                  type="text"
                   value={formData.role}
                   onChange={(e) => {
-                    const newRole = e.target.value as User['role'];
-                    const selectedRoleData = roles.find(r => r.value === newRole);
                     setFormData({ 
                       ...formData, 
-                      role: newRole,
-                      // Store role_id if available (for database roles)
-                      ...(selectedRoleData?.id && { role_id: selectedRoleData.id } as any),
-                      // Auto-populate capabilities from role if not manually set
-                      capabilities: showCapabilityMatrix ? formData.capabilities : undefined,
+                      role: e.target.value,
                     });
                   }}
+                  placeholder="e.g., Manager, Clerk, Inspector, etc."
                   style={{
                     width: '100%',
                     padding: spacing.md,
@@ -1030,29 +1064,18 @@ export default function UserManagement() {
                     borderRadius: borderRadius.md,
                     fontSize: '16px'
                   }}
-                >
-                  {rolesLoading ? (
-                    <option value="">Loading roles...</option>
-                  ) : roles.length === 0 ? (
-                    <option value="">No roles available</option>
-                  ) : (
-                    roles.map((role) => (
-                      <option key={role.value} value={role.value}>
-                        {role.label} {role.is_system_role === false && '(Custom)'} - {role.description}
-                      </option>
-                    ))
-                  )}
-                </select>
+                />
                 <p style={{ ...typography.caption, color: colors.neutral[600], marginTop: spacing.xs }}>
-                  Role sets default capabilities. Use capability matrix below for custom permissions.
-                  {apiRoles.length === 0 && roles.length > 0 && ' (Using hardcoded roles - run migrations to enable custom roles)'}
+                  Role is just a display name for identification. It does not grant any permissions. 
+                  Permissions must be explicitly set using the capability matrix below.
+                  {currentUser?.role === 'super_admin' && ' As super admin, you can grant any capabilities to this user.'}
                 </p>
               </FormField>
               
               {/* Capability Matrix */}
               <div style={{ marginTop: spacing.md }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-                  <label style={{ ...typography.label }}>Permissions</label>
+                  <label style={{ ...typography.label }}>Permissions (Required)</label>
                   <button
                     type="button"
                     onClick={() => setShowCapabilityMatrix(!showCapabilityMatrix)}
@@ -1066,7 +1089,7 @@ export default function UserManagement() {
                       fontSize: '12px',
                     }}
                   >
-                    {showCapabilityMatrix ? 'Hide' : 'Show'} Custom Permissions
+                    {showCapabilityMatrix ? 'Hide' : 'Show'} Capability Matrix
                   </button>
                 </div>
                 {showCapabilityMatrix && (
@@ -1261,21 +1284,17 @@ export default function UserManagement() {
                   }}
                 />
               </FormField>
-              <FormField label="Role">
-                <select
+              <FormField label="Role (Display Name)">
+                <input
+                  type="text"
                   value={formData.role}
                   onChange={(e) => {
-                    const newRole = e.target.value as User['role'];
-                    const selectedRoleData = roles.find(r => r.value === newRole);
                     setFormData({ 
                       ...formData, 
-                      role: newRole,
-                      // Store role_id if available (for database roles)
-                      ...(selectedRoleData?.id && { role_id: selectedRoleData.id } as any),
-                      // Auto-populate capabilities from role if not manually set
-                      capabilities: showCapabilityMatrix ? formData.capabilities : undefined,
+                      role: e.target.value,
                     });
                   }}
+                  placeholder="e.g., Manager, Clerk, Inspector, etc."
                   style={{
                     width: '100%',
                     padding: spacing.md,
@@ -1283,29 +1302,18 @@ export default function UserManagement() {
                     borderRadius: borderRadius.md,
                     fontSize: '16px'
                   }}
-                >
-                  {rolesLoading ? (
-                    <option value="">Loading roles...</option>
-                  ) : roles.length === 0 ? (
-                    <option value="">No roles available</option>
-                  ) : (
-                    roles.map((role) => (
-                      <option key={role.value} value={role.value}>
-                        {role.label} {role.is_system_role === false && '(Custom)'} - {role.description}
-                      </option>
-                    ))
-                  )}
-                </select>
+                />
                 <p style={{ ...typography.caption, color: colors.neutral[600], marginTop: spacing.xs }}>
-                  Role sets default capabilities. Use capability matrix below for custom permissions.
-                  {apiRoles.length === 0 && roles.length > 0 && ' (Using hardcoded roles - run migrations to enable custom roles)'}
+                  Role is just a display name for identification. It does not grant any permissions. 
+                  Permissions must be explicitly set using the capability matrix below.
+                  {currentUser?.role === 'super_admin' && ' As super admin, you can grant any capabilities to this user.'}
                 </p>
               </FormField>
               
               {/* Capability Matrix */}
               <div style={{ marginTop: spacing.md }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-                  <label style={{ ...typography.label }}>Permissions</label>
+                  <label style={{ ...typography.label }}>Permissions (Required)</label>
                   <button
                     type="button"
                     onClick={() => setShowCapabilityMatrix(!showCapabilityMatrix)}
@@ -1319,7 +1327,7 @@ export default function UserManagement() {
                       fontSize: '12px',
                     }}
                   >
-                    {showCapabilityMatrix ? 'Hide' : 'Show'} Custom Permissions
+                    {showCapabilityMatrix ? 'Hide' : 'Show'} Capability Matrix
                   </button>
                 </div>
                 {showCapabilityMatrix && (

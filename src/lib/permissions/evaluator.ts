@@ -17,7 +17,6 @@ import type {
 } from './types';
 import { evaluateConditionalRule } from './conditionEvaluator';
 import { evaluateRecordScope } from './scopeEvaluator';
-import { hasRoleCapability } from './roleCapabilities';
 
 /**
  * Check if user has a basic capability (backward compatible)
@@ -60,8 +59,13 @@ export function checkPermission(
     };
   }
   
-  // Note: Super admin special case removed - must be granted via capabilities
-  // Check capabilities only
+  // Super admin bypass: Check if user is super admin first
+  // Super admin has all access regardless of capabilities
+  if (user.role === 'super_admin') {
+    return { allowed: true };
+  }
+  
+  // Check capabilities for all other users
   
   // Check if user has enhanced capabilities
   const enhancedCaps = user.capabilities?.enhanced_capabilities;

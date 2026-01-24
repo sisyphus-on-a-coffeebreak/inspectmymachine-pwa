@@ -2,7 +2,6 @@ import { apiClient } from './apiClient';
 import { API_BASE_URL } from './apiConfig';
 import type { EnhancedCapability } from './permissions/types';
 import { hasCapability as hasEnhancedCapability } from './permissions/evaluator';
-import { hasRoleCapability as checkRoleCapability } from './permissions/roleCapabilities';
 
 // Re-export types for backward compatibility
 export type CapabilityAction = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'validate' | 'review' | 'reassign' | 'export';
@@ -28,7 +27,7 @@ export interface User {
   employee_id: string;
   name: string;
   email: string;
-  role: 'super_admin' | 'admin' | 'inspector' | 'supervisor' | 'guard' | 'clerk' | 'executive' | 'yard_incharge';
+  role: string; // Role is just a display name - can be any string. Only 'super_admin' has special meaning (all access)
   capabilities?: UserCapabilities; // Capability matrix (module-level + CRUD flags)
   enhanced_capabilities?: EnhancedCapability[]; // Enhanced capabilities with granularity
   yard_id: string | null;
@@ -375,13 +374,8 @@ export function hasGatePassCapability(
   return hasStockyardCapability(user, 'access_control', action);
 }
 
-/**
- * Check if role has capability (backward compatibility)
- * Uses shared role capabilities to avoid duplication
- */
-function hasRoleCapability(role: User['role'], module: CapabilityModule, action: CapabilityAction): boolean {
-  return checkRoleCapability(role, module, action);
-}
+// Role-based capability checks removed - permissions are now based solely on capabilities
+// Role is just a display name, not tied to permissions
 
 // Export enhanced permission system
 export { checkPermission, checkPermissions } from './permissions/evaluator';
