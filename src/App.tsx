@@ -1,7 +1,7 @@
 // src/App.tsx
 import { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { RequireRole } from "@/components/RequireAuth";
+import { RequireCapability } from "@/components/RequireAuth";
 import AuthenticatedLayout from "@/components/AuthenticatedLayout";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { SkeletonLoader } from './components/ui/SkeletonLoader';
@@ -66,7 +66,9 @@ const ExpenseReports = lazy(() => import('./pages/expenses/ExpenseReports').then
 const ExpenseAnalytics = lazy(() => import('./pages/expenses/ExpenseAnalytics').then(m => ({ default: m.ExpenseAnalytics })));
 const ReceiptsGallery = lazy(() => import('./pages/expenses/ReceiptsGallery').then(m => ({ default: m.ReceiptsGallery })));
 const AccountsDashboard = lazy(() => import('./pages/expenses/AccountsDashboard').then(m => ({ default: m.AccountsDashboard })));
-const UserDetails = lazy(() => import('./pages/admin/UserDetails').then(m => ({ default: m.UserDetails })));
+const UserDetails = lazy(() => import('./pages/admin/UserDetails.enhanced').then(m => ({ default: m.UserDetails })));
+const CreateUser = lazy(() => import('./pages/admin/CreateUser'));
+const EditUser = lazy(() => import('./pages/admin/EditUser'));
 const UserActivityDashboard = lazy(() => import('./pages/admin/UserActivityDashboard').then(m => ({ default: m.UserActivityDashboard })));
 const CapabilityMatrix = lazy(() => import('./pages/admin/CapabilityMatrix').then(m => ({ default: m.CapabilityMatrix })));
 const BulkUserOperations = lazy(() => import('./pages/admin/BulkUserOperations').then(m => ({ default: m.BulkUserOperations })));
@@ -141,11 +143,11 @@ export default function App() {
       />
       <Route
         path="/app/stockyard/access/reports"
-        element={<AuthenticatedLayout><RequireRole roles={["super_admin","admin"]}><LazyPage><AccessReports /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="reports" action="read"><LazyPage><AccessReports /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/stockyard/access/templates"
-        element={<AuthenticatedLayout><RequireRole roles={["super_admin","admin"]}><LazyPage><PassTemplates /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="gate_pass" action="update"><LazyPage><PassTemplates /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/stockyard/access/visitors"
@@ -157,11 +159,11 @@ export default function App() {
       />
       <Route
         path="/app/stockyard/access/scan"
-        element={<AuthenticatedLayout><RequireRole roles={["super_admin","admin","supervisor","guard"]}><LazyPage><QuickValidation /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="gate_pass" action="validate"><LazyPage><QuickValidation /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/stockyard/access/bulk"
-        element={<AuthenticatedLayout><RequireRole roles={["super_admin","admin"]}><LazyPage><BulkAccessOperations /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="gate_pass" action="delete"><LazyPage><BulkAccessOperations /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       {/* Access Pass Details - Deep linking (must come AFTER all specific routes) */}
       <Route
@@ -230,7 +232,7 @@ export default function App() {
       />
       <Route
         path="/app/inspections/studio"
-        element={<AuthenticatedLayout><RequireRole roles={["super_admin","admin"]}><LazyPage><InspectionStudio /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="inspection" action="create"><LazyPage><InspectionStudio /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/inspections/sync"
@@ -311,13 +313,13 @@ export default function App() {
       />
       <Route
         path="/app/expenses/reports"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><ExpenseReports /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="reports" action="read"><LazyPage><ExpenseReports /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
 
       {/* Unified Analytics Page */}
       <Route
         path="/app/expenses/analytics"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><ExpenseAnalytics /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="reports" action="read"><LazyPage><ExpenseAnalytics /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/expenses/receipts"
@@ -329,7 +331,7 @@ export default function App() {
       {/* ✅ Unified Approvals Hub */}
       <Route
         path="/app/approvals"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin', 'supervisor']}><LazyPage><UnifiedApprovals /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="gate_pass" action="approve"><LazyPage><UnifiedApprovals /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
 
       {/* 📋 Unified Work Section */}
@@ -341,7 +343,7 @@ export default function App() {
       {/* 🚨 Alerts Module */}
       <Route
         path="/app/alerts"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin', 'supervisor']}><LazyPage><AlertDashboard /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="reports" action="read"><LazyPage><AlertDashboard /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/notifications"
@@ -355,7 +357,7 @@ export default function App() {
       {/* ⚙️ Settings */}
       <Route
         path="/app/settings/report-branding"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><ReportBranding /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="reports" action="update"><LazyPage><ReportBranding /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/settings/sessions"
@@ -399,63 +401,75 @@ export default function App() {
       {/* 👥 User Management Module */}
       <Route
         path="/app/admin/users/activity"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><UserActivityDashboard /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="user_management" action="read"><LazyPage><UserActivityDashboard /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/admin/users/capability-matrix"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><CapabilityMatrix /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="user_management" action="read"><LazyPage><CapabilityMatrix /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/admin/users/bulk-operations"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><BulkUserOperations /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="user_management" action="update"><LazyPage><BulkUserOperations /></LazyPage></RequireCapability></AuthenticatedLayout>}
+      />
+      <Route
+        path="/app/admin/users/create"
+        element={<AuthenticatedLayout><RequireCapability module="user_management" action="create"><LazyPage><CreateUser /></LazyPage></RequireCapability></AuthenticatedLayout>}
+      />
+      <Route
+        path="/app/admin/users/:id/edit"
+        element={<AuthenticatedLayout><RequireCapability module="user_management" action="update"><LazyPage><EditUser /></LazyPage></RequireCapability></AuthenticatedLayout>}
+      />
+      <Route
+        path="/app/admin/users/:id/reset-password"
+        element={<AuthenticatedLayout><RequireCapability module="user_management" action="update"><LazyPage><EditUser /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/admin/users/:id"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><UserDetails /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="user_management" action="read"><LazyPage><UserDetails /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/admin/users"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><UserManagement /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="user_management" action="read"><LazyPage><UserManagement /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/admin/roles"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><RoleManagement /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="user_management" action="read"><LazyPage><RoleManagement /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/admin/permission-templates"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><PermissionTemplates /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="user_management" action="read"><LazyPage><PermissionTemplates /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/admin/permission-testing"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><PermissionTesting /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="user_management" action="read"><LazyPage><PermissionTesting /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/admin/data-masking-rules"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><DataMaskingRules /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="user_management" action="read"><LazyPage><DataMaskingRules /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/admin/security"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><SecurityDashboard /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="user_management" action="read"><LazyPage><SecurityDashboard /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/admin/activity-logs"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><ActivityLogs /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="user_management" action="read"><LazyPage><ActivityLogs /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/admin/permission-logs"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><PermissionChangeLogs /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="user_management" action="read"><LazyPage><PermissionChangeLogs /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/admin/audit-reports"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><AuditReports /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="reports" action="read"><LazyPage><AuditReports /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/admin/compliance"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin', 'admin']}><LazyPage><ComplianceDashboard /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="reports" action="read"><LazyPage><ComplianceDashboard /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
       <Route
         path="/app/admin/vehicles/costs"
-        element={<AuthenticatedLayout><RequireRole roles={['super_admin']}><LazyPage><VehicleCostDashboard /></LazyPage></RequireRole></AuthenticatedLayout>}
+        element={<AuthenticatedLayout><RequireCapability module="reports" action="read"><LazyPage><VehicleCostDashboard /></LazyPage></RequireCapability></AuthenticatedLayout>}
       />
 
       {/* 404 Catch-all */}
