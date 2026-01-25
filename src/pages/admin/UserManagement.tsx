@@ -11,6 +11,9 @@ import {
   deleteUser,
   resetUserPassword,
   getAvailableRoles,
+  isSuperAdmin,
+  isLastSuperAdmin,
+  hasCapability,
   type User,
   type CreateUserPayload,
   type UpdateUserPayload,
@@ -64,6 +67,7 @@ export default function UserManagement() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(50);
+  const [lastSuperAdminIds, setLastSuperAdminIds] = useState<Set<number>>(new Set());
 
   // Form states
   const [formData, setFormData] = useState<CreateUserPayload>({
@@ -168,6 +172,24 @@ export default function UserManagement() {
     }
   }, [usersQueryData]);
 
+  // Check which users are last superadmins
+  useEffect(() => {
+    const checkLastSuperAdmins = async () => {
+      const superAdmins = users.filter(u => isSuperAdmin(u) && u.is_active);
+      if (superAdmins.length === 1) {
+        // Only one superadmin exists, mark them as last
+        setLastSuperAdminIds(new Set([superAdmins[0].id]));
+      } else {
+        // Multiple superadmins or none, clear the set
+        setLastSuperAdminIds(new Set());
+      }
+    };
+    
+    if (users.length > 0) {
+      checkLastSuperAdmins();
+    }
+  }, [users]);
+
   useEffect(() => {
     setLoading(queryLoading);
   }, [queryLoading]);
@@ -247,6 +269,17 @@ export default function UserManagement() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUser) return;
+
+    // CRITICAL: Check if trying to deactivate the last superadmin
+    if (isSuperAdmin(selectedUser) && !formData.is_active && lastSuperAdminIds.has(selectedUser.id)) {
+      showToast({
+        title: 'Cannot Deactivate User',
+        description: 'Cannot deactivate the last active superadmin user. At least one superadmin must always exist in the system.',
+        variant: 'error',
+        duration: 8000,
+      });
+      return;
+    }
 
     // Validate: User must have at least one capability
     const hasBasicCapabilities = formData.capabilities && 
@@ -374,11 +407,34 @@ export default function UserManagement() {
   };
 
   const handleDeleteUser = async (userId: number, userName: string) => {
+    // Check if this is the last superadmin
+    if (lastSuperAdminIds.has(userId)) {
+      showToast({
+        title: 'Cannot Delete User',
+        description: 'Cannot delete the last active superadmin user. At least one superadmin must always exist in the system.',
+        variant: 'error',
+        duration: 8000,
+      });
+      return;
+    }
+    
     setConfirmDelete({ userId, userName });
   };
 
   const confirmDeleteUser = async () => {
     if (!confirmDelete) return;
+    
+    // Double-check before actually deleting
+    if (lastSuperAdminIds.has(confirmDelete.userId)) {
+      showToast({
+        title: 'Cannot Delete User',
+        description: 'Cannot delete the last active superadmin user. At least one superadmin must always exist in the system.',
+        variant: 'error',
+        duration: 8000,
+      });
+      setConfirmDelete(null);
+      return;
+    }
     
     try {
       await deleteUser(confirmDelete.userId);
@@ -389,17 +445,29 @@ export default function UserManagement() {
       });
       setConfirmDelete(null);
       loadUsers(); // Reload current page
-    } catch (error) {
+    } catch (error: any) {
       showToast({
         title: 'Error',
-        description: 'Failed to delete user',
+        description: error?.message || 'Failed to delete user',
         variant: 'error',
+        duration: 8000,
       });
     }
   };
 
   const handleDelete = async () => {
     if (!selectedUser) return;
+
+    // Check if this is the last superadmin
+    if (lastSuperAdminIds.has(selectedUser.id)) {
+      showToast({
+        title: 'Cannot Delete User',
+        description: 'Cannot delete the last active superadmin user. At least one superadmin must always exist in the system.',
+        variant: 'error',
+        duration: 8000,
+      });
+      return;
+    }
 
     try {
       await deleteUser(selectedUser.id);
@@ -411,11 +479,12 @@ export default function UserManagement() {
       setShowDeleteModal(false);
       setSelectedUser(null);
       loadUsers();
-    } catch (err) {
+    } catch (err: any) {
       showToast({
         title: 'Error',
-        description: err instanceof Error ? err.message : 'Failed to delete user',
+        description: err?.message || 'Failed to delete user',
         variant: 'error',
+        duration: 8000,
       });
     }
   };
@@ -573,8 +642,8 @@ export default function UserManagement() {
             { label: 'User Management' }
           ]}
           actions={
-            // Only super admin can create users
-            {currentUser?.role === 'super_admin' && (
+            // Only users with user_management.create capability can create users
+            hasCapability(currentUser, 'user_management', 'create') && (
               <Button
                 variant="primary"
                 onClick={() => {
@@ -585,7 +654,7 @@ export default function UserManagement() {
               >
                 Create User
               </Button>
-            )}
+            )
           }
         />
 
@@ -919,20 +988,27 @@ export default function UserManagement() {
                               <Key size={18} />
                             </button>
                           )}
-                          {/* Delete User Button - requires delete permission and can't delete self */}
+                          {/* Delete User Button - requires delete permission and can't delete self or last superadmin */}
                           {canDeleteUsers && currentUser?.id !== user.id && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteUser(user.id, user.name);
                               }}
-                              aria-label={`Delete user ${user.name}`}
+                              disabled={lastSuperAdminIds.has(user.id)}
+                              aria-label={lastSuperAdminIds.has(user.id) 
+                                ? `Cannot delete last superadmin: ${user.name}` 
+                                : `Delete user ${user.name}`}
+                              title={lastSuperAdminIds.has(user.id) 
+                                ? 'Cannot delete the last active superadmin. At least one superadmin must always exist.' 
+                                : 'Delete user'}
                               style={{
                                 padding: spacing.sm,
                                 border: 'none',
                                 backgroundColor: 'transparent',
+                                cursor: lastSuperAdminIds.has(user.id) ? 'not-allowed' : 'pointer',
+                                opacity: lastSuperAdminIds.has(user.id) ? 0.5 : 1,
                                 color: colors.critical,
-                                cursor: 'pointer',
                                 borderRadius: borderRadius.sm,
                                 display: 'flex',
                                 alignItems: 'center',
@@ -944,7 +1020,6 @@ export default function UserManagement() {
                               onMouseLeave={(e) => {
                                 e.currentTarget.style.backgroundColor = 'transparent';
                               }}
-                              title="Delete"
                             >
                               <Trash2 size={18} />
                             </button>
@@ -1068,7 +1143,7 @@ export default function UserManagement() {
                 <p style={{ ...typography.caption, color: colors.neutral[600], marginTop: spacing.xs }}>
                   Role is just a display name for identification. It does not grant any permissions. 
                   Permissions must be explicitly set using the capability matrix below.
-                  {currentUser?.role === 'super_admin' && ' As super admin, you can grant any capabilities to this user.'}
+                  {hasCapability(currentUser, 'user_management', 'update') && ' You can grant any capabilities to this user.'}
                 </p>
               </FormField>
               
@@ -1306,7 +1381,7 @@ export default function UserManagement() {
                 <p style={{ ...typography.caption, color: colors.neutral[600], marginTop: spacing.xs }}>
                   Role is just a display name for identification. It does not grant any permissions. 
                   Permissions must be explicitly set using the capability matrix below.
-                  {currentUser?.role === 'super_admin' && ' As super admin, you can grant any capabilities to this user.'}
+                  {hasCapability(currentUser, 'user_management', 'update') && ' You can grant any capabilities to this user.'}
                 </p>
               </FormField>
               
@@ -1439,11 +1514,28 @@ export default function UserManagement() {
                   type="checkbox"
                   id="is_active_edit"
                   checked={formData.is_active}
+                  disabled={isSuperAdmin(selectedUser) && lastSuperAdminIds.has(selectedUser.id) && formData.is_active}
                   onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  style={{ width: '18px', height: '18px' }}
+                  style={{ 
+                    width: '18px', 
+                    height: '18px',
+                    cursor: (isSuperAdmin(selectedUser) && lastSuperAdminIds.has(selectedUser.id) && formData.is_active) ? 'not-allowed' : 'pointer',
+                    opacity: (isSuperAdmin(selectedUser) && lastSuperAdminIds.has(selectedUser.id) && formData.is_active) ? 0.5 : 1,
+                  }}
                 />
-                <label htmlFor="is_active_edit" style={{ ...typography.body, cursor: 'pointer' }}>
+                <label 
+                  htmlFor="is_active_edit" 
+                  style={{ 
+                    ...typography.body, 
+                    cursor: (isSuperAdmin(selectedUser) && lastSuperAdminIds.has(selectedUser.id) && formData.is_active) ? 'not-allowed' : 'pointer',
+                  }}
+                >
                   Active
+                  {isSuperAdmin(selectedUser) && lastSuperAdminIds.has(selectedUser.id) && formData.is_active && (
+                    <span style={{ color: colors.critical, marginLeft: spacing.xs, fontSize: '0.875rem' }}>
+                      (Last superadmin - cannot deactivate)
+                    </span>
+                  )}
                 </label>
               </div>
               <div style={{ display: 'flex', gap: spacing.md, marginTop: spacing.md }}>
