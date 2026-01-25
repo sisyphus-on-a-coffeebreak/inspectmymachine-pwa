@@ -40,17 +40,29 @@ export const CreateStockyardRequest: React.FC = () => {
     const fetchData = async () => {
       try {
         const [vehiclesRes, yardsRes] = await Promise.all([
-          apiClient.get('/v1/vehicles').catch(() => ({ data: [] })),
-          apiClient.get('/v1/yards').catch(() => ({ data: [] })),
+          apiClient.get('/v1/vehicles'),
+          apiClient.get('/v1/yards'),
         ]);
         setVehicles(Array.isArray(vehiclesRes.data) ? vehiclesRes.data : vehiclesRes.data.data || []);
         setYards(Array.isArray(yardsRes.data) ? yardsRes.data : yardsRes.data.data || []);
-      } catch (err) {
-        // Error is already handled by apiClient
+      } catch (err: any) {
+        // Log error for debugging
+        console.error('Failed to load vehicles/yards:', err);
+        
+        // Set empty arrays as fallback
+        setVehicles([]);
+        setYards([]);
+        
+        // Show warning toast to user
+        showToast({
+          title: 'Warning',
+          description: 'Failed to load vehicles or yards. Some options may be unavailable. Please refresh the page.',
+          variant: 'warning',
+        });
       }
     };
     fetchData();
-  }, []);
+  }, [showToast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

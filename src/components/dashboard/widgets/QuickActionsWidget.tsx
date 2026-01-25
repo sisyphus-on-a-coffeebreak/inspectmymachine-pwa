@@ -17,7 +17,8 @@ export const QuickActionsWidget: React.FC<WidgetProps> = ({ config, data }) => {
   const actions = getRoleQuickActions(
     user?.role || '',
     navigate,
-    data?.contextData
+    data?.contextData,
+    user // Pass user object for capability checks
   );
 
   return (

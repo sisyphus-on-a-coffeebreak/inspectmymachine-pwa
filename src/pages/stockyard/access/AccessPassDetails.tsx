@@ -107,8 +107,10 @@ export const AccessPassDetails: React.FC = () => {
     try {
       await recordEntry.mutateAsync({ id, notes: undefined });
       refetch();
-    } catch {
-      // Error handled by hook
+    } catch (error) {
+      // Hook should handle via onError, but log for debugging
+      console.error('Failed to record entry:', error);
+      // Hooks verified to have onError handlers that show toast notifications
     }
   };
 
@@ -128,8 +130,10 @@ export const AccessPassDetails: React.FC = () => {
     try {
       await recordExit.mutateAsync({ id, notes: undefined });
       refetch();
-    } catch {
-      // Error handled by hook
+    } catch (error) {
+      // Hook should handle via onError, but log for debugging
+      console.error('Failed to record exit:', error);
+      // Hooks verified to have onError handlers that show toast notifications
     }
   };
 
@@ -150,8 +154,10 @@ export const AccessPassDetails: React.FC = () => {
     try {
       await cancelPass.mutateAsync(id);
       refetch();
-    } catch {
-      // Error handled by hook
+    } catch (error) {
+      // Hook should handle via onError, but log for debugging
+      console.error('Failed to cancel pass:', error);
+      // Hooks verified to have onError handlers that show toast notifications
     }
   };
 

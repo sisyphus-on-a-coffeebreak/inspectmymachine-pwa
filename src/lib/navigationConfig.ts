@@ -43,9 +43,25 @@ export interface NavConfig {
   };
 }
 
-type UserRole = 'super_admin' | 'admin' | 'supervisor' | 'yard_incharge' | 'executive' | 'inspector' | 'guard' | 'clerk';
+/**
+ * UserRole - Role type for navigation
+ * 
+ * ⚠️ MIGRATION: Changed from hard-coded union to `string` to support custom roles.
+ * Role is now just a display name - use capabilities for permission checks.
+ * 
+ * @deprecated This type is kept for backward compatibility but should be replaced with `string`.
+ * After migration, all role types should be `string` to support custom roles from API.
+ */
+type UserRole = string; // Allow any string for custom roles
 
-export const navigationByRole: Record<UserRole, NavConfig> = {
+/**
+ * Navigation configuration by role
+ * 
+ * ⚠️ MIGRATION: This Record type now accepts any string as key (for custom roles).
+ * The hard-coded role keys below are for system roles only.
+ * Custom roles will need to be handled via capability-based checks.
+ */
+export const navigationByRole: Partial<Record<UserRole, NavConfig>> = {
   guard: {
     items: [
       { id: 'scan', label: 'Scan', icon: QrCode, route: '/app/gate-pass/scan' },

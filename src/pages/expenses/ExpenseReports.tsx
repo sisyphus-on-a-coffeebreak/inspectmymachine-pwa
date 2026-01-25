@@ -75,12 +75,14 @@ export const ExpenseReports: React.FC = () => {
   const [projectExpenses, setProjectExpenses] = useState<ProjectExpense[]>([]);
   const [assetExpenses, setAssetExpenses] = useState<AssetExpense[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
   const [selectedTab, setSelectedTab] = useState<'summary' | 'analytics' | 'cashflow'>('summary');
 
   const fetchReportData = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
 
       // Convert date range to days (backend expects number of days)
       const dateRangeDays: Record<string, number> = {
@@ -113,10 +115,15 @@ export const ExpenseReports: React.FC = () => {
       setProjectExpenses(analyticsData.project_expenses || []);
       setAssetExpenses(analyticsData.asset_expenses || []);
 
-    } catch (error) {
-      // Error is already handled by apiClient
-      // Don't use mock data - show empty state instead
-      // This ensures we know when the API is actually failing
+    } catch (error: any) {
+      // Log error for debugging
+      console.error('Failed to fetch expense report data:', error);
+      
+      // Set error state
+      const errorMessage = error?.response?.data?.message || error?.message || 'Unable to fetch expense report data. Please try again.';
+      setError(errorMessage);
+      
+      // Set empty state
       setStats({
         total_expenses: 0,
         pending: 0,
@@ -133,6 +140,13 @@ export const ExpenseReports: React.FC = () => {
       setTopSpenders([]);
       setProjectExpenses([]);
       setAssetExpenses([]);
+      
+      // Show error toast to user
+      showToast({
+        title: 'Failed to Load Reports',
+        description: errorMessage,
+        variant: 'error',
+      });
       
       // Keep old mock data code commented out for reference
       /*
@@ -233,6 +247,63 @@ export const ExpenseReports: React.FC = () => {
       <div style={{ padding: '2rem', textAlign: 'center' }}>
         <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📊</div>
         <div style={{ color: '#6B7280' }}>Loading expense reports...</div>
+      </div>
+    );
+  }
+
+  // Show error state with retry button
+  if (error && !stats) {
+    return (
+      <div style={{ 
+        maxWidth: '1400px', 
+        margin: '0 auto', 
+        padding: spacing.xl,
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        backgroundColor: colors.neutral[50],
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          textAlign: 'center',
+          padding: spacing.xl,
+          backgroundColor: 'white',
+          borderRadius: '16px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+          maxWidth: '500px'
+        }}>
+          <div style={{ fontSize: '4rem', marginBottom: spacing.lg }}>⚠️</div>
+          <h2 style={{ 
+            ...typography.header,
+            fontSize: '24px',
+            color: colors.error?.[700] || '#DC2626',
+            marginBottom: spacing.md
+          }}>
+            Failed to Load Reports
+          </h2>
+          <p style={{ 
+            ...typography.body,
+            color: colors.neutral[600],
+            marginBottom: spacing.xl
+          }}>
+            {error}
+          </p>
+          <div style={{ display: 'flex', gap: spacing.md, justifyContent: 'center' }}>
+            <Button
+              variant="primary"
+              onClick={() => fetchReportData()}
+            >
+              🔄 Retry
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => navigate('/app/expenses')}
+            >
+              ← Back to Expenses
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }

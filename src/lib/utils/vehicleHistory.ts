@@ -62,3 +62,4 @@ export function getPrioritizedVehicleIds(): string[] {
   return getRecentVehicles().map((entry) => entry.vehicleId);
 }
 
+

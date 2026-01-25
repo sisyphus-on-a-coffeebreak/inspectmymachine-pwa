@@ -137,6 +137,10 @@ export async function getUserActivityLogs(
  * Create a new activity log entry
  * This is a helper function that logs activities after CRUD operations
  */
+// Track activity log failures for monitoring
+let activityLogFailureCount = 0;
+const MAX_FAILURES_BEFORE_WARNING = 10;
+
 export async function logActivity(
   request: CreateActivityLogRequest
 ): Promise<void> {
@@ -146,12 +150,37 @@ export async function logActivity(
     await apiClient.post('/v1/activity-logs', request, {
       suppressErrorLog: true, // Don't log errors for activity logging failures
     });
+    // Reset failure count on success
+    activityLogFailureCount = 0;
   } catch (error) {
-    // Silently handle errors - activity logging should not break main functionality
-    // Log to console in development only
+    // Increment failure count
+    activityLogFailureCount++;
+    
+    // Log to console in development
     if (process.env.NODE_ENV === 'development') {
       console.warn('[activityLogs] Failed to log activity:', error);
     }
+    
+    // In production, log to error tracking service (if available)
+    if (process.env.NODE_ENV === 'production') {
+      // Import logger dynamically to avoid circular dependencies
+      import('./logger').then(({ logger }) => {
+        logger.error('Activity log failed', error, 'activityLogs');
+      }).catch(() => {
+        // If logger fails, at least log to console in production
+        console.error('[activityLogs] Failed to log activity:', error);
+      });
+    }
+    
+    // Warn if failure rate is high (indicates systemic issue)
+    if (activityLogFailureCount >= MAX_FAILURES_BEFORE_WARNING) {
+      console.warn(
+        `[activityLogs] High failure rate detected: ${activityLogFailureCount} consecutive failures. ` +
+        'Activity logging may be experiencing issues.'
+      );
+    }
+    
+    // Activity logging should not break main functionality, so we silently continue
   }
 }
 

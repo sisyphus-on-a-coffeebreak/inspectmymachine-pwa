@@ -19,6 +19,45 @@ import { evaluateConditionalRule } from './conditionEvaluator';
 import { evaluateRecordScope } from './scopeEvaluator';
 
 /**
+ * Check if user is a superadmin
+ * 
+ * Superadmin identification supports multiple methods:
+ * 1. Role-based: user.role === 'super_admin' (primary, during migration)
+ * 2. Capability-based: user.capabilities.is_master === true (future)
+ * 3. Enhanced capability flag: Special master capability (future)
+ * 
+ * Superadmin bypass is a safety mechanism that ensures superadmin always has
+ * full access, even if capabilities are misconfigured. This is critical for
+ * system recovery and emergency access.
+ * 
+ * @param user - The user to check
+ * @returns true if user is a superadmin
+ */
+export function isSuperAdmin(user: User | null): boolean {
+  if (!user) return false;
+  
+  // Method 1: Role-based check (primary, works during migration)
+  if (user.role === 'super_admin') {
+    return true;
+  }
+  
+  // Method 2: Capability-based check (for future capability-only system)
+  // Check if user has special master flag in capabilities
+  if (user.capabilities && typeof user.capabilities === 'object') {
+    const caps = user.capabilities as any;
+    if (caps.is_master === true) {
+      return true;
+    }
+  }
+  
+  // Method 3: Enhanced capability master flag (for future)
+  // This would check enhanced_capabilities for a special master capability
+  // For now, we rely on role-based check
+  
+  return false;
+}
+
+/**
  * Check if user has a basic capability (backward compatible)
  * @param user - The user to check
  * @param module - The module to check
@@ -59,10 +98,21 @@ export function checkPermission(
     };
   }
   
-  // Super admin bypass: Check if user is super admin first
-  // Super admin has all access regardless of capabilities
-  if (user.role === 'super_admin') {
-    return { allowed: true };
+  // CRITICAL: Superadmin bypass - Check if user is superadmin first
+  // Superadmin has all access regardless of capabilities
+  // This is a safety mechanism to ensure superadmin always has access,
+  // even if capabilities are misconfigured. Essential for system recovery.
+  // 
+  // The bypass works in both role-based and capability-based systems:
+  // - During migration: Uses role === 'super_admin'
+  // - After migration: Can use capability flag is_master === true
+  // - Both methods are checked for maximum compatibility
+  if (isSuperAdmin(user)) {
+    return { 
+      allowed: true, 
+      reason: 'superadmin_bypass',
+      // Note: We don't include missing_permissions for superadmin since they have all access
+    };
   }
   
   // Check capabilities for all other users

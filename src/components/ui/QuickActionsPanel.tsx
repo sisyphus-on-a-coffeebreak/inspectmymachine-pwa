@@ -9,6 +9,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { colors, typography, spacing, borderRadius, cardStyles } from '../../lib/theme';
 import { ActionGrid, CompactGrid } from './ResponsiveGrid';
+import { hasCapability } from '../../lib/users';
 import { 
   Plus, 
   Search, 
@@ -181,8 +182,15 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
 };
 
 /**
- * Role-based quick actions factory
- * Enhanced with context-aware actions and comprehensive role support
+ * Capability-based quick actions factory
+ * 
+ * ⚠️ MIGRATION: This function now uses capability checks instead of role checks.
+ * Role parameter is kept for backward compatibility but capabilities are checked.
+ * 
+ * @param role - User role (deprecated, kept for backward compatibility)
+ * @param navigate - Navigation function
+ * @param contextData - Optional context data
+ * @param user - User object (optional, preferred for capability checks)
  */
 export const getRoleQuickActions = (
   role: string,
@@ -191,12 +199,15 @@ export const getRoleQuickActions = (
     pendingApprovals?: number;
     urgentItems?: number;
     activePasses?: number;
-  }
+  },
+  user?: { role?: string } | null
 ): QuickAction[] => {
   const baseActions: QuickAction[] = [];
 
-  // Super Admin & Admin - Full access
-  if (role === 'super_admin' || role === 'admin') {
+  // Super Admin & Admin - Full access (check via capabilities)
+  // Check if user has user_management.read (admin capability) or reports.read
+  const isAdmin = user && (hasCapability(user, 'user_management', 'read') || hasCapability(user, 'reports', 'read'));
+  if (isAdmin || role === 'super_admin' || role === 'admin') {
     baseActions.push(
       {
         id: 'create-pass',
@@ -251,8 +262,9 @@ export const getRoleQuickActions = (
     );
   }
 
-  // Supervisor - Management access
-  if (role === 'supervisor') {
+  // Supervisor - Management access (check via capabilities)
+  const isSupervisor = user && hasCapability(user, 'gate_pass', 'approve');
+  if (isSupervisor || role === 'supervisor') {
     baseActions.push(
       {
         id: 'create-pass',
@@ -293,8 +305,9 @@ export const getRoleQuickActions = (
     );
   }
 
-  // Guard - Entry/Exit focus
-  if (role === 'guard') {
+  // Guard - Entry/Exit focus (check via capabilities)
+  const isGuard = user && hasCapability(user, 'gate_pass', 'validate');
+  if (isGuard || role === 'guard') {
     baseActions.push(
       {
         id: 'quick-validation',
@@ -325,8 +338,9 @@ export const getRoleQuickActions = (
     );
   }
 
-  // Inspector - Inspection focus
-  if (role === 'inspector') {
+  // Inspector - Inspection focus (check via capabilities)
+  const isInspector = user && hasCapability(user, 'inspection', 'create');
+  if (isInspector || role === 'inspector') {
     baseActions.push(
       {
         id: 'start-inspection',
@@ -355,8 +369,9 @@ export const getRoleQuickActions = (
     );
   }
 
-  // Clerk - Administrative tasks
-  if (role === 'clerk') {
+  // Clerk - Administrative tasks (check via capabilities)
+  const isClerk = user && hasCapability(user, 'gate_pass', 'create');
+  if (isClerk || role === 'clerk') {
     baseActions.push(
       {
         id: 'create-pass',
@@ -397,8 +412,9 @@ export const getRoleQuickActions = (
     }
   );
 
-  // Stockyard access for relevant roles
-  if (role === 'super_admin' || role === 'admin' || role === 'supervisor' || role === 'clerk') {
+  // Stockyard access for relevant roles (check via capabilities)
+  const hasStockyardAccess = user && hasCapability(user, 'stockyard', 'read');
+  if (hasStockyardAccess || role === 'super_admin' || role === 'admin' || role === 'supervisor' || role === 'clerk') {
     baseActions.push(
       {
         id: 'stockyard',
@@ -411,7 +427,17 @@ export const getRoleQuickActions = (
     );
   }
 
-  return baseActions;
+  // Deduplicate actions by ID (keep first occurrence)
+  const seenIds = new Set<string>();
+  const uniqueActions = baseActions.filter(action => {
+    if (seenIds.has(action.id)) {
+      return false;
+    }
+    seenIds.add(action.id);
+    return true;
+  });
+
+  return uniqueActions;
 };
 
 export default QuickActionsPanel;

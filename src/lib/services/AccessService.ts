@@ -60,8 +60,30 @@ class AccessService {
       if (filters?.page) params.page = filters.page;
       if (filters?.include_stats) params.include_stats = true;
 
+      // Debug: Log API request
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[AccessService] Fetching passes:', {
+          url: BASE_URL,
+          params,
+          fullFilters: filters,
+        });
+      }
+
       const response = await apiClient.get<GatePassListResponse>(BASE_URL, { params });
       const responseData = response.data;
+
+      // Debug: Log API response
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[AccessService] API Response:', {
+          hasData: !!responseData,
+          dataType: Array.isArray(responseData) ? 'array' : typeof responseData,
+          dataKeys: responseData && typeof responseData === 'object' ? Object.keys(responseData) : null,
+          dataLength: responseData?.data?.length || (Array.isArray(responseData) ? responseData.length : 0),
+          total: responseData?.total || responseData?.pagination?.total,
+          firstItem: responseData?.data?.[0] || (Array.isArray(responseData) ? responseData[0] : null),
+        });
+        console.log('[AccessService] Full API Response:', responseData);
+      }
 
       // Handle different response formats
       if (responseData.data) {

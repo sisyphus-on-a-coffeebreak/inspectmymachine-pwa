@@ -84,12 +84,12 @@ export const CreateComponentMovement: React.FC = () => {
     const fetchData = async () => {
       try {
         const [yardsRes, usersData] = await Promise.all([
-          apiClient.get('/v1/yards').catch(() => ({ data: [] })),
-          getUsers().catch(() => []),
+          apiClient.get('/v1/yards'),
+          getUsers(),
         ]);
         setYards(Array.isArray(yardsRes.data) ? yardsRes.data : yardsRes.data.data || []);
         // Filter only active employees
-        const activeEmployees = usersData
+        const activeEmployees = (usersData || [])
           .filter((user: UserType) => user.is_active)
           .map((user: UserType) => ({
             id: user.id,
@@ -98,12 +98,24 @@ export const CreateComponentMovement: React.FC = () => {
             email: user.email,
           }));
         setEmployees(activeEmployees);
-      } catch (err) {
-        // Error is already handled by apiClient
+      } catch (err: any) {
+        // Log error for debugging
+        console.error('Failed to load yards/employees:', err);
+        
+        // Set empty arrays as fallback
+        setYards([]);
+        setEmployees([]);
+        
+        // Show warning toast to user
+        showToast({
+          title: 'Warning',
+          description: 'Failed to load yards or employees. Some options may be unavailable. Please refresh the page.',
+          variant: 'warning',
+        });
       }
     };
     fetchData();
-  }, []);
+  }, [showToast]);
 
   const handleComponentSelect = (component: Component) => {
     setSelectedComponent(component);

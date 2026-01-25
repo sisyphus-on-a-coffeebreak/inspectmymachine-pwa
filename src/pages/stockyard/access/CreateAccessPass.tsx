@@ -147,8 +147,10 @@ export const CreateAccessPass: React.FC = () => {
       setTimeout(() => {
         navigate(`/app/stockyard/access/${newPass.id}`);
       }, 2500);
-    } catch {
-      // Error is handled by the mutation hook
+    } catch (error) {
+      // Hook should handle via onError, but log for debugging
+      console.error('Failed to create access pass:', error);
+      // Hooks verified to have onError handlers that show toast notifications
     } finally {
       setIsSubmitting(false);
     }

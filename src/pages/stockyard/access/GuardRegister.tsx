@@ -23,7 +23,8 @@ import { GuardDetailsModal, type GuardActionData } from './components/GuardDetai
 import { ActivityLogTimeline, type ActivityLogEntry } from './components/ActivityLogTimeline';
 import { ExportButton } from '@/components/ui/ExportButton';
 import { accessService } from '@/lib/services/AccessService';
-import { useGatePasses, useGuardLogs } from '@/hooks/useGatePasses';
+import { useGatePasses, useGuardLogs, accessPassKeys } from '@/hooks/useGatePasses';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/providers/useAuth';
 import { getCurrentLocation, getDefaultGateId } from '@/lib/utils/gateLocation';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -44,6 +45,7 @@ export const GuardRegister: React.FC = () => {
   const { showToast } = useToast();
   const { confirm, ConfirmComponent } = useConfirm();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   
   // State
@@ -67,6 +69,16 @@ export const GuardRegister: React.FC = () => {
   const dateRange = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    
+    // Debug: Log date calculation
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[GuardRegister] Date calculation:', {
+        timeRange,
+        todayDate: today.toISOString(),
+        todayFormatted: today.toISOString().split('T')[0],
+        currentTime: new Date().toISOString(),
+      });
+    }
     
     switch (timeRange) {
       case 'today':
@@ -103,15 +115,59 @@ export const GuardRegister: React.FC = () => {
   }, [timeRange]);
 
   // Fetch passes based on active tab and filters
-  const { data: passesData, isLoading: loading, refetch } = useGatePasses({
-    date_from: dateRange.date_from,
-    date_to: dateRange.date_to,
-    status: activeTab === 'expected' ? 'pending' : activeTab === 'inside' ? 'inside' : undefined,
+  // For "inside" and "log" tabs, don't filter by status - fetch all and filter client-side
+  // For "inside" and "log" tabs, always include today in the date range to catch newly entered passes
+  const today = new Date().toISOString().split('T')[0];
+  const filters = {
+    date_from: (activeTab === 'inside' || activeTab === 'log')
+      ? dateRange.date_from // Start from selected date range
+      : dateRange.date_from,
+    date_to: (activeTab === 'inside' || activeTab === 'log')
+      ? today // Always include today for "inside" and "log" tabs to catch newly entered passes
+      : dateRange.date_to,
+    status: activeTab === 'expected' ? 'pending' : undefined, // Don't filter by status for 'inside' and 'log' tabs
     per_page: 200,
+  };
+  
+  // Debug: Log filters being sent
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[GuardRegister] API Filters:', filters);
+      console.log('[GuardRegister] Date Range:', dateRange);
+    }
+  }, [filters, dateRange]);
+  
+  const { 
+    data: passesData, 
+    isLoading: loading, 
+    error: passesError,
+    isError: isPassesError,
+    refetch 
+  } = useGatePasses(filters, {
+    // Enable refetch on window focus to catch new entries
+    refetchOnWindowFocus: true,
+    // Refetch every 10 seconds to catch new entries automatically
+    refetchInterval: 10000,
+    // Debug: Log API response
+    onSuccess: (data) => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[GuardRegister] API Response:', {
+          total: data?.total,
+          dataLength: data?.data?.length,
+          firstPass: data?.data?.[0],
+          fullResponse: data,
+        });
+      }
+    },
   });
 
   // Fetch guard logs for activity timeline
-  const { data: guardLogsData, refetch: refetchLogs } = useGuardLogs({
+  const { 
+    data: guardLogsData, 
+    error: logsError,
+    isError: isLogsError,
+    refetch: refetchLogs 
+  } = useGuardLogs({
     date: dateRange.date_from,
     per_page: 200,
   });
@@ -126,6 +182,26 @@ export const GuardRegister: React.FC = () => {
 
     return () => clearInterval(interval);
   }, [refetch, refetchLogs]);
+
+  // Show error toasts when data fetching fails
+  useEffect(() => {
+    if (isPassesError && passesError) {
+      console.error('Failed to fetch gate passes:', passesError);
+      showToast({
+        title: 'Failed to Load Passes',
+        description: passesError instanceof Error ? passesError.message : 'Unable to fetch gate passes. Please try again.',
+        variant: 'error',
+      });
+    }
+  }, [isPassesError, passesError, showToast]);
+
+  useEffect(() => {
+    if (isLogsError && logsError) {
+      console.error('Failed to fetch guard logs:', logsError);
+      // Don't show toast for logs error as it's less critical
+      // Just log it for debugging
+    }
+  }, [isLogsError, logsError]);
 
   // Get GPS location on mount
   useEffect(() => {
@@ -142,14 +218,26 @@ export const GuardRegister: React.FC = () => {
   // Transform gate passes into activity log entries
   const activityLogEntries = useMemo((): ActivityLogEntry[] => {
     const allPasses = passesData?.data || [];
+    // For "inside" tab, filter to show passes with entry_time (entered but not exited)
+    const passesToProcess = activeTab === 'inside' 
+      ? allPasses.filter((p: GatePass) => 
+          p.status === 'inside' || (p.entry_time && !p.exit_time)
+        )
+      : allPasses;
     const entries: ActivityLogEntry[] = [];
 
-    allPasses.forEach((pass: GatePass) => {
+    passesToProcess.forEach((pass: GatePass) => {
+      // Validate pass has valid ID
+      if (!pass || !pass.id) {
+        console.warn('Gate pass missing ID:', pass);
+        return;
+      }
+      
       // Entry activity
       if (pass.entry_time) {
         entries.push({
           id: `entry-${pass.id}`,
-          pass_id: pass.id,
+          pass_id: String(pass.id), // Ensure it's a string
           pass,
           activity_type: 'entry',
           timestamp: pass.entry_time,
@@ -175,7 +263,7 @@ export const GuardRegister: React.FC = () => {
 
         entries.push({
           id: `exit-${pass.id}`,
-          pass_id: pass.id,
+          pass_id: String(pass.id), // Ensure it's a string
           pass,
           activity_type: 'exit',
           timestamp: pass.exit_time,
@@ -194,7 +282,7 @@ export const GuardRegister: React.FC = () => {
       if (pass.status === 'pending' && !pass.entry_time) {
         entries.push({
           id: `pending-${pass.id}`,
-          pass_id: pass.id,
+          pass_id: String(pass.id), // Ensure it's a string
           pass,
           activity_type: 'pending',
           timestamp: pass.valid_from || pass.created_at,
@@ -203,8 +291,21 @@ export const GuardRegister: React.FC = () => {
       }
     });
 
+    // Debug: Log final entries for log tab
+    if (process.env.NODE_ENV === 'development' && activeTab === 'log') {
+      console.log('[GuardRegister] Activity log entries generated:', {
+        totalEntries: entries.length,
+        entryCount: entries.filter(e => e.activity_type === 'entry').length,
+        exitCount: entries.filter(e => e.activity_type === 'exit').length,
+        pendingCount: entries.filter(e => e.activity_type === 'pending').length,
+        sampleEntry: entries[0],
+        allPassesCount: allPasses.length,
+        passesToProcessCount: passesToProcess.length,
+      });
+    }
+
     return entries;
-  }, [passesData, user]);
+  }, [passesData, user, activeTab]);
 
   // Filter activities
   const filteredActivities = useMemo(() => {
@@ -280,7 +381,12 @@ export const GuardRegister: React.FC = () => {
 
   // Calculate statistics
   const stats = useMemo(() => {
-    const allPasses = passesData?.data || [];
+    // Use passesForDisplay for accurate stats
+    const passesForStats = activeTab === 'inside' 
+      ? (passesData?.data || []).filter((p: GatePass) => 
+          p.status === 'inside' || (p.entry_time && !p.exit_time)
+        )
+      : passesData?.data || [];
     const activities = activityLogEntries;
     
     const entries = activities.filter(a => a.activity_type === 'entry').length;
@@ -312,14 +418,14 @@ export const GuardRegister: React.FC = () => {
       busiest_hour: busiestHour,
       active_guards: guards.size,
       gates_used: gates.size,
-      visitors_inside: allPasses.filter((p: GatePass) => 
-        isVisitorPass(p) && p.status === 'inside'
+      visitors_inside: passesForStats.filter((p: GatePass) => 
+        isVisitorPass(p) && (p.status === 'inside' || (p.entry_time && !p.exit_time))
       ).length,
-      vehicles_inside: allPasses.filter((p: GatePass) => 
-        isVehiclePass(p) && p.status === 'inside'
+      vehicles_inside: passesForStats.filter((p: GatePass) => 
+        isVehiclePass(p) && (p.status === 'inside' || (p.entry_time && !p.exit_time))
       ).length,
     };
-  }, [passesData, activityLogEntries]);
+  }, [passesData, activityLogEntries, activeTab]);
 
   // Get unique guards and gates for filters
   const { uniqueGuards, uniqueGates } = useMemo(() => {
@@ -337,15 +443,95 @@ export const GuardRegister: React.FC = () => {
     };
   }, [activityLogEntries]);
 
+  // Define allPasses before early returns (needed for hooks and useMemos)
+  const allPasses = passesData?.data || [];
+
+  // Debug logging (must be before any early returns to comply with Rules of Hooks)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[GuardRegister] Data update:', {
+        activeTab,
+        totalPasses: allPasses.length,
+        passesWithEntryTime: allPasses.filter((p: GatePass) => p.entry_time).length,
+        passesWithStatusInside: allPasses.filter((p: GatePass) => p.status === 'inside').length,
+        dateRange,
+        passesDataTotal: passesData?.total,
+        passesDataKeys: passesData ? Object.keys(passesData) : null,
+        isLoading: loading,
+        hasError: isPassesError,
+        error: passesError,
+        rawPassesData: passesData,
+      });
+    }
+  }, [allPasses, activeTab, dateRange, passesData, loading, isPassesError, passesError]);
+
+  // For "inside" tab, also include passes that have entry_time set (even if status isn't 'inside')
+  // This ensures we show all entered visitors/vehicles
+  // MUST be before early returns to comply with Rules of Hooks
+  const passesForDisplay = useMemo(() => {
+    if (activeTab === 'inside') {
+      // Include passes with status='inside' OR passes with entry_time set (entered but not yet exited)
+      const filtered = allPasses.filter((p: GatePass) => 
+        p.status === 'inside' || (p.entry_time && !p.exit_time)
+      );
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[GuardRegister] Inside tab filtering:', {
+          totalPasses: allPasses.length,
+          filteredPasses: filtered.length,
+          passesWithEntryTime: allPasses.filter((p: GatePass) => p.entry_time).length,
+        });
+      }
+      return filtered;
+    }
+    return allPasses;
+  }, [allPasses, activeTab]);
+
+  const visitorPasses = useMemo(() => 
+    passesForDisplay.filter((p: GatePass) => isVisitorPass(p)), 
+    [passesForDisplay]
+  );
+  
+  const vehicleMovements = useMemo(() => 
+    passesForDisplay.filter((p: GatePass) => !isVisitorPass(p)), 
+    [passesForDisplay]
+  );
+
+  // Prepare export data (MUST be before early returns to comply with Rules of Hooks)
+  const formatTime = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
+  const exportData = useMemo(() => {
+    return filteredActivities.map(a => ({
+      'Time': formatTime(a.timestamp),
+      'Activity Type': a.activity_type.toUpperCase(),
+      'Pass Number': a.pass?.pass_number || '',
+      'Visitor/Vehicle': isVisitorPass(a.pass!) 
+        ? a.pass?.visitor_name 
+        : a.pass?.vehicle?.registration_number || '',
+      'Guard': a.guard_name || '',
+      'Gate': a.gate_name || '',
+      'Status': a.status,
+      'Notes': a.notes || '',
+      'Duration': a.duration || '',
+    }));
+  }, [filteredActivities]);
+
   // Handlers
   const handleMarkEntry = async (passId: string) => {
     try {
       const record = await accessService.get(passId);
       setSelectedRecord(record);
-    } catch {
+    } catch (error) {
+      // Log error for debugging
+      console.error('Failed to load pass details:', error);
       showToast({
         title: 'Error',
-        description: 'Failed to load pass details. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to load pass details. Please try again.',
         variant: 'error',
       });
     }
@@ -375,7 +561,7 @@ export const GuardRegister: React.FC = () => {
         escalation_reason: data.escalation_reason,
       };
 
-      await accessService.recordEntry(selectedRecord.id, {
+      const result = await accessService.recordEntry(selectedRecord.id, {
         notes: data.notes,
         guard_id: user?.id,
         gate_id: getDefaultGateId() || undefined,
@@ -390,8 +576,22 @@ export const GuardRegister: React.FC = () => {
       });
       
       setSelectedRecord(null);
-      refetch();
-      refetchLogs();
+      
+      // Invalidate React Query cache to force fresh data
+      queryClient.invalidateQueries({ queryKey: accessPassKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: accessPassKeys.guardLogs() });
+      
+      // Force refetch with a delay to ensure backend has processed
+      setTimeout(async () => {
+        console.log('[GuardRegister] Refetching after entry recorded...');
+        try {
+          await Promise.all([refetch(), refetchLogs()]);
+          console.log('[GuardRegister] Refetch completed successfully');
+          setLastRefreshTime(new Date());
+        } catch (error) {
+          console.error('[GuardRegister] Refetch failed:', error);
+        }
+      }, 1000); // Increased delay to ensure backend processing
     } catch (error: any) {
       const errorMessage = error?.response?.data?.message || error?.message || 'Failed to mark entry';
       showToast({
@@ -465,30 +665,51 @@ export const GuardRegister: React.FC = () => {
     // Export will be handled by ExportButton component
   };
 
-  const formatTime = (dateString?: string) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };
-
-  // Prepare export data
-  const exportData = useMemo(() => {
-    return filteredActivities.map(a => ({
-      'Time': formatTime(a.timestamp),
-      'Activity Type': a.activity_type.toUpperCase(),
-      'Pass Number': a.pass?.pass_number || '',
-      'Visitor/Vehicle': isVisitorPass(a.pass!) 
-        ? a.pass?.visitor_name 
-        : a.pass?.vehicle?.registration_number || '',
-      'Guard': a.guard_name || '',
-      'Gate': a.gate_name || '',
-      'Status': a.status,
-      'Notes': a.notes || '',
-      'Duration': a.duration || '',
-    }));
-  }, [filteredActivities]);
+  // Show error state if data fetching failed
+  if (isPassesError && (!passesData?.data || passesData.data.length === 0)) {
+    return (
+      <div style={{ 
+        padding: spacing.xxl, 
+        textAlign: 'center',
+        maxWidth: '600px',
+        margin: '0 auto'
+      }}>
+        <div style={{ fontSize: '4rem', marginBottom: spacing.md }}>⚠️</div>
+        <h2 style={{ 
+          ...typography.header,
+          fontSize: '24px',
+          color: colors.error?.[700] || '#DC2626',
+          marginBottom: spacing.md
+        }}>
+          Failed to Load Guard Register
+        </h2>
+        <p style={{ 
+          ...typography.body,
+          color: colors.neutral[600],
+          marginBottom: spacing.xl
+        }}>
+          {passesError instanceof Error ? passesError.message : 'Unable to fetch gate pass data. Please check your connection and try again.'}
+        </p>
+        <div style={{ display: 'flex', gap: spacing.md, justifyContent: 'center' }}>
+          <Button
+            variant="primary"
+            onClick={() => {
+              refetch();
+              refetchLogs();
+            }}
+          >
+            🔄 Retry
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => navigate('/app/stockyard/access')}
+          >
+            ← Back to Gate Pass
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading && (!passesData?.data || passesData.data.length === 0)) {
     return (
@@ -498,10 +719,6 @@ export const GuardRegister: React.FC = () => {
       </div>
     );
   }
-
-  const allPasses = passesData?.data || [];
-  const visitorPasses = allPasses.filter((p: GatePass) => isVisitorPass(p));
-  const vehicleMovements = allPasses.filter((p: GatePass) => !isVisitorPass(p));
 
   return (
     <PullToRefreshWrapper onRefresh={handleRefresh}>
@@ -943,7 +1160,17 @@ export const GuardRegister: React.FC = () => {
 
             <ActivityLogTimeline
               activities={groupedActivities}
-              onViewDetails={(passId) => navigate(`/app/stockyard/access/${passId}`)}
+              onViewDetails={(passId) => {
+                if (!passId || passId === 'undefined' || passId === 'null') {
+                  showToast({
+                    title: 'Invalid Pass ID',
+                    description: 'The gate pass ID is missing or invalid.',
+                    variant: 'error',
+                  });
+                  return;
+                }
+                navigate(`/app/stockyard/access/${passId}`);
+              }}
               onMarkExit={handleMarkExit}
               showActions={true}
             />

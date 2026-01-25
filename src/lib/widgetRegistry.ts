@@ -2,10 +2,15 @@
  * Widget Registry
  * 
  * Central registry for all dashboard widgets
+ * 
+ * ⚠️ MIGRATION: This file now supports both role-based (legacy) and capability-based checks.
+ * Capability checks are preferred when a user object is available.
  */
 
 import type { WidgetType, WidgetConfig, WidgetProps } from '../types/widgets';
 import { colors } from './theme';
+import type { User } from '../providers/authTypes';
+import { hasCapability } from './users';
 
 export interface WidgetDefinition {
   type: WidgetType;
@@ -45,10 +50,28 @@ export function getAvailableWidgets(role?: string): WidgetDefinition[] {
 }
 
 /**
- * Get default widget layout for a role
+ * Get default widget layout for a role or user
+ * 
+ * ⚠️ MIGRATION: Now accepts either role string (legacy) or user object (preferred).
+ * When user object is provided, capability checks are used instead of role checks.
+ * 
+ * @param roleOrUser - Role string (legacy) or User object (preferred)
  */
-export function getDefaultLayout(role?: string): WidgetConfig[] {
+export function getDefaultLayout(roleOrUser?: string | User | null): WidgetConfig[] {
+  // Extract role string for backward compatibility
+  const role = typeof roleOrUser === 'string' ? roleOrUser : roleOrUser?.role;
+  const user = typeof roleOrUser === 'object' && roleOrUser !== null ? roleOrUser : null;
+  
   const availableWidgets = getAvailableWidgets(role);
+  
+  // Helper to check capabilities when user is available, otherwise fall back to role
+  const hasCap = (module: string, action: string): boolean => {
+    if (user) {
+      return hasCapability(user, module as any, action as any);
+    }
+    // Fallback to role checks for backward compatibility
+    return false; // Will be handled by role checks below
+  };
   
   // Role-specific default layouts
   if (role === 'guard') {
@@ -138,7 +161,7 @@ export function getDefaultLayout(role?: string): WidgetConfig[] {
       type: 'pending-approvals',
       title: 'Pending Approvals',
       size: 'medium',
-      visible: role === 'super_admin' || role === 'admin' || role === 'supervisor' || role === 'yard_incharge',
+      visible: hasCap('gate_pass', 'approve') || role === 'super_admin' || role === 'admin' || role === 'supervisor' || role === 'yard_incharge',
       order: 2,
     },
     {
@@ -146,7 +169,7 @@ export function getDefaultLayout(role?: string): WidgetConfig[] {
       type: 'needs-attention',
       title: 'Needs Attention',
       size: 'medium',
-      visible: role === 'super_admin' || role === 'admin' || role === 'supervisor' || role === 'yard_incharge' || role === 'executive' || role === 'clerk',
+      visible: hasCap('gate_pass', 'read') || role === 'super_admin' || role === 'admin' || role === 'supervisor' || role === 'yard_incharge' || role === 'executive' || role === 'clerk',
       order: 3,
     },
     {
@@ -170,7 +193,7 @@ export function getDefaultLayout(role?: string): WidgetConfig[] {
       type: 'inspection-sync',
       title: 'Inspection Sync',
       size: 'medium',
-      visible: role === 'super_admin' || role === 'admin' || role === 'inspector',
+      visible: hasCap('inspection', 'read') || role === 'super_admin' || role === 'admin' || role === 'inspector',
       order: 6,
     },
     {

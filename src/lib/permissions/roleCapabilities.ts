@@ -1,10 +1,28 @@
 /**
- * Role Capabilities - Single Source of Truth
+ * Role Capabilities - Default Definitions (Migration Artifact)
  * 
- * This file contains all role capability definitions to avoid duplication
- * across users.ts and evaluator.ts
+ * ⚠️ IMPORTANT: These are DEFAULT capabilities only, NOT the source of truth!
  * 
- * For custom roles, capabilities are fetched from the API
+ * MIGRATION STATUS:
+ * - These hard-coded role capabilities are migration artifacts from the old role-based system
+ * - The source of truth is now the database (roles table + role_capabilities table)
+ * - API-fetched capabilities ALWAYS override these hard-coded defaults
+ * - These defaults are used only as fallback when:
+ *   1. API is unavailable
+ *   2. Role doesn't exist in database yet
+ *   3. During initial system setup
+ * 
+ * FUTURE:
+ * - After migration is complete, these defaults may be removed
+ * - All roles should be defined in the database
+ * - Custom roles are fully supported via API
+ * 
+ * USAGE:
+ * - For system roles: Check database first, fall back to these defaults
+ * - For custom roles: Always fetch from API (no defaults exist)
+ * - Never use these as the primary source for permission checks
+ * 
+ * See: docs/ROLE_TO_CAPABILITY_MIGRATION_PLAN.md for migration details
  */
 
 import type { User } from '../users';
@@ -34,10 +52,19 @@ function createStockyardCapabilities(
   );
 }
 
+/**
+ * Get default role capabilities (fallback only)
+ * 
+ * ⚠️ WARNING: These are DEFAULTS only, not the source of truth!
+ * Always check database/API first, use these only as fallback.
+ * 
+ * @returns Record of role names to default capabilities
+ */
 export function getRoleCapabilities(): Record<User['role'], UserCapabilities> {
   return {
     super_admin: {
       // Basic capabilities (for backward compat during transition)
+      // NOTE: These are defaults - superadmin should have all capabilities from backend
       gate_pass: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
       stockyard: ['create', 'read', 'update', 'delete', 'approve', 'validate'],
       inspection: ['create', 'read', 'update', 'delete', 'approve', 'review'],
@@ -162,7 +189,13 @@ export function getRoleCapabilitiesRecord(): Record<User['role'], Record<Capabil
 }
 
 /**
- * Fetch role capabilities from API (for custom roles)
+ * Fetch role capabilities from API (for custom roles and system roles)
+ * 
+ * ⚠️ MIGRATION NOTE: This is the PREFERRED method after migration.
+ * API-fetched capabilities should ALWAYS override hardcoded defaults.
+ * 
+ * @param roleName - The role name to fetch capabilities for
+ * @returns UserCapabilities from API, or null if not found/unavailable
  */
 async function fetchRoleCapabilitiesFromAPI(roleName: string): Promise<UserCapabilities | null> {
   try {
@@ -171,13 +204,14 @@ async function fetchRoleCapabilitiesFromAPI(roleName: string): Promise<UserCapab
       return roleCapabilitiesCache.get(roleName)!;
     }
 
-    // Fetch from API
+    // Fetch from API - this is the source of truth
     const response = await apiClient.get(`/v1/roles`);
     const roles = (response.data || []) as Array<{ name: string; capabilities: UserCapabilities }>;
     const role = roles.find((r) => r.name === roleName);
     
     if (role && role.capabilities) {
       // Convert API format to UserCapabilities format
+      // API capabilities override any hardcoded defaults
       const capabilities: UserCapabilities = role.capabilities;
       roleCapabilitiesCache.set(roleName, capabilities);
       return capabilities;
@@ -186,13 +220,23 @@ async function fetchRoleCapabilitiesFromAPI(roleName: string): Promise<UserCapab
     return null;
   } catch {
     // API might not be available or role doesn't exist
+    // Fall back to hardcoded defaults (migration period only)
     return null;
   }
 }
 
 /**
  * Check if role has capability (shared helper)
+ * 
+ * ⚠️ MIGRATION NOTE: This function checks hardcoded defaults first, then API.
+ * After migration, this should be reversed - check API first, defaults as fallback.
+ * 
  * For custom roles, fetches from API if not in hardcoded list
+ * 
+ * @param role - The role to check
+ * @param module - The capability module
+ * @param action - The capability action
+ * @returns true if role has the capability
  */
 export function hasRoleCapability(
   role: User['role'],
@@ -201,7 +245,8 @@ export function hasRoleCapability(
 ): boolean {
   const roleCapabilities = getRoleCapabilities();
   
-  // Check hardcoded roles first
+  // Check hardcoded roles first (during migration - will be fallback after)
+  // TODO: After migration, check API first, then fall back to defaults
   if (roleCapabilities[role]) {
     const capabilities = roleCapabilities[role];
     return capabilities[module]?.includes(action) ?? false;

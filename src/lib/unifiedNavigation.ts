@@ -33,7 +33,16 @@ import {
 } from 'lucide-react';
 import type { CapabilityModule, StockyardFunction } from './users';
 
-export type UserRole = 'super_admin' | 'admin' | 'supervisor' | 'yard_incharge' | 'executive' | 'inspector' | 'guard' | 'clerk';
+/**
+ * UserRole - Role type for navigation
+ * 
+ * ⚠️ MIGRATION: Changed from hard-coded union to `string` to support custom roles.
+ * Role is now just a display name - use capabilities for permission checks.
+ * 
+ * @deprecated This type is kept for backward compatibility but should be replaced with `string`.
+ * After migration, all role types should be `string` to support custom roles from API.
+ */
+export type UserRole = string; // Allow any string for custom roles
 
 export interface UnifiedNavItem {
   id: string;
@@ -61,6 +70,14 @@ export interface UnifiedNavItem {
 /**
  * Unified navigation items - single source of truth
  * These items are used by both desktop sidebar and mobile bottom nav
+ * 
+ * ⚠️ MIGRATION STATUS:
+ * - All items now have `requiredCapability` (preferred, capability-based)
+ * - `roles` arrays are kept as fallback during migration (deprecated)
+ * - Filter logic prioritizes `requiredCapability` over `roles`
+ * - After migration complete, `roles` arrays will be removed
+ * 
+ * See: docs/ROLE_TO_CAPABILITY_MIGRATION_PLAN.md for details
  */
 export const unifiedNavItems: UnifiedNavItem[] = [
   {
@@ -68,7 +85,7 @@ export const unifiedNavItems: UnifiedNavItem[] = [
     label: "Dashboard",
     icon: Home,
     path: "/app/home",
-    roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"],
+    requiredCapability: { module: 'gate_pass', action: 'read' }, // Basic read access to see dashboard
     mobile: { priority: 1, showInFab: false },
   },
   {
@@ -76,7 +93,7 @@ export const unifiedNavItems: UnifiedNavItem[] = [
     label: "Work",
     icon: Briefcase,
     path: "/app/work",
-    roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk", "executive", "yard_incharge"],
+    requiredCapability: { module: 'gate_pass', action: 'read' }, // Basic read access to see work items
     mobile: { priority: 2, showInFab: false },
   },
   {
@@ -84,7 +101,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
     label: "Yard Management",
     icon: Warehouse,
     path: "/app/stockyard",
-    roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk", "executive", "yard_incharge"],
     requiredCapability: { module: 'stockyard', action: 'read' },
     children: [
       {
@@ -92,7 +108,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
         label: "Access Control",
         icon: Ticket,
         path: "/app/stockyard/access",
-        roles: ["super_admin", "admin", "guard", "clerk", "supervisor", "executive", "yard_incharge"],
         requiredCapability: { module: 'stockyard', action: 'read', function: 'access_control' },
         children: [
           { 
@@ -100,7 +115,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
             label: "Dashboard", 
             icon: Ticket, 
             path: "/app/stockyard/access", 
-            roles: ["super_admin", "admin", "guard", "clerk", "supervisor", "executive", "yard_incharge"], 
             requiredCapability: { module: 'stockyard', action: 'read', function: 'access_control' } 
           },
           { 
@@ -108,7 +122,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
             label: "Create Visitor Pass", 
             icon: Ticket, 
             path: "/app/stockyard/access/create?type=visitor", 
-            roles: ["super_admin", "admin", "clerk", "executive", "yard_incharge"], 
             requiredCapability: { module: 'stockyard', action: 'create', function: 'access_control' } 
           },
           { 
@@ -116,7 +129,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
             label: "Create Vehicle Pass", 
             icon: Ticket, 
             path: "/app/stockyard/access/create?type=outbound", 
-            roles: ["super_admin", "admin", "clerk", "executive", "yard_incharge"], 
             requiredCapability: { module: 'stockyard', action: 'create', function: 'access_control' } 
           },
           { 
@@ -124,7 +136,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
             label: "Guard Register", 
             icon: Ticket, 
             path: "/app/stockyard/access/register", 
-            roles: ["super_admin", "admin", "guard"], 
             requiredCapability: { module: 'stockyard', action: 'read', function: 'access_control' } 
           },
           { 
@@ -132,7 +143,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
             label: "Validation", 
             icon: QrCode, 
             path: "/app/stockyard/access/scan", 
-            roles: ["super_admin", "admin", "supervisor", "guard", "clerk", "executive"], 
             requiredCapability: { module: 'gate_pass', action: 'validate' } 
           },
           { 
@@ -140,7 +150,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
             label: "Calendar", 
             icon: Ticket, 
             path: "/app/stockyard/access/calendar", 
-            roles: ["super_admin", "admin", "guard", "clerk", "supervisor", "executive", "yard_incharge"], 
             requiredCapability: { module: 'stockyard', action: 'read', function: 'access_control' } 
           },
           { 
@@ -148,7 +157,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
             label: "Reports", 
             icon: Ticket, 
             path: "/app/stockyard/access/reports", 
-            roles: ["super_admin", "admin"], 
             requiredCapability: { module: 'reports', action: 'read' } 
           },
           { 
@@ -156,7 +164,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
             label: "Approvals", 
             icon: CheckCircle, 
             path: "/app/approvals?tab=stockyard_access", 
-            roles: ["super_admin", "admin", "supervisor", "yard_incharge"], 
             requiredCapability: { module: 'stockyard', action: 'approve', function: 'access_control' } 
           }
         ],
@@ -167,7 +174,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
         label: "Inventory",
         icon: Package,
         path: "/app/stockyard/components",
-        roles: ["super_admin", "admin", "yard_incharge"],
         requiredCapability: { module: 'stockyard', action: 'read', function: 'inventory' },
         children: [
           {
@@ -175,7 +181,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
             label: "Dashboard", 
             icon: Warehouse, 
             path: "/app/stockyard", 
-            roles: ["super_admin", "admin", "yard_incharge"], 
             requiredCapability: { module: 'stockyard', action: 'read', function: 'inventory' } 
           },
           { 
@@ -183,7 +188,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
             label: "Component Ledger", 
             icon: Warehouse, 
             path: "/app/stockyard/components", 
-            roles: ["super_admin", "admin", "yard_incharge"], 
             requiredCapability: { module: 'stockyard', action: 'read', function: 'inventory' } 
           },
           { 
@@ -191,7 +195,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
             label: "Create Component", 
             icon: Warehouse, 
             path: "/app/stockyard/components/create", 
-            roles: ["super_admin", "admin", "yard_incharge"], 
             requiredCapability: { module: 'stockyard', action: 'create', function: 'inventory' } 
           },
         ]
@@ -201,7 +204,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
         label: "Movements",
         icon: ArrowRightLeft,
         path: "/app/stockyard/create",
-        roles: ["super_admin", "admin", "yard_incharge"],
         requiredCapability: { module: 'stockyard', action: 'read', function: 'movements' },
         children: [
           { 
@@ -209,7 +211,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
             label: "Record Movement", 
             icon: Warehouse, 
             path: "/app/stockyard/create", 
-            roles: ["super_admin", "admin", "yard_incharge"], 
             requiredCapability: { module: 'stockyard', action: 'create', function: 'movements' } 
           },
           { 
@@ -217,7 +218,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
             label: "Scan Vehicle", 
             icon: Warehouse, 
             path: "/app/stockyard/scan", 
-            roles: ["super_admin", "admin", "guard", "yard_incharge"], 
             requiredCapability: { module: 'stockyard', action: 'read', function: 'movements' } 
           },
         ]
@@ -230,7 +230,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
     label: "Inspections",
     icon: FileText,
     path: "/app/inspections",
-    roles: ["super_admin", "admin", "inspector"],
     requiredCapability: { module: 'inspection', action: 'read' },
     children: [
       { 
@@ -238,7 +237,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
         label: "Dashboard", 
         icon: FileText, 
         path: "/app/inspections", 
-        roles: ["super_admin", "admin", "inspector"], 
         requiredCapability: { module: 'inspection', action: 'read' } 
       },
       { 
@@ -246,7 +244,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
         label: "New Inspection", 
         icon: FileText, 
         path: "/app/inspections/create", 
-        roles: ["super_admin", "admin", "inspector"], 
         requiredCapability: { module: 'inspection', action: 'create' },
         mobile: { priority: 2, showInFab: false },
       },
@@ -255,7 +252,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
         label: "Completed", 
         icon: FileText, 
         path: "/app/inspections/completed", 
-        roles: ["super_admin", "admin", "inspector"], 
         requiredCapability: { module: 'inspection', action: 'read' } 
       },
       { 
@@ -263,7 +259,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
         label: "Reports", 
         icon: FileText, 
         path: "/app/inspections/reports", 
-        roles: ["super_admin", "admin", "inspector"], 
         requiredCapability: { module: 'reports', action: 'read' } 
       }
     ],
@@ -274,7 +269,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
     label: "Expenses",
     icon: DollarSign,
     path: "/app/expenses",
-    roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"],
     requiredCapability: { module: 'expense', action: 'read' },
     children: [
       { 
@@ -282,7 +276,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
         label: "Dashboard", 
         icon: DollarSign, 
         path: "/app/expenses", 
-        roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"], 
         requiredCapability: { module: 'expense', action: 'read' } 
       },
       { 
@@ -290,7 +283,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
         label: "Create Expense", 
         icon: DollarSign, 
         path: "/app/expenses/create", 
-        roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"], 
         requiredCapability: { module: 'expense', action: 'create' } 
       },
       { 
@@ -298,7 +290,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
         label: "History", 
         icon: DollarSign, 
         path: "/app/expenses/history", 
-        roles: ["super_admin", "admin", "supervisor", "inspector", "guard", "clerk"], 
         requiredCapability: { module: 'expense', action: 'read' } 
       },
       { 
@@ -306,7 +297,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
         label: "Reports", 
         icon: DollarSign, 
         path: "/app/expenses/reports", 
-        roles: ["super_admin", "admin"], 
         requiredCapability: { module: 'reports', action: 'read' } 
       },
       { 
@@ -314,7 +304,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
         label: "Analytics", 
         icon: DollarSign, 
         path: "/app/expenses/analytics", 
-        roles: ["super_admin", "admin"], 
         requiredCapability: { module: 'reports', action: 'read' } 
       }
     ],
@@ -325,8 +314,7 @@ export const unifiedNavItems: UnifiedNavItem[] = [
     label: "Alerts",
     icon: AlertTriangle,
     path: "/app/alerts",
-    roles: ["super_admin", "admin", "supervisor"],
-    requiredCapability: { module: 'stockyard', action: 'read', function: 'access_control' },
+    requiredCapability: { module: 'reports', action: 'read' }, // Alerts are like reports
     mobile: { priority: 5, showInFab: false, showInMore: true },
   },
   {
@@ -334,7 +322,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
     label: "User Management",
     icon: UserCog,
     path: "/app/admin/users",
-    roles: ["super_admin", "admin"],
     requiredCapability: { module: 'user_management', action: 'read' },
     children: [
       { 
@@ -342,7 +329,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
         label: "Dashboard", 
         icon: UserCog, 
         path: "/app/admin/users", 
-        roles: ["super_admin", "admin"], 
         requiredCapability: { module: 'user_management', action: 'read' } 
       },
       { 
@@ -350,7 +336,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
         label: "Role Management", 
         icon: Shield, 
         path: "/app/admin/roles", 
-        roles: ["super_admin", "admin"], 
         requiredCapability: { module: 'user_management', action: 'read' } 
       },
       { 
@@ -358,7 +343,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
         label: "Activity Dashboard", 
         icon: UserCog, 
         path: "/app/admin/users/activity", 
-        roles: ["super_admin", "admin"], 
         requiredCapability: { module: 'user_management', action: 'read' } 
       },
       { 
@@ -366,7 +350,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
         label: "Capability Matrix", 
         icon: UserCog, 
         path: "/app/admin/users/capability-matrix", 
-        roles: ["super_admin", "admin"], 
         requiredCapability: { module: 'user_management', action: 'read' } 
       },
       { 
@@ -374,7 +357,6 @@ export const unifiedNavItems: UnifiedNavItem[] = [
         label: "Bulk Operations", 
         icon: UserCog, 
         path: "/app/admin/users/bulk-operations", 
-        roles: ["super_admin", "admin"], 
         requiredCapability: { module: 'user_management', action: 'update' } 
       }
     ],
@@ -385,8 +367,7 @@ export const unifiedNavItems: UnifiedNavItem[] = [
     label: "Vehicle Costs",
     icon: Car,
     path: "/app/admin/vehicles/costs",
-    roles: ["super_admin"],
-    requiredCapability: { module: 'admin', action: 'read' },
+    requiredCapability: { module: 'reports', action: 'read' }, // Vehicle costs are reports
     mobile: { priority: 7, showInFab: false, showInMore: true },
   },
   {
@@ -394,14 +375,14 @@ export const unifiedNavItems: UnifiedNavItem[] = [
     label: "Settings",
     icon: Settings,
     path: "/app/settings",
-    roles: ["super_admin", "admin", "supervisor", "yard_incharge", "executive", "inspector", "guard", "clerk"],
+    requiredCapability: { module: 'gate_pass', action: 'read' }, // Basic read access for settings
     children: [
       { 
         id: "report-branding", 
         label: "Report Branding", 
         icon: Settings, 
         path: "/app/settings/report-branding", 
-        roles: ["super_admin", "admin"] 
+        requiredCapability: { module: 'reports', action: 'update' } 
       }
     ],
     mobile: { priority: 4, showInFab: false, showInMore: true },
@@ -426,8 +407,15 @@ export interface FabConfig {
 /**
  * Get FAB configuration for a role
  */
+/**
+ * Get FAB configuration for a role
+ * 
+ * ⚠️ MIGRATION: This function now accepts any string as role (for custom roles).
+ * The hard-coded role keys below are for system roles only.
+ * Custom roles will return undefined (no FAB) unless explicitly added.
+ */
 export function getFabConfigForRole(role: UserRole): FabConfig | undefined {
-  const configs: Record<UserRole, FabConfig | undefined> = {
+  const configs: Partial<Record<UserRole, FabConfig | undefined>> = {
     guard: undefined, // No FAB for guards
     inspector: undefined, // No FAB for inspectors (already have "New" button)
     clerk: {
@@ -502,8 +490,15 @@ export interface MobileNavConfig {
   fab?: FabConfig;
 }
 
+/**
+ * Get mobile navigation configuration for a role
+ * 
+ * ⚠️ MIGRATION: This function now accepts any string as role (for custom roles).
+ * The hard-coded role keys below are for system roles only.
+ * Custom roles will need to be handled via capability-based checks or return a default config.
+ */
 export function getMobileNavConfigForRole(role: UserRole): MobileNavConfig {
-  const configs: Record<UserRole, MobileNavConfig> = {
+  const configs: Partial<Record<UserRole, MobileNavConfig>> = {
     guard: {
       items: [
         { id: 'scan', label: 'Scan', icon: QrCode, route: '/app/stockyard/access/scan' },
@@ -642,6 +637,17 @@ export function filterNavItemsByAccess(
 /**
  * Check if user can access a navigation item
  */
+/**
+ * Check if user can access a navigation item
+ * 
+ * ⚠️ MIGRATION: This function prioritizes capabilities over roles.
+ * After migration, the roles fallback will be removed.
+ * 
+ * Priority order:
+ * 1. Check requiredCapability (preferred, capability-based)
+ * 2. Fall back to roles array (deprecated, migration period only)
+ * 3. If no restrictions, allow access
+ */
 function canUserAccessNavItem(
   item: UnifiedNavItem,
   user: { role?: string } | null,
@@ -650,7 +656,7 @@ function canUserAccessNavItem(
 ): boolean {
   if (!user) return false;
 
-  // Check capability first (for custom roles)
+  // PRIORITY 1: Check capability first (preferred, works with custom roles)
   if (item.requiredCapability) {
     const { module, action, function: stockyardFunction } = item.requiredCapability;
     
@@ -665,14 +671,25 @@ function canUserAccessNavItem(
     }
   }
 
-  // Check role-based access (backward compatibility)
+  // PRIORITY 2: Check role-based access (backward compatibility - DEPRECATED)
+  // ⚠️ This is a fallback during migration. After migration, this should be removed.
   if (item.roles && item.roles.length > 0) {
+    // Show deprecation warning in development (only once per item to avoid spam)
+    if (process.env.NODE_ENV === 'development' && !item._deprecationWarned) {
+      console.warn(
+        `Navigation item "${item.id}" uses deprecated "roles" array as fallback. ` +
+        `Item has requiredCapability, so roles fallback should not be needed. ` +
+        `See docs/ROLE_TO_CAPABILITY_MIGRATION_PLAN.md`
+      );
+      // Mark as warned to avoid spam (this is a hack, but works for dev warnings)
+      (item as any)._deprecationWarned = true;
+    }
     if (item.roles.includes(user.role as UserRole)) {
       return true;
     }
   }
 
-  // If no access control specified, allow access
+  // PRIORITY 3: If no access control specified, allow access
   if (!item.requiredCapability && (!item.roles || item.roles.length === 0)) {
     return true;
   }

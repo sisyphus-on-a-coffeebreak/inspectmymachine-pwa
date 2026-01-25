@@ -11,7 +11,16 @@ import { useAuth } from '@/providers/useAuth';
 import { hasCapability } from '@/lib/users';
 import type { User } from '@/providers/authTypes';
 
-export type GatePassRole = 'clerk' | 'guard' | 'supervisor' | 'admin' | 'super_admin' | 'inspector' | 'executive' | 'yard_incharge';
+/**
+ * GatePassRole - Role type for gate pass operations
+ * 
+ * ⚠️ MIGRATION: Changed from hard-coded union to `string` to support custom roles.
+ * Role is now just a display name - use capabilities for permission checks.
+ * 
+ * @deprecated This type is kept for backward compatibility but should be replaced with `string`.
+ * After migration, all role types should be `string` to support custom roles from API.
+ */
+export type GatePassRole = string; // Allow any string for custom roles
 
 export interface RolePermissions {
   canCreatePasses: boolean;
@@ -55,6 +64,7 @@ export function useUserRole() {
   const { user } = useAuth();
 
   const role = useMemo(() => {
+    // Role is just a display name - can be any string (including custom roles)
     return (user?.role || 'clerk') as GatePassRole;
   }, [user?.role]);
 
@@ -63,13 +73,17 @@ export function useUserRole() {
   }, [user]);
 
   // Convenience flags for backward compatibility
+  // ⚠️ MIGRATION NOTE: These are derived from role string for backward compatibility.
+  // After migration, these should be derived from capabilities instead.
+  // For now, we keep role-based checks but document that capabilities are preferred.
   const isGuard = role === 'guard';
   const isClerk = role === 'clerk';
   const isSupervisor = role === 'supervisor';
   const isYardIncharge = role === 'yard_incharge';
   const isExecutive = role === 'executive';
-  const isAdmin = role === 'admin' || role === 'super_admin';
-  const isSuperAdmin = role === 'super_admin';
+  // isAdmin: Check via capabilities (preferred) or role (fallback)
+  const isAdmin = hasCapability(user, 'user_management', 'read') || hasCapability(user, 'reports', 'read') || role === 'admin' || role === 'super_admin';
+  const isSuperAdmin = role === 'super_admin'; // Super admin is special - identified by role
 
   return {
     user,

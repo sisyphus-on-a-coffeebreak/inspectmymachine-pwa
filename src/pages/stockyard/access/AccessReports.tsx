@@ -52,12 +52,14 @@ export const AccessReports: React.FC = () => {
   const [popularTimes, setPopularTimes] = useState<PopularTimes[]>([]);
   const [yardStats, setYardStats] = useState<YardStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
   const [selectedYard, setSelectedYard] = useState<string>('all');
 
   const fetchReportData = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
 
       // Fetch comprehensive statistics
       const statsResponse = await apiClient.get('/v1/gate-pass-reports/summary', {
@@ -86,9 +88,34 @@ export const AccessReports: React.FC = () => {
       // Fetch yard statistics
       const yardsResponse = await apiClient.get('/v1/gate-pass-reports/yards');
 
-      setStats(statsResponse.data);
+      // Backend returns { success: true, data: { ... } }
+      // Extract the actual data from the nested structure
+      const summaryData = statsResponse.data?.data || statsResponse.data;
+      const analyticsData = trendsResponse.data?.data || trendsResponse.data;
+      const dashboardData = timesResponse.data?.data || timesResponse.data;
+      const yardsData = yardsResponse.data?.data || yardsResponse.data;
+
+      // Transform backend summary format to frontend format
+      if (summaryData) {
+        const summary = summaryData.summary || {};
+        const visitorStats = summaryData.visitor_passes || {};
+        const vehicleStats = summaryData.vehicle_movements || {};
+        
+        setStats({
+          total_passes: summary.total_passes || (visitorStats.total || 0) + (vehicleStats.total || 0),
+          visitor_passes: visitorStats.total || 0,
+          vehicle_passes: vehicleStats.total || 0,
+          active_passes: summary.active_passes || (visitorStats.active || 0) + (vehicleStats.active || 0),
+          completed_passes: summary.completed_passes || (visitorStats.completed || 0) + (vehicleStats.completed || 0),
+          cancelled_passes: (visitorStats.cancelled || 0) + (vehicleStats.cancelled || 0),
+          today_passes: 0, // Calculate from daily_trends if needed
+          week_passes: 0, // Calculate from daily_trends if needed
+          month_passes: summary.total_passes || 0,
+        });
+      }
+
       // Transform daily_trends from backend format to frontend format
-      const dailyTrends = statsResponse.data?.daily_trends || [];
+      const dailyTrends = summaryData?.daily_trends || [];
       const transformedTrends: PassTrend[] = Array.isArray(dailyTrends) 
         ? dailyTrends.map((item: any) => ({
             date: item.date || item.created_at || '',
@@ -98,21 +125,37 @@ export const AccessReports: React.FC = () => {
           }))
         : [];
       setTrends(transformedTrends);
+      
       // Popular times should come from dashboard or analytics
-      const popularTimesData = timesResponse.data?.popular_times || statsResponse.data?.peak_hours || [];
+      const popularTimesData = dashboardData?.popular_times || summaryData?.peak_hours || [];
       setPopularTimes(Array.isArray(popularTimesData) ? popularTimesData : []);
-      setYardStats(Array.isArray(yardsResponse.data) ? yardsResponse.data : []);
+      setYardStats(Array.isArray(yardsData) ? yardsData : []);
 
-    } catch (error) {
+    } catch (error: any) {
+      // Log error for debugging
+      console.error('Failed to fetch report data:', error);
+      console.error('Error response:', error?.response?.data);
+      
+      // Set error state
+      const errorMessage = error?.response?.data?.message || error?.message || 'Unable to fetch report data. Please try again.';
+      setError(errorMessage);
+      
       // Show empty state instead of mock data
       setStats(null);
       setTrends([]);
       setPopularTimes([]);
       setYardStats([]);
+      
+      // Show error toast
+      showToast({
+        title: 'Failed to Load Reports',
+        description: errorMessage,
+        variant: 'error',
+      });
     } finally {
       setLoading(false);
     }
-  }, [dateRange, selectedYard]);
+  }, [dateRange, selectedYard, showToast]);
 
   useEffect(() => {
     fetchReportData();
@@ -236,6 +279,63 @@ export const AccessReports: React.FC = () => {
       <div style={{ padding: '2rem', textAlign: 'center' }}>
         <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📊</div>
         <div style={{ color: '#6B7280' }}>Loading gate pass reports...</div>
+      </div>
+    );
+  }
+
+  // Show error state with retry button
+  if (error && !stats) {
+    return (
+      <div style={{ 
+        maxWidth: '1400px', 
+        margin: '0 auto', 
+        padding: spacing.xl,
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        backgroundColor: colors.neutral[50],
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{
+          textAlign: 'center',
+          padding: spacing.xl,
+          backgroundColor: 'white',
+          borderRadius: '16px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+          maxWidth: '500px'
+        }}>
+          <div style={{ fontSize: '4rem', marginBottom: spacing.lg }}>⚠️</div>
+          <h2 style={{ 
+            ...typography.header,
+            fontSize: '24px',
+            color: colors.error[700],
+            marginBottom: spacing.md
+          }}>
+            Failed to Load Reports
+          </h2>
+          <p style={{ 
+            ...typography.body,
+            color: colors.neutral[600],
+            marginBottom: spacing.xl
+          }}>
+            {error}
+          </p>
+          <div style={{ display: 'flex', gap: spacing.md, justifyContent: 'center' }}>
+            <Button
+              variant="primary"
+              onClick={() => fetchReportData()}
+            >
+              🔄 Retry
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => navigate('/app/stockyard/access')}
+            >
+              ← Back to Gate Pass
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }

@@ -455,7 +455,7 @@ export const AccessDashboard: React.FC = () => {
         ]}
         actions={
           <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
-            {(isAdmin || role === 'super_admin') && (
+            {isAdmin && (
               <Button
                 variant="warning"
                 size="sm"

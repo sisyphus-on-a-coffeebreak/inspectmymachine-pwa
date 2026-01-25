@@ -21,6 +21,8 @@ import { CompactGrid, DenseGrid } from '../../components/ui/ResponsiveGrid';
 import { emitExpenseCreated } from '../../lib/workflow/eventEmitters';
 import { updateVehicleCostOnExpense } from '../../lib/services/VehicleCostService';
 import { MultiAssetAllocation, type AllocationMethod, type AssetAllocation } from '../../components/expenses/MultiAssetAllocation';
+import { useAuth } from '../../providers/useAuth';
+import { hasCapability } from '../../lib/users';
 
 // 💰 Enhanced Expense Creation Form
 // Smart form with auto-categorization, GPS location, receipt capture
@@ -96,6 +98,7 @@ export const CreateExpense: React.FC = () => {
   const queryClient = useQueryClient();
   const { uploadImageWithProgress } = useUploader();
   const { showToast } = useToast();
+  const { user } = useAuth();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   
@@ -767,8 +770,8 @@ export const CreateExpense: React.FC = () => {
         },
       });
 
-      // Update vehicle cost if linked (Super Admin only, but we emit the event)
-      if (user?.role === 'super_admin') {
+      // Update vehicle cost if linked (Users with reports capability only)
+      if (hasCapability(user, 'reports', 'read')) {
         if (submitData.asset_id) {
           // Single asset
           await updateVehicleCostOnExpense(

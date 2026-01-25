@@ -18,7 +18,7 @@ import { useVehicleCosts } from '../../hooks/useVehicleCosts';
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { DollarSign, TrendingUp, Car, BarChart3, Calendar, Filter } from 'lucide-react';
-import { RequireRole } from '../../components/RequireAuth';
+import { RequireCapability } from '../../components/RequireAuth';
 
 const EXPENSE_CATEGORIES = [
   'FUEL',
@@ -80,7 +80,7 @@ export const VehicleCostDashboard: React.FC = () => {
   const sortedCosts = [...filteredCosts].sort((a, b) => b.totalCost - a.totalCost);
 
   return (
-    <RequireRole roles={['super_admin']}>
+    <RequireCapability module="reports" action="read">
       <div style={{
         maxWidth: '1400px',
         margin: '0 auto',
@@ -300,7 +300,7 @@ export const VehicleCostDashboard: React.FC = () => {
           </div>
         )}
       </div>
-    </RequireRole>
+    </RequireCapability>
   );
 };
 

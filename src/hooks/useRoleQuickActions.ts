@@ -10,15 +10,20 @@ export interface QuickActionsContext {
 }
 
 /**
- * Hook to get role-based quick actions with context awareness
+ * Hook to get capability-based quick actions with context awareness
+ * 
+ * ⚠️ MIGRATION: Now uses capability checks instead of role checks.
+ * Actions are determined by user capabilities, not role string.
  */
 export function useRoleQuickActions(context?: QuickActionsContext): QuickAction[] {
   const navigate = useNavigate();
   const { user } = useAuth();
 
   return useMemo(() => {
-    return getRoleQuickActions(user?.role || '', navigate, context);
-  }, [user?.role, navigate, context]);
+    // Pass user object for capability checks (preferred)
+    // Role is kept for backward compatibility
+    return getRoleQuickActions(user?.role || '', navigate, context, user);
+  }, [user, navigate, context]);
 }
 
 

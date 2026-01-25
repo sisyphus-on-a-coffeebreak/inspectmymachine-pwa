@@ -18,6 +18,7 @@ import { ImageDownloadManager } from '../../components/inspection/ImageDownloadM
 import { fetchInspectionTemplate } from '../../lib/inspection-templates';
 import { useInspections } from '../../lib/queries';
 import { useAuth } from '../../providers/useAuth';
+import { hasCapability } from '../../lib/users';
 import { generateInspectionPDF } from '../../lib/inspection-pdf-generator';
 import { logger } from '../../lib/logger';
 import { ShareButton } from '../../components/ui/ShareButton';
@@ -901,7 +902,7 @@ const getMediaUrl = useCallback((item: AnswerMediaItem): string => {
                   label: 'Add RTO Details',
                   icon: <FileText size={16} />,
                   onClick: () => setShowRtoManager(true),
-                  hidden: !(user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'supervisor'),
+                  hidden: !hasCapability(user, 'inspection', 'approve'),
                 },
                 {
                   id: 'related',
@@ -927,7 +928,7 @@ const getMediaUrl = useCallback((item: AnswerMediaItem): string => {
                     });
                   },
                   variant: 'destructive',
-                  hidden: !(user?.role === 'super_admin' || user?.role === 'admin'),
+                  hidden: !hasCapability(user, 'inspection', 'delete'),
                 },
               ]}
             />

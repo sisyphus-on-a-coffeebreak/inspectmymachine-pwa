@@ -39,8 +39,15 @@ export function getDefaultExpenseCategory(): string {
 /**
  * Get default payment method based on user role and context
  */
+/**
+ * Get default payment method based on user role and context
+ * 
+ * ⚠️ MIGRATION: This function still uses role checks for backward compatibility.
+ * In the future, this should accept a user object and use capability checks.
+ */
 export function getDefaultPaymentMethod(role?: string): 'CASH' | 'COMPANY_UPI' | 'PERSONAL_UPI' | 'CARD' {
   // Admins and supervisors typically use company UPI
+  // Note: After migration, this should check for expense.approve capability
   if (role === 'admin' || role === 'super_admin' || role === 'supervisor') {
     return 'COMPANY_UPI';
   }
@@ -164,6 +171,7 @@ export function saveRecentSelection(key: string, value: string): void {
     // Silently fail
   }
 }
+
 
 
 

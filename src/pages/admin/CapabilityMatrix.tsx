@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getUsers, updateUser, type User, type UserCapabilities, type CapabilityModule, type CapabilityAction } from '../../lib/users';
+import { getUsers, updateUser, getAvailableRoles, type User, type UserCapabilities, type CapabilityModule, type CapabilityAction } from '../../lib/users';
+import { apiClient } from '../../lib/apiClient';
 import { colors, typography, spacing, cardStyles, borderRadius } from '../../lib/theme';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Button } from '../../components/ui/button';
@@ -67,6 +68,41 @@ export const CapabilityMatrix: React.FC = () => {
       return users;
     },
   });
+
+  // Fetch available roles dynamically from API (includes custom roles)
+  const { data: apiRoles = [] } = useQuery<Array<{
+    id: number;
+    name: string;
+    display_name: string;
+    description?: string;
+    is_system_role: boolean;
+    is_active: boolean;
+  }>>({
+    queryKey: ['roles'],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get('/v1/roles');
+        return response.data || [];
+      } catch (error: any) {
+        // If roles table doesn't exist, return empty array (will use hardcoded fallback)
+        if (error?.response?.status === 503 || error?.response?.status === 500) {
+          return [];
+        }
+        throw error;
+      }
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  // Combine API roles with hardcoded roles (for backward compatibility)
+  const hardcodedRoles = getAvailableRoles();
+  const availableRoles = apiRoles.length > 0 
+    ? apiRoles.map(role => ({
+        value: role.name as User['role'],
+        label: role.display_name + (role.is_system_role === false ? ' (Custom)' : ''),
+        description: role.description || '',
+      }))
+    : hardcodedRoles;
 
   // Update user capabilities mutation
   const updateMutation = useMutation({
@@ -257,12 +293,11 @@ export const CapabilityMatrix: React.FC = () => {
           }}
         >
           <option value="all">All Roles</option>
-          <option value="super_admin">Super Admin</option>
-          <option value="admin">Admin</option>
-          <option value="supervisor">Supervisor</option>
-          <option value="inspector">Inspector</option>
-          <option value="guard">Guard</option>
-          <option value="clerk">Clerk</option>
+          {availableRoles.map((role) => (
+            <option key={role.value} value={role.value}>
+              {role.label}
+            </option>
+          ))}
         </select>
 
         <Button

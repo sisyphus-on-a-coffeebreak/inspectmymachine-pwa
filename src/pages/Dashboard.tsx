@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../providers/useAuth";
+import { hasCapability } from "../lib/users";
 import { colors, typography, spacing } from "../lib/theme";
 import { AnomalyAlert } from "../components/ui/AnomalyAlert";
 import { useDashboardStats } from "../lib/queries";
@@ -201,7 +202,7 @@ export default function Dashboard() {
   const [widgets, setWidgets] = useState<WidgetConfig[]>(() => {
     // Try to load saved layout, otherwise use default
     const saved = loadWidgetLayout(user?.id?.toString());
-    return saved || getDefaultLayout(user?.role);
+    return saved || getDefaultLayout(user); // Pass user object for capability checks
   });
 
   const getGreeting = () => {
@@ -886,7 +887,7 @@ export default function Dashboard() {
             }}
           >
             {/* Gate Pass Reports */}
-            {(user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'guard' || user?.role === 'clerk') && (
+            {hasCapability(user, 'gate_pass', 'read') && (
               <div
                 onClick={() => navigate('/app/gate-pass/reports')}
                 className="module-card"
@@ -956,7 +957,7 @@ export default function Dashboard() {
             )}
 
             {/* Inspection Reports */}
-            {(user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'inspector') && (
+            {hasCapability(user, 'inspection', 'read') && (
               <div
                 onClick={() => navigate('/app/inspections/reports')}
                 className="module-card"
@@ -1026,7 +1027,7 @@ export default function Dashboard() {
             )}
 
             {/* Expense Reports */}
-            {(user?.role === 'super_admin' || user?.role === 'admin') && (
+            {hasCapability(user, 'reports', 'read') && (
               <div
                 onClick={() => navigate('/app/expenses/reports')}
                 className="module-card"
@@ -1096,7 +1097,7 @@ export default function Dashboard() {
             )}
 
             {/* Stockyard Analytics */}
-            {(user?.role === 'super_admin' || user?.role === 'admin') && (
+            {hasCapability(user, 'reports', 'read') && (
               <div
                 onClick={() => navigate('/app/stockyard')}
                 className="module-card"
@@ -1166,7 +1167,7 @@ export default function Dashboard() {
             )}
 
             {/* User Activity Reports */}
-            {(user?.role === 'super_admin' || user?.role === 'admin') && (
+            {hasCapability(user, 'user_management', 'read') && (
               <div
                 onClick={() => navigate('/app/admin/users/activity')}
                 className="module-card"

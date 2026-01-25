@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { apiClient } from '../../lib/apiClient';
+import { getUser, type User } from '../../lib/users';
 import { colors, typography, spacing, cardStyles } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -18,7 +18,7 @@ export const UserDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -31,16 +31,16 @@ export const UserDetails: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await apiClient.get(`/users/${id}`);
-      setUser(response.data);
+      const userData = await getUser(Number(id));
+      setUser(userData);
       
       // Track in recently viewed
-      if (response.data && id) {
+      if (userData && id) {
         addRecentlyViewed({
           id: String(id),
           type: 'user',
-          title: response.data.name || `User #${id.substring(0, 8)}`,
-          subtitle: response.data.employee_id || response.data.email || 'User Details',
+          title: userData.name || `User #${id.substring(0, 8)}`,
+          subtitle: userData.employee_id || userData.email || 'User Details',
           path: `/app/admin/users/${id}`,
         });
       }

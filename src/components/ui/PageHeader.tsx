@@ -7,7 +7,7 @@ import type { BreadcrumbItem } from './Breadcrumb';
 
 interface PageHeaderProps {
   title: string;
-  subtitle?: string;
+  subtitle?: string | React.ReactNode; // Allow ReactNode to support complex subtitles
   icon?: string;
   breadcrumbs?: BreadcrumbItem[];
   actions?: React.ReactNode;
@@ -90,14 +90,14 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
               {title}
             </h1>
             {subtitle && (
-              <p style={{
+              <div style={{
                 ...typography.body,
                 color: colors.neutral[600],
                 marginTop: spacing.xs,
                 marginBottom: 0
               }}>
                 {subtitle}
-              </p>
+              </div>
             )}
           </div>
         </div>

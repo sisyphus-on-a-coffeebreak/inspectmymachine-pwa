@@ -10,6 +10,7 @@ import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PolicyLinks } from '../../components/ui/PolicyLinks';
 import { useAuth } from '../../providers/useAuth';
+import { hasCapability } from '../../lib/users';
 import { PullToRefreshWrapper } from '../../components/ui/PullToRefreshWrapper';
 import { LineChart, BarChart, PieChart } from '../../components/ui/charts';
 import { SkeletonCard, SkeletonLoader } from '../../components/ui/SkeletonLoader';
@@ -176,7 +177,7 @@ export const InspectionDashboard: React.FC = () => {
           >
             Back
           </Button>
-          {(user?.role === 'super_admin' || user?.role === 'admin') && (
+          {hasCapability(user, 'inspection', 'create') && (
             <Button
               variant="secondary"
               onClick={() => navigate('/app/inspections/studio')}
@@ -493,7 +494,7 @@ export const InspectionDashboard: React.FC = () => {
             </div>
           </div>
 
-          {(user?.role === 'super_admin' || user?.role === 'admin') && (
+          {hasCapability(user, 'inspection', 'create') && (
             <div
               onClick={() => navigate('/app/inspections/studio')}
               style={{

@@ -15,6 +15,7 @@ import { useExpenseApprovals, useExpenseApprovalStats, useApproveExpense, useRej
 import { emitExpenseApproved, emitExpenseRejected, emitBalanceNegative } from '../../lib/workflow/eventEmitters';
 import { updateVehicleCostOnExpense } from '../../lib/services/VehicleCostService';
 import { useAuth } from '../../providers/useAuth';
+import { hasCapability } from '../../lib/users';
 
 // ✅ Expense Approval Workflow
 // Admin approval system for employee expenses
@@ -106,8 +107,8 @@ export const ExpenseApproval: React.FC = () => {
           user?.id?.toString()
         );
         
-        // Update vehicle cost if linked (Super Admin only)
-        if (expense.asset_name && user?.role === 'super_admin') {
+        // Update vehicle cost if linked (Users with reports capability only)
+        if (expense.asset_name && hasCapability(user, 'reports', 'read')) {
           // Note: We need asset_id, but we only have asset_name here
           // This will be handled by backend workflow or we can fetch asset_id
         }

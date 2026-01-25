@@ -68,7 +68,9 @@ export const GuardDashboardContent: React.FC<GuardDashboardContentProps> = ({
         refetchInside();
       }, 500);
     } catch (error) {
-      // Error is handled by the hook
+      // Hook should handle via onError, but log for debugging
+      console.error('Failed to record entry:', error);
+      // Hooks verified to have onError handlers that show toast notifications
     }
   };
 
@@ -79,7 +81,9 @@ export const GuardDashboardContent: React.FC<GuardDashboardContentProps> = ({
       await recordExit.mutateAsync({ id: passId });
       refetchInside();
     } catch (error) {
-      // Error is handled by the hook
+      // Hook should handle via onError, but log for debugging
+      console.error('Failed to record exit:', error);
+      // Hooks verified to have onError handlers that show toast notifications
     }
   };
 
