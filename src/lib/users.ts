@@ -1,7 +1,7 @@
 import { apiClient } from './apiClient';
 import { API_BASE_URL } from './apiConfig';
 import type { EnhancedCapability } from './permissions/types';
-import { hasCapability as hasEnhancedCapability, isSuperAdmin as isSuperAdminFromEvaluator } from './permissions/evaluator';
+import { hasCapability as hasEnhancedCapability } from './permissions/evaluator';
 
 // Re-export types for backward compatibility
 export type CapabilityAction = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'validate' | 'review' | 'reassign' | 'export';
@@ -300,9 +300,15 @@ export async function updateUser(id: number, payload: UpdateUserPayload): Promis
 
 /**
  * Check if user is a superadmin
- * Re-exported from evaluator to avoid circular dependency
+ * 
+ * Note: There's also an isSuperAdmin in permissions/evaluator.ts with enhanced logic.
+ * This version is kept here to avoid circular dependencies (evaluator imports from users).
+ * Both implementations check user.role === 'super_admin' as the primary method.
  */
-export const isSuperAdmin = isSuperAdminFromEvaluator;
+export function isSuperAdmin(user: User | null): boolean {
+  if (!user) return false;
+  return user.role === 'super_admin';
+}
 
 /**
  * Check if user is the last active superadmin
