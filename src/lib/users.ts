@@ -1,7 +1,7 @@
 import { apiClient } from './apiClient';
 import { API_BASE_URL } from './apiConfig';
 import type { EnhancedCapability } from './permissions/types';
-import { hasCapability as hasEnhancedCapability } from './permissions/evaluator';
+import { hasCapability as hasEnhancedCapability, isSuperAdmin as isSuperAdminFromEvaluator } from './permissions/evaluator';
 
 // Re-export types for backward compatibility
 export type CapabilityAction = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'validate' | 'review' | 'reassign' | 'export';
@@ -22,14 +22,51 @@ export interface UserCapabilities {
   enhanced_capabilities?: EnhancedCapability[];
 }
 
+/**
+ * User Interface
+ * 
+ * ⚠️ MIGRATION NOTE: Role-based permissions are being migrated to capability-based system.
+ * 
+ * ROLE FIELD:
+ * - The `role` field is now primarily a DISPLAY NAME for UI purposes
+ * - Role can be any string (e.g., "admin", "supervisor", "custom_role_123")
+ * - Role does NOT determine permissions - use `capabilities` instead
+ * - Exception: `role === 'super_admin'` has special meaning (full access bypass)
+ * 
+ * CAPABILITIES (Source of Truth):
+ * - `capabilities`: Basic module-level capabilities (backward compatible)
+ * - `enhanced_capabilities`: Granular capabilities with scope, conditions, time restrictions
+ * - Permissions are checked via `hasCapability(user, module, action)` function
+ * - Always check capabilities, not role, for permission decisions
+ * 
+ * MIGRATION STATUS:
+ * - During migration: Both role and capabilities may be used
+ * - After migration: Capabilities are the only source of truth
+ * - Role remains for display/UI purposes only
+ * 
+ * See: docs/ROLE_TO_CAPABILITY_MIGRATION_PLAN.md for details
+ */
 export interface User {
   id: number;
   employee_id: string;
   name: string;
   email: string;
-  role: string; // Role is just a display name - can be any string. Only 'super_admin' has special meaning (all access)
-  capabilities?: UserCapabilities; // Capability matrix (module-level + CRUD flags)
-  enhanced_capabilities?: EnhancedCapability[]; // Enhanced capabilities with granularity
+  /** 
+   * Role is a DISPLAY NAME only - not used for permissions!
+   * Can be any string. Only 'super_admin' has special meaning (full access bypass).
+   * Use `capabilities` for permission checks, not this field.
+   */
+  role: string;
+  /** 
+   * Capability matrix - THIS IS THE SOURCE OF TRUTH for permissions
+   * Module-level capabilities (backward compatible during migration)
+   */
+  capabilities?: UserCapabilities;
+  /** 
+   * Enhanced capabilities with granularity (preferred, long-term)
+   * Supports scope, conditions, time restrictions, field-level permissions
+   */
+  enhanced_capabilities?: EnhancedCapability[];
   yard_id: string | null;
   is_active: boolean;
   skip_approval_gate_pass?: boolean; // Auto-approve gate passes created by this user
@@ -44,9 +81,21 @@ export interface CreateUserPayload {
   name: string;
   email: string;
   password: string;
-  role?: User['role']; // Optional - can use capabilities instead
-  role_id?: number; // Database role ID (preferred over role string)
-  capabilities?: UserCapabilities; // Capability matrix
+  /** 
+   * Role (display name) - Optional, can use capabilities instead
+   * This is just for UI display, not for permissions
+   */
+  role?: User['role'];
+  /** 
+   * Database role ID (preferred over role string)
+   * Links to roles table for capability inheritance
+   */
+  role_id?: number;
+  /** 
+   * Capability matrix - REQUIRED for permissions
+   * User must have at least one capability (basic or enhanced)
+   */
+  capabilities?: UserCapabilities;
   yard_id?: string | null;
   is_active?: boolean;
   skip_approval_gate_pass?: boolean; // Auto-approve gate passes created by this user
@@ -57,9 +106,21 @@ export interface UpdateUserPayload {
   name?: string;
   email?: string;
   password?: string;
-  role?: User['role']; // Optional - can use capabilities instead
-  role_id?: number; // Database role ID (preferred over role string)
-  capabilities?: UserCapabilities; // Capability matrix
+  /** 
+   * Role (display name) - Optional, can use capabilities instead
+   * This is just for UI display, not for permissions
+   */
+  role?: User['role'];
+  /** 
+   * Database role ID (preferred over role string)
+   * Links to roles table for capability inheritance
+   */
+  role_id?: number;
+  /** 
+   * Capability matrix - Updates user permissions
+   * User must have at least one capability (basic or enhanced)
+   */
+  capabilities?: UserCapabilities;
   yard_id?: string | null;
   is_active?: boolean;
   skip_approval_gate_pass?: boolean; // Auto-approve gate passes created by this user
@@ -238,6 +299,28 @@ export async function updateUser(id: number, payload: UpdateUserPayload): Promis
 }
 
 /**
+ * Check if user is a superadmin
+ * Re-exported from evaluator to avoid circular dependency
+ */
+export const isSuperAdmin = isSuperAdminFromEvaluator;
+
+/**
+ * Check if user is the last active superadmin
+ * This requires checking all users, so it's async
+ */
+export async function isLastSuperAdmin(userId: number): Promise<boolean> {
+  try {
+    const response = await getUsers({ role: 'super_admin', status: 'active' });
+    const superAdmins = response.data.filter(u => u.is_active && u.role === 'super_admin');
+    return superAdmins.length === 1 && superAdmins[0].id === userId;
+  } catch (error) {
+    // On error, be safe and assume it might be the last one
+    console.error('Error checking last superadmin:', error);
+    return false;
+  }
+}
+
+/**
  * Delete a user
  */
 export async function deleteUser(id: number): Promise<void> {
@@ -291,9 +374,15 @@ export async function getUserPermissions(id: number): Promise<{ user_id: number;
 /**
  * Check if user has capability
  * 
- * This function now uses the enhanced permission evaluator which supports:
+ * ⚠️ IMPORTANT: This is the PRIMARY way to check permissions!
+ * 
+ * DO NOT check `user.role` for permissions - use this function instead.
+ * Role is just a display name - capabilities are the source of truth.
+ * 
+ * This function uses the enhanced permission evaluator which supports:
  * - Basic capabilities (backward compatible)
  * - Enhanced capabilities with granularity (scope, conditions, time, context)
+ * - Superadmin bypass (safety mechanism)
  * 
  * For granular permission checks with context, use checkPermission from './permissions/evaluator'
  * For stockyard function-specific checks, use hasStockyardCapability()
@@ -302,6 +391,17 @@ export async function getUserPermissions(id: number): Promise<{ user_id: number;
  * @param module - The module to check
  * @param action - The action to check
  * @returns true if user has the capability
+ * 
+ * @example
+ * // ✅ CORRECT: Check capabilities
+ * if (hasCapability(user, 'gate_pass', 'create')) {
+ *   // User can create gate passes
+ * }
+ * 
+ * // ❌ WRONG: Don't check role for permissions
+ * if (user.role === 'admin') {
+ *   // This is wrong - use hasCapability() instead
+ * }
  */
 export function hasCapability(user: User | null, module: CapabilityModule, action: CapabilityAction): boolean {
   // Use enhanced evaluator which handles both basic and enhanced capabilities
