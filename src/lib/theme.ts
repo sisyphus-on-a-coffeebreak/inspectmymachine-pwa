@@ -186,6 +186,28 @@ export const spacing = {
   xxxl: '64px'
 };
 
+/**
+ * Responsive spacing utilities using clamp()
+ * Mobile-first: Smaller values on mobile, scales up on larger screens
+ * Use these for padding, margins, and gaps that need to adapt to viewport
+ */
+export const responsiveSpacing = {
+  padding: {
+    xs: 'clamp(8px, 2vw, 12px)',   // Mobile: 8px, Desktop: 12px
+    sm: 'clamp(12px, 3vw, 16px)',   // Mobile: 12px, Desktop: 16px
+    md: 'clamp(16px, 4vw, 24px)',   // Mobile: 16px, Desktop: 24px
+    lg: 'clamp(24px, 5vw, 32px)',   // Mobile: 24px, Desktop: 32px
+    xl: 'clamp(32px, 6vw, 48px)',   // Mobile: 32px, Desktop: 48px
+  },
+  gap: {
+    xs: 'clamp(8px, 2vw, 12px)',
+    sm: 'clamp(12px, 3vw, 16px)',
+    md: 'clamp(16px, 4vw, 24px)',
+    lg: 'clamp(24px, 5vw, 32px)',
+    xl: 'clamp(32px, 6vw, 48px)',
+  },
+};
+
 export const borderRadius = {
   sm: '4px',
   md: '8px',

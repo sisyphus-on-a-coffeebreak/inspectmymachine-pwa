@@ -13,6 +13,7 @@ import { PermissionGate, useHasCapability } from '../../components/ui/Permission
 import { colors, typography, spacing, cardStyles, borderRadius } from '../../lib/theme';
 import { Shield, Plus, Edit2, Trash2, Search, Users, Check, X } from 'lucide-react';
 import type { CapabilityModule, CapabilityAction } from '../../lib/users';
+import { PageContainer } from '../../components/ui/PageContainer';
 
 interface Role {
   id: number;
@@ -286,9 +287,9 @@ export default function RoleManagement() {
     <div style={{
       minHeight: '100vh',
       backgroundColor: colors.background.neutral,
-      padding: spacing.xl
+      padding: 0
     }}>
-      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+      <PageContainer maxWidth="1400px" className="page-container-full-height">
         <PageHeader
           title="Role Management"
           subtitle="Create and manage roles with custom capabilities"
@@ -566,7 +567,7 @@ export default function RoleManagement() {
           requireTyping={true}
           confirmationText="DELETE"
         />
-      </div>
+      </PageContainer>
     </div>
   );
 }

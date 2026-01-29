@@ -25,6 +25,7 @@ interface Yard {
 export const CreateStockyardRequest: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const isMobile = useMobileViewport();
   const [loading, setLoading] = useState(false);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [yards, setYards] = useState<Yard[]>([]);
@@ -96,7 +97,10 @@ export const CreateStockyardRequest: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: spacing.xl, maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ 
+      ...getResponsivePageContainerStyles({ desktopMaxWidth: '800px' }),
+      padding: isMobile ? spacing.lg : spacing.xl,
+    }}>
       <PageHeader
         title="Create Stockyard Request"
         subtitle="Request vehicle entry or exit from stockyard"

@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { colors, typography, spacing, cardStyles, borderRadius, shadows } from '../../lib/theme';
+import { colors, typography, spacing, responsiveSpacing, cardStyles, borderRadius, shadows } from '../../lib/theme';
 import { ChevronRight } from 'lucide-react';
 
 export interface StatCardProps {
@@ -65,7 +65,7 @@ export const StatCard: React.FC<StatCardProps> = ({
         cursor: isClickable ? 'pointer' : 'default',
         transition: 'all 0.2s ease',
         position: 'relative',
-        padding: spacing.lg,
+        padding: responsiveSpacing.padding.lg, // Responsive: clamp(24px, 5vw, 32px)
         minHeight: '120px',
         display: 'flex',
         flexDirection: 'column',
@@ -149,7 +149,7 @@ export const StatCard: React.FC<StatCardProps> = ({
       </div>
 
       {trend && !loading && (
-        <div style={{ ...typography.caption, color: colors.neutral[600], marginTop: spacing.xs }}>
+        <div style={{ ...typography.bodySmall, color: colors.neutral[600], marginTop: spacing.xs }}>
           {trend}
         </div>
       )}

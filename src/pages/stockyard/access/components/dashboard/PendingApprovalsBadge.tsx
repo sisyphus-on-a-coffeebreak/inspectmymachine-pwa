@@ -102,7 +102,7 @@ export const PendingApprovalsBadge: React.FC<PendingApprovalsBadgeProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '12px',
+            fontSize: 'clamp(11px, 2.5vw, 12px)', // Responsive: 11px mobile, 12px desktop
             fontWeight: 700,
           }}>
             {pendingCount > 9 ? '9+' : pendingCount}

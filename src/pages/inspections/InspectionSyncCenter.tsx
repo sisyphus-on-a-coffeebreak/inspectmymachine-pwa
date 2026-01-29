@@ -23,6 +23,7 @@ import { get, set, del, keys } from '../../lib/idb-safe';
 import { loadInspectionDraft, clearInspectionDraft } from '../../lib/inspection-queue';
 import type { InspectionDraftRecord } from '../../lib/inspection-queue';
 import { fetchInspectionTemplate } from '../../lib/inspection-templates';
+import { useMobileViewport, getResponsivePageContainerStyles } from '../../lib/mobileUtils';
 
 /**
  * Inspection Sync Center
@@ -62,6 +63,7 @@ interface QueuedDraft {
 export const InspectionSyncCenter: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const isMobile = useMobileViewport();
   const confirm = useConfirm();
   const [drafts, setDrafts] = useState<QueuedDraft[]>([]);
   const [loading, setLoading] = useState(true);
@@ -298,7 +300,10 @@ export const InspectionSyncCenter: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: spacing.xl, maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ 
+      ...getResponsivePageContainerStyles({ desktopMaxWidth: '1400px' }),
+      padding: isMobile ? spacing.lg : spacing.xl,
+    }}>
       <div style={{ marginBottom: spacing.xl }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
           <h1 style={{ ...typography.h1 }}>Inspection Sync Center</h1>
@@ -488,7 +493,7 @@ export const InspectionSyncCenter: React.FC = () => {
             backgroundColor: 'white',
             borderRadius: borderRadius.lg,
             padding: spacing.xl,
-            maxWidth: '600px',
+            maxWidth: isMobile ? '100%' : '600px',
             width: '100%',
             maxHeight: '90vh',
             overflow: 'auto',

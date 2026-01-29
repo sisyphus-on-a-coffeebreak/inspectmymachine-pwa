@@ -12,6 +12,7 @@ import { apiClient } from '../../lib/apiClient';
 import { fetchInspectionTemplate } from '../../lib/inspection-templates';
 import { TemplateList } from '../../components/inspection/TemplateList';
 import { TemplateEditor, type InspectionTemplate as TemplateEditorTemplate, type InspectionSection } from '../../components/inspection/TemplateEditor';
+import { CardGrid } from '../../components/ui/ResponsiveGrid';
 import { logger } from '../../lib/logger';
 
 /**

@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { cardStyles, spacing, colors } from '../../lib/theme';
+import { cardStyles, spacing, responsiveSpacing, colors } from '../../lib/theme';
 
 export interface CardProps {
   children: React.ReactNode;
@@ -22,11 +22,12 @@ export interface CardProps {
   'aria-labelledby'?: string;
 }
 
+// Responsive padding using clamp() - scales from mobile to desktop
 const paddingMap = {
-  sm: spacing.sm,
-  md: spacing.md,
-  lg: spacing.lg,
-  xl: spacing.xl,
+  sm: responsiveSpacing.padding.sm,  // clamp(12px, 3vw, 16px)
+  md: responsiveSpacing.padding.md,  // clamp(16px, 4vw, 24px)
+  lg: responsiveSpacing.padding.lg,  // clamp(24px, 5vw, 32px)
+  xl: responsiveSpacing.padding.xl,  // clamp(32px, 6vw, 48px)
   none: '0',
 };
 

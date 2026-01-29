@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/Badge';
 import type { GatePass } from '../gatePassTypes';
 import { getPassDisplayName, getStatusLabel, getStatusColor, isExpired } from '../gatePassTypes';
-import { colors, spacing, typography, borderRadius } from '@/lib/theme';
+import { colors, spacing, responsiveSpacing, typography, borderRadius } from '@/lib/theme';
 
 /**
  * Map status color string to Badge variant
@@ -109,7 +109,7 @@ export const ValidationResultCard: React.FC<ValidationResultCardProps> = ({
     return (
       <div
         style={{
-          padding: spacing.xl,
+          padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
           backgroundColor: colors.neutral[50],
           border: `2px dashed ${colors.neutral[300]}`,
           borderRadius: borderRadius.lg,
@@ -130,7 +130,7 @@ export const ValidationResultCard: React.FC<ValidationResultCardProps> = ({
     return (
       <div
         style={{
-          padding: spacing.xl,
+          padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
           backgroundColor: 'white',
           border: `2px solid ${loadingBorderColor}`,
           borderRadius: borderRadius.lg,
@@ -151,7 +151,7 @@ export const ValidationResultCard: React.FC<ValidationResultCardProps> = ({
     return (
       <div
         style={{
-          padding: spacing.xl,
+          padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
           backgroundColor: 'white',
           border: `2px solid ${flashColor || colors.error}`,
           borderRadius: borderRadius.lg,
@@ -187,7 +187,7 @@ export const ValidationResultCard: React.FC<ValidationResultCardProps> = ({
     return (
       <div
         style={{
-          padding: spacing.xl,
+          padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
           backgroundColor: 'white',
           border: `2px solid ${flashColor || colors.neutral[200]}`,
           borderRadius: borderRadius.lg,
@@ -198,7 +198,7 @@ export const ValidationResultCard: React.FC<ValidationResultCardProps> = ({
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
           <div style={{ flex: 1 }}>
-            <div style={{ ...typography.subheader, fontSize: '20px', marginBottom: spacing.xs, color: colors.neutral[900] }}>
+            <div style={{ ...typography.subheader, fontSize: 'clamp(18px, 4.5vw, 20px)', marginBottom: spacing.xs, color: colors.neutral[900] }}>
               {getPassDisplayName(pass)}
             </div>
             <div style={{ ...typography.bodySmall, color: colors.neutral[600], marginBottom: spacing.sm }}>
@@ -254,7 +254,7 @@ export const ValidationResultCard: React.FC<ValidationResultCardProps> = ({
             style={{
               width: '100%',
               minHeight: '56px',
-              fontSize: '18px',
+              fontSize: 'clamp(16px, 4vw, 18px)', // Responsive: 16px mobile, 18px desktop
               fontWeight: 700,
               backgroundColor: suggestedAction === 'entry' ? colors.success : colors.primary[600],
               marginBottom: spacing.md,

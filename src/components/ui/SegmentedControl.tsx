@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { colors, typography, spacing, borderRadius } from '../../lib/theme';
-import { useMobileViewport } from '../../lib/mobileUtils';
+import './SegmentedControl.css';
 
 interface SegmentedControlOption {
   value: string | number;
@@ -34,7 +34,6 @@ export const SegmentedControl: React.FC<SegmentedControlProps> = ({
   orientation = 'horizontal',
   fullWidth = false,
 }) => {
-  const isMobile = useMobileViewport();
   const sizeStyles = {
     sm: { padding: spacing.xs, fontSize: typography.bodySmall.fontSize },
     md: { padding: spacing.sm, fontSize: typography.body.fontSize },
@@ -45,6 +44,7 @@ export const SegmentedControl: React.FC<SegmentedControlProps> = ({
   
   return (
     <div
+      className={`segmented-control segmented-control-${orientation} ${fullWidth ? 'segmented-control-full-width' : ''} ${disabled ? 'segmented-control-disabled' : ''}`}
       style={{
         display: 'flex',
         flexDirection: orientation === 'vertical' ? 'column' : 'row',
@@ -56,11 +56,6 @@ export const SegmentedControl: React.FC<SegmentedControlProps> = ({
         border: `1px solid ${colors.neutral[300]}`,
         opacity: disabled ? 0.6 : 1,
         cursor: disabled ? 'not-allowed' : 'default',
-        ...(isMobile && orientation === 'horizontal' && {
-          overflowX: 'auto',
-          WebkitOverflowScrolling: 'touch',
-          scrollbarWidth: 'thin',
-        }),
       }}
     >
       {options.map((option, index) => {
@@ -83,8 +78,6 @@ export const SegmentedControl: React.FC<SegmentedControlProps> = ({
               cursor: disabled ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s',
               textAlign: 'center',
-              whiteSpace: isMobile && orientation === 'horizontal' ? 'nowrap' : 'normal',
-              minWidth: isMobile && orientation === 'horizontal' ? 'max-content' : undefined,
               ...typography.body,
             }}
             onMouseEnter={(e) => {

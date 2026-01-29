@@ -85,6 +85,32 @@ export function getResponsiveContainerStyles(options?: {
 }
 
 /**
+ * Get responsive page container styles
+ * Standard pattern for page-level containers
+ * Mobile: 100% width, reduced padding
+ * Desktop: Centered with max-width, larger padding
+ */
+export function getResponsivePageContainerStyles(options?: {
+  maxWidth?: string;
+  desktopMaxWidth?: string;
+  padding?: string;
+  mobilePadding?: string;
+}): React.CSSProperties {
+  const isMobile = isMobileViewport();
+  const desktopMaxWidth = options?.desktopMaxWidth || options?.maxWidth || '1200px';
+  
+  return {
+    width: '100%',
+    maxWidth: isMobile ? '100%' : desktopMaxWidth,
+    margin: isMobile ? '0' : '0 auto',
+    padding: isMobile 
+      ? (options?.mobilePadding || mobileSpacing.padding.lg)
+      : (options?.padding || mobileSpacing.padding.xl),
+    boxSizing: 'border-box',
+  };
+}
+
+/**
  * Get touch-friendly button styles
  * Ensures minimum 44x44px touch targets
  */

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/lib/apiClient';
-import { colors, typography, spacing, cardStyles } from '@/lib/theme';
+import { colors, typography, spacing, responsiveSpacing, cardStyles } from '@/lib/theme';
 import { Button } from '@/components/ui/button';
 import { ActionGrid, StatsGrid } from '@/components/ui/ResponsiveGrid';
 
@@ -146,7 +146,7 @@ export const AccessCalendar: React.FC = () => {
     <div style={{ 
       maxWidth: '1400px', 
       margin: '0 auto', 
-      padding: spacing.xl,
+      padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
       fontFamily: typography.body.fontFamily,
       backgroundColor: colors.neutral[50],
       minHeight: '100vh'
@@ -157,7 +157,7 @@ export const AccessCalendar: React.FC = () => {
         justifyContent: 'space-between', 
         alignItems: 'center',
         marginBottom: spacing.xl,
-        padding: spacing.lg,
+        padding: responsiveSpacing.padding.lg, // Responsive: clamp(24px, 5vw, 32px)
         backgroundColor: 'white',
         borderRadius: '16px',
         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
@@ -166,7 +166,7 @@ export const AccessCalendar: React.FC = () => {
         <div>
           <h1 style={{ 
             ...typography.header,
-            fontSize: '28px',
+            fontSize: 'clamp(24px, 6vw, 28px)', // Responsive: 24px mobile, 28px desktop
             color: colors.neutral[900],
             margin: 0,
             display: 'flex',
@@ -195,7 +195,7 @@ export const AccessCalendar: React.FC = () => {
       <div style={{
         backgroundColor: 'white',
         borderRadius: '16px',
-        padding: spacing.lg,
+        padding: responsiveSpacing.padding.lg, // Responsive: clamp(24px, 5vw, 32px)
         marginBottom: spacing.xl,
         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
         border: '1px solid rgba(0,0,0,0.05)'
@@ -274,7 +274,7 @@ export const AccessCalendar: React.FC = () => {
               textAlign: 'center',
               fontWeight: 600,
               color: colors.neutral[700],
-              fontSize: '14px'
+              fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
             }}>
               {day}
             </div>
@@ -305,7 +305,7 @@ export const AccessCalendar: React.FC = () => {
                 fontWeight: day.isToday ? 700 : 600,
                 color: day.isCurrentMonth ? colors.neutral[900] : colors.neutral[400],
                 marginBottom: spacing.xs,
-                fontSize: '14px'
+                fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
               }}>
                 {day.day}
               </div>
@@ -320,7 +320,7 @@ export const AccessCalendar: React.FC = () => {
                       color: 'white',
                       padding: '2px 6px',
                       borderRadius: '4px',
-                      fontSize: '10px',
+                      fontSize: 'clamp(10px, 2.5vw, 11px)', // Responsive: 10px mobile, 11px desktop
                       fontWeight: 600,
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
@@ -350,7 +350,7 @@ export const AccessCalendar: React.FC = () => {
         <div style={{
           backgroundColor: 'white',
           borderRadius: '16px',
-          padding: spacing.xl,
+          padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
           boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
           border: '1px solid rgba(0,0,0,0.05)'
         }}>
@@ -373,7 +373,7 @@ export const AccessCalendar: React.FC = () => {
                 <div
                   key={pass.id}
                   style={{
-                    padding: spacing.lg,
+                    padding: responsiveSpacing.padding.lg, // Responsive: clamp(24px, 5vw, 32px)
                     border: '1px solid #E5E7EB',
                     borderRadius: '12px',
                     backgroundColor: '#F9FAFB',
@@ -420,7 +420,7 @@ export const AccessCalendar: React.FC = () => {
                         backgroundColor: getStatusColor(pass.status),
                         color: 'white',
                         borderRadius: '16px',
-                        fontSize: '12px',
+                        fontSize: 'clamp(12px, 3vw, 14px)', // Responsive: 12px mobile, 14px desktop
                         fontWeight: 600,
                         textTransform: 'capitalize'
                       }}>

@@ -13,6 +13,7 @@ import { Users, CheckSquare, Square, Settings, Power, Shield } from 'lucide-reac
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queries';
 import { CardGrid } from '../../components/ui/ResponsiveGrid';
+import { PageContainer } from '../../components/ui/PageContainer';
 
 const modules: CapabilityModule[] = ['gate_pass', 'inspection', 'expense', 'user_management', 'reports'];
 const actions: CapabilityAction[] = ['create', 'read', 'update', 'delete', 'approve', 'validate', 'review', 'reassign', 'export'];
@@ -96,14 +97,15 @@ export const BulkUserOperations: React.FC = () => {
       }))
     : defaultRoleOptions;
 
-  // Fetch all users
-  const { data: users, isLoading, error, refetch } = useQuery({
+  // Fetch all users — getUsers() returns { data: User[], meta, links }
+  const { data: usersResponse, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.users.list({}),
     queryFn: async () => {
       const usersData = await getUsers();
       return usersData;
     },
   });
+  const users = usersResponse?.data ?? [];
 
   // Bulk operations mutations
   const bulkAssignCapabilities = useMutation({
@@ -293,7 +295,7 @@ export const BulkUserOperations: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: spacing.xl, maxWidth: '1400px', margin: '0 auto' }}>
+    <PageContainer maxWidth="1400px">
       <PageHeader
         title="Bulk User Operations"
         subtitle="Perform bulk operations on multiple users at once"
@@ -591,7 +593,7 @@ export const BulkUserOperations: React.FC = () => {
         confirmVariant="warning"
         requireTyping={false}
       />
-    </div>
+    </PageContainer>
   );
 };
 

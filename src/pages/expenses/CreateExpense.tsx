@@ -4,6 +4,7 @@ import { apiClient, normalizeError } from '../../lib/apiClient';
 import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { PageContainer } from '../../components/ui/PageContainer';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { useUploader } from '../../lib/upload';
@@ -864,13 +865,10 @@ export const CreateExpense: React.FC = () => {
   };
 
   return (
-    <div style={{ 
-      maxWidth: '800px', 
-      margin: '0 auto', 
-      padding: spacing.xl,
+    <PageContainer maxWidth="800px" style={{
       fontFamily: typography.body.fontFamily,
       backgroundColor: colors.neutral[50],
-      minHeight: '100dvh' // Use dynamic viewport height for mobile
+      minHeight: '100dvh', // Use dynamic viewport height for mobile
     }}>
       {/* Header */}
       <PageHeader
@@ -2067,6 +2065,6 @@ export const CreateExpense: React.FC = () => {
           </div>
         </Modal>
       )}
-    </div>
+    </PageContainer>
   );
 };

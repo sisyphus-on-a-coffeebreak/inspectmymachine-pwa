@@ -132,7 +132,7 @@ export class ErrorBoundary extends Component<Props, State> {
             >
               An unexpected error occurred. Please try refreshing the page or contact support if the problem persists.
             </p>
-            {import.meta.env.DEV && this.state.error && (
+            {this.state.error && (
               <details
                 style={{
                   textAlign: 'left',
@@ -148,7 +148,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 }}
               >
                 <summary style={{ cursor: 'pointer', marginBottom: spacing.sm }}>
-                  Error Details (Development Only)
+                  {import.meta.env.DEV ? 'Error Details (Development)' : 'Technical details (for support)'}
                 </summary>
                 <div style={{ marginTop: spacing.sm }}>
                   <strong>Error:</strong>{' '}
@@ -160,17 +160,16 @@ export class ErrorBoundary extends Component<Props, State> {
                       if (typeof this.state.error === 'string') {
                         return this.state.error;
                       }
-                      // Safely convert to string
                       return String(this.state.error);
                     } catch {
                       return 'Error details unavailable';
                     }
                   })()}
-                  {this.state.errorInfo && (
+                  {this.state.errorInfo?.componentStack && (
                     <div style={{ marginTop: spacing.sm }}>
                       <strong>Component Stack:</strong>
                       <pre style={{ whiteSpace: 'pre-wrap', marginTop: spacing.xs }}>
-                        {this.state.errorInfo.componentStack || 'No stack trace available'}
+                        {this.state.errorInfo.componentStack}
                       </pre>
                     </div>
                   )}

@@ -1,0 +1,21 @@
+/**
+ * SegmentedControl Component - Responsive CSS
+ * 
+ * Pure CSS-based responsive styling for SegmentedControl component.
+ * No JavaScript detection required.
+ */
+
+/* Horizontal segmented control on mobile - enable scrolling */
+@media (max-width: 767px) {
+  .segmented-control-horizontal {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .segmented-control-horizontal button {
+    white-space: nowrap;
+    min-width: max-content;
+  }
+}
+

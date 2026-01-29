@@ -19,7 +19,7 @@ import { hasCapability, type UpdateUserPayload, isSuperAdmin } from '@/lib/users
 import type { EnhancedCapability } from '@/lib/permissions/types';
 import { UserCog, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { spacing } from '@/lib/theme';
+import { spacing, responsiveSpacing } from '@/lib/theme';
 
 export default function EditUser() {
   const { id } = useParams<{ id: string }>();
@@ -109,7 +109,13 @@ export default function EditUser() {
   };
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ 
+      padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
+      maxWidth: '800px', // CSS handles responsive via PageContainer
+      margin: '0 auto',
+      width: '100%',
+      boxSizing: 'border-box',
+    }}>
       <PageHeader
         title="Edit User"
         subtitle={`Editing ${user.name}`}

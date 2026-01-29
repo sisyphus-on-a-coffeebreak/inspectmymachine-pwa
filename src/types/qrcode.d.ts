@@ -15,7 +15,7 @@ declare module 'qrcode' {
   ): Promise<string>;
 
   export default {
-    toDataURL: typeof toDataURL;
+    toDataURL: typeof toDataURL,
   };
 }
 

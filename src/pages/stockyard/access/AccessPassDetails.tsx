@@ -26,6 +26,7 @@ import { PassDetailsSection } from './components/details/PassDetailsSection';
 import { TimelineSection } from './components/details/TimelineSection';
 import { ActionsSection } from './components/details/ActionsSection';
 import { QRCodeModal } from './components/details/QRCodeModal';
+import { PageContainer } from '@/components/ui/PageContainer';
 import {
   getPassDisplayName,
   getStatusLabel,
@@ -183,7 +184,7 @@ export const AccessPassDetails: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: spacing.xl }}>
+      <PageContainer maxWidth="1200px">
         <PageHeader
           title="Gate Pass Details"
           subtitle="Loading..."
@@ -194,13 +195,13 @@ export const AccessPassDetails: React.FC = () => {
           <SkeletonLoader variant="card" />
           <SkeletonLoader variant="card" />
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   if (error || !pass) {
     return (
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: spacing.xl }}>
+      <PageContainer maxWidth="1200px">
         <PageHeader
           title="Gate Pass Details"
           subtitle="Error loading pass"
@@ -211,7 +212,7 @@ export const AccessPassDetails: React.FC = () => {
           onRetry={() => refetch()}
           onGoBack={() => navigate('/app/gate-pass')}
         />
-      </div>
+      </PageContainer>
     );
   }
 
@@ -219,7 +220,7 @@ export const AccessPassDetails: React.FC = () => {
   const timeInside = getTimeInside();
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: spacing.xl }}>
+    <PageContainer maxWidth="1200px">
       {ConfirmComponent}
       
       <PageHeader
@@ -229,13 +230,7 @@ export const AccessPassDetails: React.FC = () => {
             <span>{getPassDisplayName(pass)}</span>
             <Badge
               variant={isVisitorPass(pass) ? 'info' : isOutboundVehicle(pass) ? 'warning' : 'success'}
-              size="md"
-              style={{ 
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                fontSize: '11px',
-                letterSpacing: '0.5px',
-              }}
+              size="sm"
             >
               {getPassTypeLabel(pass.pass_type)}
             </Badge>
@@ -331,6 +326,6 @@ export const AccessPassDetails: React.FC = () => {
           onClose={() => setShowQrModal(false)}
         />
       )}
-    </div>
+    </PageContainer>
   );
 };

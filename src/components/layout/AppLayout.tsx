@@ -36,6 +36,7 @@ import { SkipToContent } from "../ui/SkipToContent";
 import { generateBreadcrumbs, shouldShowBreadcrumbs } from "../../lib/breadcrumbUtils";
 import { usePrefetch } from "../../hooks/usePrefetch";
 import { unifiedNavItems, filterNavItemsByAccess, type UnifiedNavItem } from "../../lib/unifiedNavigation";
+import { zIndex } from "../../lib/z-index";
 
 // Keep NavItem interface for backward compatibility with existing code
 interface NavItem {
@@ -910,7 +911,7 @@ export default function AppLayout({
                   right: 0,
                   bottom: 0,
                   background: "rgba(0, 0, 0, 0.5)",
-                  zIndex: 40
+                  zIndex: zIndex.sidebar - 1 // Below sidebar (1399) but above other content
                 }}
               />
             )}
@@ -923,10 +924,10 @@ export default function AppLayout({
                 borderRight: `1px solid ${colors.neutral[200]}`,
                 position: "fixed",
                 top: "64px",
-                bottom: 0,
+                bottom: "64px", // Account for BottomNav height (64px) so logout button is accessible
                 display: "flex",
                 flexDirection: "column",
-                zIndex: 50,
+                zIndex: zIndex.sidebar, // Use proper z-index (1400) to be above BottomNav (1200)
                 willChange: "transform",
                 overflow: "hidden"
               }}>

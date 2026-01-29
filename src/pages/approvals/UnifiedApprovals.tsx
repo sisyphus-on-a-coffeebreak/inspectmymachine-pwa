@@ -17,6 +17,7 @@ import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { CardGrid } from '../../components/ui/ResponsiveGrid';
 import { hasCapability } from '../../lib/users';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { useMobileViewport, getResponsivePageContainerStyles } from '../../lib/mobileUtils';
 
 export const UnifiedApprovals: React.FC = () => {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ export const UnifiedApprovals: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const { bulkApprove, bulkReject } = useBulkApproval();
+  const isMobileViewport = useMobileViewport();
   const isMobile = useIsMobile();
 
   // Get initial tab from URL or default to 'all'
@@ -210,9 +212,8 @@ export const UnifiedApprovals: React.FC = () => {
   return (
     <div
       style={{
-        maxWidth: '1400px',
-        margin: '0 auto',
-        padding: isMobile ? spacing.md : spacing.xl,
+        ...getResponsivePageContainerStyles({ desktopMaxWidth: '1400px' }),
+        padding: isMobileViewport ? spacing.lg : spacing.xl,
         fontFamily: 'system-ui, -apple-system, sans-serif',
         backgroundColor: colors.neutral[50],
         minHeight: '100vh',
@@ -471,8 +472,8 @@ export const UnifiedApprovals: React.FC = () => {
               backgroundColor: 'white',
               padding: spacing.xl,
               borderRadius: '16px',
-              maxWidth: '500px',
-              width: '90%',
+              maxWidth: isMobileViewport ? '100%' : '500px',
+              width: isMobileViewport ? '100%' : '90%',
             }}
             onClick={(e) => e.stopPropagation()}
           >

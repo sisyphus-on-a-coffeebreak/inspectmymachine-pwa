@@ -224,8 +224,14 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
             }
             
             newCache.set(image.s3Key, urlToCache);
-          } catch (error) {
-            logger.error(`Failed to get URL for ${image.s3Key}`, error, 'ImageDownloadManager');
+          } catch (error: any) {
+            // 403/404 errors are expected when files don't exist or user lacks permission
+            // Only log as error for unexpected failures
+            if (error?.response?.status === 403 || error?.response?.status === 404) {
+              // Silently handle expected errors - file may not exist or user may not have access
+            } else {
+              logger.error(`Failed to get URL for ${image.s3Key}`, error, 'ImageDownloadManager');
+            }
             // Don't cache failed requests - will retry on next render
           }
         })

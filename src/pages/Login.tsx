@@ -79,7 +79,13 @@ export default function Login() {
         width: '100%',
         maxWidth: '480px',
         position: 'relative',
-        zIndex: 1
+        zIndex: 1,
+        boxSizing: 'border-box',
+        // Ensure full width on very small screens
+        ...(typeof window !== 'undefined' && window.innerWidth < 360 && {
+          maxWidth: '100%',
+          padding: spacing.md,
+        }),
       }}>
         {/* Logo/Header */}
         <div style={{ 

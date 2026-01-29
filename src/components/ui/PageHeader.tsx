@@ -1,9 +1,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { colors, typography, spacing, shadows } from '../../lib/theme';
+import { colors, typography, spacing, responsiveSpacing, shadows } from '../../lib/theme';
 import { Button } from './button';
 import { Breadcrumb } from './Breadcrumb';
 import type { BreadcrumbItem } from './Breadcrumb';
+import './PageHeader.css';
 
 interface PageHeaderProps {
   title: string;
@@ -40,14 +41,14 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 
   return (
     <div 
-      className={`page-header ${className}`}
+      className={`page-header page-header-responsive ${className}`}
       style={{
-        marginBottom: spacing.xl,
         backgroundColor: 'white',
         borderRadius: '16px',
-        padding: spacing.xl,
+        padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
         boxShadow: shadows.md,
-        border: `1px solid ${colors.neutral[200]}`
+        border: `1px solid ${colors.neutral[200]}`,
+        boxSizing: 'border-box',
       }}
     >
       {/* Breadcrumbs */}
@@ -56,12 +57,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       )}
 
       {/* Header Content */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        gap: spacing.lg
-      }}>
+      <div className="page-header-content">
         <div style={{ flex: 1 }}>
           {/* Back Button */}
           <div style={{ marginBottom: spacing.md }}>

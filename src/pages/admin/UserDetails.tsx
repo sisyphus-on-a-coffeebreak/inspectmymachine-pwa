@@ -9,6 +9,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { useToast } from '../../providers/ToastProvider';
 import { ArrowLeft } from 'lucide-react';
 import { addRecentlyViewed } from '../../lib/recentlyViewed';
+import { PageContainer } from '../../components/ui/PageContainer';
 
 /**
  * User Details Page
@@ -67,18 +68,18 @@ export const UserDetails: React.FC = () => {
 
   if (error || !user) {
     return (
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: spacing.xl }}>
+      <PageContainer maxWidth="1200px">
         <NetworkError
           error={error || new Error('User not found')}
           onRetry={fetchUserDetails}
           onGoBack={() => navigate('/app/admin/users')}
         />
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div style={{ padding: spacing.xl, maxWidth: '1200px', margin: '0 auto' }}>
+    <PageContainer maxWidth="1200px">
       <PageHeader
         title={user.name || `User #${id?.substring(0, 8)}`}
         subtitle={user.employee_id || user.email || 'User Details'}
@@ -133,7 +134,7 @@ export const UserDetails: React.FC = () => {
                 <span style={{
                   padding: '4px 12px',
                   borderRadius: '12px',
-                  fontSize: '12px',
+                  fontSize: isMobile ? '14px' : '12px',
                   fontWeight: 600,
                   backgroundColor: user.is_active ? colors.success[500] : colors.error[500],
                   color: 'white'
@@ -157,7 +158,7 @@ export const UserDetails: React.FC = () => {
           )}
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 };
 

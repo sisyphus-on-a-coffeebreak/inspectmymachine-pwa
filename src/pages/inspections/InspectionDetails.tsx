@@ -27,7 +27,7 @@ import { ActionMenu, type ActionMenuItem } from '../../components/ui/ActionMenu'
 import { CompactGrid, CardGrid } from '../../components/ui/ResponsiveGrid';
 import { CollapsibleSection } from '../../components/ui/CollapsibleSection';
 import { MapPin, FileText, Download, Trash2, Settings } from 'lucide-react';
-
+import { PageContainer } from '../../components/ui/PageContainer';
 import { API_ORIGIN } from '../../lib/apiConfig';
 
 const STORAGE_ORIGIN = API_ORIGIN;
@@ -462,8 +462,14 @@ const getMediaUrl = useCallback((item: AnswerMediaItem): string => {
             }
             
             newCache.set(item.s3Key, urlToCache);
-          } catch (error) {
-            logger.error(`Failed to get signed URL for ${item.s3Key}`, error, 'InspectionDetails');
+          } catch (error: any) {
+            // 403/404 errors are expected when files don't exist or user lacks permission
+            // Only log as warning to reduce console noise
+            if (error?.response?.status === 403 || error?.response?.status === 404) {
+              // Silently handle expected errors - file may not exist or user may not have access
+            } else {
+              logger.error(`Failed to get signed URL for ${item.s3Key}`, error, 'InspectionDetails');
+            }
           }
         })
       );
@@ -808,27 +814,27 @@ const getMediaUrl = useCallback((item: AnswerMediaItem): string => {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: spacing.xl }}>
+      <PageContainer maxWidth="1200px">
         <SkeletonLoader variant="page" />
-      </div>
+      </PageContainer>
     );
   }
 
   if (error) {
     return (
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: spacing.sm }}>
+      <PageContainer maxWidth="1200px">
         <NetworkError
           error={error}
           onRetry={fetchInspectionDetails}
           onGoBack={() => navigate('/app/inspections')}
         />
-      </div>
+      </PageContainer>
     );
   }
 
   if (!inspection) {
     return (
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: spacing.sm }}>
+      <PageContainer maxWidth="1200px">
         <EmptyState
           icon="🔍"
           title="Inspection Not Found"
@@ -839,15 +845,12 @@ const getMediaUrl = useCallback((item: AnswerMediaItem): string => {
             icon: "⬅️"
           }}
         />
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div style={{ 
-      maxWidth: '1200px', 
-      margin: '0 auto', 
-      padding: spacing.xl,
+    <PageContainer maxWidth="1200px" style={{
       fontFamily: 'system-ui, -apple-system, sans-serif',
       backgroundColor: colors.neutral[50],
       minHeight: '100vh'
@@ -1617,7 +1620,7 @@ const getMediaUrl = useCallback((item: AnswerMediaItem): string => {
           onClose={() => setShowImageDownload(false)}
         />
       )}
-    </div>
+    </PageContainer>
   );
 };
 

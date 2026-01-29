@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/lib/apiClient';
-import { colors, typography, spacing, cardStyles } from '@/lib/theme';
+import { colors, typography, spacing, responsiveSpacing, cardStyles } from '@/lib/theme';
 import { Button } from '@/components/ui/button';
 import { ActionGrid, StatsGrid, CompactGrid } from '@/components/ui/ResponsiveGrid';
 import { useToast } from '@/providers/ToastProvider';
@@ -189,7 +189,7 @@ export const VisitorManagement: React.FC = () => {
     <div style={{ 
       maxWidth: '1400px', 
       margin: '0 auto', 
-      padding: spacing.xl,
+      padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
       fontFamily: typography.body.fontFamily,
       backgroundColor: colors.neutral[50],
       minHeight: '100vh'
@@ -200,7 +200,7 @@ export const VisitorManagement: React.FC = () => {
         justifyContent: 'space-between', 
         alignItems: 'center',
         marginBottom: spacing.xl,
-        padding: spacing.lg,
+        padding: responsiveSpacing.padding.lg, // Responsive: clamp(24px, 5vw, 32px)
         backgroundColor: 'white',
         borderRadius: '16px',
         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
@@ -209,7 +209,7 @@ export const VisitorManagement: React.FC = () => {
         <div>
           <h1 style={{ 
             ...typography.header,
-            fontSize: '28px',
+            fontSize: 'clamp(24px, 6vw, 28px)', // Responsive: 24px mobile, 28px desktop
             color: colors.neutral[900],
             margin: 0,
             display: 'flex',
@@ -237,7 +237,7 @@ export const VisitorManagement: React.FC = () => {
         <StatsGrid gap="lg" style={{ marginBottom: spacing.xl }}>
           <div style={{ 
             ...cardStyles.base,
-            padding: spacing.xl,
+            padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
             backgroundColor: 'white',
             border: `2px solid ${colors.primary}`,
             borderRadius: '16px',
@@ -256,7 +256,7 @@ export const VisitorManagement: React.FC = () => {
             </div>
             <div style={{ 
               ...typography.header,
-              fontSize: '32px',
+              fontSize: 'clamp(28px, 7vw, 32px)', // Responsive: 28px mobile, 32px desktop
               color: colors.primary,
               fontWeight: 700
             }}>
@@ -266,7 +266,7 @@ export const VisitorManagement: React.FC = () => {
 
           <div style={{ 
             ...cardStyles.base,
-            padding: spacing.xl,
+            padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
             backgroundColor: 'white',
             border: `2px solid ${colors.status.success}`,
             borderRadius: '16px',
@@ -285,7 +285,7 @@ export const VisitorManagement: React.FC = () => {
             </div>
             <div style={{ 
               ...typography.header,
-              fontSize: '32px',
+              fontSize: 'clamp(28px, 7vw, 32px)', // Responsive: 28px mobile, 32px desktop
               color: colors.status.success,
               fontWeight: 700
             }}>
@@ -295,7 +295,7 @@ export const VisitorManagement: React.FC = () => {
 
           <div style={{ 
             ...cardStyles.base,
-            padding: spacing.xl,
+            padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
             backgroundColor: 'white',
             border: `2px solid ${colors.status.warning}`,
             borderRadius: '16px',
@@ -314,7 +314,7 @@ export const VisitorManagement: React.FC = () => {
             </div>
             <div style={{ 
               ...typography.header,
-              fontSize: '32px',
+              fontSize: 'clamp(28px, 7vw, 32px)', // Responsive: 28px mobile, 32px desktop
               color: colors.status.warning,
               fontWeight: 700
             }}>
@@ -324,7 +324,7 @@ export const VisitorManagement: React.FC = () => {
 
           <div style={{ 
             ...cardStyles.base,
-            padding: spacing.xl,
+            padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
             backgroundColor: 'white',
             border: `2px solid ${colors.status.normal}`,
             borderRadius: '16px',
@@ -343,7 +343,7 @@ export const VisitorManagement: React.FC = () => {
             </div>
             <div style={{ 
               ...typography.header,
-              fontSize: '32px',
+              fontSize: 'clamp(28px, 7vw, 32px)', // Responsive: 28px mobile, 32px desktop
               color: colors.status.normal,
               fontWeight: 700
             }}>
@@ -357,7 +357,7 @@ export const VisitorManagement: React.FC = () => {
       <div style={{
         backgroundColor: 'white',
         borderRadius: '16px',
-        padding: spacing.lg,
+        padding: responsiveSpacing.padding.lg, // Responsive: clamp(24px, 5vw, 32px)
         marginBottom: spacing.xl,
         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
         border: '1px solid rgba(0,0,0,0.05)'
@@ -377,7 +377,7 @@ export const VisitorManagement: React.FC = () => {
                 padding: spacing.sm,
                 border: '1px solid #D1D5DB',
                 borderRadius: '8px',
-                fontSize: '14px'
+                fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
               }}
             />
           </div>
@@ -394,7 +394,7 @@ export const VisitorManagement: React.FC = () => {
                 border: '1px solid #D1D5DB',
                 borderRadius: '8px',
                 backgroundColor: 'white',
-                fontSize: '14px'
+                fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
               }}
             >
               <option value="all">All Status</option>
@@ -416,7 +416,7 @@ export const VisitorManagement: React.FC = () => {
                 border: '1px solid #D1D5DB',
                 borderRadius: '8px',
                 backgroundColor: 'white',
-                fontSize: '14px'
+                fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
               }}
             >
               <option value="last_visit">Last Visit</option>
@@ -437,7 +437,7 @@ export const VisitorManagement: React.FC = () => {
                 border: '1px solid #D1D5DB',
                 borderRadius: '8px',
                 backgroundColor: 'white',
-                fontSize: '14px'
+                fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
               }}
             >
               <option value="desc">Descending</option>
@@ -451,7 +451,7 @@ export const VisitorManagement: React.FC = () => {
       <div style={{
         backgroundColor: 'white',
         borderRadius: '16px',
-        padding: spacing.xl,
+        padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
         border: '1px solid rgba(0,0,0,0.05)'
       }}>
@@ -468,7 +468,7 @@ export const VisitorManagement: React.FC = () => {
             <div
               key={visitor.id}
               style={{
-                padding: spacing.lg,
+                padding: responsiveSpacing.padding.lg, // Responsive: clamp(24px, 5vw, 32px)
                 border: '1px solid #E5E7EB',
                 borderRadius: '12px',
                 backgroundColor: '#F9FAFB',
@@ -556,7 +556,7 @@ export const VisitorManagement: React.FC = () => {
                   padding: spacing.sm,
                   backgroundColor: colors.neutral[100],
                   borderRadius: '8px',
-                  fontSize: '14px',
+                  fontSize: 'clamp(13px, 3vw, 14px)', // Responsive: 13px mobile, 14px desktop
                   color: colors.neutral[700]
                 }}>
                   <strong>Notes:</strong> {visitor.notes}

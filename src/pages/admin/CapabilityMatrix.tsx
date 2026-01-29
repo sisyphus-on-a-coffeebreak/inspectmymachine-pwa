@@ -12,6 +12,7 @@ import { useToast } from '../../providers/ToastProvider';
 import { Grid, Filter, Download, Check, X, UserCog } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../lib/queries';
+import { PageContainer } from '../../components/ui/PageContainer';
 
 const modules: CapabilityModule[] = ['gate_pass', 'inspection', 'expense', 'user_management', 'reports'];
 const actions: CapabilityAction[] = ['create', 'read', 'update', 'delete', 'approve', 'validate', 'review', 'reassign', 'export'];
@@ -118,11 +119,14 @@ export const CapabilityMatrix: React.FC = () => {
     },
   });
 
+  // getUsers() returns { data: User[], meta, links } — use .data for the list
+  const usersList = usersData?.data ?? [];
+
   // Filter users
   const filteredUsers = useMemo(() => {
-    if (!usersData) return [];
+    if (!usersList.length) return [];
     
-    let filtered = usersData;
+    let filtered = usersList;
     
     if (filterRole !== 'all') {
       filtered = filtered.filter(user => user.role === filterRole);
@@ -131,14 +135,14 @@ export const CapabilityMatrix: React.FC = () => {
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(user => 
-        user.name.toLowerCase().includes(term) ||
-        user.email.toLowerCase().includes(term) ||
+        user.name?.toLowerCase().includes(term) ||
+        user.email?.toLowerCase().includes(term) ||
         user.employee_id?.toLowerCase().includes(term)
       );
     }
     
     return filtered;
-  }, [usersData, filterRole, searchTerm]);
+  }, [usersList, filterRole, searchTerm]);
 
   // Get all unique capabilities across all modules
   const allCapabilities = useMemo(() => {
@@ -250,8 +254,9 @@ export const CapabilityMatrix: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: spacing.xl, maxWidth: '100%', overflowX: 'auto' }}>
-      <PageHeader
+    <PageContainer maxWidth="full" className="page-container-no-padding">
+      <div style={{ overflowX: 'auto', padding: spacing.xl }}>
+        <PageHeader
         title="Capability Matrix"
         subtitle="View and manage user capabilities across all modules"
         icon="🔐"
@@ -446,7 +451,8 @@ export const CapabilityMatrix: React.FC = () => {
         confirmVariant="warning"
         requireTyping={false}
       />
-    </div>
+      </div>
+    </PageContainer>
   );
 };
 

@@ -32,6 +32,7 @@ import { StatsCards } from './components/dashboard/StatsCards';
 import { AnomalyAlerts } from './components/dashboard/AnomalyAlerts';
 import { FiltersSection } from './components/dashboard/FiltersSection';
 import { DEFAULT_PAGE_SIZE, GATE_PASS_TYPE, GATE_PASS_STATUS } from './constants';
+import { PageContainer } from '@/components/ui/PageContainer';
 
 // 🏭 Stockyard Access Dashboard (formerly Gate Pass Dashboard)
 // Main screen for office staff to manage all access passes
@@ -433,17 +434,16 @@ export const AccessDashboard: React.FC = () => {
     <PullToRefreshWrapper onRefresh={handleRefresh}>
       <>
         {ConfirmComponent}
-        <div style={{ 
-        maxWidth: '1200px', 
-        margin: '0 auto', 
-      padding: `${spacing.xl} ${spacing.lg}`,
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      backgroundColor: colors.neutral[50],
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: spacing.xl
-    }}>
+        <PageContainer 
+          maxWidth="1200px" 
+          className="page-container-full-height page-container-bg"
+          style={{
+            fontFamily: 'system-ui, -apple-system, sans-serif',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: spacing.xl
+          }}
+        >
       {/* Header */}
       <PageHeader
         title="Gate Pass Management"
@@ -619,7 +619,6 @@ export const AccessDashboard: React.FC = () => {
           </div>
         </>
       )}
-      </div>
 
       {/* Pass Display Modal */}
       {selectedPass && (
@@ -628,6 +627,7 @@ export const AccessDashboard: React.FC = () => {
           onClose={() => setSelectedPass(null)}
         />
       )}
+        </PageContainer>
       </>
     </PullToRefreshWrapper>
   );

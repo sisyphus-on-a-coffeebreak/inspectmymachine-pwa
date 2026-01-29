@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { colors, typography, spacing, cardStyles, borderRadius } from '../../lib/theme';
+import { colors, typography, spacing, responsiveSpacing, cardStyles, borderRadius } from '../../lib/theme';
 import { Tooltip } from './Tooltip';
 
 export interface LedgerBalanceCardProps {
@@ -85,7 +85,7 @@ export const LedgerBalanceCard: React.FC<LedgerBalanceCardProps> = ({
     <div
       style={{
         ...cardStyles.base,
-        padding: variant === 'compact' ? spacing.md : spacing.xl,
+        padding: variant === 'compact' ? responsiveSpacing.padding.md : responsiveSpacing.padding.xl,
         backgroundColor: 'white',
         border: `2px solid ${borderColor}`,
         borderRadius: borderRadius.lg,
@@ -124,7 +124,7 @@ export const LedgerBalanceCard: React.FC<LedgerBalanceCardProps> = ({
               <span style={{ 
                 cursor: 'help', 
                 color: colors.neutral[400],
-                fontSize: '14px',
+                fontSize: 'clamp(13px, 3vw, 14px)', // Responsive: 13px mobile, 14px desktop
                 marginLeft: spacing.xs,
               }}>
                 ℹ️
@@ -141,7 +141,7 @@ export const LedgerBalanceCard: React.FC<LedgerBalanceCardProps> = ({
               ? colors.neutral[100]
               : colors.status.normal + '20',
             borderRadius: borderRadius.sm,
-            fontSize: '11px',
+            fontSize: 'clamp(11px, 2.5vw, 12px)', // Responsive: 11px mobile, 12px desktop
             fontWeight: 600,
             color: balanceColor,
             textTransform: 'uppercase',
@@ -153,7 +153,7 @@ export const LedgerBalanceCard: React.FC<LedgerBalanceCardProps> = ({
 
       <div style={{
         ...typography.header,
-        fontSize: variant === 'compact' ? '24px' : '32px',
+        fontSize: variant === 'compact' ? 'clamp(22px, 5.5vw, 24px)' : 'clamp(28px, 7vw, 32px)', // Responsive font sizes
         color: balanceColor,
         fontWeight: 700,
         marginBottom: variant === 'detailed' ? spacing.xs : 0,
@@ -165,7 +165,7 @@ export const LedgerBalanceCard: React.FC<LedgerBalanceCardProps> = ({
         <div style={{
           ...typography.bodySmall,
           color: colors.neutral[500],
-          fontSize: '12px',
+          fontSize: 'clamp(12px, 3vw, 14px)', // Responsive: 12px mobile, 14px desktop
           marginTop: spacing.xs,
         }}>
           {isNegative 

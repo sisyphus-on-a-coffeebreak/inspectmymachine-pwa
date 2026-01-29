@@ -130,7 +130,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       ]) as any;
       
       // Handle both { user: User } and direct User response formats
-      const baseUser = (response.data as any).user || response.data;
+      const baseUser = (response?.data as any)?.user ?? (response?.data as any);
+      if (!baseUser || typeof baseUser !== 'object' || baseUser.id == null) {
+        setUser(null);
+        return;
+      }
       const nextUser = await hydrateUserPermissions(baseUser);
       setUser(nextUser);
     } catch (err) {
@@ -155,8 +159,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Step 2: Get user data
       const response = await apiClient.get<{ user: User }>("/user");
-      // Handle both { user: User } and direct User response formats
-      const baseUser = (response.data as any).user || response.data;
+      const baseUser = (response?.data as any)?.user ?? (response?.data as any);
+      if (!baseUser || typeof baseUser !== 'object' || baseUser.id == null) {
+        throw new Error('Invalid user data received. Please try again.');
+      }
       const nextUser = await hydrateUserPermissions(baseUser);
       setUser(nextUser);
     } catch (err) {

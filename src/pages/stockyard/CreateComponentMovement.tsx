@@ -11,6 +11,7 @@ import { Warehouse, ArrowLeft, Package, ArrowRight, ArrowDown, Search, User, Che
 import { apiClient } from '../../lib/apiClient';
 import { useComponents } from '../../lib/queries';
 import { getUsers, type User as UserType } from '../../lib/users';
+import { useMobileViewport, getResponsivePageContainerStyles } from '../../lib/mobileUtils';
 
 interface Component {
   id: string;
@@ -45,6 +46,7 @@ type ViewMode = 'search' | 'browse';
 export const CreateComponentMovement: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const isMobile = useMobileViewport();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [yards, setYards] = useState<Yard[]>([]);
@@ -846,7 +848,10 @@ export const CreateComponentMovement: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: spacing.xl, maxWidth: '900px', margin: '0 auto' }}>
+    <div style={{ 
+      ...getResponsivePageContainerStyles({ desktopMaxWidth: '900px' }),
+      padding: isMobile ? spacing.lg : spacing.xl,
+    }}>
       <PageHeader
         title="Record Component Movement"
         subtitle="Step-by-step wizard to record component entry or exit"

@@ -28,6 +28,8 @@ import { hasCapability } from '@/lib/users';
 import { useAuth } from '@/providers/useAuth';
 import { getActionIcon } from '@/lib/activityLogs';
 import type { ActivityLogEntry } from '@/lib/activityLogs';
+import { ResponsiveGrid } from '@/components/ui/ResponsiveGrid';
+import { useMobileViewport, getResponsivePageContainerStyles } from '@/lib/mobileUtils';
 
 export const UserDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -35,6 +37,7 @@ export const UserDetails: React.FC = () => {
   const { showToast } = useToast();
   const { user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'info' | 'activity' | 'sessions' | 'related'>('info');
+  const isMobile = useMobileViewport();
 
   const userId = id ? Number(id) : null;
 
@@ -111,7 +114,10 @@ export const UserDetails: React.FC = () => {
 
   if (userError || !user) {
     return (
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: spacing.xl }}>
+      <div style={{ 
+        ...getResponsivePageContainerStyles({ desktopMaxWidth: '1200px' }),
+        padding: isMobile ? spacing.lg : spacing.xl,
+      }}>
         <NetworkError
           error={userError || new Error('User not found')}
           onRetry={() => window.location.reload()}
@@ -129,7 +135,10 @@ export const UserDetails: React.FC = () => {
   const loginHistoryEntries = loginHistory?.data || [];
 
   return (
-    <div style={{ padding: spacing.xl, maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ 
+      ...getResponsivePageContainerStyles({ desktopMaxWidth: '1400px' }),
+      padding: isMobile ? spacing.lg : spacing.xl,
+    }}>
       <PageHeader
         title={user.name || `User #${id?.substring(0, 8)}`}
         subtitle={user.employee_id || user.email || 'User Details'}
@@ -209,7 +218,16 @@ export const UserDetails: React.FC = () => {
         {activeTab === 'info' && (
           <div style={{ ...cardStyles.card }}>
             <h3 style={{ ...typography.subheader, marginBottom: spacing.md }}>User Information</h3>
-            <div style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+            <ResponsiveGrid 
+              columns={{ 
+                mobile: 1, 
+                mobileLandscape: 1, 
+                tablet: 2, 
+                desktop: 3, 
+                wide: 3 
+              }}
+              gap="md"
+            >
               <div>
                 <div style={{ ...typography.label, color: colors.neutral[600], marginBottom: spacing.xs }}>
                   Employee ID
@@ -261,21 +279,22 @@ export const UserDetails: React.FC = () => {
                   <div style={{ ...typography.body }}>{new Date(user.created_at).toLocaleString()}</div>
                 </div>
               )}
-            </div>
+            </ResponsiveGrid>
 
             {/* Capabilities Section */}
-            {user.capabilities && (
+            {user.capabilities && typeof user.capabilities === 'object' && (
               <div style={{ marginTop: spacing.xl }}>
                 <h4 style={{ ...typography.subheader, marginBottom: spacing.md }}>Capabilities</h4>
                 <div style={{ display: 'grid', gap: spacing.md }}>
-                  {Object.entries(user.capabilities).map(([module, actions]) => (
+                  {Object.entries(user.capabilities).map(([module, actions]) => {
+                    const actionList = Array.isArray(actions) ? actions : [];
+                    return (
                     <div key={module} style={{ padding: spacing.md, backgroundColor: colors.neutral[50], borderRadius: borderRadius.md }}>
                       <div style={{ ...typography.label, marginBottom: spacing.xs, textTransform: 'capitalize' }}>
                         {module.replace('_', ' ')}
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.xs }}>
-                        {Array.isArray(actions) &&
-                          actions.map((action) => (
+                        {actionList.map((action) => (
                             <span
                               key={action}
                               style={{
@@ -292,7 +311,8 @@ export const UserDetails: React.FC = () => {
                           ))}
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               </div>
             )}

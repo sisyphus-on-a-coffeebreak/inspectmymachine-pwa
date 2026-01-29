@@ -26,6 +26,7 @@ import {
   Warehouse,
   Wrench,
 } from 'lucide-react';
+import { useMobileViewport, getResponsivePageContainerStyles } from '../../lib/mobileUtils';
 
 type TabType = 'pending' | 'today' | 'mine';
 
@@ -122,7 +123,10 @@ export const WorkPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ 
+      ...getResponsivePageContainerStyles({ desktopMaxWidth: '1400px' }),
+      padding: isMobile ? spacing.lg : spacing.xl,
+    }}>
       {/* Header */}
       <div style={{ marginBottom: spacing.xl }}>
         <h1 style={{ ...typography.header, fontSize: '28px', marginBottom: spacing.sm }}>

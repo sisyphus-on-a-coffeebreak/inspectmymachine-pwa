@@ -9,7 +9,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ActionGrid, StatsGrid } from '@/components/ui/ResponsiveGrid';
 import { StatCard } from '@/components/ui/StatCard';
-import { colors, spacing, cardStyles, typography } from '@/lib/theme';
+import { colors, spacing, responsiveSpacing, cardStyles, typography } from '@/lib/theme';
 import { PassListSection } from './PassListSection';
 
 interface StaffDashboardContentProps {
@@ -53,7 +53,7 @@ export const StaffDashboardContent: React.FC<StaffDashboardContentProps> = ({
             onClick={onCreateVisitor}
             style={{
               ...cardStyles.base,
-              padding: spacing.xl,
+              padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
               cursor: 'pointer',
               minHeight: '120px',
               display: 'flex',
@@ -74,7 +74,7 @@ export const StaffDashboardContent: React.FC<StaffDashboardContentProps> = ({
             }}
           >
             <div style={{ fontSize: '3rem', marginBottom: spacing.md }}>👥</div>
-            <div style={{ ...typography.subheader, fontSize: '20px', marginBottom: spacing.sm }}>
+            <div style={{ ...typography.subheader, fontSize: 'clamp(18px, 4.5vw, 20px)', marginBottom: spacing.sm }}>
               Create Visitor Pass
             </div>
             <div style={{ ...typography.bodySmall, color: colors.neutral[600] }}>
@@ -87,7 +87,7 @@ export const StaffDashboardContent: React.FC<StaffDashboardContentProps> = ({
             onClick={onCreateOutbound}
             style={{
               ...cardStyles.base,
-              padding: spacing.xl,
+              padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
               cursor: 'pointer',
               minHeight: '120px',
               display: 'flex',
@@ -108,7 +108,7 @@ export const StaffDashboardContent: React.FC<StaffDashboardContentProps> = ({
             }}
           >
             <div style={{ fontSize: '3rem', marginBottom: spacing.md }}>🚛</div>
-            <div style={{ ...typography.subheader, fontSize: '20px', marginBottom: spacing.sm }}>
+            <div style={{ ...typography.subheader, fontSize: 'clamp(18px, 4.5vw, 20px)', marginBottom: spacing.sm }}>
               Vehicle Going Out
             </div>
             <div style={{ ...typography.bodySmall, color: colors.neutral[600] }}>
@@ -121,7 +121,7 @@ export const StaffDashboardContent: React.FC<StaffDashboardContentProps> = ({
             onClick={onCreateInbound}
             style={{
               ...cardStyles.base,
-              padding: spacing.xl,
+              padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
               cursor: 'pointer',
               minHeight: '120px',
               display: 'flex',
@@ -142,7 +142,7 @@ export const StaffDashboardContent: React.FC<StaffDashboardContentProps> = ({
             }}
           >
             <div style={{ fontSize: '3rem', marginBottom: spacing.md }}>🚗</div>
-            <div style={{ ...typography.subheader, fontSize: '20px', marginBottom: spacing.sm }}>
+            <div style={{ ...typography.subheader, fontSize: 'clamp(18px, 4.5vw, 20px)', marginBottom: spacing.sm }}>
               Vehicle Coming In
             </div>
             <div style={{ ...typography.bodySmall, color: colors.neutral[600] }}>

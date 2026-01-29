@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { colors, spacing } from '../../lib/theme';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { LoadingError } from '../../components/ui/LoadingError';
+import { useMobileViewport, getResponsivePageContainerStyles } from '../../lib/mobileUtils';
 import type { InspectionTemplate } from '@/types/inspection';
 import { fetchInspectionTemplate } from '@/lib/inspection-templates';
 import { serializeAnswers, deserializeAnswers } from '@/lib/inspection-answers';
@@ -27,6 +28,7 @@ import type { DraftMetadata } from '../../lib/inspectionDrafts';
 
 export const InspectionCapture: React.FC = () => {
   const navigate = useNavigate();
+  const isMobile = useMobileViewport();
   const { templateId, vehicleId } = useParams<{ templateId: string; vehicleId?: string }>();
 
   const [template, setTemplate] = useState<InspectionTemplate | null>(null);
@@ -319,7 +321,10 @@ export const InspectionCapture: React.FC = () => {
 
   if (error && !template) {
     return (
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: spacing.sm }}>
+      <div style={{ 
+        ...getResponsivePageContainerStyles({ desktopMaxWidth: '1200px' }),
+        padding: isMobile ? spacing.md : spacing.sm,
+      }}>
         <LoadingError
           resource="inspection template"
           error={error}
@@ -351,9 +356,8 @@ export const InspectionCapture: React.FC = () => {
 
   return (
     <div style={{
-      maxWidth: '1000px',
-      margin: '0 auto',
-      padding: spacing.xl,
+      ...getResponsivePageContainerStyles({ desktopMaxWidth: '1000px' }),
+      padding: isMobile ? spacing.lg : spacing.xl,
       fontFamily: 'system-ui, -apple-system, sans-serif',
       backgroundColor: colors.neutral[50],
       minHeight: '100vh',

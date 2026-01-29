@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { colors, typography, spacing, cardStyles } from '@/lib/theme';
+import { colors, typography, spacing, responsiveSpacing, cardStyles } from '@/lib/theme';
 import { ActionGrid } from '@/components/ui/ResponsiveGrid';
 
 interface ActionCard {
@@ -127,7 +127,7 @@ export const ActionCards: React.FC = () => {
           onClick={() => navigate(card.path)}
           style={{
             ...cardStyles.base,
-            padding: spacing.xl,
+            padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
             cursor: 'pointer',
             minHeight: '120px',
             display: 'flex',
@@ -159,7 +159,7 @@ export const ActionCards: React.FC = () => {
           </div>
           <div style={{ 
             ...typography.subheader,
-            fontSize: '20px',
+            fontSize: 'clamp(18px, 4.5vw, 20px)', // Responsive: 18px mobile, 20px desktop
             color: colors.neutral[900],
             marginBottom: spacing.sm
           }}>

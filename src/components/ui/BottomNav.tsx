@@ -127,6 +127,9 @@ export function BottomNav() {
                 transition: 'transform 0.2s ease, color 0.2s',
                 position: 'relative',
                 transform: active ? 'scale(1.05)' : 'scale(1)',
+                minHeight: '44px', // Touch target minimum (WCAG)
+                minWidth: '44px',
+                touchAction: 'manipulation', // Disable double-tap zoom
               }}
               aria-label={item.label}
             >
@@ -191,6 +194,9 @@ export function BottomNav() {
               color: showMoreSheet ? colors.primary : colors.neutral[700],
               transition: 'transform 0.2s ease, color 0.2s',
               transform: showMoreSheet ? 'scale(1.05)' : 'scale(1)',
+              minHeight: '44px', // Touch target minimum (WCAG)
+              minWidth: '44px',
+              touchAction: 'manipulation', // Disable double-tap zoom
             }}
             aria-label="More"
           >

@@ -10,6 +10,7 @@ import { User, ArrowDownCircle, ArrowUpCircle, Clock, MapPin, Package } from 'lu
 import { colors, typography, spacing, cardStyles, borderRadius } from '@/lib/theme';
 import { Badge } from '@/components/ui/Badge';
 import type { GatePass } from '../gatePassTypes';
+import './PassCard.css';
 import {
   isVisitorPass,
   isOutboundVehicle,
@@ -69,13 +70,12 @@ export const PassCard: React.FC<PassCardProps> = ({ pass, onClick, compact = fal
 
   // Get icon based on pass type
   const getIcon = () => {
-    if (isVisitorPass(pass)) {
-      return <User size={compact ? 18 : 20} />;
-    }
-    if (isOutboundVehicle(pass)) {
-      return <ArrowUpCircle size={compact ? 18 : 20} />;
-    }
-    return <ArrowDownCircle size={compact ? 18 : 20} />;
+    const IconComponent = isVisitorPass(pass) 
+      ? User 
+      : isOutboundVehicle(pass) 
+      ? ArrowUpCircle 
+      : ArrowDownCircle;
+    return <IconComponent className="pass-card-icon" />;
   };
 
   // Get color based on pass type
@@ -125,9 +125,9 @@ export const PassCard: React.FC<PassCardProps> = ({ pass, onClick, compact = fal
   return (
     <div
       onClick={handleClick}
+      className={`pass-card ${compact ? 'pass-card-compact' : ''}`}
       style={{
         ...cardStyles.base,
-        padding: compact ? spacing.md : spacing.lg,
         cursor: isClickable ? 'pointer' : 'default',
         transition: 'all 0.2s ease',
         borderLeft: `4px solid ${typeColor}`,
@@ -170,36 +170,42 @@ export const PassCard: React.FC<PassCardProps> = ({ pass, onClick, compact = fal
           gap: spacing.sm,
           flex: 1,
         }}>
-          <div style={{
-            width: compact ? 32 : 40,
-            height: compact ? 32 : 40,
-            borderRadius: borderRadius.full,
-            backgroundColor: `${typeColor}15`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: typeColor,
-            flexShrink: 0,
-          }}>
+          <div 
+            className="pass-card-avatar"
+            style={{
+              borderRadius: borderRadius.full,
+              backgroundColor: `${typeColor}15`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: typeColor,
+              flexShrink: 0,
+            }}
+          >
             {getIcon()}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{
-              ...typography.subheader,
-              fontSize: compact ? '14px' : '16px',
-              color: colors.neutral[900],
-              marginBottom: 2,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}>
+            <div 
+              className="pass-card-name"
+              style={{
+                ...typography.subheader,
+                color: colors.neutral[900],
+                marginBottom: 2,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontWeight: 600,
+              }}
+            >
               {displayName}
             </div>
-            <div style={{
-              ...typography.caption,
-              color: colors.neutral[600],
-              fontSize: compact ? '11px' : '12px',
-            }}>
+            <div 
+              className="pass-card-number"
+              style={{
+                ...typography.bodySmall,
+                color: colors.neutral[600],
+              }}
+            >
               {pass.pass_number}
             </div>
           </div>
@@ -209,12 +215,7 @@ export const PassCard: React.FC<PassCardProps> = ({ pass, onClick, compact = fal
           <Badge
             variant={isVisitorPass(pass) ? 'info' : isOutboundVehicle(pass) ? 'warning' : 'success'}
             size={compact ? 'sm' : 'md'}
-            style={{ 
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              fontSize: compact ? '10px' : '11px',
-              letterSpacing: '0.5px',
-            }}
+            className="pass-card-type-badge"
           >
             {getPassTypeLabel(pass.pass_type)}
           </Badge>
@@ -231,7 +232,6 @@ export const PassCard: React.FC<PassCardProps> = ({ pass, onClick, compact = fal
             <Badge
               variant="warning"
               size="sm"
-              style={{ fontSize: '10px' }}
             >
               ⏳ Pending Approval
             </Badge>
@@ -240,7 +240,6 @@ export const PassCard: React.FC<PassCardProps> = ({ pass, onClick, compact = fal
             <Badge
               variant="success"
               size="sm"
-              style={{ fontSize: '10px' }}
             >
               ✓ Approved
             </Badge>
@@ -249,7 +248,6 @@ export const PassCard: React.FC<PassCardProps> = ({ pass, onClick, compact = fal
             <Badge
               variant="error"
               size="sm"
-              style={{ fontSize: '10px' }}
             >
               ✗ Rejected
             </Badge>
@@ -276,14 +274,14 @@ export const PassCard: React.FC<PassCardProps> = ({ pass, onClick, compact = fal
           alignItems: 'center',
           gap: spacing.xs,
           marginTop: spacing.xs,
-          ...typography.caption,
+          ...typography.bodySmall,
           color: colors.neutral[600],
         }}>
           {isVisitorPass(pass) && pass.vehicles_to_view && pass.vehicles_to_view.length > 0 && (
-            <Package size={12} />
+            <Package className="pass-card-icon" style={{ width: '12px', height: '12px' }} />
           )}
-          {pass.destination && <MapPin size={12} />}
-          {pass.entry_time && <Clock size={12} />}
+          {pass.destination && <MapPin className="pass-card-icon" style={{ width: '12px', height: '12px' }} />}
+          {pass.entry_time && <Clock className="pass-card-icon" style={{ width: '12px', height: '12px' }} />}
           <span>{contextInfo}</span>
         </div>
       )}
@@ -295,13 +293,13 @@ export const PassCard: React.FC<PassCardProps> = ({ pass, onClick, compact = fal
           padding: spacing.xs,
           backgroundColor: colors.error + '10',
           borderRadius: borderRadius.sm,
-          ...typography.caption,
+          ...typography.bodySmall,
           color: colors.error,
           display: 'flex',
           alignItems: 'center',
           gap: spacing.xs,
         }}>
-          <Clock size={12} />
+          <Clock className="pass-card-icon" style={{ width: '12px', height: '12px' }} />
           Expired
         </div>
       )}
@@ -310,13 +308,13 @@ export const PassCard: React.FC<PassCardProps> = ({ pass, onClick, compact = fal
       {!isPassExpired && pass.status !== 'inside' && pass.valid_to && !compact && (
         <div style={{
           marginTop: spacing.xs,
-          ...typography.caption,
+          ...typography.bodySmall,
           color: colors.neutral[500],
           display: 'flex',
           alignItems: 'center',
           gap: spacing.xs,
         }}>
-          <Clock size={12} />
+          <Clock className="pass-card-icon" style={{ width: '12px', height: '12px' }} />
           Valid until {formatTime(pass.valid_to)}
         </div>
       )}

@@ -17,6 +17,7 @@ import { hasCapability, type CreateUserPayload } from '@/lib/users';
 import type { EnhancedCapability } from '@/lib/permissions/types';
 import { UserPlus, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { spacing, responsiveSpacing } from '@/lib/theme';
 
 export default function CreateUser() {
   const navigate = useNavigate();
@@ -82,7 +83,13 @@ export default function CreateUser() {
   };
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ 
+      padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
+      maxWidth: '800px', // CSS handles responsive via PageContainer
+      margin: '0 auto',
+      width: '100%',
+      boxSizing: 'border-box',
+    }}>
       <PageHeader
         title="Create User"
         subtitle="Add a new user to the system"

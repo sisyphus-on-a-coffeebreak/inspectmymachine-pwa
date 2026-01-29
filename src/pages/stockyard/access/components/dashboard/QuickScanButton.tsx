@@ -8,7 +8,7 @@
 import React from 'react';
 import { QrCode } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { colors, spacing, typography, borderRadius } from '@/lib/theme';
+import { colors, spacing, responsiveSpacing, typography, borderRadius } from '@/lib/theme';
 import { Button } from '@/components/ui/button';
 
 export const QuickScanButton: React.FC = () => {
@@ -23,7 +23,7 @@ export const QuickScanButton: React.FC = () => {
       style={{
         width: '100%',
         minHeight: '120px',
-        fontSize: '24px',
+        fontSize: 'clamp(20px, 5vw, 24px)', // Responsive: 20px mobile, 24px desktop
         fontWeight: 700,
         backgroundColor: colors.primary[500],
         border: `3px solid ${colors.primary[600]}`,
@@ -31,7 +31,7 @@ export const QuickScanButton: React.FC = () => {
         display: 'flex',
         flexDirection: 'column',
         gap: spacing.md,
-        padding: spacing.xl,
+        padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = 'translateY(-2px)';

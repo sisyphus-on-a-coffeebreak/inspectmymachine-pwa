@@ -15,6 +15,7 @@ import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AnalyticsProvider, useAnalytics } from '../../contexts/AnalyticsContext';
 import { PageHeader } from '../../components/ui/PageHeader';
+import { PageContainer } from '../../components/ui/PageContainer';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Button } from '../../components/ui/button';
 import { colors, spacing, typography } from '../../lib/theme';
@@ -47,8 +48,8 @@ function ExpenseAnalyticsContent() {
   const activeTab = (searchParams.get('tab') as AnalyticsTab) || 'overview';
   const [currentTab, setCurrentTab] = useState<AnalyticsTab>(activeTab);
 
-  const handleTabChange = (tab: string) => {
-    const tabId = tab as AnalyticsTab;
+  const handleTabChange = (tab: string | number) => {
+    const tabId = String(tab) as AnalyticsTab;
     setCurrentTab(tabId);
     const newParams = new URLSearchParams(searchParams);
     newParams.set('tab', tabId);
@@ -83,16 +84,11 @@ function ExpenseAnalyticsContent() {
   };
 
   return (
-    <div
-      style={{
-        maxWidth: '1400px',
-        margin: '0 auto',
-        padding: spacing.xl,
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        backgroundColor: colors.neutral[50],
-        minHeight: '100vh',
-      }}
-    >
+    <PageContainer maxWidth="1400px" style={{
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      backgroundColor: colors.neutral[50],
+      minHeight: '100vh',
+    }}>
       <PageHeader
         title="Expense Analytics"
         subtitle="Comprehensive expense analysis and reporting"
@@ -258,7 +254,7 @@ function ExpenseAnalyticsContent() {
       >
         {renderTabContent()}
       </div>
-    </div>
+    </PageContainer>
   );
 }
 

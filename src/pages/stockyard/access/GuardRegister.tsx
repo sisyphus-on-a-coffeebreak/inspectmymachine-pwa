@@ -31,7 +31,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { PullToRefreshWrapper } from '@/components/ui/PullToRefreshWrapper';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { colors, spacing, typography, borderRadius } from '@/lib/theme';
+import { colors, spacing, responsiveSpacing, typography, borderRadius } from '@/lib/theme';
 import { Search, Filter, Download, RefreshCw, Calendar, Users, MapPin, BarChart3 } from 'lucide-react';
 import type { GatePass } from './gatePassTypes';
 import { isVisitorPass, isVehiclePass, canEnter, canExit, getPassTypeLabel } from './gatePassTypes';
@@ -677,7 +677,7 @@ export const GuardRegister: React.FC = () => {
         <div style={{ fontSize: '4rem', marginBottom: spacing.md }}>⚠️</div>
         <h2 style={{ 
           ...typography.header,
-          fontSize: '24px',
+          fontSize: 'clamp(22px, 5.5vw, 24px)', // Responsive: 22px mobile, 24px desktop
           color: colors.error?.[700] || '#DC2626',
           marginBottom: spacing.md
         }}>

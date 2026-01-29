@@ -1,0 +1,289 @@
+/**
+ * Responsive Utility Classes
+ * 
+ * Global CSS utility classes for responsive typography and spacing.
+ * These classes use clamp() for fluid, responsive behavior without JavaScript.
+ * 
+ * Usage:
+ *   <div className="responsive-padding-lg">Content</div>
+ *   <h1 className="responsive-text-header">Title</h1>
+ */
+
+/* ============================================
+   RESPONSIVE SPACING UTILITIES
+   ============================================ */
+
+/* Padding Utilities */
+.responsive-padding-xs {
+  padding: clamp(4px, 1vw, 8px);
+}
+
+.responsive-padding-sm {
+  padding: clamp(8px, 2vw, 12px);
+}
+
+.responsive-padding-md {
+  padding: clamp(16px, 4vw, 24px);
+}
+
+.responsive-padding-lg {
+  padding: clamp(24px, 5vw, 32px);
+}
+
+.responsive-padding-xl {
+  padding: clamp(32px, 6vw, 48px);
+}
+
+/* Margin Utilities */
+.responsive-margin-xs {
+  margin: clamp(4px, 1vw, 8px);
+}
+
+.responsive-margin-sm {
+  margin: clamp(8px, 2vw, 12px);
+}
+
+.responsive-margin-md {
+  margin: clamp(16px, 4vw, 24px);
+}
+
+.responsive-margin-lg {
+  margin: clamp(24px, 5vw, 32px);
+}
+
+.responsive-margin-xl {
+  margin: clamp(32px, 6vw, 48px);
+}
+
+/* Gap Utilities */
+.responsive-gap-xs {
+  gap: clamp(4px, 1vw, 8px);
+}
+
+.responsive-gap-sm {
+  gap: clamp(8px, 2vw, 12px);
+}
+
+.responsive-gap-md {
+  gap: clamp(16px, 4vw, 24px);
+}
+
+.responsive-gap-lg {
+  gap: clamp(24px, 5vw, 32px);
+}
+
+.responsive-gap-xl {
+  gap: clamp(32px, 6vw, 48px);
+}
+
+/* ============================================
+   RESPONSIVE TYPOGRAPHY UTILITIES
+   ============================================ */
+
+/* Body Text */
+.responsive-text-body {
+  font-size: clamp(14px, 3.5vw, 16px);
+  line-height: clamp(20px, 5vw, 24px);
+}
+
+.responsive-text-body-small {
+  font-size: clamp(12px, 3vw, 14px);
+  line-height: clamp(18px, 4.5vw, 20px);
+}
+
+.responsive-text-caption {
+  font-size: clamp(11px, 2.5vw, 12px);
+  line-height: clamp(16px, 4vw, 18px);
+}
+
+/* Headers */
+.responsive-text-header {
+  font-size: clamp(20px, 5vw, 28px);
+  line-height: clamp(28px, 7vw, 36px);
+}
+
+.responsive-text-header-large {
+  font-size: clamp(24px, 6vw, 32px);
+  line-height: clamp(32px, 8vw, 40px);
+}
+
+.responsive-text-subheader {
+  font-size: clamp(18px, 4.5vw, 20px);
+  line-height: clamp(24px, 6vw, 28px);
+}
+
+.responsive-text-label {
+  font-size: clamp(12px, 3vw, 14px);
+  line-height: clamp(18px, 4.5vw, 20px);
+  font-weight: 600;
+}
+
+/* ============================================
+   RESPONSIVE CONTAINER UTILITIES
+   ============================================ */
+
+/* Responsive width constraints */
+.responsive-width-full {
+  width: 100%;
+  max-width: 100%;
+}
+
+.responsive-width-auto {
+  width: auto;
+  max-width: 100%;
+}
+
+/* Responsive flex utilities */
+.responsive-flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.responsive-flex-row {
+  display: flex;
+  flex-direction: row;
+}
+
+/* Mobile: column, Desktop: row */
+@media (max-width: 767px) {
+  .responsive-flex-column-mobile {
+    flex-direction: column;
+  }
+}
+
+@media (min-width: 768px) {
+  .responsive-flex-column-mobile {
+    flex-direction: row;
+  }
+}
+
+/* ============================================
+   RESPONSIVE TOUCH TARGETS
+   ============================================ */
+
+/* Ensure minimum touch target size on mobile */
+@media (max-width: 767px) {
+  .responsive-touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .responsive-touch-target-large {
+    min-height: 56px;
+    min-width: 56px;
+  }
+}
+
+/* ============================================
+   RESPONSIVE VISIBILITY UTILITIES
+   ============================================ */
+
+/* Hide on mobile, show on desktop */
+.responsive-hide-mobile {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .responsive-hide-mobile {
+    display: block;
+  }
+}
+
+.responsive-hide-mobile-flex {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .responsive-hide-mobile-flex {
+    display: flex;
+  }
+}
+
+/* Show on mobile, hide on desktop */
+.responsive-show-mobile {
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .responsive-show-mobile {
+    display: none;
+  }
+}
+
+.responsive-show-mobile-flex {
+  display: flex;
+}
+
+@media (min-width: 768px) {
+  .responsive-show-mobile-flex {
+    display: none;
+  }
+}
+
+/* ============================================
+   RESPONSIVE SCROLLING UTILITIES
+   ============================================ */
+
+/* Smooth scrolling with momentum on mobile */
+.responsive-scroll {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.responsive-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.responsive-scroll-y {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* ============================================
+   RESPONSIVE BORDER RADIUS
+   ============================================ */
+
+.responsive-radius-sm {
+  border-radius: clamp(4px, 1vw, 6px);
+}
+
+.responsive-radius-md {
+  border-radius: clamp(8px, 2vw, 12px);
+}
+
+.responsive-radius-lg {
+  border-radius: clamp(12px, 3vw, 16px);
+}
+
+.responsive-radius-xl {
+  border-radius: clamp(16px, 4vw, 20px);
+}
+
+/* ============================================
+   RESPONSIVE ICON SIZES
+   ============================================ */
+
+.responsive-icon-sm {
+  width: clamp(16px, 4vw, 20px);
+  height: clamp(16px, 4vw, 20px);
+}
+
+.responsive-icon-md {
+  width: clamp(20px, 5vw, 24px);
+  height: clamp(20px, 5vw, 24px);
+}
+
+.responsive-icon-lg {
+  width: clamp(24px, 6vw, 32px);
+  height: clamp(24px, 6vw, 32px);
+}
+
+.responsive-icon-xl {
+  width: clamp(32px, 8vw, 40px);
+  height: clamp(32px, 8vw, 40px);
+}
+

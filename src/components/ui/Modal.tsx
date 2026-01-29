@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { zIndex } from '@/lib/z-index';
 import { useSmartKeyboard } from '@/hooks/useSmartKeyboard';
-import { getResponsiveModalStyles, lockBodyScroll, useMobileViewport } from '@/lib/mobileUtils';
+import { lockBodyScroll } from '@/lib/mobileUtils';
 
 export interface ModalProps {
   title?: string;
@@ -26,6 +26,62 @@ const sizeMap = {
   full: { maxWidth: '95vw' },
 };
 
+const MODAL_STYLES = `
+  /* Modal Overlay - Responsive with CSS */
+  .modal-overlay {
+    overflow-y: auto;
+    background-color: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+  }
+  @media (max-width: 767px) {
+    .modal-overlay {
+      overflow-y: hidden;
+      background-color: #ffffff;
+      backdrop-filter: none;
+      padding: 0;
+      display: flex;
+      align-items: stretch;
+      justify-content: stretch;
+    }
+  }
+  /* Desktop Modal */
+  .modal-overlay-desktop {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+    padding: clamp(16px, 4vw, 24px);
+  }
+  @media (max-width: 767px) {
+    .modal-overlay-desktop {
+      display: none;
+    }
+  }
+  /* Mobile Modal */
+  .modal-overlay-mobile {
+    display: none;
+    width: 100%;
+    height: 100%;
+    background-color: #ffffff;
+    box-shadow: none;
+    border: none;
+    flex-direction: column;
+  }
+  @media (max-width: 767px) {
+    .modal-overlay-mobile {
+      display: flex;
+    }
+  }
+  @media (max-width: 480px) {
+    .modal-footer {
+      flex-direction: column;
+    }
+    .modal-footer > * {
+      width: 100%;
+    }
+  }
+`;
+
 /**
  * Reusable Modal component for dialogs, confirmations, and forms
  * Replaces window.confirm and window.alert with accessible, styled UI
@@ -42,10 +98,24 @@ export function Modal({
   const showCloseButton = true;
   const modalRef = useFocusTrap<HTMLDivElement>(true);
   const overlayRef = React.useRef<HTMLDivElement>(null);
-  const isMobile = useMobileViewport();
   
   // Enable smart keyboard handling for forms inside modals
   useSmartKeyboard({ enabled: true, scrollOffset: 100 });
+  
+  // Check if mobile for functional behavior (overlay click handling)
+  // This is a functional use, not styling - CSS can't handle click behavior
+  const [isMobile, setIsMobile] = React.useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 768;
+  });
+  
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -88,11 +158,10 @@ export function Modal({
     };
   }, [onClose]);
 
-  const modalStyles = getResponsiveModalStyles(true);
-
   return (
     <div
       ref={overlayRef}
+      className="modal-overlay"
       style={{
         position: 'fixed',
         top: 0,
@@ -100,19 +169,11 @@ export function Modal({
         right: 0,
         bottom: 0,
         zIndex: zIndex.modal,
-        overflowY: isMobile ? 'hidden' : 'auto',
-        backgroundColor: isMobile ? '#ffffff' : 'rgba(0, 0, 0, 0.4)',
-        backdropFilter: isMobile ? 'none' : 'blur(4px)',
         WebkitOverflowScrolling: 'touch',
-        ...(isMobile && {
-          padding: 0,
-          display: 'flex',
-          alignItems: 'stretch',
-          justifyContent: 'stretch',
-        }),
       }}
       onClick={(e) => {
         // On mobile, don't close on overlay click (full-screen)
+        // This is functional behavior, not styling
         if (!isMobile && e.target === e.currentTarget) {
           onClose();
         }
@@ -121,7 +182,8 @@ export function Modal({
       aria-modal="true"
       aria-labelledby={title ? 'modal-title' : undefined}
     >
-      {!isMobile && (
+      {/* Desktop Modal */}
+      <div className="modal-overlay-desktop">
         <div
           style={{
             minHeight: '100dvh',
@@ -229,21 +291,14 @@ export function Modal({
             )}
           </div>
         </div>
-      )}
+      </div>
       
       {/* Mobile: Full-screen modal */}
-      {isMobile && (
-        <div
-          ref={modalRef}
-          className={className}
-          style={{
-            ...modalStyles,
-            backgroundColor: '#ffffff',
-            boxShadow: 'none',
-            border: 'none',
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
+      <div
+        ref={modalRef}
+        className={`modal-overlay-mobile ${className}`}
+        onClick={(e) => e.stopPropagation()}
+      >
           {(title || showCloseButton) && (
             <div
               style={{
@@ -324,18 +379,8 @@ export function Modal({
               {footer}
             </div>
           )}
-        </div>
-      )}
-      <style>{`
-        @media (max-width: 480px) {
-          .modal-footer {
-            flex-direction: column;
-          }
-          .modal-footer > * {
-            width: 100%;
-          }
-        }
-      `}</style>
+      </div>
+      <style dangerouslySetInnerHTML={{ __html: MODAL_STYLES }} />
     </div>
   );
 }

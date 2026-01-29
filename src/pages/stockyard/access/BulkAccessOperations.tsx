@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/lib/apiClient';
-import { colors, typography, spacing, cardStyles } from '@/lib/theme';
+import { colors, typography, spacing, responsiveSpacing, cardStyles } from '@/lib/theme';
 import { Button } from '@/components/ui/button';
 import { ActionGrid, StatsGrid } from '@/components/ui/ResponsiveGrid';
 import { useToast } from '@/providers/ToastProvider';
@@ -9,6 +9,7 @@ import { BulkPassCreationGrid } from './components/BulkPassCreationGrid';
 import { useAuth } from '@/providers/useAuth';
 import { accessService } from '@/lib/services/AccessService';
 import type { GatePassType } from './gatePassTypes';
+import { useMobileViewport, getResponsivePageContainerStyles } from '@/lib/mobileUtils';
 
 // 🔄 Bulk Operations
 // Handle bulk operations on gate passes
@@ -53,6 +54,7 @@ interface BulkTemplate {
 export const BulkAccessOperations: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const isMobile = useMobileViewport();
   const { user } = useAuth();
   const [bulkOperations, setBulkOperations] = useState<BulkOperation[]>([]);
   const [bulkTemplates, setBulkTemplates] = useState<BulkTemplate[]>([]);
@@ -280,7 +282,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
     <div style={{ 
       maxWidth: '1400px', 
       margin: '0 auto', 
-      padding: spacing.xl,
+      padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
       fontFamily: typography.body.fontFamily,
       backgroundColor: colors.neutral[50],
       minHeight: '100vh'
@@ -291,7 +293,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
         justifyContent: 'space-between', 
         alignItems: 'center',
         marginBottom: spacing.xl,
-        padding: spacing.lg,
+        padding: responsiveSpacing.padding.lg, // Responsive: clamp(24px, 5vw, 32px)
         backgroundColor: 'white',
         borderRadius: '16px',
         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
@@ -300,7 +302,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
         <div>
           <h1 style={{ 
             ...typography.header,
-            fontSize: '28px',
+            fontSize: 'clamp(24px, 6vw, 28px)', // Responsive: 24px mobile, 28px desktop
             color: colors.neutral[900],
             margin: 0,
             display: 'flex',
@@ -329,7 +331,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
       <div style={{
         backgroundColor: 'white',
         borderRadius: '16px',
-        padding: spacing.lg,
+        padding: responsiveSpacing.padding.lg, // Responsive: clamp(24px, 5vw, 32px)
         marginBottom: spacing.xl,
         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
         border: '1px solid rgba(0,0,0,0.05)'
@@ -358,7 +360,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
         <div style={{
           backgroundColor: 'white',
           borderRadius: '16px',
-          padding: spacing.xl,
+          padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
           boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
           border: '1px solid rgba(0,0,0,0.05)'
         }}>
@@ -385,7 +387,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
                   padding: spacing.sm,
                     border: `1px solid ${colors.neutral[300]}`,
                   borderRadius: '8px',
-                  fontSize: '14px'
+                  fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
                 }}
                 >
                   <option value="visitor">Visitor Pass</option>
@@ -407,7 +409,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
                       padding: spacing.sm, 
                       border: `1px solid ${colors.neutral[300]}`,
                       borderRadius: '8px',
-                      fontSize: '14px',
+                      fontSize: 'clamp(13px, 3vw, 14px)', // Responsive: 13px mobile, 14px desktop
                       backgroundColor: colors.neutral[100],
                       color: colors.neutral[600]
                     }}
@@ -416,7 +418,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
                   )}
                 </div>
                 
-            {/* CSV-like Grid */}
+            {/* Spreadsheet-like Grid */}
             <BulkPassCreationGrid
               passType={passType}
               yardId={yardId}
@@ -454,10 +456,18 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
                         payload.visitor_phone = row.data.visitor_phone;
                         payload.referred_by = row.data.referred_by;
                         payload.visitor_company = row.data.visitor_company;
-                        // vehicles_to_view is already an array of vehicle IDs
-                        payload.vehicles_to_view = Array.isArray(row.data.vehicles_to_view) 
-                          ? row.data.vehicles_to_view 
-                          : (row.data.vehicles_to_view ? [row.data.vehicles_to_view] : []);
+                        // Parse vehicles_to_view - can be comma-separated string or array
+                        if (row.data.vehicles_to_view) {
+                          if (Array.isArray(row.data.vehicles_to_view)) {
+                            payload.vehicles_to_view = row.data.vehicles_to_view;
+                          } else if (typeof row.data.vehicles_to_view === 'string') {
+                            payload.vehicles_to_view = row.data.vehicles_to_view.split(',').map(id => id.trim()).filter(id => id);
+                          } else {
+                            payload.vehicles_to_view = [row.data.vehicles_to_view];
+                          }
+                        } else {
+                          payload.vehicles_to_view = [];
+                        }
                       } else if (passType === 'vehicle_outbound') {
                         // For vehicle outbound, use vehicle_id directly
                         payload.vehicle_id = row.data.vehicle_id;
@@ -511,7 +521,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
         <div style={{
           backgroundColor: 'white',
           borderRadius: '16px',
-          padding: spacing.xl,
+          padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
           boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
           border: '1px solid rgba(0,0,0,0.05)'
         }}>
@@ -536,7 +546,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
                   padding: spacing.sm,
                   border: '1px solid #D1D5DB',
                   borderRadius: '8px',
-                  fontSize: '14px'
+                  fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
                 }}
               >
                 <option value="create">Create New Passes</option>
@@ -558,7 +568,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
                   padding: spacing.sm,
                   border: '1px solid #D1D5DB',
                   borderRadius: '8px',
-                  fontSize: '14px'
+                  fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
                 }}
               />
             </div>
@@ -571,7 +581,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
         <div style={{
           backgroundColor: 'white',
           borderRadius: '16px',
-          padding: spacing.xl,
+          padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
           boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
           border: '1px solid rgba(0,0,0,0.05)'
         }}>
@@ -594,7 +604,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
                   padding: spacing.sm,
                   border: '1px solid #D1D5DB',
                   borderRadius: '8px',
-                  fontSize: '14px'
+                  fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
                 }}>
                   <option value="week">Last Week</option>
                   <option value="month">Last Month</option>
@@ -612,7 +622,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
                   padding: spacing.sm,
                   border: '1px solid #D1D5DB',
                   borderRadius: '8px',
-                  fontSize: '14px'
+                  fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
                 }}>
                   <option value="all">All Status</option>
                   <option value="pending">Pending</option>
@@ -631,7 +641,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
                   padding: spacing.sm,
                   border: '1px solid #D1D5DB',
                   borderRadius: '8px',
-                  fontSize: '14px'
+                  fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
                 }}>
                   <option value="csv">CSV</option>
                   <option value="excel">Excel</option>
@@ -659,7 +669,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
         <div style={{
           backgroundColor: 'white',
           borderRadius: '16px',
-          padding: spacing.xl,
+          padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
           boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
           border: '1px solid rgba(0,0,0,0.05)'
         }}>
@@ -676,7 +686,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
               <div
                 key={template.id}
                 style={{
-                  padding: spacing.lg,
+                  padding: responsiveSpacing.padding.lg, // Responsive: clamp(24px, 5vw, 32px)
                   border: '1px solid #E5E7EB',
                   borderRadius: '12px',
                   backgroundColor: '#F9FAFB',
@@ -718,7 +728,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
       <div style={{
         backgroundColor: 'white',
         borderRadius: '16px',
-        padding: spacing.xl,
+        padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
         marginTop: spacing.xl,
         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
         border: '1px solid rgba(0,0,0,0.05)'
@@ -736,7 +746,7 @@ VM001,vehicle,,ABC-1234,rto_work,2024-01-21T10:00:00Z,2024-01-22T18:00:00Z,pendi
             <div
               key={operation.id}
               style={{
-                padding: spacing.lg,
+                padding: responsiveSpacing.padding.lg, // Responsive: clamp(24px, 5vw, 32px)
                 border: '1px solid #E5E7EB',
                 borderRadius: '12px',
                 backgroundColor: '#F9FAFB'

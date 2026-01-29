@@ -256,14 +256,13 @@ export const ExpenseReports: React.FC = () => {
     return (
       <div style={{ 
         maxWidth: '1400px', 
-        margin: '0 auto', 
+        margin: '0 auto',
         padding: spacing.xl,
         fontFamily: 'system-ui, -apple-system, sans-serif',
-        backgroundColor: colors.neutral[50],
-        minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        minHeight: '100vh'
       }}>
         <div style={{
           textAlign: 'center',
@@ -271,7 +270,8 @@ export const ExpenseReports: React.FC = () => {
           backgroundColor: 'white',
           borderRadius: '16px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-          maxWidth: '500px'
+          maxWidth: '100%',
+          width: '100%'
         }}>
           <div style={{ fontSize: '4rem', marginBottom: spacing.lg }}>⚠️</div>
           <h2 style={{ 

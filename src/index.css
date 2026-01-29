@@ -1,5 +1,6 @@
 @import './lib/animations.css';
 @import './lib/mobileOverflowFix.css';
+@import './lib/responsive-utilities.css';
 
 /* Import VOMS Design System */
 @tailwind base;
@@ -22,6 +23,49 @@
 html, body, #root {
   height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+}
+
+/* Mobile-first typography: Ensure minimum 16px base font size to prevent iOS zoom */
+@media (max-width: 767px) {
+  html {
+    font-size: 16px; /* Base font size - prevents iOS zoom on input focus */
+  }
+  
+  body {
+    font-size: clamp(14px, 3.5vw, 16px); /* Responsive base font size */
+    line-height: 1.5; /* Improved readability */
+  }
+  
+  /* Responsive heading sizes on mobile */
+  h1 {
+    font-size: clamp(24px, 6vw, 32px);
+    line-height: clamp(32px, 8vw, 40px);
+  }
+  
+  h2 {
+    font-size: clamp(20px, 5vw, 28px);
+    line-height: clamp(28px, 7vw, 36px);
+  }
+  
+  h3 {
+    font-size: clamp(18px, 4.5vw, 24px);
+    line-height: clamp(24px, 6vw, 32px);
+  }
+  
+  h4 {
+    font-size: clamp(16px, 4vw, 20px);
+    line-height: clamp(22px, 5.5vw, 28px);
+  }
+  
+  p, span, div {
+    font-size: clamp(14px, 3.5vw, 16px);
+    line-height: clamp(20px, 5vw, 24px);
+  }
+  
+  small {
+    font-size: clamp(12px, 3vw, 14px);
+    line-height: clamp(18px, 4.5vw, 20px);
+  }
 }
 
 /* Safe area support - handled per-component for better control */
@@ -182,5 +226,221 @@ button:disabled {
     outline: 4px solid #2563eb;
     outline-offset: 4px;
     box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+  }
+}
+
+/* ============================================
+   PAGE CONTAINER - CSS-Based Responsive Solution
+   ============================================
+   
+   Global CSS classes for page containers.
+   Uses media queries instead of JavaScript for better performance.
+   Automatically handles mobile-first responsive behavior.
+*/
+
+/* Base page container - mobile-first (100% width, reduced padding) */
+.page-container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: clamp(24px, 5vw, 32px); /* Mobile: 24px, Desktop: 32px */
+  box-sizing: border-box;
+}
+
+/* Desktop: Centered with max-width, larger padding */
+@media (min-width: 768px) {
+  .page-container {
+    margin: 0 auto;
+    padding: clamp(32px, 6vw, 48px); /* Tablet: 32px, Desktop: 48px */
+  }
+}
+
+/* Max-width variants - Desktop only */
+@media (min-width: 768px) {
+  .page-container-max-800 {
+    max-width: 800px;
+  }
+  
+  .page-container-max-900 {
+    max-width: 900px;
+  }
+  
+  .page-container-max-1000 {
+    max-width: 1000px;
+  }
+  
+  .page-container-max-1200 {
+    max-width: 1200px;
+  }
+  
+  .page-container-max-1400 {
+    max-width: 1400px;
+  }
+  
+  .page-container-max-full {
+    max-width: 100%;
+  }
+}
+
+/* Mobile: All containers use 100% width */
+@media (max-width: 767px) {
+  .page-container-max-800,
+  .page-container-max-900,
+  .page-container-max-1000,
+  .page-container-max-1200,
+  .page-container-max-1400,
+  .page-container-max-full {
+    max-width: 100%;
+  }
+}
+
+/* Utility class for pages that need to opt-out of container padding */
+.page-container-no-padding {
+  padding: 0 !important;
+}
+
+/* Utility class for full-height pages */
+.page-container-full-height {
+  min-height: 100dvh;
+}
+
+/* Utility class for pages with background color */
+.page-container-bg {
+  background-color: var(--color-neutral-50, #f9fafb);
+  min-height: 100dvh;
+}
+
+/* ============================================
+   RESPONSIVE COMPONENT ENHANCEMENTS
+   ============================================ */
+
+/* Card components - responsive padding */
+.card-responsive {
+  padding: clamp(16px, 4vw, 24px);
+}
+
+.card-responsive-compact {
+  padding: clamp(12px, 3vw, 16px);
+}
+
+/* Button components - responsive sizing */
+@media (max-width: 767px) {
+  button, .button {
+    min-height: 44px;
+    min-width: 44px;
+    font-size: clamp(14px, 3.5vw, 16px);
+    padding: clamp(8px, 2vw, 12px) clamp(16px, 4vw, 24px);
+  }
+  
+  button.size-lg, .button.size-lg {
+    min-height: 56px;
+    font-size: clamp(16px, 4vw, 18px);
+    padding: clamp(12px, 3vw, 16px) clamp(24px, 6vw, 32px);
+  }
+}
+
+/* Input components - responsive sizing */
+@media (max-width: 767px) {
+  input, textarea, select {
+    font-size: clamp(16px, 4vw, 16px); /* Minimum 16px to prevent iOS zoom */
+    padding: clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px);
+    min-height: 44px;
+  }
+}
+
+/* Badge components - responsive sizing */
+.badge-responsive {
+  font-size: clamp(11px, 2.5vw, 12px);
+  padding: clamp(4px, 1vw, 6px) clamp(8px, 2vw, 12px);
+  min-height: 24px;
+}
+
+.badge-responsive-md {
+  font-size: clamp(12px, 3vw, 14px);
+  padding: clamp(6px, 1.5vw, 8px) clamp(10px, 2.5vw, 14px);
+  min-height: 28px;
+}
+
+.badge-responsive-lg {
+  font-size: clamp(14px, 3.5vw, 16px);
+  padding: clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px);
+  min-height: 32px;
+}
+
+/* Table components - responsive behavior */
+@media (max-width: 767px) {
+  table {
+    font-size: clamp(13px, 3vw, 14px);
+  }
+  
+  th, td {
+    padding: clamp(8px, 2vw, 12px);
+  }
+}
+
+/* Grid components - responsive columns */
+.responsive-grid {
+  display: grid;
+  grid-template-columns: 1fr; /* Mobile: single column */
+  gap: clamp(16px, 4vw, 24px);
+}
+
+@media (min-width: 768px) {
+  .responsive-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .responsive-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .responsive-grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* List components - responsive spacing */
+.responsive-list {
+  gap: clamp(8px, 2vw, 12px);
+}
+
+.responsive-list-item {
+  padding: clamp(12px, 3vw, 16px);
+  margin-bottom: clamp(8px, 2vw, 12px);
+}
+
+/* Modal/Dialog components - responsive sizing */
+@media (max-width: 767px) {
+  [role="dialog"], [role="alertdialog"] {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 16px 16px 0 0; /* Rounded top corners only */
+  }
+}
+
+/* Form components - responsive spacing */
+.form-responsive {
+  gap: clamp(16px, 4vw, 24px);
+}
+
+.form-group-responsive {
+  margin-bottom: clamp(16px, 4vw, 24px);
+}
+
+.form-label-responsive {
+  font-size: clamp(14px, 3.5vw, 16px);
+  margin-bottom: clamp(6px, 1.5vw, 8px);
+}
+
+/* Navigation components - responsive sizing */
+@media (max-width: 767px) {
+  nav, .nav {
+    font-size: clamp(14px, 3.5vw, 16px);
+  }
+  
+  .nav-item {
+    padding: clamp(12px, 3vw, 16px);
+    min-height: 44px;
   }
 }

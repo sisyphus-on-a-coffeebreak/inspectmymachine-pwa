@@ -1,0 +1,29 @@
+/**
+ * PageHeader Component - Responsive CSS
+ * 
+ * Pure CSS-based responsive styling for PageHeader component.
+ * No JavaScript detection required.
+ */
+
+/* Base responsive padding and margin */
+.page-header-responsive {
+  margin-bottom: clamp(24px, 5vw, 32px); /* Responsive margin */
+}
+
+/* Header content - responsive flexbox */
+.page-header-content {
+  display: flex;
+  flex-direction: column; /* Mobile: column */
+  justify-content: space-between;
+  align-items: stretch; /* Mobile: stretch */
+  gap: clamp(16px, 4vw, 24px); /* Responsive gap */
+}
+
+/* Desktop: row layout */
+@media (min-width: 768px) {
+  .page-header-content {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+}
+

@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/lib/apiClient';
-import { colors, typography, spacing } from '@/lib/theme';
+import { colors, typography, spacing, responsiveSpacing } from '@/lib/theme';
 import { Button } from '@/components/ui/button';
 import { StatsGrid, CardGrid } from '@/components/ui/ResponsiveGrid';
 import { useToast } from '@/providers/ToastProvider';
 import { LineChart, BarChart } from '@/components/ui/charts';
 import { ExportButton } from '@/components/ui/ExportButton';
 import { getApiUrl } from '@/lib/apiConfig';
+import { useMobileViewport, getResponsivePageContainerStyles } from '@/lib/mobileUtils';
 
 // 📊 Access Reports & Analytics (formerly Gate Pass Reports)
 // Comprehensive reporting dashboard for access pass analytics
@@ -289,7 +290,7 @@ export const AccessReports: React.FC = () => {
       <div style={{ 
         maxWidth: '1400px', 
         margin: '0 auto', 
-        padding: spacing.xl,
+        padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
         fontFamily: 'system-ui, -apple-system, sans-serif',
         backgroundColor: colors.neutral[50],
         minHeight: '100vh',
@@ -299,16 +300,17 @@ export const AccessReports: React.FC = () => {
       }}>
         <div style={{
           textAlign: 'center',
-          padding: spacing.xl,
+          padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
           backgroundColor: 'white',
           borderRadius: '16px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-          maxWidth: '500px'
+          maxWidth: isMobile ? '100%' : '500px',
+          width: '100%'
         }}>
           <div style={{ fontSize: '4rem', marginBottom: spacing.lg }}>⚠️</div>
           <h2 style={{ 
             ...typography.header,
-            fontSize: '24px',
+            fontSize: 'clamp(22px, 5.5vw, 24px)', // Responsive: 22px mobile, 24px desktop
             color: colors.error[700],
             marginBottom: spacing.md
           }}>
@@ -342,9 +344,8 @@ export const AccessReports: React.FC = () => {
 
   return (
     <div style={{ 
-      maxWidth: '1400px', 
-      margin: '0 auto', 
-      padding: spacing.xl,
+      ...getResponsivePageContainerStyles({ desktopMaxWidth: '1400px' }),
+      padding: responsiveSpacing.padding.xl, // Responsive: CSS handles mobile/desktop
       fontFamily: 'system-ui, -apple-system, sans-serif',
       backgroundColor: colors.neutral[50],
       minHeight: '100vh'
@@ -355,7 +356,7 @@ export const AccessReports: React.FC = () => {
         justifyContent: 'space-between', 
         alignItems: 'center',
         marginBottom: spacing.xl,
-        padding: spacing.lg,
+        padding: responsiveSpacing.padding.lg, // Responsive: clamp(24px, 5vw, 32px)
         backgroundColor: 'white',
         borderRadius: '16px',
         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
@@ -364,7 +365,7 @@ export const AccessReports: React.FC = () => {
         <div>
           <h1 style={{ 
             ...typography.header,
-            fontSize: '28px',
+            fontSize: 'clamp(24px, 6vw, 28px)', // Responsive: 24px mobile, 28px desktop
             color: colors.neutral[900],
             margin: 0,
             display: 'flex',
@@ -413,7 +414,7 @@ export const AccessReports: React.FC = () => {
       <div style={{
         backgroundColor: 'white',
         borderRadius: '16px',
-        padding: spacing.lg,
+        padding: responsiveSpacing.padding.lg, // Responsive: clamp(24px, 5vw, 32px)
         marginBottom: spacing.xl,
         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
         border: '1px solid rgba(0,0,0,0.05)'
@@ -431,7 +432,7 @@ export const AccessReports: React.FC = () => {
                 border: '1px solid #D1D5DB',
                 borderRadius: '8px',
                 backgroundColor: 'white',
-                fontSize: '14px'
+                fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
               }}
             >
               <option value="week">Last Week</option>
@@ -453,7 +454,7 @@ export const AccessReports: React.FC = () => {
                 border: '1px solid #D1D5DB',
                 borderRadius: '8px',
                 backgroundColor: 'white',
-                fontSize: '14px'
+                fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
               }}
             >
               <option value="all">All Yards</option>
@@ -470,7 +471,7 @@ export const AccessReports: React.FC = () => {
       {/* Key Statistics */}
       <StatsGrid gap="lg">
         <div style={{ 
-          padding: spacing.xl,
+          padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
           backgroundColor: 'white',
           border: `2px solid ${colors.primary}`,
           borderRadius: '16px',
@@ -489,7 +490,7 @@ export const AccessReports: React.FC = () => {
           </div>
           <div style={{ 
             ...typography.header,
-            fontSize: '32px',
+            fontSize: 'clamp(28px, 7vw, 32px)', // Responsive: 28px mobile, 32px desktop
             color: colors.primary,
             fontWeight: 700
           }}>
@@ -498,7 +499,7 @@ export const AccessReports: React.FC = () => {
         </div>
 
         <div style={{ 
-          padding: spacing.xl,
+          padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
           backgroundColor: 'white',
           border: `2px solid ${colors.status.normal}`,
           borderRadius: '16px',
@@ -517,7 +518,7 @@ export const AccessReports: React.FC = () => {
           </div>
           <div style={{ 
             ...typography.header,
-            fontSize: '32px',
+            fontSize: 'clamp(28px, 7vw, 32px)', // Responsive: 28px mobile, 32px desktop
             color: colors.status.normal,
             fontWeight: 700
           }}>
@@ -526,7 +527,7 @@ export const AccessReports: React.FC = () => {
         </div>
 
         <div style={{ 
-          padding: spacing.xl,
+          padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
           backgroundColor: 'white',
           border: `2px solid ${colors.status.warning}`,
           borderRadius: '16px',
@@ -545,7 +546,7 @@ export const AccessReports: React.FC = () => {
           </div>
           <div style={{ 
             ...typography.header,
-            fontSize: '32px',
+            fontSize: 'clamp(28px, 7vw, 32px)', // Responsive: 28px mobile, 32px desktop
             color: colors.status.warning,
             fontWeight: 700
           }}>
@@ -554,7 +555,7 @@ export const AccessReports: React.FC = () => {
         </div>
 
         <div style={{ 
-          padding: spacing.xl,
+          padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
           backgroundColor: 'white',
           border: `2px solid ${colors.status.normal}`,
           borderRadius: '16px',
@@ -573,7 +574,7 @@ export const AccessReports: React.FC = () => {
           </div>
           <div style={{ 
             ...typography.header,
-            fontSize: '32px',
+            fontSize: 'clamp(28px, 7vw, 32px)', // Responsive: 28px mobile, 32px desktop
             color: colors.status.normal,
             fontWeight: 700
           }}>
@@ -589,7 +590,7 @@ export const AccessReports: React.FC = () => {
           <div style={{
             backgroundColor: 'white',
             borderRadius: '16px',
-            padding: spacing.xl,
+            padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
             boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
             border: '1px solid rgba(0,0,0,0.05)'
           }}>
@@ -623,7 +624,7 @@ export const AccessReports: React.FC = () => {
           <div style={{
             backgroundColor: 'white',
             borderRadius: '16px',
-            padding: spacing.xl,
+            padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
             boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
             border: '1px solid rgba(0,0,0,0.05)'
           }}>
@@ -656,7 +657,7 @@ export const AccessReports: React.FC = () => {
       <div style={{
         backgroundColor: 'white',
         borderRadius: '16px',
-        padding: spacing.xl,
+        padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
         border: '1px solid rgba(0,0,0,0.05)'
       }}>
@@ -670,7 +671,7 @@ export const AccessReports: React.FC = () => {
         <CardGrid gap="lg">
           {yardStats.map((yard) => (
             <div key={yard.yard_id} style={{
-              padding: spacing.lg,
+              padding: responsiveSpacing.padding.lg, // Responsive: clamp(24px, 5vw, 32px)
               border: '1px solid #E5E7EB',
               borderRadius: '12px',
               backgroundColor: '#F9FAFB'

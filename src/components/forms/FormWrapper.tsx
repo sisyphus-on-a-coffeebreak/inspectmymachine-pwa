@@ -8,7 +8,7 @@
 import React from 'react';
 import { useFormDisplayMode } from '../../hooks/useFormDisplayMode';
 import { FormBottomSheet } from './FormBottomSheet';
-import { colors, spacing } from '../../lib/theme';
+import { colors, spacing, responsiveSpacing } from '../../lib/theme';
 
 export interface FormWrapperProps {
   title: string;
@@ -48,11 +48,13 @@ export const FormWrapper: React.FC<FormWrapperProps> = ({
   if (isFullPage) {
     return (
       <div style={{
-        maxWidth: '800px',
+        width: '100%',
+        maxWidth: '800px', // CSS handles responsive max-width via PageContainer
         margin: '0 auto',
-        padding: spacing.xl,
+        padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
         minHeight: '100dvh',
         backgroundColor: colors.neutral[50],
+        boxSizing: 'border-box',
       }}>
         {children}
       </div>

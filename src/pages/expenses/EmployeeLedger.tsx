@@ -21,6 +21,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { WideGrid } from '../../components/ui/ResponsiveGrid';
 import { LoadingError } from '../../components/ui/LoadingError';
 import { LedgerTimeline } from '../../components/ui/LedgerTimeline';
+import { PageContainer } from '../../components/ui/PageContainer';
 
 interface LedgerTransaction {
   id: string;
@@ -171,10 +172,7 @@ export const EmployeeLedger: React.FC = () => {
   }
 
   return (
-    <div style={{
-      maxWidth: '1400px',
-      margin: '0 auto',
-      padding: spacing.xl,
+    <PageContainer maxWidth="1400px" style={{
       fontFamily: typography.body.fontFamily,
       backgroundColor: colors.neutral[50],
       minHeight: '100vh'
@@ -545,7 +543,7 @@ export const EmployeeLedger: React.FC = () => {
         )}
       </div>
 
-    </div>
+    </PageContainer>
   );
 };
 

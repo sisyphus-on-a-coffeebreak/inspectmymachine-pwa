@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/lib/apiClient';
-import { colors, typography, spacing, cardStyles } from '@/lib/theme';
+import { colors, typography, spacing, responsiveSpacing, cardStyles } from '@/lib/theme';
 import { Button } from '@/components/ui/button';
 import { ActionGrid, StatsGrid, CardGrid } from '@/components/ui/ResponsiveGrid';
 import { useToast } from '@/providers/ToastProvider';
@@ -163,7 +163,7 @@ export const PassTemplates: React.FC = () => {
       <div style={{ 
         maxWidth: '1200px', 
         margin: '0 auto', 
-      padding: spacing.xl,
+      padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
       fontFamily: typography.body.fontFamily,
       backgroundColor: colors.neutral[50],
       minHeight: '100vh'
@@ -174,7 +174,7 @@ export const PassTemplates: React.FC = () => {
         justifyContent: 'space-between', 
         alignItems: 'center',
         marginBottom: spacing.xl,
-        padding: spacing.lg,
+        padding: responsiveSpacing.padding.lg, // Responsive: clamp(24px, 5vw, 32px)
         backgroundColor: 'white',
         borderRadius: '16px',
         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
@@ -183,7 +183,7 @@ export const PassTemplates: React.FC = () => {
         <div>
           <h1 style={{ 
             ...typography.header,
-            fontSize: '28px',
+            fontSize: 'clamp(24px, 6vw, 28px)', // Responsive: 24px mobile, 28px desktop
             color: colors.neutral[900],
             margin: 0,
             display: 'flex',
@@ -220,7 +220,7 @@ export const PassTemplates: React.FC = () => {
         <div style={{
           backgroundColor: 'white',
           borderRadius: '16px',
-          padding: spacing.xl,
+          padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
           marginBottom: spacing.xl,
           boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
           border: '1px solid rgba(0,0,0,0.05)'
@@ -249,7 +249,7 @@ export const PassTemplates: React.FC = () => {
                     padding: spacing.sm,
                     border: '1px solid #D1D5DB',
                     borderRadius: '8px',
-                    fontSize: '14px'
+                    fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
                   }}
                   placeholder="e.g., Vehicle Inspection - Standard"
                 />
@@ -267,7 +267,7 @@ export const PassTemplates: React.FC = () => {
                     padding: spacing.sm,
                     border: '1px solid #D1D5DB',
                     borderRadius: '8px',
-                    fontSize: '14px'
+                    fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
                   }}
                 >
                   <option value="visitor">Visitor Pass</option>
@@ -308,7 +308,7 @@ export const PassTemplates: React.FC = () => {
                     padding: spacing.sm,
                     border: '1px solid #D1D5DB',
                     borderRadius: '8px',
-                    fontSize: '14px'
+                    fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
                   }}
                 >
                   <option value="">Select purpose...</option>
@@ -342,7 +342,7 @@ export const PassTemplates: React.FC = () => {
                       padding: spacing.sm,
                       border: '1px solid #D1D5DB',
                       borderRadius: '8px',
-                      fontSize: '14px'
+                      fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
                     }}
                     placeholder="Hours"
                   />
@@ -365,7 +365,7 @@ export const PassTemplates: React.FC = () => {
                       padding: spacing.sm,
                       border: '1px solid #D1D5DB',
                       borderRadius: '8px',
-                      fontSize: '14px'
+                      fontSize: 'clamp(13px, 3vw, 14px)' // Responsive: 13px mobile, 14px desktop
                     }}
                     placeholder="Minutes"
                   />
@@ -426,7 +426,7 @@ export const PassTemplates: React.FC = () => {
             key={template.id}
             style={{
               ...cardStyles.base,
-              padding: spacing.xl,
+              padding: responsiveSpacing.padding.xl, // Responsive: clamp(32px, 6vw, 48px)
               backgroundColor: 'white',
               borderRadius: '16px',
               boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
@@ -467,7 +467,7 @@ export const PassTemplates: React.FC = () => {
                   backgroundColor: template.type === 'visitor' ? colors.status.normal : colors.status.warning,
                   color: 'white',
                   borderRadius: '12px',
-                  fontSize: '12px',
+                  fontSize: 'clamp(12px, 3vw, 14px)', // Responsive: 12px mobile, 14px desktop
                   fontWeight: 600
                 }}>
                   {template.type === 'visitor' ? '👥 Visitor' : '🚗 Vehicle'}

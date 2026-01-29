@@ -17,6 +17,7 @@ import { useToast } from '@/providers/ToastProvider';
 import { colors, typography, spacing, cardStyles } from '@/lib/theme';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { PageContainer } from '@/components/ui/PageContainer';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useSmartKeyboard } from '@/hooks/useSmartKeyboard';
 import { useUserRole } from './hooks/useUserRole';
@@ -166,12 +167,9 @@ export const CreateAccessPass: React.FC = () => {
   const currentPurposeOptions = formData.pass_type ? purposeOptions[formData.pass_type] : [];
 
   return (
-    <div style={{
-      maxWidth: '800px',
-      margin: '0 auto',
-      padding: spacing.xl,
-      minHeight: '100dvh', // Use dynamic viewport height for mobile
+    <PageContainer maxWidth="800px" className="page-container-bg" style={{
       backgroundColor: colors.neutral[50],
+      minHeight: '100dvh', // Use dynamic viewport height for mobile
     }}>
       <PageHeader
         title="Create Gate Pass"
@@ -310,6 +308,6 @@ export const CreateAccessPass: React.FC = () => {
           )}
         </div>
       </form>
-    </div>
+    </PageContainer>
   );
 };

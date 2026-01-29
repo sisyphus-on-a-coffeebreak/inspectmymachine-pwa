@@ -19,6 +19,7 @@ import { SkeletonLoader } from '../../components/ui/SkeletonLoader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { DollarSign, TrendingUp, Car, BarChart3, Calendar, Filter } from 'lucide-react';
 import { RequireCapability } from '../../components/RequireAuth';
+import { PageContainer } from '../../components/ui/PageContainer';
 
 const EXPENSE_CATEGORIES = [
   'FUEL',
@@ -81,13 +82,10 @@ export const VehicleCostDashboard: React.FC = () => {
 
   return (
     <RequireCapability module="reports" action="read">
-      <div style={{
-        maxWidth: '1400px',
-        margin: '0 auto',
-        padding: spacing.xl,
-        minHeight: '100dvh',
-        backgroundColor: colors.neutral[50],
-      }}>
+      <PageContainer 
+        maxWidth="1400px" 
+        className="page-container-full-height page-container-bg"
+      >
         <PageHeader
           title="Vehicle Cost Dashboard"
           subtitle="Track costs per vehicle (Super Admin Only)"
@@ -299,7 +297,7 @@ export const VehicleCostDashboard: React.FC = () => {
             ))}
           </div>
         )}
-      </div>
+      </PageContainer>
     </RequireCapability>
   );
 };

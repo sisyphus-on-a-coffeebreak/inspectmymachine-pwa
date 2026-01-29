@@ -5,7 +5,7 @@ import { colors, typography, spacing } from '../../lib/theme';
 import { Button } from '../../components/ui/button';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { AnomalyAlert } from '../../components/ui/AnomalyAlert';
-import { StatsGrid, ActionGrid, WideGrid } from '../../components/ui/ResponsiveGrid';
+import { StatsGrid, ActionGrid, WideGrid, CardGrid } from '../../components/ui/ResponsiveGrid';
 import { NetworkError } from '../../components/ui/NetworkError';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PolicyLinks } from '../../components/ui/PolicyLinks';
@@ -14,6 +14,7 @@ import { hasCapability } from '../../lib/users';
 import { PullToRefreshWrapper } from '../../components/ui/PullToRefreshWrapper';
 import { LineChart, BarChart, PieChart } from '../../components/ui/charts';
 import { SkeletonCard, SkeletonLoader } from '../../components/ui/SkeletonLoader';
+import { PageContainer } from '../../components/ui/PageContainer';
 
 interface DashboardStats {
   total_today: number;
@@ -75,7 +76,7 @@ export const InspectionDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: spacing.xl }}>
+      <PageContainer maxWidth="1400px">
         <PageHeader
           title="Vehicle Inspections"
           subtitle="Comprehensive vehicle inspection and reporting system"
@@ -89,19 +90,19 @@ export const InspectionDashboard: React.FC = () => {
           </WideGrid>
         </div>
         <SkeletonLoader variant="card" />
-      </div>
+      </PageContainer>
     );
   }
 
   if (error) {
     return (
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: spacing.sm }}>
+      <PageContainer maxWidth="1200px">
         <NetworkError
           error={error}
           onRetry={() => refetch()}
           onGoBack={() => navigate('/dashboard')}
         />
-      </div>
+      </PageContainer>
     );
   }
 
@@ -111,14 +112,11 @@ export const InspectionDashboard: React.FC = () => {
 
   return (
     <PullToRefreshWrapper onRefresh={handleRefresh}>
-      <div style={{ 
-        maxWidth: '1400px', 
-        margin: '0 auto', 
-        padding: spacing.xl,
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        backgroundColor: colors.neutral[50],
-        minHeight: '100vh'
-      }}>
+      <PageContainer 
+        maxWidth="1400px"
+        className="page-container-full-height page-container-bg"
+        style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
+      >
       {/* Mock Data Notice - Removed, using React Query now */}
       {false && (
         <div style={{
@@ -711,7 +709,7 @@ export const InspectionDashboard: React.FC = () => {
           />
         )}
       </div>
-    </div>
+      </PageContainer>
     </PullToRefreshWrapper>
   );
 };

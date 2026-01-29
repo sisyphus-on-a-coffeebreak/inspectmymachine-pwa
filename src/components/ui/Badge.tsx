@@ -52,20 +52,20 @@ const variantStyles = {
 const sizeStyles = {
   sm: {
     padding: `${spacing.xs} ${spacing.sm}`,
-    fontSize: '11px',
-    lineHeight: '16px',
+    fontSize: 'clamp(11px, 2.5vw, 12px)', // Responsive: 11px mobile, scales up to 12px
+    lineHeight: 'clamp(16px, 2.5vw, 18px)',
     minHeight: '24px',
   },
   md: {
     padding: `${spacing.xs} ${spacing.md}`,
-    fontSize: '12px',
-    lineHeight: '18px',
+    fontSize: 'clamp(12px, 3vw, 14px)', // Responsive: 12px mobile, scales up to 14px
+    lineHeight: 'clamp(18px, 3vw, 20px)',
     minHeight: '24px',
   },
   lg: {
     padding: `${spacing.sm} ${spacing.md}`,
-    fontSize: '14px',
-    lineHeight: '20px',
+    fontSize: 'clamp(14px, 3.5vw, 16px)', // Responsive: 14px mobile, scales up to 16px
+    lineHeight: 'clamp(20px, 3.5vw, 22px)',
     minHeight: '24px',
   },
 };
