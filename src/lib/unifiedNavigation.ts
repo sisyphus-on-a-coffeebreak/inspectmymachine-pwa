@@ -571,7 +571,19 @@ export function getMobileNavConfigForRole(role: UserRole): MobileNavConfig {
     },
   };
 
-  return configs[role];
+  // Fallback for custom/unknown roles: use clerk config so bottom nav always has .items
+  const config = configs[role];
+  if (config && Array.isArray(config.items)) {
+    return config;
+  }
+  return configs['clerk'] ?? {
+    items: [
+      { id: 'home', label: 'Home', icon: Home, route: '/app/home' },
+      { id: 'access', label: 'Access', icon: Ticket, route: '/app/stockyard/access' },
+      { id: 'expenses', label: 'Expenses', icon: Wallet, route: '/app/expenses' },
+      { id: 'more', label: 'More', icon: Menu, route: null },
+    ],
+  };
 }
 
 /**

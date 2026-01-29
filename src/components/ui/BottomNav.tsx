@@ -18,9 +18,10 @@ export function BottomNav() {
   const [showMoreSheet, setShowMoreSheet] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
 
-  // Get role-based navigation config from unified navigation
+  // Get role-based navigation config from unified navigation (fallback ensures config.items exists for custom roles)
   const role = (user?.role || 'clerk') as 'super_admin' | 'admin' | 'supervisor' | 'yard_incharge' | 'executive' | 'inspector' | 'guard' | 'clerk';
   const config: MobileNavConfig = getMobileNavConfigForRole(role);
+  const items = config?.items ?? [];
   const moreItems = getMoreItemsForRole(role);
 
   // Get approval count for badge (only for users with approval capabilities)
@@ -103,7 +104,7 @@ export function BottomNav() {
           paddingRight: 'env(safe-area-inset-right, 0)',
         }}
       >
-        {config.items.map((item) => {
+        {items.map((item) => {
           const Icon = item.icon;
           const active = item.route ? isActive(item.route) : false;
           const badgeCount = getBadgeCount(item);
@@ -177,7 +178,7 @@ export function BottomNav() {
         })}
 
         {/* More Button - only show if there's a "more" item */}
-        {config.items.some(item => item.route === null) && (
+        {items.some(item => item.route === null) && (
           <button
             onClick={() => setShowMoreSheet(true)}
             style={{
