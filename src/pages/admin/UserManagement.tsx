@@ -142,12 +142,13 @@ export default function UserManagement() {
   };
 
   const confirmBulkOperation = async () => {
-    if (!confirmDelete) return;
+    const ids = confirmDelete?.userIds;
+    if (!ids?.length || !confirmDelete?.action) return;
 
     try {
       await bulkMutation.mutateAsync({
         action: confirmDelete.action,
-        userIds: confirmDelete.userIds,
+        userIds: ids,
       });
       setSelectedUsers([]);
       setConfirmDelete(null);
@@ -157,10 +158,11 @@ export default function UserManagement() {
   };
 
   const confirmSingleDelete = async () => {
-    if (!confirmDelete || confirmDelete.userIds.length !== 1) return;
+    const ids = confirmDelete?.userIds;
+    if (!ids?.length || ids.length !== 1) return;
 
     try {
-      await deleteMutation.mutateAsync(confirmDelete.userIds[0]);
+      await deleteMutation.mutateAsync(ids[0]);
       setConfirmDelete(null);
     } catch {
       // Error handled by mutation hook
