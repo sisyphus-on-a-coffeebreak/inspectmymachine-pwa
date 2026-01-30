@@ -77,7 +77,7 @@ export interface UnifiedNavItem {
  * - Filter logic prioritizes `requiredCapability` over `roles`
  * - After migration complete, `roles` arrays will be removed
  * 
- * See: docs/ROLE_TO_CAPABILITY_MIGRATION_PLAN.md for details
+ * See: docs/DEVELOPER_GUIDE.md for details
  */
 export const unifiedNavItems: UnifiedNavItem[] = [
   {
@@ -691,7 +691,7 @@ function canUserAccessNavItem(
       console.warn(
         `Navigation item "${item.id}" uses deprecated "roles" array as fallback. ` +
         `Item has requiredCapability, so roles fallback should not be needed. ` +
-        `See docs/ROLE_TO_CAPABILITY_MIGRATION_PLAN.md`
+        `See docs/DEVELOPER_GUIDE.md`
       );
       // Mark as warned to avoid spam (this is a hack, but works for dev warnings)
       (item as any)._deprecationWarned = true;

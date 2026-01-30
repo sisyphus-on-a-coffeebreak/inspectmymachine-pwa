@@ -22,7 +22,7 @@
  * - For custom roles: Always fetch from API (no defaults exist)
  * - Never use these as the primary source for permission checks
  * 
- * See: docs/ROLE_TO_CAPABILITY_MIGRATION_PLAN.md for migration details
+ * See: docs/DEVELOPER_GUIDE.md for details
  */
 
 import type { User } from '../users';

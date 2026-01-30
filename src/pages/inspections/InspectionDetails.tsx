@@ -32,6 +32,28 @@ import { API_ORIGIN } from '../../lib/apiConfig';
 
 const STORAGE_ORIGIN = API_ORIGIN;
 
+/** True when app is served from a different origin than the API (e.g. inspectmymachine.in vs api.inspectmymachine.in). */
+function isCrossOriginApi(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.location.origin !== new URL(API_ORIGIN).origin;
+  } catch {
+    return false;
+  }
+}
+
+/** True when the URL points at the API origin (will be blocked by CORS when used as img src from app origin). */
+function isUrlOnApi(url: string): boolean {
+  if (!url || !url.startsWith('http')) return false;
+  try {
+    return new URL(url).origin === new URL(API_ORIGIN).origin;
+  } catch {
+    return url.startsWith(API_ORIGIN);
+  }
+}
+
+const PLACEHOLDER_SVG = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="150"%3E%3Crect fill="%23f3f4f6" width="200" height="150"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="14" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EImage unavailable%3C/text%3E%3C/svg%3E';
+
 type MediaType = 'image' | 'video';
 
 interface AnswerMediaItem {
@@ -396,6 +418,9 @@ const getMediaUrl = useCallback((item: AnswerMediaItem): string => {
     
     // Existing absolute or data URLs
     if (item.url && (item.url.startsWith('http://') || item.url.startsWith('https://') || item.url.startsWith('data:'))) {
+      if (isCrossOriginApi() && isUrlOnApi(item.url)) {
+        return PLACEHOLDER_SVG;
+      }
       // In development, convert absolute URLs to relative paths
       if (import.meta.env.DEV && item.url.startsWith('http')) {
         try {
@@ -410,12 +435,15 @@ const getMediaUrl = useCallback((item: AnswerMediaItem): string => {
     
     // If we have a local URL, use it (prefer this over waiting for signed URL)
     if (item.url) {
+      if (isCrossOriginApi() && isUrlOnApi(item.url)) {
+        return PLACEHOLDER_SVG;
+      }
       return item.url;
     }
     
     // If we have an S3/local key but the signed URL isn't ready yet, show placeholder
     if (item.s3Key && !failedSignedUrls.has(item.s3Key)) {
-      return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="150"%3E%3Crect fill="%23f3f4f6" width="200" height="150"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="14" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ELoading...%3C/text%3E%3C/svg%3E';
+      return PLACEHOLDER_SVG;
     }
     
     return '';
@@ -463,10 +491,8 @@ const getMediaUrl = useCallback((item: AnswerMediaItem): string => {
             
             newCache.set(item.s3Key, urlToCache);
           } catch (error: any) {
-            // 403/404 errors are expected when files don't exist or user lacks permission
-            // Only log as warning to reduce console noise
             if (error?.response?.status === 403 || error?.response?.status === 404) {
-              // Silently handle expected errors - file may not exist or user may not have access
+              setFailedSignedUrls((prev) => new Set(prev).add(item.s3Key!));
             } else {
               logger.error(`Failed to get signed URL for ${item.s3Key}`, error, 'InspectionDetails');
             }
@@ -534,78 +560,65 @@ const getMediaUrl = useCallback((item: AnswerMediaItem): string => {
                       onError={(e) => {
                         const img = e.target as HTMLImageElement;
                         const currentUrl = img.src;
-                        console.warn('[InspectionDetails] Image failed to load:', currentUrl, 'for item:', item);
-                        
-                        // If this was a signed URL that failed, mark it as failed and use local URL
+                        const crossOrigin = isCrossOriginApi();
+                        if (crossOrigin) {
+                          // Don't retry with API URLs when cross-origin (CORS blocks them). Show placeholder once.
+                          img.style.display = 'none';
+                          let placeholder = img.parentElement?.querySelector('.inspection-media-placeholder') as HTMLElement | null;
+                          if (!placeholder) {
+                            placeholder = document.createElement('div');
+                            placeholder.className = 'inspection-media-placeholder';
+                            placeholder.style.cssText = 'width: 100%; height: 140px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 12px;';
+                            placeholder.textContent = 'Image unavailable';
+                            img.parentElement?.appendChild(placeholder);
+                          }
+                          return;
+                        }
                         if (item.s3Key && signedUrlCache.has(item.s3Key) && currentUrl === signedUrlCache.get(item.s3Key)) {
-                          console.log('[InspectionDetails] Signed URL failed, marking as failed and using local URL');
                           setFailedSignedUrls(prev => new Set(prev).add(item.s3Key!));
-                          // Use the local storage URL instead
-                          if (item.url && item.url !== currentUrl) {
+                          if (item.url && item.url !== currentUrl && !isUrlOnApi(item.url)) {
                             img.src = item.url;
                             return;
                           }
                         }
-                        
-                        // Try alternative URL formats
                         const alternatives: string[] = [];
-                        
-                        // First, try the local URL if we have one and it's different
-                        if (item.url && item.url !== currentUrl) {
+                        if (item.url && item.url !== currentUrl && !isUrlOnApi(item.url)) {
                           alternatives.push(item.url);
                         }
-                        
-                        // Try with s3Key directly (it may already be a full path)
                         if (item.s3Key) {
-                          // Don't prepend inspections/media/ if s3Key already starts with it
-                          const keyToUse = item.s3Key.startsWith('inspections/') 
-                            ? item.s3Key 
-                            : `inspections/media/${item.s3Key}`;
+                          const keyToUse = item.s3Key.startsWith('inspections/') ? item.s3Key : `inspections/media/${item.s3Key}`;
                           const builtUrl = buildMediaUrl(keyToUse);
-                          if (builtUrl && builtUrl !== currentUrl) {
+                          if (builtUrl && builtUrl !== currentUrl && !isUrlOnApi(builtUrl)) {
                             alternatives.push(builtUrl);
                           }
                         }
-                        
-                        // If current URL has /storage/, try without it
                         if (currentUrl.includes('/storage/')) {
                           const withoutStorage = currentUrl.replace('/storage/', '/');
-                          if (withoutStorage !== currentUrl) {
+                          if (withoutStorage !== currentUrl && !isUrlOnApi(withoutStorage)) {
                             alternatives.push(withoutStorage);
                           }
                         }
-                        
-                        // Try direct filename (only if it's just a filename, not a path)
-                        if (item.name && item.name.match(/\.(jpg|jpeg|png|gif|webp)/i)) {
-                          // Only prepend if name doesn't already look like a path
-                          if (!item.name.includes('/')) {
-                            const builtUrl = buildMediaUrl(`inspections/media/${item.name}`);
-                            if (builtUrl && builtUrl !== currentUrl) {
-                              alternatives.push(builtUrl);
-                            }
-                          } else {
-                            const builtUrl = buildMediaUrl(item.name);
-                            if (builtUrl && builtUrl !== currentUrl) {
-                              alternatives.push(builtUrl);
-                            }
+                        if (item.name && item.name.match(/\.(jpg|jpeg|png|gif|webp)/i) && !item.name.includes('/')) {
+                          const builtUrl = buildMediaUrl(`inspections/media/${item.name}`);
+                          if (builtUrl && builtUrl !== currentUrl && !isUrlOnApi(builtUrl)) {
+                            alternatives.push(builtUrl);
                           }
                         }
-                        
-                        // Try next alternative
                         for (const altUrl of alternatives) {
                           if (altUrl && altUrl !== currentUrl) {
-                            console.log('[InspectionDetails] Trying alternative URL:', altUrl);
                             img.src = altUrl;
                             return;
                           }
                         }
-                        
-                        // If all alternatives fail, show placeholder
                         img.style.display = 'none';
-                        const placeholder = document.createElement('div');
-                        placeholder.style.cssText = 'width: 100%; height: 140px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 12px;';
-                        placeholder.textContent = 'Image not found';
-                        img.parentElement?.appendChild(placeholder);
+                        let placeholder = img.parentElement?.querySelector('.inspection-media-placeholder') as HTMLElement | null;
+                        if (!placeholder) {
+                          placeholder = document.createElement('div');
+                          placeholder.className = 'inspection-media-placeholder';
+                          placeholder.style.cssText = 'width: 100%; height: 140px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 12px;';
+                          placeholder.textContent = 'Image not found';
+                          img.parentElement?.appendChild(placeholder);
+                        }
                       }}
                     />
                   </a>

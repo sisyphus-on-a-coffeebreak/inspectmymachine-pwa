@@ -20,8 +20,8 @@ export function BottomNav() {
 
   // Get role-based navigation config from unified navigation (fallback ensures config.items exists for custom roles)
   const role = (user?.role || 'clerk') as 'super_admin' | 'admin' | 'supervisor' | 'yard_incharge' | 'executive' | 'inspector' | 'guard' | 'clerk';
-  const config: MobileNavConfig = getMobileNavConfigForRole(role);
-  const items = config?.items ?? [];
+  const config = getMobileNavConfigForRole(role);
+  const items = (config && Array.isArray(config.items)) ? config.items : [];
   const moreItems = getMoreItemsForRole(role);
 
   // Get approval count for badge (only for users with approval capabilities)
@@ -317,7 +317,7 @@ export function BottomNav() {
       )}
 
       {/* Floating Action Button - Use CustomizableFAB for enhanced experience */}
-      {config.fab && (
+      {config?.fab && (
         <CustomizableFAB
           defaultActions={config.fab.actions}
           onCustomize={() => {

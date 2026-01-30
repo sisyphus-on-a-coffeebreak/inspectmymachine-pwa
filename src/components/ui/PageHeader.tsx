@@ -9,7 +9,7 @@ import './PageHeader.css';
 interface PageHeaderProps {
   title: string;
   subtitle?: string | React.ReactNode; // Allow ReactNode to support complex subtitles
-  icon?: string;
+  icon?: string | React.ReactNode;
   breadcrumbs?: BreadcrumbItem[];
   actions?: React.ReactNode;
   onBack?: () => void;
@@ -82,7 +82,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
               alignItems: 'center',
               gap: spacing.sm
             }}>
-              {icon && <span style={{ fontSize: '24px' }}>{icon}</span>}
+              {icon && <span style={{ fontSize: '24px', display: 'flex', alignItems: 'center' }}>{icon}</span>}
               {title}
             </h1>
             {subtitle && (

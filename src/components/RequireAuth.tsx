@@ -38,7 +38,7 @@ export default function RequireAuth({ children }: RequireAuthProps) {
  * Migration guide:
  * - Replace `RequireRole roles={["admin"]}` with `RequireCapability module="reports" action="read"`
  * - Map each role array to appropriate capability checks
- * - See docs/ROLE_TO_CAPABILITY_MIGRATION_PLAN.md for details
+ * - See docs/DEVELOPER_GUIDE.md for details
  * 
  * @example
  * // ❌ OLD (deprecated)
@@ -61,7 +61,7 @@ export function RequireRole({ children, roles }: { children: ReactNode; roles: R
   if (process.env.NODE_ENV === 'development') {
     console.warn(
       'RequireRole is deprecated. Use RequireCapability instead. ' +
-      'See docs/ROLE_TO_CAPABILITY_MIGRATION_PLAN.md for migration guide.'
+      'See docs/DEVELOPER_GUIDE.md for details.'
     );
   }
 

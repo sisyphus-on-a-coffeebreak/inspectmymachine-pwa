@@ -8,6 +8,26 @@ import { apiClient } from '../../lib/apiClient';
 import { API_ORIGIN } from '../../lib/apiConfig';
 import { CardGrid } from '../ui/ResponsiveGrid';
 
+function isCrossOriginApi(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.location.origin !== new URL(API_ORIGIN).origin;
+  } catch {
+    return false;
+  }
+}
+
+function isUrlOnApi(url: string): boolean {
+  if (!url || !url.startsWith('http')) return false;
+  try {
+    return new URL(url).origin === new URL(API_ORIGIN).origin;
+  } catch {
+    return url.startsWith(API_ORIGIN);
+  }
+}
+
+const PLACEHOLDER_SVG = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="150"%3E%3Crect fill="%23f3f4f6" width="200" height="150"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="14" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EImage unavailable%3C/text%3E%3C/svg%3E';
+
 interface MediaFile {
   id: string;
   url: string;
@@ -250,6 +270,9 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
   const getImageUrl = (image: MediaFile): string => {
     // If we have a direct URL (already signed or public), use it
     if (image.url && (image.url.startsWith('http') || image.url.startsWith('data:'))) {
+      if (isCrossOriginApi() && isUrlOnApi(image.url)) {
+        return PLACEHOLDER_SVG;
+      }
       return image.url;
     }
     
@@ -257,27 +280,22 @@ export const ImageDownloadManager: React.FC<ImageDownloadManagerProps> = ({
     // The signed endpoint now returns public URLs for local files and signed URLs for S3 files
     if (image.s3Key && signedUrlCache.has(image.s3Key)) {
       let cachedUrl = signedUrlCache.get(image.s3Key)!;
-      
-      // In development, convert absolute URLs to relative paths to use Vite proxy
+      if (isCrossOriginApi() && isUrlOnApi(cachedUrl)) {
+        return PLACEHOLDER_SVG;
+      }
       if (import.meta.env.DEV && cachedUrl.startsWith('http')) {
-        // Extract the path from the URL (e.g., /storage/inspections/media/...)
         try {
           const urlObj = new URL(cachedUrl);
-          const path = urlObj.pathname;
-          // Use relative path - Vite proxy will handle it
-          return path;
+          return urlObj.pathname;
         } catch (e) {
-          // If URL parsing fails, return as-is
           return cachedUrl;
         }
       }
-      
       return cachedUrl;
     }
     
-    // If we have a storage key but no URL yet, return placeholder
     if (image.s3Key) {
-      return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="150"%3E%3Crect fill="%23f3f4f6" width="200" height="150"/%3E%3Ctext fill="%239ca3af" font-family="sans-serif" font-size="14" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3ELoading...%3C/text%3E%3C/svg%3E';
+      return PLACEHOLDER_SVG;
     }
     
     // Fallback: try to construct URL from image.url (shouldn't happen if storageKey is set)

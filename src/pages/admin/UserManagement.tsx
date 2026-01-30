@@ -11,11 +11,11 @@
  * - Pull-to-refresh support
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/providers/useAuth';
 import { useHasCapability } from '@/components/ui/PermissionGate';
-import { hasCapability, isSuperAdmin, type User } from '@/lib/users';
+import { isSuperAdmin, type User } from '@/lib/users';
 import { useUsers, useRoles, useDeleteUser, useBulkUserOperation } from '@/hooks/useUsers';
 import { useUserFilters } from '@/hooks/useUserFilters';
 import { UserList } from '@/components/users/UserList';
@@ -28,10 +28,9 @@ import { NetworkError } from '@/components/ui/NetworkError';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { PullToRefreshWrapper } from '@/components/ui/PullToRefreshWrapper';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { UserCog, Plus, Filter } from 'lucide-react';
-import { colors, spacing } from '@/lib/theme';
+import { UserCog, Plus } from 'lucide-react';
+import { spacing } from '@/lib/theme';
 import { ExportButton } from '@/components/ui/ExportButton';
-import { exportToCSV, exportToExcel } from '@/lib/exportUtils';
 
 export default function UserManagement() {
   const navigate = useNavigate();
@@ -51,8 +50,6 @@ export default function UserManagement() {
     searchTerm,
     filterRole,
     filterStatus,
-    page,
-    perPage,
   } = useUserFilters();
 
   // Fetch users using new hook
@@ -82,9 +79,9 @@ export default function UserManagement() {
   const [lastSuperAdminIds, setLastSuperAdminIds] = useState<Set<number>>(new Set());
 
   // Extract data
-  const users = data?.data || [];
+  const users = useMemo(() => data?.data ?? [], [data?.data]);
   const meta = data?.meta;
-  const totalUsers = meta?.total || users.length;
+  const totalUsers = meta?.total ?? users.length;
 
   // Check which users are last superadmins
   useEffect(() => {
@@ -105,7 +102,7 @@ export default function UserManagement() {
     navigate(`/app/admin/users/${user.id}/edit`);
   };
 
-  const handleDelete = (userId: number, userName: string) => {
+  const handleDelete = (userId: number, _userName: string) => { // eslint-disable-line @typescript-eslint/no-unused-vars
     if (lastSuperAdminIds.has(userId)) {
       // This should be handled by the UserList component, but just in case
       return;
@@ -154,7 +151,7 @@ export default function UserManagement() {
       });
       setSelectedUsers([]);
       setConfirmDelete(null);
-    } catch (error) {
+    } catch {
       // Error handled by mutation hook
     }
   };
@@ -165,40 +162,8 @@ export default function UserManagement() {
     try {
       await deleteMutation.mutateAsync(confirmDelete.userIds[0]);
       setConfirmDelete(null);
-    } catch (error) {
+    } catch {
       // Error handled by mutation hook
-    }
-  };
-
-  const handleExport = async (format: 'csv' | 'excel') => {
-    if (users.length === 0) {
-      return;
-    }
-
-    // Prepare export data
-    const exportData = users.map((user) => ({
-      'Employee ID': user.employee_id,
-      Name: user.name,
-      Email: user.email,
-      Role: user.role,
-      Status: user.is_active ? 'Active' : 'Inactive',
-      'Last Login': user.last_login_at ? new Date(user.last_login_at).toLocaleString() : 'Never',
-      'Created At': user.created_at ? new Date(user.created_at).toLocaleString() : '',
-    }));
-
-    const options = {
-      filename: `users-export-${new Date().toISOString().split('T')[0]}.${format === 'csv' ? 'csv' : 'xlsx'}`,
-      headers: ['Employee ID', 'Name', 'Email', 'Role', 'Status', 'Last Login', 'Created At'],
-    };
-
-    try {
-      if (format === 'csv') {
-        exportToCSV(exportData, options);
-      } else {
-        await exportToExcel(exportData, options);
-      }
-    } catch (error) {
-      console.error('Export failed:', error);
     }
   };
 
@@ -229,7 +194,7 @@ export default function UserManagement() {
   }
 
   return (
-    <PullToRefreshWrapper onRefresh={async () => await refetch()}>
+    <PullToRefreshWrapper onRefresh={async () => { await refetch(); }}>
       <div style={{ padding: spacing.xl }}>
         {/* Page Header */}
         <PageHeader
@@ -342,27 +307,27 @@ export default function UserManagement() {
           isOpen={confirmDelete !== null}
           onClose={() => setConfirmDelete(null)}
           onConfirm={
-            confirmDelete?.action === 'delete' && confirmDelete.userIds.length === 1
+            confirmDelete?.action === 'delete' && (confirmDelete?.userIds?.length ?? 0) === 1
               ? confirmSingleDelete
               : confirmBulkOperation
           }
           title={
             confirmDelete?.action === 'delete'
-              ? confirmDelete.userIds.length === 1
+              ? (confirmDelete?.userIds?.length ?? 0) === 1
                 ? 'Delete User'
-                : `Delete ${confirmDelete.userIds.length} Users`
+                : `Delete ${confirmDelete?.userIds?.length ?? 0} Users`
               : confirmDelete?.action === 'activate'
-              ? `Activate ${confirmDelete.userIds.length} Users`
-              : `Deactivate ${confirmDelete.userIds.length} Users`
+              ? `Activate ${confirmDelete?.userIds?.length ?? 0} Users`
+              : `Deactivate ${confirmDelete?.userIds?.length ?? 0} Users`
           }
           description={
             confirmDelete?.action === 'delete'
-              ? confirmDelete.userIds.length === 1
+              ? (confirmDelete?.userIds?.length ?? 0) === 1
                 ? 'Are you sure you want to delete this user? This action cannot be undone.'
-                : `Are you sure you want to delete ${confirmDelete.userIds.length} users? This action cannot be undone.`
+                : `Are you sure you want to delete ${confirmDelete?.userIds?.length ?? 0} users? This action cannot be undone.`
               : confirmDelete?.action === 'activate'
-              ? `Are you sure you want to activate ${confirmDelete.userIds.length} users?`
-              : `Are you sure you want to deactivate ${confirmDelete.userIds.length} users?`
+              ? `Are you sure you want to activate ${confirmDelete?.userIds?.length ?? 0} users?`
+              : `Are you sure you want to deactivate ${confirmDelete?.userIds?.length ?? 0} users?`
           }
           confirmText={
             confirmDelete?.action === 'delete'
@@ -371,8 +336,8 @@ export default function UserManagement() {
               ? 'Activate'
               : 'Deactivate'
           }
-          confirmVariant={confirmDelete?.action === 'delete' ? 'critical' : 'primary'}
-          requireTyping={confirmDelete?.action === 'delete' ? 'DELETE' : undefined}
+          confirmVariant={confirmDelete?.action === 'delete' ? 'critical' : 'warning'}
+          requireTyping={confirmDelete?.action === 'delete'}
         />
       </div>
     </PullToRefreshWrapper>

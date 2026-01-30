@@ -44,7 +44,7 @@ export interface UserCapabilities {
  * - After migration: Capabilities are the only source of truth
  * - Role remains for display/UI purposes only
  * 
- * See: docs/ROLE_TO_CAPABILITY_MIGRATION_PLAN.md for details
+ * See: docs/DEVELOPER_GUIDE.md for details
  */
 export interface User {
   id: number;

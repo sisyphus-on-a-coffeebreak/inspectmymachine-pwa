@@ -13,8 +13,13 @@ export interface UseVehicleCostsOptions {
   dateFrom?: string;
   dateTo?: string;
   category?: string;
+  /** When false, no request is made. Use when backend does not implement /vehicles/costs yet. */
   enabled?: boolean;
 }
+
+/** Backend supports vehicle costs API. Set VITE_VEHICLE_COSTS_ENABLED=false to skip requests until backend implements the endpoint. */
+const isVehicleCostsApiEnabled = () =>
+  import.meta.env.VITE_VEHICLE_COSTS_ENABLED !== 'false';
 
 /**
  * Hook for fetching vehicle cost records
@@ -28,6 +33,8 @@ export function useVehicleCosts(options: UseVehicleCostsOptions = {}) {
     enabled = true,
   } = options;
 
+  const effectivelyEnabled = enabled && isVehicleCostsApiEnabled();
+
   return useQuery<VehicleCostRecord[]>({
     queryKey: ['vehicleCosts', vehicleId, dateFrom, dateTo, category],
     queryFn: () => fetchVehicleCosts({
@@ -36,9 +43,10 @@ export function useVehicleCosts(options: UseVehicleCostsOptions = {}) {
       dateTo,
       category,
     }),
-    enabled,
+    enabled: effectivelyEnabled,
     staleTime: 60 * 1000, // 1 minute
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false, // Avoid repeated 404s when backend endpoint is not implemented yet
+    retry: false, // Don't retry when endpoint returns 404 (backend may not have /vehicles/costs yet)
   });
 }
 

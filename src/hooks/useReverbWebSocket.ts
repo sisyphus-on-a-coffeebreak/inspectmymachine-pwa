@@ -102,9 +102,10 @@ export function useReverbWebSocket(options: UseReverbWebSocketOptions = {}): Use
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const pusherRef = useRef<Pusher | null>(null);
-  const channelRef = useRef<any>(null);
-  const connectingRef = useRef(false); // Prevent multiple connection attempts
-  const permanentlyDisabledRef = useRef(isWebSocketDisabled); // Disable if WebSocket is disabled
+  const channelRef = useRef<{ unbind_all: () => void; unsubscribe: () => void } | null>(null);
+  const connectingRef = useRef(false);
+  const permanentlyDisabledRef = useRef(isWebSocketDisabled);
+  const previousPusherLogRef = useRef<((msg: string) => void) | undefined>(undefined);
 
   const connect = useCallback(() => {
     // Early exit if WebSocket is disabled - check this first to prevent any Pusher operations
@@ -130,6 +131,11 @@ export function useReverbWebSocket(options: UseReverbWebSocketOptions = {}): Use
     connectingRef.current = true;
     setIsConnecting(true);
     setError(null);
+
+    // Suppress Pusher's internal logging (WebSocket failed / closed before connection) - e.g. React Strict Mode double-mount
+    const pusherProto = Pusher as unknown as { log?: (msg: string) => void };
+    previousPusherLogRef.current = pusherProto.log;
+    pusherProto.log = () => {};
 
     // Store original console methods for restoration
     const originalError = console.error;
@@ -167,8 +173,6 @@ export function useReverbWebSocket(options: UseReverbWebSocketOptions = {}): Use
         enabledTransports: reverbScheme === 'wss' ? ['wss'] : ['ws'],
         disableStats: true,
         cluster: '', // Reverb doesn't use cluster - empty string is required
-        // Suppress Pusher's internal logging unless explicitly enabled
-        enableLogging: import.meta.env.VITE_ENABLE_WEBSOCKET === 'true',
         // Custom authorizer: skip auth for public channels
         authorizer: (channel: any, options: any) => {
           return {
@@ -212,7 +216,9 @@ export function useReverbWebSocket(options: UseReverbWebSocketOptions = {}): Use
       }
 
       pusher.connection.bind('connected', () => {
-        // Restore console methods on successful connection
+        // Restore Pusher log and console methods on successful connection
+        const prev = previousPusherLogRef.current;
+        if (prev !== undefined) (Pusher as unknown as { log?: (msg: string) => void }).log = prev;
         if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_WEBSOCKET !== 'true') {
           console.error = originalError;
           console.warn = originalWarn;
@@ -376,13 +382,16 @@ export function useReverbWebSocket(options: UseReverbWebSocketOptions = {}): Use
     }
     if (pusherRef.current) {
       try {
-        // Silently disconnect - errors are expected when server is unavailable
         pusherRef.current.disconnect();
       } catch {
-        // Ignore disconnect errors - these are expected when WebSocket server is not running
+        // Ignore disconnect errors
       }
       pusherRef.current = null;
     }
+    // Restore Pusher.log when disconnecting (e.g. React Strict Mode unmount)
+    const prev = previousPusherLogRef.current;
+    if (prev !== undefined) (Pusher as unknown as { log?: (msg: string) => void }).log = prev;
+    previousPusherLogRef.current = undefined;
     setIsConnected(false);
     setIsConnecting(false);
   }, []);
